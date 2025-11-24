@@ -1,0 +1,8 @@
+{
+  "name": "PersonaCreator AI",
+  "description": "Create a digital persona from your photos and generate amazing videos and images using Google Veo and Gemini models.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
