@@ -3,41 +3,28 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Обновлены цветовые токены для темной темы PersonaAI */
+/* Светлая тема с минималистичной цветовой палитрой */
 :root {
-  --background: oklch(0.02 0.01 260);
-  --foreground: oklch(0.95 0 0);
-  --card: oklch(0.08 0.01 260);
-  --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.08 0.01 260);
-  --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.65 0.25 280);
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.15 0.01 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0.01 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.01 260);
+  --primary: oklch(0.45 0.2 260);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.15 0.01 260);
-  --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.2 0.01 260);
-  --muted-foreground: oklch(0.6 0 0);
-  --accent: oklch(0.55 0.2 260);
-  --accent-foreground: oklch(1 0 0);
+  --secondary: oklch(0.96 0.01 260);
+  --secondary-foreground: oklch(0.15 0.01 260);
+  --muted: oklch(0.96 0.005 260);
+  --muted-foreground: oklch(0.45 0.01 260);
+  --accent: oklch(0.96 0.01 260);
+  --accent-foreground: oklch(0.15 0.01 260);
   --destructive: oklch(0.55 0.2 25);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.25 0.01 260);
-  --input: oklch(0.2 0.01 260);
-  --ring: oklch(0.65 0.25 280);
-  --radius: 0.75rem;
-  --sidebar: oklch(0.06 0.01 260);
-  --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.65 0.25 280);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.15 0.01 260);
-  --sidebar-accent-foreground: oklch(0.95 0 0);
-  --sidebar-border: oklch(0.2 0.01 260);
-  --sidebar-ring: oklch(0.65 0.25 280);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --border: oklch(0.92 0.005 260);
+  --input: oklch(0.96 0.005 260);
+  --ring: oklch(0.45 0.2 260);
+  --radius: 1rem;
 }
 
 .dark {
@@ -120,10 +107,10 @@
   }
 }
 
-/* Добавлены кастомные стили скроллбара */
+/* Минималистичный скроллбар */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -131,10 +118,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.3 0.01 260);
-  border-radius: 3px;
+  background: oklch(0.85 0.005 260);
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.4 0.01 260);
+  background: oklch(0.75 0.01 260);
 }
