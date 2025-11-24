@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
+    "@neondatabase/serverless": "latest",
     "@vercel/analytics": "latest",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

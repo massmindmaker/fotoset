@@ -1,134 +1,182 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import {
+  Sparkles,
   Plus,
   ArrowLeft,
   ArrowRight,
-  ImageIcon,
-  Download,
+  Camera,
+  Loader2,
   X,
   CheckCircle2,
-  Loader2,
-  Sparkles,
-  User,
-  Camera,
-  Briefcase,
+  Download,
+  Images,
   Palette,
+  Upload,
+  User,
+  Zap,
+  Shield,
+  Star,
+  ChevronRight,
   Lock,
+  Briefcase,
+  Sunset,
+  Brush,
 } from "lucide-react"
 
-// --- TYPES ---
-export interface UploadedImage {
+// Types
+interface UploadedImage {
   id: string
-  previewUrl: string
   base64: string
   mimeType: string
+  previewUrl: string
 }
 
-export interface GeneratedAsset {
+interface GeneratedAsset {
   id: string
   type: "PHOTO"
   url: string
   styleId: string
+  prompt?: string
   createdAt: number
 }
 
-export interface Persona {
+interface Persona {
   id: string
   name: string
-  status: "draft" | "ready" | "processing"
-  thumbnailUrl?: string
+  status: "draft" | "processing" | "ready"
   images: UploadedImage[]
   generatedAssets: GeneratedAsset[]
+  thumbnailUrl?: string
 }
 
-export interface StylePreset {
+interface StylePreset {
   id: string
   name: string
   description: string
-  imageUrl: string
-  prompt: string
   icon: React.ReactNode
+  imageUrl: string
 }
-
-export type ViewState =
-  | { view: "DASHBOARD" }
-  | { view: "CREATE_PERSONA_UPLOAD"; personaId: string }
-  | { view: "SELECT_STYLE"; personaId: string }
-  | { view: "RESULTS"; personaId: string }
 
 const STYLE_PRESETS: StylePreset[] = [
   {
-    id: "professional-headshot",
-    name: "Профессиональный портрет",
-    description: "Деловой портрет для LinkedIn и резюме",
-    imageUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600",
+    id: "professional",
+    name: "Профессиональный",
+    description: "Деловые портреты для LinkedIn, резюме и корпоративных материалов",
     icon: <Briefcase className="w-5 h-5" />,
-    prompt: `Professional corporate headshot portrait photography.
-Subject wearing a tailored navy blue suit with a crisp white dress shirt.
-Soft, diffused studio lighting from 45-degree angle creating gentle shadows.
-Clean gradient background transitioning from light gray to white.
-Shot on Canon EOS R5 with 85mm f/1.4 lens at f/2.8.
-Sharp focus on eyes with natural skin texture preserved.
-Confident, approachable expression with slight smile.
-Color grading: neutral tones with subtle warmth.
-Resolution: 8K, professional retouching maintaining natural appearance.
-Composition: head and shoulders, rule of thirds positioning.`,
+    imageUrl: "/professional-business-portrait-man-suit-office.jpg",
   },
   {
-    id: "lifestyle-casual",
-    name: "Lifestyle портрет",
-    description: "Естественный портрет для социальных сетей",
-    imageUrl: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=600",
-    icon: <Camera className="w-5 h-5" />,
-    prompt: `Natural lifestyle portrait photography in urban environment.
-Subject in casual premium clothing: high-quality cotton t-shirt, minimal accessories.
-Golden hour natural lighting, sun positioned behind subject creating rim light.
-Modern city cafe or co-working space background with bokeh effect.
-Shot on Sony A7IV with 50mm f/1.2 lens at f/1.8.
-Candid, relaxed pose as if caught mid-conversation.
-Warm color palette with teal and orange color grading.
-Authentic expression showing genuine personality.
-Film grain overlay for organic texture.
-Resolution: 4K, minimal editing preserving natural skin tones.
-Environmental portrait style with context and story.`,
+    id: "lifestyle",
+    name: "Lifestyle",
+    description: "Естественные casual-фото для Instagram и социальных сетей",
+    icon: <Sunset className="w-5 h-5" />,
+    imageUrl: "/lifestyle-casual-portrait-outdoor-sunset.jpg",
   },
   {
-    id: "creative-artistic",
-    name: "Креативный портрет",
-    description: "Художественный портрет для творческих проектов",
-    imageUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600",
-    icon: <Palette className="w-5 h-5" />,
-    prompt: `High-fashion editorial portrait photography.
-Subject with bold, confident expression and dynamic pose.
-Dramatic studio lighting: key light with strong contrast, accent rim light.
-Minimalist solid color backdrop in deep charcoal or pure white.
-Shot on Hasselblad H6D-100c medium format with 80mm f/2.8.
-Fashion-forward styling with contemporary designer elements.
-High contrast black and white conversion option available.
-Inspired by Peter Lindbergh and Annie Leibovitz aesthetics.
-Sharp detail on facial features with intentional shadow play.
-Magazine cover composition with space for typography.
-Resolution: 8K, professional color grading with rich tonal range.
-Emphasis on texture, emotion, and artistic vision.`,
+    id: "creative",
+    name: "Креативный",
+    description: "Художественные портреты для творческих проектов и портфолио",
+    icon: <Brush className="w-5 h-5" />,
+    imageUrl: "/creative-artistic-portrait-colorful-studio.jpg",
   },
 ]
 
-// --- MAIN APP COMPONENT ---
+const EXAMPLE_WORKS = [
+  {
+    before: "/selfie-casual-photo.jpg",
+    after: "/professional-headshot.png",
+    style: "Профессиональный",
+  },
+  {
+    before: "/home-selfie.jpg",
+    after: "/lifestyle-outdoor-portrait.jpg",
+    style: "Lifestyle",
+  },
+  {
+    before: "/mirror-selfie.jpg",
+    after: "/artistic-creative-portrait.jpg",
+    style: "Креативный",
+  },
+]
+
+type ViewState =
+  | { view: "ONBOARDING" }
+  | { view: "DASHBOARD" }
+  | { view: "CREATE_PERSONA_UPLOAD"; personaId: string }
+  | { view: "SELECT_STYLE"; personaId: string }
+  | { view: "GENERATING"; personaId: string; progress: number }
+  | { view: "RESULTS"; personaId: string }
+
+function getDeviceId(): string {
+  if (typeof window === "undefined") return ""
+  let deviceId = localStorage.getItem("photoset_device_id")
+  if (!deviceId) {
+    deviceId = crypto.randomUUID()
+    localStorage.setItem("photoset_device_id", deviceId)
+  }
+  return deviceId
+}
+
 export default function PersonaApp() {
-  const [viewState, setViewState] = useState<ViewState>({ view: "DASHBOARD" })
+  const [viewState, setViewState] = useState<ViewState>({ view: "ONBOARDING" })
   const [personas, setPersonas] = useState<Persona[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false)
+  const [generationProgress, setGenerationProgress] = useState(0)
   const [isPro, setIsPro] = useState(false)
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false)
+  const [deviceId, setDeviceId] = useState("")
+  const [isReady, setIsReady] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const id = getDeviceId()
+    setDeviceId(id)
+
+    // Проверяем локальный кэш Pro статуса
+    const cachedPro = localStorage.getItem("photoset_is_pro")
+    if (cachedPro === "true") {
+      setIsPro(true)
+    }
+
+    // Проверяем онбординг сразу
+    const hasSeenOnboarding = localStorage.getItem("photoset_onboarding_complete")
+    if (hasSeenOnboarding) {
+      setViewState({ view: "DASHBOARD" })
+    }
+
+    setIsReady(true)
+
+    // Проверяем статус на сервере в фоне (не блокируем UI)
+    fetch(`/api/payment/status?device_id=${id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.isPro) {
+          setIsPro(true)
+          localStorage.setItem("photoset_is_pro", "true")
+        }
+      })
+      .catch((err) => {
+        console.error("[v0] Payment status check failed:", err)
+        // Не блокируем UI при ошибке
+      })
+  }, [])
+
+  const completeOnboarding = () => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("photoset_onboarding_complete", "true")
+    }
+    setViewState({ view: "DASHBOARD" })
+  }
 
   const handleCreatePersona = () => {
     const newId = Date.now().toString()
     const newPersona: Persona = {
       id: newId,
-      name: "Новый проект",
+      name: "Мой аватар",
       status: "draft",
       images: [],
       generatedAssets: [],
@@ -143,7 +191,7 @@ export default function PersonaApp() {
 
   const deletePersona = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (confirm("Удалить этот проект?")) {
+    if (confirm("Удалить этот аватар?")) {
       setPersonas((prev) => prev.filter((p) => p.id !== id))
       if ("personaId" in viewState && viewState.personaId === id) {
         setViewState({ view: "DASHBOARD" })
@@ -161,117 +209,353 @@ export default function PersonaApp() {
   const handleGenerate = async (style: StylePreset) => {
     const p = getActivePersona()!
     setIsGenerating(true)
-    try {
-      // Demo: simulate generation delay
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+    setGenerationProgress(0)
+    setViewState({ view: "GENERATING", personaId: p.id, progress: 0 })
 
-      const newAsset: GeneratedAsset = {
-        id: Date.now().toString(),
-        type: "PHOTO",
-        url: style.imageUrl,
+    try {
+      // Получаем base64 референсных изображений
+      const referenceImages = p.images.slice(0, 5).map((img) => img.base64)
+
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceId,
+          avatarId: p.id,
+          styleId: style.id,
+          referenceImages,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Generation failed")
+      }
+
+      const data = await response.json()
+
+      // Создаем assets из полученных фото
+      const newAssets: GeneratedAsset[] = data.photos.map((url: string, index: number) => ({
+        id: `${Date.now()}-${index}`,
+        type: "PHOTO" as const,
+        url,
         styleId: style.id,
         createdAt: Date.now(),
-      }
+      }))
 
       updatePersona(p.id, {
         status: "ready",
-        generatedAssets: [newAsset, ...p.generatedAssets],
-        thumbnailUrl: p.thumbnailUrl || newAsset.url,
+        generatedAssets: [...newAssets, ...p.generatedAssets],
+        thumbnailUrl: p.thumbnailUrl || newAssets[0]?.url,
       })
 
       setViewState({ view: "RESULTS", personaId: p.id })
     } catch (e: unknown) {
       console.error(e)
       alert(e instanceof Error ? e.message : "Ошибка генерации")
+      setViewState({ view: "SELECT_STYLE", personaId: p.id })
     } finally {
       setIsGenerating(false)
+      setGenerationProgress(0)
     }
+  }
+
+  const handlePayment = async () => {
+    try {
+      const p = getActivePersona()
+      const response = await fetch("/api/payment/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceId,
+          avatarId: p?.id,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Payment creation failed")
+      }
+
+      const data = await response.json()
+
+      if (data.confirmationUrl) {
+        // Редирект на страницу оплаты YooKassa
+        window.location.href = data.confirmationUrl
+      }
+    } catch (error) {
+      console.error("Payment error:", error)
+      alert("Ошибка создания платежа. Попробуйте позже.")
+    }
+  }
+
+  if (!isReady) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Загрузка...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Header - мобильный */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
+      {viewState.view === "ONBOARDING" ? (
+        <OnboardingView onComplete={completeOnboarding} onStart={handleCreatePersona} />
+      ) : viewState.view === "GENERATING" ? (
+        <GeneratingView progress={generationProgress} totalPhotos={23} />
+      ) : (
+        <>
+          {/* Header */}
+          <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border safe-area-inset-top">
+            <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-primary-foreground" />
+                </div>
+                <span className="font-semibold text-lg">Photoset</span>
+                {isPro && (
+                  <span className="text-xs bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full font-medium">
+                    PRO
+                  </span>
+                )}
+              </div>
+              {viewState.view === "DASHBOARD" && (
+                <button
+                  onClick={handleCreatePersona}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 transition-opacity active:scale-95"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Создать</span>
+                </button>
+              )}
             </div>
-            <span className="font-semibold text-lg">Photoset</span>
-          </div>
-          {viewState.view === "DASHBOARD" && (
-            <button
-              onClick={handleCreatePersona}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Создать</span>
-            </button>
-          )}
-        </div>
-      </header>
+          </header>
 
-      {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 py-6">
-        {viewState.view === "DASHBOARD" && (
-          <AvatarsView
-            personas={personas}
-            onCreate={handleCreatePersona}
-            onSelect={(id) => {
-              const p = personas.find((x) => x.id === id)
-              if (p?.status === "draft") setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: id })
-              else setViewState({ view: "RESULTS", personaId: id })
-            }}
-            onDelete={deletePersona}
-          />
-        )}
+          {/* Main Content */}
+          <main className="max-w-5xl mx-auto px-4 py-6">
+            {viewState.view === "DASHBOARD" && (
+              <DashboardView
+                personas={personas}
+                onCreate={handleCreatePersona}
+                onSelect={(id) => {
+                  const p = personas.find((x) => x.id === id)
+                  if (p?.status === "draft") setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: id })
+                  else setViewState({ view: "RESULTS", personaId: id })
+                }}
+                onDelete={deletePersona}
+              />
+            )}
 
-        {viewState.view === "CREATE_PERSONA_UPLOAD" && getActivePersona() && (
-          <UploadView
-            persona={getActivePersona()!}
-            updatePersona={updatePersona}
-            onBack={() => setViewState({ view: "DASHBOARD" })}
-            onNext={() => setViewState({ view: "SELECT_STYLE", personaId: viewState.personaId })}
-          />
-        )}
+            {viewState.view === "CREATE_PERSONA_UPLOAD" && getActivePersona() && (
+              <UploadView
+                persona={getActivePersona()!}
+                updatePersona={updatePersona}
+                onBack={() => setViewState({ view: "DASHBOARD" })}
+                onNext={() => setViewState({ view: "SELECT_STYLE", personaId: viewState.personaId })}
+              />
+            )}
 
-        {viewState.view === "SELECT_STYLE" && getActivePersona() && (
-          <StyleSelectView
-            persona={getActivePersona()!}
-            onBack={() => setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: viewState.personaId })}
-            onGenerate={handleGenerate}
-            isGenerating={isGenerating}
-            isPro={isPro}
-            onUpgrade={() => setIsPaymentOpen(true)}
-          />
-        )}
+            {viewState.view === "SELECT_STYLE" && getActivePersona() && (
+              <StyleSelectView
+                persona={getActivePersona()!}
+                onBack={() => setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: viewState.personaId })}
+                onGenerate={handleGenerate}
+                isGenerating={isGenerating}
+                isPro={isPro}
+                onUpgrade={handlePayment}
+              />
+            )}
 
-        {viewState.view === "RESULTS" && getActivePersona() && (
-          <ResultsView
-            persona={getActivePersona()!}
-            onBack={() => setViewState({ view: "DASHBOARD" })}
-            onGenerateMore={() => setViewState({ view: "SELECT_STYLE", personaId: viewState.personaId })}
-          />
-        )}
-      </main>
+            {viewState.view === "RESULTS" && getActivePersona() && (
+              <ResultsView
+                persona={getActivePersona()!}
+                onBack={() => setViewState({ view: "DASHBOARD" })}
+                onGenerateMore={() => setViewState({ view: "SELECT_STYLE", personaId: viewState.personaId })}
+              />
+            )}
+          </main>
+        </>
+      )}
 
       {isPaymentOpen && (
-        <PaymentModal
-          isOpen={isPaymentOpen}
-          onClose={() => setIsPaymentOpen(false)}
-          onSuccess={() => {
-            setIsPro(true)
-            setIsPaymentOpen(false)
-          }}
-        />
+        <PaymentModal isOpen={isPaymentOpen} onClose={() => setIsPaymentOpen(false)} onPayment={handlePayment} />
       )}
     </div>
   )
 }
 
-// --- SUB-VIEWS ---
+// --- GENERATING VIEW ---
+const GeneratingView: React.FC<{
+  progress: number
+  totalPhotos: number
+}> = ({ progress, totalPhotos }) => {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6">
+      <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mb-8">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+      </div>
 
-const AvatarsView: React.FC<{
+      <h1 className="text-2xl font-bold text-center mb-2">Генерируем ваши фото</h1>
+      <p className="text-muted-foreground text-center mb-8">Создаём {totalPhotos} уникальных изображений...</p>
+
+      <div className="w-full max-w-xs">
+        <div className="h-2 bg-muted rounded-full overflow-hidden mb-2">
+          <div
+            className="h-full bg-primary transition-all duration-500"
+            style={{ width: `${(progress / totalPhotos) * 100}%` }}
+          />
+        </div>
+        <p className="text-sm text-center text-muted-foreground">
+          {progress} из {totalPhotos} фото
+        </p>
+      </div>
+
+      <p className="text-xs text-muted-foreground mt-8 text-center max-w-sm">
+        Это может занять 5-10 минут. Вы можете закрыть эту страницу - мы отправим уведомление когда будет готово.
+      </p>
+    </div>
+  )
+}
+
+// --- ONBOARDING VIEW ---
+const OnboardingView: React.FC<{
+  onComplete: () => void
+  onStart: () => void
+}> = ({ onComplete, onStart }) => {
+  const [step, setStep] = useState(0)
+
+  const steps = [
+    {
+      title: "Создайте свой AI-аватар",
+      subtitle: "23 профессиональных фото",
+      description: "Загрузите свои фотографии и получите полный фотосет в выбранном стиле с помощью AI",
+      icon: <Sparkles className="w-8 h-8" />,
+    },
+    {
+      title: "Загрузите 10-20 фото",
+      subtitle: "Разные ракурсы и освещение",
+      description: "Чем больше качественных фото вы загрузите, тем лучше AI поймёт ваше лицо и создаст точные портреты",
+      icon: <Images className="w-8 h-8" />,
+    },
+    {
+      title: "Выберите стиль",
+      subtitle: "3 профессиональных пресета",
+      description: "Деловой портрет для LinkedIn, casual для соцсетей или креативный для творческих проектов",
+      icon: <Palette className="w-8 h-8" />,
+    },
+  ]
+
+  const handleNext = () => {
+    if (step < steps.length - 1) {
+      setStep(step + 1)
+    } else {
+      onStart()
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col safe-area-inset-top safe-area-inset-bottom">
+      {/* Skip button */}
+      <div className="p-4 flex justify-end">
+        <button
+          onClick={onComplete}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5"
+        >
+          Пропустить
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 pb-8">
+        {/* Icon */}
+        <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center text-primary mb-8">
+          {steps[step].icon}
+        </div>
+
+        {/* Text */}
+        <h1 className="text-2xl sm:text-3xl font-bold text-center mb-2">{steps[step].title}</h1>
+        <p className="text-primary font-medium text-center mb-4">{steps[step].subtitle}</p>
+        <p className="text-muted-foreground text-center max-w-sm mb-8">{steps[step].description}</p>
+
+        {/* Example Works on first step */}
+        {step === 0 && (
+          <div className="flex gap-3 mb-8 overflow-x-auto pb-2 max-w-full px-4">
+            {EXAMPLE_WORKS.map((work, i) => (
+              <div key={i} className="flex-shrink-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 border-muted">
+                    <img src={work.before || "/placeholder.svg"} alt="До" className="w-full h-full object-cover" />
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 border-primary">
+                    <img src={work.after || "/placeholder.svg"} alt="После" className="w-full h-full object-cover" />
+                  </div>
+                </div>
+                <p className="text-xs text-center text-muted-foreground">{work.style}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Features on last step */}
+        {step === 2 && (
+          <div className="grid grid-cols-1 gap-3 mb-8 w-full max-w-sm">
+            <div className="flex items-center gap-3 p-3 bg-card rounded-xl border border-border">
+              <Zap className="w-5 h-5 text-amber-500" />
+              <span className="text-sm">23 фото за один раз</span>
+            </div>
+            <div className="flex items-center gap-3 p-3 bg-card rounded-xl border border-border">
+              <Shield className="w-5 h-5 text-green-500" />
+              <span className="text-sm">Ваши фото защищены</span>
+            </div>
+            <div className="flex items-center gap-3 p-3 bg-card rounded-xl border border-border">
+              <Star className="w-5 h-5 text-primary" />
+              <span className="text-sm">Качество как у фотографа</span>
+            </div>
+          </div>
+        )}
+
+        {/* Dots */}
+        <div className="flex gap-2 mb-8">
+          {steps.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setStep(i)}
+              className={`w-2 h-2 rounded-full transition-all ${
+                i === step ? "w-6 bg-primary" : "bg-muted-foreground/30"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Bottom Button */}
+      <div className="p-4 pb-8 safe-area-inset-bottom">
+        <button
+          onClick={handleNext}
+          className="w-full py-4 bg-primary text-primary-foreground font-semibold rounded-2xl hover:opacity-90 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+        >
+          {step === steps.length - 1 ? (
+            <>
+              <Upload className="w-5 h-5" />
+              Начать загрузку фото
+            </>
+          ) : (
+            <>
+              Далее
+              <ArrowRight className="w-5 h-5" />
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// --- DASHBOARD VIEW ---
+const DashboardView: React.FC<{
   personas: Persona[]
   onCreate: () => void
   onSelect: (id: string) => void
@@ -284,73 +568,121 @@ const AvatarsView: React.FC<{
         <p className="text-muted-foreground text-sm mt-1">Создавайте AI-фотографии в разных стилях</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-        {/* Create New Card */}
-        <button
-          onClick={onCreate}
-          className="aspect-[4/5] rounded-2xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/50 transition-all flex flex-col items-center justify-center gap-3 group"
-        >
-          <div className="w-12 h-12 rounded-full bg-muted group-hover:bg-primary/10 transition-colors flex items-center justify-center">
-            <Plus className="w-6 h-6 text-muted-foreground group-hover:text-primary" />
-          </div>
-          <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">Новый аватар</span>
-        </button>
-
-        {personas.map((persona) => (
-          <div
-            key={persona.id}
-            onClick={() => onSelect(persona.id)}
-            className="aspect-[4/5] bg-card rounded-2xl overflow-hidden relative cursor-pointer group shadow-sm border border-border hover:shadow-md transition-all"
+      {personas.length === 0 ? (
+        <div className="space-y-6">
+          {/* Hero Card */}
+          <button
+            onClick={onCreate}
+            className="w-full p-6 sm:p-8 bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 rounded-3xl border-2 border-dashed border-primary/30 hover:border-primary/50 transition-all group text-left"
           >
-            {persona.thumbnailUrl ? (
-              <img
-                src={persona.thumbnailUrl || "/placeholder.svg"}
-                alt={persona.name}
-                className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500"
-              />
-            ) : (
-              <div className="w-full h-full bg-muted flex flex-col items-center justify-center p-4 text-center">
-                <div className="w-14 h-14 rounded-full bg-background mb-3 flex items-center justify-center">
-                  <User className="w-7 h-7 text-muted-foreground" />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 group-hover:bg-primary/20 transition-colors flex items-center justify-center">
+                <Plus className="w-8 h-8 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-foreground mb-1">Создать первый аватар</h3>
+                <p className="text-muted-foreground text-sm">
+                  Загрузите 10-20 своих фото и получите 23 профессиональных портрета
+                </p>
+              </div>
+              <ChevronRight className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors hidden sm:block" />
+            </div>
+          </button>
+
+          {/* Examples Section */}
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground mb-3">Примеры работ</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {STYLE_PRESETS.map((style) => (
+                <div key={style.id} className="space-y-2">
+                  <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-muted">
+                    <img
+                      src={style.imageUrl || "/placeholder.svg"}
+                      alt={style.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <p className="text-xs text-center text-muted-foreground">{style.name}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Features */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-4 bg-card rounded-2xl border border-border">
+              <Zap className="w-5 h-5 text-amber-500 mb-2" />
+              <p className="text-sm font-medium">23 фото</p>
+              <p className="text-xs text-muted-foreground">За одну генерацию</p>
+            </div>
+            <div className="p-4 bg-card rounded-2xl border border-border">
+              <Shield className="w-5 h-5 text-green-500 mb-2" />
+              <p className="text-sm font-medium">Безопасно</p>
+              <p className="text-xs text-muted-foreground">Фото не сохраняются</p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+          {/* Create New Card */}
+          <button
+            onClick={onCreate}
+            className="aspect-[4/5] rounded-2xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/50 transition-all flex flex-col items-center justify-center gap-3 group active:scale-95"
+          >
+            <div className="w-12 h-12 rounded-full bg-muted group-hover:bg-primary/10 transition-colors flex items-center justify-center">
+              <Plus className="w-6 h-6 text-muted-foreground group-hover:text-primary" />
+            </div>
+            <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">Новый аватар</span>
+          </button>
+
+          {personas.map((persona) => (
+            <div
+              key={persona.id}
+              onClick={() => onSelect(persona.id)}
+              className="aspect-[4/5] bg-card rounded-2xl overflow-hidden relative cursor-pointer group shadow-sm border border-border hover:shadow-md transition-all active:scale-[0.98]"
+            >
+              {persona.thumbnailUrl ? (
+                <img
+                  src={persona.thumbnailUrl || "/placeholder.svg"}
+                  alt={persona.name}
+                  className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500"
+                />
+              ) : (
+                <div className="w-full h-full bg-muted flex flex-col items-center justify-center p-4 text-center">
+                  <div className="w-14 h-14 rounded-full bg-background mb-3 flex items-center justify-center">
+                    <User className="w-7 h-7 text-muted-foreground" />
+                  </div>
+                </div>
+              )}
+
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent p-3 flex flex-col justify-end">
+                <h3 className="text-sm font-semibold text-white truncate">{persona.name}</h3>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${persona.status === "ready" ? "bg-green-400" : "bg-amber-400"}`}
+                  />
+                  <span className="text-[10px] text-white/80">
+                    {persona.status === "ready" ? `${persona.generatedAssets.length} фото` : "Черновик"}
+                  </span>
                 </div>
               </div>
-            )}
 
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent p-3 flex flex-col justify-end">
-              <h3 className="text-sm font-semibold text-white truncate">{persona.name}</h3>
-              <div className="flex items-center gap-1.5 mt-1">
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${persona.status === "ready" ? "bg-green-400" : "bg-amber-400"}`}
-                />
-                <span className="text-[10px] text-white/80">
-                  {persona.status === "ready" ? `${persona.generatedAssets.length} фото` : "Черновик"}
-                </span>
-              </div>
+              {/* Delete button */}
+              <button
+                onClick={(e) => onDelete(persona.id, e)}
+                className="absolute top-2 right-2 p-2 bg-black/40 hover:bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-
-            {/* Delete button */}
-            <button
-              onClick={(e) => onDelete(persona.id, e)}
-              className="absolute top-2 right-2 p-1.5 bg-black/40 hover:bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {personas.length === 0 && (
-        <div className="text-center py-12">
-          <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
-            <ImageIcon className="w-8 h-8 text-muted-foreground" />
-          </div>
-          <p className="text-muted-foreground">Загрузите свои фото</p>
+          ))}
         </div>
       )}
     </div>
   )
 }
 
+// --- UPLOAD VIEW ---
 const UploadView: React.FC<{
   persona: Persona
   updatePersona: (id: string, data: Partial<Persona>) => void
@@ -401,12 +733,12 @@ const UploadView: React.FC<{
   const isReady = persona.images.length >= 10
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 sm:pb-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}
-          className="p-2 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors"
+          className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -418,23 +750,39 @@ const UploadView: React.FC<{
             placeholder="Название аватара..."
           />
           <div className="flex items-center gap-2 mt-1">
-            <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden max-w-[120px]">
-              <div className="h-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
+            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-[120px]">
+              <div
+                className={`h-full transition-all duration-500 ${isReady ? "bg-green-500" : "bg-primary"}`}
+                style={{ width: `${progress}%` }}
+              />
             </div>
-            <span className="text-xs text-muted-foreground">{persona.images.length}/20 фото</span>
+            <span className={`text-xs ${isReady ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
+              {persona.images.length}/20 фото
+            </span>
           </div>
         </div>
       </div>
 
       {/* Info Banner */}
-      <div className="p-3 bg-primary/5 border border-primary/10 rounded-xl text-sm text-foreground/80">
-        Загрузите 10-20 фотографий с хорошим освещением и видимым лицом
+      <div className="p-4 bg-primary/5 border border-primary/10 rounded-2xl">
+        <div className="flex gap-3">
+          <Camera className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-foreground mb-1">Советы для лучшего результата</p>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li>• Хорошее освещение лица</li>
+              <li>• Разные ракурсы и выражения</li>
+              <li>• Без солнечных очков и головных уборов</li>
+            </ul>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
+      {/* Photo Grid */}
+      <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 sm:gap-3">
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/50 transition-all flex flex-col items-center justify-center gap-1 group"
+          className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/50 transition-all flex flex-col items-center justify-center gap-1 group active:scale-95"
         >
           <Plus className="w-6 h-6 text-muted-foreground group-hover:text-primary" />
           <span className="text-[10px] text-muted-foreground">Добавить</span>
@@ -453,29 +801,35 @@ const UploadView: React.FC<{
             <img src={img.previewUrl || "/placeholder.svg"} alt="" className="w-full h-full object-cover" />
             <button
               onClick={() => removeImage(img.id)}
-              className="absolute top-1 right-1 p-1 bg-black/50 hover:bg-red-500 rounded-lg text-white opacity-0 group-hover:opacity-100 transition-all"
+              className="absolute top-1 right-1 p-1.5 bg-black/50 hover:bg-red-500 rounded-lg text-white opacity-0 group-hover:opacity-100 transition-all"
             >
-              <X className="w-3 h-3" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         ))}
       </div>
 
       {/* Next Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
         <button
           onClick={onNext}
           disabled={!isReady}
-          className="w-full sm:w-auto px-6 py-3 bg-primary text-primary-foreground font-medium rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+          className="w-full sm:w-auto px-6 py-3.5 bg-primary text-primary-foreground font-medium rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
         >
           Выбрать стиль
           <ArrowRight className="w-4 h-4" />
         </button>
+        {!isReady && (
+          <p className="text-xs text-center text-muted-foreground mt-2 sm:hidden">
+            Нужно ещё {10 - persona.images.length} фото
+          </p>
+        )}
       </div>
     </div>
   )
 }
 
+// --- STYLE SELECT VIEW ---
 const StyleSelectView: React.FC<{
   persona: Persona
   onBack: () => void
@@ -492,22 +846,22 @@ const StyleSelectView: React.FC<{
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}
-          className="p-2 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors"
+          className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
           <h2 className="text-lg font-semibold">Выберите стиль</h2>
-          <p className="text-sm text-muted-foreground">3 профессиональных пресета</p>
+          <p className="text-sm text-muted-foreground">Будет сгенерировано 23 фото</p>
         </div>
       </div>
 
       <div className="space-y-3">
         {STYLE_PRESETS.map((style) => (
-          <div
+          <button
             key={style.id}
             onClick={() => setSelectedStyle(style)}
-            className={`flex gap-4 p-3 rounded-2xl cursor-pointer transition-all border-2 ${
+            className={`w-full flex gap-4 p-3 rounded-2xl transition-all border-2 text-left active:scale-[0.99] ${
               selectedStyle?.id === style.id
                 ? "border-primary bg-primary/5"
                 : "border-transparent bg-card hover:bg-muted/50"
@@ -530,17 +884,17 @@ const StyleSelectView: React.FC<{
                 <div className="w-6 h-6 rounded-full border-2 border-border" />
               )}
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
       {/* Generate Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
         {isPro ? (
           <button
             onClick={() => selectedStyle && onGenerate(selectedStyle)}
             disabled={!selectedStyle || isGenerating}
-            className="w-full sm:w-auto px-6 py-3 bg-primary text-primary-foreground font-medium rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-6 py-3.5 bg-primary text-primary-foreground font-medium rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
           >
             {isGenerating ? (
               <>
@@ -550,17 +904,17 @@ const StyleSelectView: React.FC<{
             ) : (
               <>
                 <Sparkles className="w-4 h-4" />
-                Сгенерировать
+                Сгенерировать 23 фото
               </>
             )}
           </button>
         ) : (
           <button
             onClick={onUpgrade}
-            className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-medium rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-medium rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
           >
             <Lock className="w-4 h-4" />
-            Разблокировать генерацию (500₽)
+            Оплатить 500₽ и сгенерировать
           </button>
         )}
       </div>
@@ -568,6 +922,7 @@ const StyleSelectView: React.FC<{
   )
 }
 
+// --- RESULTS VIEW ---
 const ResultsView: React.FC<{
   persona: Persona
   onBack: () => void
@@ -582,7 +937,7 @@ const ResultsView: React.FC<{
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-2 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors"
+            className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -593,7 +948,7 @@ const ResultsView: React.FC<{
         </div>
         <button
           onClick={onGenerateMore}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 transition-opacity active:scale-95"
         >
           <Sparkles className="w-4 h-4" />
           <span className="hidden sm:inline">Ещё</span>
@@ -609,7 +964,7 @@ const ResultsView: React.FC<{
                 href={asset.url}
                 download
                 target="_blank"
-                className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-primary text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                className="absolute top-2 right-2 p-2.5 bg-black/50 hover:bg-primary text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all"
                 rel="noreferrer"
               >
                 <Download className="w-4 h-4" />
@@ -633,34 +988,69 @@ const ResultsView: React.FC<{
   )
 }
 
-// Placeholder for PaymentModal if it's defined elsewhere or needs to be added
-// import { PaymentModal } from "@/components/payment-modal"; // Uncomment if PaymentModal is external
+// --- PAYMENT MODAL ---
+const PaymentModal: React.FC<{
+  isOpen: boolean
+  onClose: () => void
+  onPayment: () => void
+}> = ({ isOpen, onClose, onPayment }) => {
+  const [isLoading, setIsLoading] = useState(false)
 
-const PaymentModal: React.FC<{ isOpen: boolean; onClose: () => void; onSuccess: () => void }> = ({
-  isOpen,
-  onClose,
-  onSuccess,
-}) => {
-  // Mock implementation for PaymentModal
   if (!isOpen) return null
+
+  const handlePaymentClick = async () => {
+    setIsLoading(true)
+    await onPayment()
+    setIsLoading(false)
+  }
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-card p-6 rounded-xl shadow-xl border border-border">
-        <h2 className="text-lg font-semibold mb-4">Unlock Pro Features</h2>
-        <p className="text-muted-foreground mb-4">This requires a one-time payment of 500₽.</p>
-        <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 border rounded-lg">
-            Cancel
-          </button>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
+      <div className="bg-card w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-xl border border-border overflow-hidden">
+        <div className="p-6">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h2 className="text-xl font-bold">Photoset Pro</h2>
+              <p className="text-muted-foreground text-sm">23 AI-фотографии</p>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-muted rounded-xl text-muted-foreground">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="mb-4 px-3 py-1.5 bg-amber-100 text-amber-800 text-xs font-medium rounded-lg text-center">
+            Тестовый режим - оплата не требуется
+          </div>
+
+          <div className="space-y-3 mb-6">
+            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
+              <span className="text-sm">23 уникальных фотографии</span>
+            </div>
+            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
+              <span className="text-sm">Профессиональное качество</span>
+            </div>
+            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
+              <span className="text-sm">Скачивание в высоком разрешении</span>
+            </div>
+          </div>
+
+          <div className="text-center mb-6">
+            <span className="text-4xl font-bold">500₽</span>
+            <p className="text-sm text-muted-foreground">единоразовый платёж</p>
+          </div>
+
           <button
-            onClick={() => {
-              onSuccess()
-              onClose()
-            }}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg"
+            onClick={handlePaymentClick}
+            disabled={isLoading}
+            className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-2xl hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"
           >
-            Buy Now
+            {isLoading ? "Перенаправление..." : "Оплатить через ЮKassa"}
           </button>
+
+          <p className="text-xs text-center text-muted-foreground mt-4">Безопасная оплата через ЮKassa</p>
         </div>
       </div>
     </div>
