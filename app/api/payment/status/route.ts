@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { getPayment, IS_TEST_MODE } from "@/lib/yookassa"
+import { getPaymentState, IS_TEST_MODE } from "@/lib/tbank"
 
 export async function GET(request: NextRequest) {
   try {
@@ -57,12 +57,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ isPro: true, status: "succeeded", testMode: true })
     }
 
-    // Если передан payment_id, проверяем его статус в YooKassa
+    // Если передан payment_id, проверяем его статус в T-Bank
     if (paymentId) {
       try {
-        const payment = await getPayment(paymentId)
+        const payment = await getPaymentState(paymentId)
 
-        if (payment.status === "succeeded") {
+        if (payment.Status === "CONFIRMED" || payment.Status === "AUTHORIZED") {
           await sql`
             UPDATE users SET is_pro = TRUE, updated_at = NOW()
             WHERE id = ${user.id}
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ isPro: true, status: "succeeded" })
         }
 
-        return NextResponse.json({ isPro: false, status: payment.status })
+        return NextResponse.json({ isPro: false, status: payment.Status?.toLowerCase() || "pending" })
       } catch {
         // Игнорируем ошибку проверки платежа
       }

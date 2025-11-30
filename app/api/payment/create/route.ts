@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { createPayment, IS_TEST_MODE } from "@/lib/yookassa"
+import { initPayment, IS_TEST_MODE } from "@/lib/tbank"
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,26 +27,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Already Pro user" }, { status: 400 })
     }
 
-    // Определяем return URL
+    // Определяем return URLs
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.headers.get("origin") || "http://localhost:3000"
-    const returnUrl = `${baseUrl}/payment/callback?device_id=${deviceId}`
+    const successUrl = `${baseUrl}/payment/callback?device_id=${deviceId}&status=success`
+    const failUrl = `${baseUrl}/payment/callback?device_id=${deviceId}&status=failed`
+    const notificationUrl = `${baseUrl}/api/payment/webhook`
 
-    // Создаем платеж в YooKassa
-    const payment = await createPayment(500, "Photoset Pro - Генерация 23 AI-фотографий", returnUrl, {
-      device_id: deviceId,
-      avatar_id: avatarId?.toString() || "",
-      user_id: user.id.toString(),
-    })
+    // Генерируем уникальный OrderId
+    const orderId = `order_${user.id}_${Date.now()}`
+
+    // Создаем платеж в T-Bank
+    const payment = await initPayment(
+      500, // сумма в рублях
+      orderId,
+      "Fotoset Pro - Генерация 23 AI-фотографий",
+      successUrl,
+      failUrl,
+      notificationUrl,
+    )
 
     // Сохраняем платеж в БД
     await sql`
       INSERT INTO payments (user_id, yookassa_payment_id, amount, status)
-      VALUES (${user.id}, ${payment.id}, 500, 'pending')
+      VALUES (${user.id}, ${payment.PaymentId}, 500, 'pending')
     `
 
     return NextResponse.json({
-      paymentId: payment.id,
-      confirmationUrl: payment.confirmation?.confirmation_url,
+      paymentId: payment.PaymentId,
+      confirmationUrl: payment.PaymentURL,
       testMode: IS_TEST_MODE,
     })
   } catch (error) {

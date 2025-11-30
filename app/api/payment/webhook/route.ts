@@ -1,43 +1,56 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
+import { verifyWebhookSignature } from "@/lib/tbank"
 
-// Webhook от YooKassa
+// Webhook от T-Bank
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    const notification = await request.json()
 
-    const { event, object } = body
+    // Проверяем подпись вебхука
+    const receivedToken = notification.Token || ""
+    const isValid = verifyWebhookSignature(notification, receivedToken)
 
-    if (event === "payment.succeeded") {
-      const paymentId = object.id
-      const metadata = object.metadata || {}
+    if (!isValid) {
+      console.error("Invalid webhook signature")
+      return NextResponse.json({ error: "Invalid signature" }, { status: 403 })
+    }
 
+    const paymentId = notification.PaymentId
+    const status = notification.Status
+
+    // T-Bank статусы: NEW, CONFIRMED, REJECTED, AUTHORIZED, PARTIAL_REFUNDED, REFUNDED
+    if (status === "CONFIRMED" || status === "AUTHORIZED") {
       // Обновляем статус платежа
       await sql`
-        UPDATE payments 
+        UPDATE payments
         SET status = 'succeeded', updated_at = NOW()
         WHERE yookassa_payment_id = ${paymentId}
       `
 
-      // Обновляем пользователя на Pro
-      if (metadata.user_id) {
+      // Получаем платеж и обновляем пользователя на Pro
+      const payment = await sql`
+        SELECT user_id FROM payments
+        WHERE yookassa_payment_id = ${paymentId}
+      `.then((rows) => rows[0])
+
+      if (payment) {
         await sql`
-          UPDATE users 
+          UPDATE users
           SET is_pro = TRUE, updated_at = NOW()
-          WHERE id = ${Number.parseInt(metadata.user_id)}
+          WHERE id = ${payment.user_id}
         `
       }
-    } else if (event === "payment.canceled") {
-      const paymentId = object.id
-
+    } else if (status === "REJECTED") {
       await sql`
-        UPDATE payments 
+        UPDATE payments
         SET status = 'canceled', updated_at = NOW()
         WHERE yookassa_payment_id = ${paymentId}
       `
     }
 
-    return NextResponse.json({ success: true })
+    // T-Bank требует ответ "OK" для подтверждения получения
+    return NextResponse.json({ success: true }, { status: 200 })
   } catch (error) {
     console.error("Webhook error:", error)
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 })
