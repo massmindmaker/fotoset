@@ -139,8 +139,14 @@ const GeneratingView: React.FC<{ progress: number; totalPhotos: number }> = ({ p
 )
 
 const OnboardingView: React.FC<{ onComplete: () => void; onStart: () => void }> = ({ onComplete, onStart }) => {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
+  const [stage, setStage] = useState(0)
+  useEffect(() => {
+    const t1 = setTimeout(() => setStage(1), 100)
+    const t2 = setTimeout(() => setStage(2), 1200)
+    const t3 = setTimeout(() => setStage(3), 1800)
+    const t4 = setTimeout(() => setStage(4), 2400)
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4) }
+  }, [])
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden bg-gradient-mesh">
@@ -149,42 +155,41 @@ const OnboardingView: React.FC<{ onComplete: () => void; onStart: () => void }> 
         <div className="absolute bottom-20 right-10 w-40 h-40 rounded-full bg-accent/10 blur-3xl animate-float" style={{ animationDelay: "-2s" }} />
       </div>
       <div className="relative z-10 flex flex-col items-center max-w-lg w-full">
-        <div className="relative w-full aspect-square max-w-sm mb-12">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 rounded-full bg-primary/20 blur-3xl" />
-          <div className={"absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 sm:w-36 sm:h-36 rounded-3xl overflow-hidden border-4 border-background shadow-2xl ring-2 ring-primary/30 transition-all duration-1000 " + (mounted ? "scale-100 opacity-100" : "scale-50 opacity-0")}>
+        <div className="relative w-full aspect-square max-w-sm mb-8">
+          <div className={"absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full bg-primary/30 blur-3xl transition-all duration-1000 " + (stage >= 1 ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+          <div className={"absolute top-1/2 left-1/2 w-32 h-32 sm:w-40 sm:h-40 rounded-3xl overflow-hidden holographic-shine border-4 border-transparent animate-holographic-border shadow-2xl " + (stage >= 1 ? "animate-main-image-enter" : "opacity-0")} style={stage < 1 ? { transform: "translate(-50%, -50%) scale(0.3)" } : undefined}>
             <img src={DEMO_PHOTOS[0]} alt="AI Portrait" className="w-full h-full object-cover" />
           </div>
-          <div className={"absolute inset-0 animate-orbit transition-opacity duration-1000 " + (mounted ? "opacity-100" : "opacity-0")} style={{ "--orbit-radius": "100px", "--orbit-duration": "25s" } as React.CSSProperties}>
-            {DEMO_PHOTOS.slice(1, 5).map((src, index) => {
-              const angle = (index * 90) + 45
-              return (
-                <div key={"inner-" + index} className="absolute w-14 h-14 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-background/80 shadow-lg glass" style={{ left: "50%", top: "50%", transform: "rotate(" + angle + "deg) translateX(100px) rotate(-" + angle + "deg) translate(-50%, -50%)" }}>
-                  <img src={src} alt={"Portrait " + index} className="w-full h-full object-cover" />
+          <div className={"absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full " + (stage >= 2 ? "animate-orbit-ring-enter" : "opacity-0")}>
+            <div className="absolute inset-0 animate-orbit-smooth" style={{ "--orbit-duration": "25s" } as React.CSSProperties}>
+              {DEMO_PHOTOS.slice(1, 5).map((src, i) => (
+                <div key={"inner-" + i} className={"absolute w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden shadow-lg " + (i % 2 === 0 ? "neon-frame" : "neon-frame-alt")} style={{ left: "50%", top: "50%", transform: "rotate(" + (i * 90 + 45) + "deg) translateX(95px) rotate(-" + (i * 90 + 45) + "deg) translate(-50%, -50%)", animationDelay: (i * 0.3) + "s" }}>
+                  <img src={src} alt={"Portrait " + i} className="w-full h-full object-cover" />
                 </div>
-              )
-            })}
+              ))}
+            </div>
           </div>
-          <div className={"absolute inset-0 animate-orbit-reverse transition-opacity duration-1000 " + (mounted ? "opacity-100" : "opacity-0")} style={{ "--orbit-radius": "150px", "--orbit-duration": "35s" } as React.CSSProperties}>
-            {DEMO_PHOTOS.slice(5, 11).map((src, index) => {
-              const angle = (index * 60) + 30
-              return (
-                <div key={"outer-" + index} className="absolute w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden border-2 border-background/60 shadow-md" style={{ left: "50%", top: "50%", transform: "rotate(" + angle + "deg) translateX(150px) rotate(-" + angle + "deg) translate(-50%, -50%)" }}>
-                  <img src={src} alt={"Portrait outer " + index} className="w-full h-full object-cover" />
+          <div className={"absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full " + (stage >= 3 ? "animate-orbit-ring-enter" : "opacity-0")} style={{ animationDelay: "0.2s" }}>
+            <div className="absolute inset-0 animate-orbit-smooth-reverse" style={{ "--orbit-duration": "35s" } as React.CSSProperties}>
+              {DEMO_PHOTOS.slice(5, 11).map((src, i) => (
+                <div key={"outer-" + i} className={"absolute w-11 h-11 sm:w-14 sm:h-14 rounded-xl overflow-hidden shadow-md " + (i % 2 === 1 ? "neon-frame-alt" : "neon-frame")} style={{ left: "50%", top: "50%", transform: "rotate(" + (i * 60 + 30) + "deg) translateX(145px) rotate(-" + (i * 60 + 30) + "deg) translate(-50%, -50%)", animationDelay: (i * 0.2 + 0.5) + "s" }}>
+                  <img src={src} alt={"Portrait outer " + i} className="w-full h-full object-cover" />
                 </div>
-              )
-            })}
+              ))}
+            </div>
           </div>
         </div>
-        <div className={"text-center space-y-4 mb-12 transition-all duration-1000 " + (mounted ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0")} style={{ transitionDelay: "300ms" }}>
-          <h1 className="text-3xl sm:text-4xl font-bold">
-            <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">PINGLASS</span>
-          </h1>
-          <p className="text-muted-foreground max-w-md text-lg">Создавайте впечатляющие AI-фотографии в розовых очках</p>
+        <div className={"flex flex-col items-center mb-8 transition-all duration-1000 " + (stage >= 4 ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0")}>
+          <div className="w-20 h-20 sm:w-24 sm:h-24 mb-4 rounded-full overflow-hidden animate-logo-breathe border-2 border-primary/30">
+            <img src="/logo-cheetah.png" alt="PinGlass Logo" className="w-full h-full object-cover" />
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold"><span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">PINGLASS</span></h1>
+          <p className="text-muted-foreground max-w-md text-lg text-center mt-2">Создавайте впечатляющие AI-фотографии в розовых очках</p>
         </div>
-        <button onClick={onStart} className={"w-full max-w-xs py-4 px-8 bg-gradient-to-r from-primary to-accent text-white font-semibold text-lg rounded-3xl hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-primary/25 " + (mounted ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0")} style={{ transitionDelay: "500ms" }}>
+        <button onClick={onStart} className={"w-full max-w-xs py-4 px-8 bg-gradient-to-r from-primary to-accent text-white font-semibold text-lg rounded-3xl hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-primary/25 " + (stage >= 4 ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0")} style={{ transitionDelay: "200ms" }}>
           <span className="flex items-center justify-center gap-2"><Sparkles className="w-5 h-5" />Начать!</span>
         </button>
-        <button onClick={onComplete} className={"mt-6 text-sm text-muted-foreground hover:text-foreground transition-colors " + (mounted ? "opacity-100" : "opacity-0")} style={{ transitionDelay: "700ms" }}>Пропустить</button>
+        <button onClick={onComplete} className={"mt-6 text-sm text-muted-foreground hover:text-foreground transition-colors " + (stage >= 4 ? "opacity-100" : "opacity-0")} style={{ transitionDelay: "400ms" }}>Пропустить</button>
       </div>
     </div>
   )
