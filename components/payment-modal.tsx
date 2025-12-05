@@ -4,11 +4,19 @@ import type React from "react"
 import { useState, useEffect, useCallback } from "react"
 import { X, Check, Loader2, CreditCard, Smartphone, Mail, ShieldCheck } from "lucide-react"
 
+interface PricingTier {
+  id: string
+  photos: number
+  price: number
+  popular?: boolean
+}
+
 interface PaymentModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
   deviceId: string
+  tier: PricingTier
 }
 
 type PaymentMethod = "card" | "sbp" | "tpay"
@@ -19,7 +27,7 @@ interface PaymentResponse {
   testMode: boolean
 }
 
-export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, deviceId }) => {
+export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, deviceId, tier }) => {
   const [step, setStep] = useState<"FORM" | "PROCESSING" | "REDIRECT" | "SUCCESS" | "ERROR">("FORM")
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState("")
@@ -74,6 +82,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
           deviceId,
           email: email.trim(),
           paymentMethod: selectedMethod,
+          tierId: tier.id,
+          photoCount: tier.photos,
         }),
       })
 
@@ -106,7 +116,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
     } finally {
       setLoading(false)
     }
-  }, [email, selectedMethod, deviceId, onSuccess, onClose])
+  }, [email, selectedMethod, deviceId, tier, onSuccess, onClose])
 
   if (!isOpen) return null
 
@@ -162,9 +172,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
             <div className="space-y-6">
               {/* Price */}
               <div className="text-center pb-4 border-b border-border">
-                <div className="text-4xl font-bold text-primary">500 ₽</div>
+                <div className="text-4xl font-bold text-primary">{tier.price} ₽</div>
                 <p className="text-muted-foreground text-sm mt-1">
-                  Fotoset Pro — 23 AI-фотографии
+                  Fotoset Pro — {tier.photos} AI-фотографий
                 </p>
               </div>
 
@@ -253,7 +263,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                   </>
                 ) : (
                   <>
-                    Оплатить 500 ₽
+                    Оплатить {tier.price} ₽
                   </>
                 )}
               </button>
