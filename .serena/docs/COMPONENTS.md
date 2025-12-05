@@ -2,7 +2,7 @@
 
 ## Overview
 
-Fotoset uses React 19 with Next.js 16 App Router. All components are client-side rendered.
+PinGlass uses React 19 with Next.js 16 App Router. All components are client-side rendered.
 
 ---
 

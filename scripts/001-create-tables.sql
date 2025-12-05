@@ -1,4 +1,4 @@
--- Создание таблиц для Photoset AI
+-- Создание таблиц для PinGlass AI
 
 -- Таблица пользователей (без авторизации - по device_id)
 CREATE TABLE IF NOT EXISTS users (

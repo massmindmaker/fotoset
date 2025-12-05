@@ -1,4 +1,4 @@
-# Fotoset Architecture
+# PinGlass Architecture
 
 ## System Overview
 
@@ -194,7 +194,7 @@ Redirect to home with Pro activated
 ## Directory Structure
 
 ```
-Fotoset/
+PinGlass/
 ├── app/                           # Next.js App Router
 │   ├── api/                       # API Routes
 │   │   ├── generate/route.ts      # Photo generation (90 lines)

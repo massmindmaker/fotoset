@@ -36,8 +36,8 @@ type ViewState =
 
 function getDeviceId(): string {
   if (typeof window === "undefined") return ""
-  let deviceId = localStorage.getItem("photoset_device_id")
-  if (!deviceId) { deviceId = crypto.randomUUID(); localStorage.setItem("photoset_device_id", deviceId) }
+  let deviceId = localStorage.getItem("pinglass_device_id")
+  if (!deviceId) { deviceId = crypto.randomUUID(); localStorage.setItem("pinglass_device_id", deviceId) }
   return deviceId
 }
 
@@ -56,13 +56,13 @@ export default function PersonaApp() {
     if (typeof window === "undefined") return
     const id = getDeviceId()
     setDeviceId(id)
-    if (localStorage.getItem("photoset_is_pro") === "true") setIsPro(true)
-    if (localStorage.getItem("photoset_onboarding_complete")) setViewState({ view: "DASHBOARD" })
+    if (localStorage.getItem("pinglass_is_pro") === "true") setIsPro(true)
+    if (localStorage.getItem("pinglass_onboarding_complete")) setViewState({ view: "DASHBOARD" })
     setIsReady(true)
-    fetch("/api/payment/status?device_id=" + id).then(r => r.json()).then(d => { if (d.isPro) { setIsPro(true); localStorage.setItem("photoset_is_pro", "true") } }).catch(() => {})
+    fetch("/api/payment/status?device_id=" + id).then(r => r.json()).then(d => { if (d.isPro) { setIsPro(true); localStorage.setItem("pinglass_is_pro", "true") } }).catch(() => {})
   }, [])
 
-  const completeOnboarding = () => { localStorage.setItem("photoset_onboarding_complete", "true"); setViewState({ view: "DASHBOARD" }) }
+  const completeOnboarding = () => { localStorage.setItem("pinglass_onboarding_complete", "true"); setViewState({ view: "DASHBOARD" }) }
   const handleCreatePersona = () => {
     const newId = Date.now().toString()
     setPersonas([...personas, { id: newId, name: "Мой аватар", status: "draft", images: [], generatedAssets: [] }])
@@ -81,17 +81,17 @@ export default function PersonaApp() {
     setViewState({ view: "GENERATING", personaId: p.id, progress: 0 })
     try {
       const res = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId, avatarId: p.id, styleId: "awesome-fotoset", photoCount: tier.photos, referenceImages: p.images.slice(0,5).map(i => i.base64) }) })
+        body: JSON.stringify({ deviceId, avatarId: p.id, styleId: "pinglass", photoCount: tier.photos, referenceImages: p.images.slice(0,5).map(i => i.base64) }) })
       if (!res.ok) throw new Error((await res.json()).error || "Failed")
       const data = await res.json()
-      const newAssets: GeneratedAsset[] = data.photos.map((url: string, i: number) => ({ id: Date.now() + "-" + i, type: "PHOTO" as const, url, styleId: "awesome-fotoset", createdAt: Date.now() }))
+      const newAssets: GeneratedAsset[] = data.photos.map((url: string, i: number) => ({ id: Date.now() + "-" + i, type: "PHOTO" as const, url, styleId: "pinglass", createdAt: Date.now() }))
       updatePersona(p.id, { status: "ready", generatedAssets: [...newAssets, ...p.generatedAssets], thumbnailUrl: p.thumbnailUrl || newAssets[0]?.url })
       setViewState({ view: "RESULTS", personaId: p.id })
     } catch (e) { alert(e instanceof Error ? e.message : "Ошибка"); setViewState({ view: "SELECT_TIER", personaId: p.id }) }
     finally { setIsGenerating(false); setGenerationProgress(0) }
   }
 
-  const handlePaymentSuccess = () => { setIsPro(true); localStorage.setItem("photoset_is_pro", "true"); setIsPaymentOpen(false); if (viewState.view === "SELECT_TIER") handleGenerate(selectedTier) }
+  const handlePaymentSuccess = () => { setIsPro(true); localStorage.setItem("pinglass_is_pro", "true"); setIsPaymentOpen(false); if (viewState.view === "SELECT_TIER") handleGenerate(selectedTier) }
 
   if (!isReady) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
 
@@ -104,7 +104,7 @@ export default function PersonaApp() {
           <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center"><Sparkles className="w-4 h-4 text-primary-foreground" /></div>
-              <span className="font-semibold text-lg">Fotoset</span>
+              <span className="font-semibold text-lg">PinGlass</span>
               {isPro && <span className="text-xs bg-gradient-to-r from-primary to-accent text-white px-2 py-0.5 rounded-full">PRO</span>}
             </div>
             {viewState.view === "DASHBOARD" && <button onClick={handleCreatePersona} className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium"><Plus className="w-4 h-4" />Создать</button>}
@@ -154,17 +154,17 @@ const OnboardingView: React.FC<{ onComplete: () => void; onStart: () => void }> 
           <div className={"absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 sm:w-36 sm:h-36 rounded-3xl overflow-hidden border-4 border-background shadow-2xl ring-2 ring-primary/30 transition-all duration-1000 " + (mounted ? "scale-100 opacity-100" : "scale-50 opacity-0")}>
             <img src={DEMO_PHOTOS[0]} alt="AI Portrait" className="w-full h-full object-cover" />
           </div>
-          <div className={"absolute inset-0 animate-orbit transition-opacity duration-1000 " + (mounted ? "opacity-100" : "opacity-0")} style={{ "--orbit-radius": "100px", animationDuration: "25s" } as React.CSSProperties}>
+          <div className={"absolute inset-0 animate-orbit transition-opacity duration-1000 " + (mounted ? "opacity-100" : "opacity-0")} style={{ "--orbit-radius": "100px", "--orbit-duration": "25s" } as React.CSSProperties}>
             {DEMO_PHOTOS.slice(1, 5).map((src, index) => {
               const angle = (index * 90) + 45
               return (
-                <div key={"inner-" + index} className="absolute w-14 h-14 sm:w-18 sm:h-18 rounded-2xl overflow-hidden border-2 border-background/80 shadow-lg glass" style={{ left: "50%", top: "50%", transform: "rotate(" + angle + "deg) translateX(100px) rotate(-" + angle + "deg) translate(-50%, -50%)" }}>
+                <div key={"inner-" + index} className="absolute w-14 h-14 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-background/80 shadow-lg glass" style={{ left: "50%", top: "50%", transform: "rotate(" + angle + "deg) translateX(100px) rotate(-" + angle + "deg) translate(-50%, -50%)" }}>
                   <img src={src} alt={"Portrait " + index} className="w-full h-full object-cover" />
                 </div>
               )
             })}
           </div>
-          <div className={"absolute inset-0 animate-orbit-reverse transition-opacity duration-1000 " + (mounted ? "opacity-100" : "opacity-0")} style={{ "--orbit-radius": "150px", animationDuration: "35s" } as React.CSSProperties}>
+          <div className={"absolute inset-0 animate-orbit-reverse transition-opacity duration-1000 " + (mounted ? "opacity-100" : "opacity-0")} style={{ "--orbit-radius": "150px", "--orbit-duration": "35s" } as React.CSSProperties}>
             {DEMO_PHOTOS.slice(5, 11).map((src, index) => {
               const angle = (index * 60) + 30
               return (
@@ -177,9 +177,9 @@ const OnboardingView: React.FC<{ onComplete: () => void; onStart: () => void }> 
         </div>
         <div className={"text-center space-y-4 mb-12 transition-all duration-1000 " + (mounted ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0")} style={{ transitionDelay: "300ms" }}>
           <h1 className="text-3xl sm:text-4xl font-bold">
-            <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">AWESOME FOTOSET</span>
+            <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">PINGLASS</span>
           </h1>
-          <p className="text-muted-foreground max-w-md text-lg">Создавайте впечатляющие AI-фотографии для соцсетей, бизнеса и творческих проектов</p>
+          <p className="text-muted-foreground max-w-md text-lg">Создавайте впечатляющие AI-фотографии в розовых очках</p>
         </div>
         <button onClick={onStart} className={"w-full max-w-xs py-4 px-8 bg-gradient-to-r from-primary to-accent text-white font-semibold text-lg rounded-3xl hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-primary/25 " + (mounted ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0")} style={{ transitionDelay: "500ms" }}>
           <span className="flex items-center justify-center gap-2"><Sparkles className="w-5 h-5" />Начать!</span>
@@ -194,7 +194,7 @@ const DashboardView: React.FC<{ personas: Persona[]; onCreate: () => void; onSel
   <div className="space-y-6">
     <div>
       <h1 className="text-2xl font-bold text-foreground">Мои аватары</h1>
-      <p className="text-muted-foreground text-sm mt-1">Создавайте AI-фотографии в стиле AWESOME FOTOSET</p>
+      <p className="text-muted-foreground text-sm mt-1">Создавайте AI-фотографии в стиле PINGLASS</p>
     </div>
     {personas.length === 0 ? (
       <div className="space-y-6">
@@ -297,7 +297,7 @@ const TierSelectView: React.FC<{ persona: Persona; onBack: () => void; onGenerat
   <div className="space-y-6 pb-24 sm:pb-6">
     <div className="flex items-center gap-3">
       <button onClick={onBack} className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95"><ArrowLeft className="w-5 h-5" /></button>
-      <div><h2 className="text-lg font-semibold">Выберите пакет</h2><p className="text-sm text-muted-foreground">AWESOME FOTOSET</p></div>
+      <div><h2 className="text-lg font-semibold">Выберите пакет</h2><p className="text-sm text-muted-foreground">PINGLASS</p></div>
     </div>
     <div className="space-y-3">
       {PRICING_TIERS.map((tier) => (
@@ -351,7 +351,7 @@ const ResultsView: React.FC<{ persona: Persona; onBack: () => void; onGenerateMo
               <div className="p-6 bg-card border border-border rounded-3xl space-y-4">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-primary"><img src={persona.thumbnailUrl || assets[0]?.url} alt={persona.name} className="w-full h-full object-cover" /></div>
-                  <div className="flex-1"><h3 className="font-semibold text-lg">{persona.name}</h3><p className="text-sm text-muted-foreground">AWESOME FOTOSET</p></div>
+                  <div className="flex-1"><h3 className="font-semibold text-lg">{persona.name}</h3><p className="text-sm text-muted-foreground">PINGLASS</p></div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
                   <div className="text-center"><div className="text-2xl font-bold">{assets.length}</div><div className="text-xs text-muted-foreground">Фотографий</div></div>

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Fotoset uses **Neon PostgreSQL** (serverless) for data persistence.
+PinGlass uses **Neon PostgreSQL** (serverless) for data persistence.
 
 **Connection:** Via `@neondatabase/serverless` package
 

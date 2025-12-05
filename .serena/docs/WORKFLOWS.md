@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the complete user journeys through Fotoset.
+This document describes the complete user journeys through PinGlass.
 
 ---
 
@@ -18,7 +18,7 @@ Complete journey from landing to first photo generation.
 Step 1: App Load
 ┌─────────────────┐
 │   User opens    │
-│   Fotoset       │
+│   PinGlass      │
 └────────┬────────┘
          │
          ▼
@@ -198,7 +198,7 @@ Quick path for users with active Pro subscription.
 
 ┌─────────────────┐
 │   User opens    │
-│   Fotoset       │
+│   PinGlass      │
 └────────┬────────┘
          │
          ▼
@@ -503,6 +503,6 @@ If all generations fail:
 
 | Key | Type | Description |
 |-----|------|-------------|
-| `photoset_device_id` | string | Unique browser identifier |
-| `photoset_is_pro` | boolean | Pro subscription cache |
-| `photoset_onboarding_complete` | boolean | Skip onboarding flag |
+| `pinglass_device_id` | string | Unique browser identifier |
+| `pinglass_is_pro` | boolean | Pro subscription cache |
+| `pinglass_onboarding_complete` | boolean | Skip onboarding flag |

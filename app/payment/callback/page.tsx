@@ -27,7 +27,7 @@ export default function PaymentCallbackPage() {
 
         if (data.isPro) {
           setStatus("success")
-          localStorage.setItem("photoset_is_pro", "true")
+          localStorage.setItem("pinglass_is_pro", "true")
           setTimeout(() => {
             router.push("/")
           }, 2000)

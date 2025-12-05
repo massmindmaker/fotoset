@@ -2,14 +2,14 @@ import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
-import "./globals.css"
+import "../styles/globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Fotoset - AI Photo Generator",
-  description: "Создавайте профессиональные AI-фотографии для бизнеса, соцсетей и творческих проектов",
+  title: "PinGlass - AI фотографии в розовых очках",
+  description: "Создавайте впечатляющие AI-фотографии в розовых очках для соцсетей, бизнеса и творческих проектов",
   generator: 'v0.app',
   icons: {
     icon: '/icon.svg',
@@ -22,7 +22,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#ffffff",
+  themeColor: "#1a0a10",
 }
 
 export default function RootLayout({

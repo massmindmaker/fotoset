@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     const payment = await initPayment(
       500, // сумма в рублях
       orderId,
-      "Fotoset Pro - Генерация 23 AI-фотографий",
+      "PinGlass Pro - Генерация 23 AI-фотографий",
       successUrl,
       failUrl,
       notificationUrl,

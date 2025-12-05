@@ -1,8 +1,8 @@
-# Fotoset Documentation Index
+# PinGlass Documentation Index
 
 ## Project Documentation
 
-This folder contains comprehensive documentation for the Fotoset (PersonaCreator AI) project.
+This folder contains comprehensive documentation for the PinGlass (розовые очки) project.
 
 ### Documentation Structure
 

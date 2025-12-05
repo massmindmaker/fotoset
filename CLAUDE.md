@@ -1,8 +1,8 @@
-# CLAUDE.md - Fotoset (PersonaCreator AI)
+# CLAUDE.md - PinGlass (розовые очки)
 
 ## Project Overview
 
-**Fotoset** (также известен как PersonaCreator AI) — это веб-приложение для генерации AI-фотопортретов на базе Next.js 16. Позволяет пользователям загружать свои фотографии и получать 23 профессиональных AI-сгенерированных портрета в различных стилях.
+**PinGlass** (розовые очки) — это веб-приложение для генерации AI-фотопортретов на базе Next.js 16. Позволяет пользователям загружать свои фотографии и получать 23 профессиональных AI-сгенерированных портрета в различных стилях.
 
 ### Tech Stack
 - **Frontend:** React 19, Next.js 16 (App Router), TypeScript
@@ -17,7 +17,7 @@
 ## Project Structure
 
 ```
-Fotoset/
+PinGlass/
 ├── app/                           # Next.js App Router
 │   ├── api/                       # API Routes
 │   │   ├── generate/route.ts      # Генерация 23 фото
@@ -63,7 +63,7 @@ Fotoset/
 
 ### 3. User Persistence
 - Идентификация по device ID (localStorage)
-- Хранение: `photoset_device_id`, `photoset_is_pro`, `photoset_onboarding_complete`
+- Хранение: `pinglass_device_id`, `pinglass_is_pro`, `pinglass_onboarding_complete`
 - Множественные персоны (аватары) на пользователя
 
 ---
@@ -199,7 +199,7 @@ App Load → Check localStorage isPro
      ▼
 ┌─────────────────┐
 │ Save to         │
-│ localStorage    │ → photoset_is_pro = true
+│ localStorage    │ → pinglass_is_pro = true
 └────────┬────────┘
      │
      ▼

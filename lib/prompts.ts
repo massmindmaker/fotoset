@@ -72,6 +72,13 @@ export const PHOTOSET_PROMPTS = [
 ]
 
 export const STYLE_CONFIGS = {
+  pinglass: {
+    name: "PinGlass",
+    description: "AI-фотографии в розовых очках",
+    promptPrefix: "Optimistic and vibrant portrait, ",
+    promptSuffix: " Warm lighting, positive mood, rose-tinted atmosphere.",
+    selectedPrompts: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22], // все промпты
+  },
   professional: {
     name: "Профессиональный",
     description: "Деловые портреты для LinkedIn и резюме",

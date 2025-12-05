@@ -174,7 +174,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               <div className="text-center pb-4 border-b border-border">
                 <div className="text-4xl font-bold text-primary">{tier.price} ₽</div>
                 <p className="text-muted-foreground text-sm mt-1">
-                  Fotoset Pro — {tier.photos} AI-фотографий
+                  PinGlass Pro — {tier.photos} AI-фотографий
                 </p>
               </div>
 

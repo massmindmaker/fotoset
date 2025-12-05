@@ -2,7 +2,7 @@
 
 ## Overview
 
-Fotoset is designed for deployment on **Vercel** with **Neon PostgreSQL** database.
+PinGlass is designed for deployment on **Vercel** with **Neon PostgreSQL** database.
 
 ---
 
@@ -128,7 +128,7 @@ CREATE INDEX idx_generation_jobs_avatar_id ON generation_jobs(avatar_id);
 
 1. Go to [vercel.com](https://vercel.com)
 2. Import Git repository
-3. Select `Fotoset` project
+3. Select `PinGlass` project
 
 ### 2. Configure Environment Variables
 
