@@ -1,10 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { initPayment, IS_TEST_MODE } from "@/lib/tbank"
+import { initPayment, IS_TEST_MODE, type PaymentMethod } from "@/lib/tbank"
 
 export async function POST(request: NextRequest) {
   try {
-    const { deviceId, avatarId } = await request.json()
+    const { deviceId, email, paymentMethod } = await request.json() as {
+      deviceId: string
+      email?: string
+      paymentMethod?: PaymentMethod
+    }
 
     if (!deviceId) {
       return NextResponse.json({ error: "Device ID required" }, { status: 400 })
@@ -24,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     // Проверяем, не Pro ли уже
     if (user.is_pro) {
-      return NextResponse.json({ error: "Already Pro user" }, { status: 400 })
+      return NextResponse.json({ error: "Вы уже Pro пользователь" }, { status: 400 })
     }
 
     // Определяем return URLs
@@ -44,6 +48,8 @@ export async function POST(request: NextRequest) {
       successUrl,
       failUrl,
       notificationUrl,
+      email, // Email для чека
+      paymentMethod, // Способ оплаты
     )
 
     // Сохраняем платеж в БД
@@ -52,6 +58,8 @@ export async function POST(request: NextRequest) {
       VALUES (${user.id}, ${payment.PaymentId}, 500, 'pending')
     `
 
+    console.log("[Payment] Created:", { orderId, paymentId: payment.PaymentId, email, paymentMethod, testMode: IS_TEST_MODE })
+
     return NextResponse.json({
       paymentId: payment.PaymentId,
       confirmationUrl: payment.PaymentURL,
@@ -59,6 +67,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error("Payment creation error:", error)
-    return NextResponse.json({ error: "Failed to create payment" }, { status: 500 })
+    const message = error instanceof Error ? error.message : "Failed to create payment"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

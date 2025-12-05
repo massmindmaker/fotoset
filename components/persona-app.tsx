@@ -25,6 +25,7 @@ import {
   Sunset,
   Brush,
 } from "lucide-react"
+import { PaymentModal } from "./payment-modal"
 
 // Types
 interface UploadedImage {
@@ -260,31 +261,17 @@ export default function PersonaApp() {
     }
   }
 
-  const handlePayment = async () => {
-    try {
-      const p = getActivePersona()
-      const response = await fetch("/api/payment/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId,
-          avatarId: p?.id,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Payment creation failed")
+  // Called when payment is successful
+  const handlePaymentSuccess = () => {
+    setIsPro(true)
+    localStorage.setItem("photoset_is_pro", "true")
+    setIsPaymentOpen(false)
+    // Continue with generation if we were in SELECT_STYLE view
+    if (viewState.view === "SELECT_STYLE" && viewState.personaId) {
+      const persona = personas.find((p) => p.id === viewState.personaId)
+      if (persona?.selectedStyleId) {
+        handleGenerate(viewState.personaId, persona.selectedStyleId)
       }
-
-      const data = await response.json()
-
-      if (data.confirmationUrl) {
-        // Редирект на страницу оплаты YooKassa
-        window.location.href = data.confirmationUrl
-      }
-    } catch (error) {
-      console.error("Payment error:", error)
-      alert("Ошибка создания платежа. Попробуйте позже.")
     }
   }
 
@@ -364,7 +351,7 @@ export default function PersonaApp() {
                 onGenerate={handleGenerate}
                 isGenerating={isGenerating}
                 isPro={isPro}
-                onUpgrade={handlePayment}
+                onUpgrade={() => setIsPaymentOpen(true)}
               />
             )}
 
@@ -380,7 +367,12 @@ export default function PersonaApp() {
       )}
 
       {isPaymentOpen && (
-        <PaymentModal isOpen={isPaymentOpen} onClose={() => setIsPaymentOpen(false)} onPayment={handlePayment} />
+        <PaymentModal
+          isOpen={isPaymentOpen}
+          onClose={() => setIsPaymentOpen(false)}
+          onSuccess={handlePaymentSuccess}
+          deviceId={deviceId}
+        />
       )}
     </div>
   )
@@ -1029,71 +1021,3 @@ const ResultsView: React.FC<{
   )
 }
 
-// --- PAYMENT MODAL ---
-const PaymentModal: React.FC<{
-  isOpen: boolean
-  onClose: () => void
-  onPayment: () => void
-}> = ({ isOpen, onClose, onPayment }) => {
-  const [isLoading, setIsLoading] = useState(false)
-
-  if (!isOpen) return null
-
-  const handlePaymentClick = async () => {
-    setIsLoading(true)
-    await onPayment()
-    setIsLoading(false)
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
-      <div className="bg-card w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-xl border border-border overflow-hidden">
-        <div className="p-6">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h2 className="text-xl font-bold">Photoset Pro</h2>
-              <p className="text-muted-foreground text-sm">23 AI-фотографии</p>
-            </div>
-            <button onClick={onClose} className="p-2 hover:bg-muted rounded-xl text-muted-foreground">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="mb-4 px-3 py-1.5 bg-amber-100 text-amber-800 text-xs font-medium rounded-lg text-center">
-            Тестовый режим - оплата не требуется
-          </div>
-
-          <div className="space-y-3 mb-6">
-            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
-              <CheckCircle2 className="w-5 h-5 text-green-500" />
-              <span className="text-sm">23 уникальных фотографии</span>
-            </div>
-            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
-              <CheckCircle2 className="w-5 h-5 text-green-500" />
-              <span className="text-sm">Профессиональное качество</span>
-            </div>
-            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
-              <CheckCircle2 className="w-5 h-5 text-green-500" />
-              <span className="text-sm">Скачивание в высоком разрешении</span>
-            </div>
-          </div>
-
-          <div className="text-center mb-6">
-            <span className="text-4xl font-bold">500₽</span>
-            <p className="text-sm text-muted-foreground">единоразовый платёж</p>
-          </div>
-
-          <button
-            onClick={handlePaymentClick}
-            disabled={isLoading}
-            className="w-full py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-foreground font-semibold rounded-2xl hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"
-          >
-            {isLoading ? "Перенаправление..." : "Оплатить через T-Bank"}
-          </button>
-
-          <p className="text-xs text-center text-muted-foreground mt-4">Безопасная оплата через T-Bank</p>
-        </div>
-      </div>
-    </div>
-  )
-}

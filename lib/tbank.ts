@@ -1,11 +1,15 @@
 // T-Bank (Tinkoff) Payment Integration
 import crypto from "crypto"
 
-const TBANK_TERMINAL_KEY = process.env.TBANK_TERMINAL_KEY
-const TBANK_PASSWORD = process.env.TBANK_PASSWORD
+const TBANK_TERMINAL_KEY = process.env.TBANK_TERMINAL_KEY || "TinkoffBankTest"
+const TBANK_PASSWORD = process.env.TBANK_PASSWORD || "TinkoffBankTest"
 const TBANK_API_URL = "https://securepay.tinkoff.ru/v2"
 
-export const IS_TEST_MODE = !TBANK_TERMINAL_KEY || !TBANK_PASSWORD
+// Test mode only if explicitly no credentials
+export const IS_TEST_MODE = process.env.TBANK_TEST_MODE === "true" ||
+  (!process.env.TBANK_TERMINAL_KEY && !process.env.TBANK_PASSWORD)
+
+export type PaymentMethod = "card" | "sbp" | "tpay"
 
 export interface TBankPayment {
   Success: boolean
@@ -17,6 +21,23 @@ export interface TBankPayment {
   OrderId?: string
   Amount?: number
   PaymentURL?: string
+}
+
+export interface ReceiptItem {
+  Name: string
+  Price: number
+  Quantity: number
+  Amount: number
+  Tax: "none" | "vat0" | "vat10" | "vat20" | "vat110" | "vat120"
+  PaymentMethod: "full_payment" | "full_prepayment" | "prepayment" | "advance" | "partial_payment" | "credit" | "credit_payment"
+  PaymentObject: "commodity" | "excise" | "job" | "service" | "gambling_bet" | "gambling_prize" | "lottery" | "lottery_prize" | "intellectual_activity" | "payment" | "agent_commission" | "composite" | "another"
+}
+
+export interface Receipt {
+  Email?: string
+  Phone?: string
+  Taxation: "osn" | "usn_income" | "usn_income_outcome" | "envd" | "esn" | "patent"
+  Items: ReceiptItem[]
 }
 
 // Generate token for T-Bank API requests
@@ -63,20 +84,40 @@ export async function initPayment(
   failUrl: string,
   notificationUrl?: string,
   customerEmail?: string,
-  metadata?: Record<string, string>,
+  paymentMethod?: PaymentMethod,
 ): Promise<TBankPayment> {
   if (IS_TEST_MODE) {
     console.log("[T-Bank] Test mode: creating mock payment")
     return createTestPayment(amount, orderId, description, successUrl, failUrl)
   }
 
+  const amountInKopeks = amount * 100
+
+  // Создаём чек для ФЗ-54
+  const receipt: Receipt | undefined = customerEmail
+    ? {
+        Email: customerEmail,
+        Taxation: "usn_income",
+        Items: [
+          {
+            Name: description,
+            Price: amountInKopeks,
+            Quantity: 1,
+            Amount: amountInKopeks,
+            Tax: "none",
+            PaymentMethod: "full_payment",
+            PaymentObject: "service",
+          },
+        ],
+      }
+    : undefined
+
   // Параметры для создания платежа
   const params: Record<string, string | number> = {
-    TerminalKey: TBANK_TERMINAL_KEY!,
-    Amount: amount * 100, // конвертируем в копейки
+    TerminalKey: TBANK_TERMINAL_KEY,
+    Amount: amountInKopeks,
     OrderId: orderId,
     Description: description,
-    ...(customerEmail && { DATA: JSON.stringify({ Email: customerEmail }) }),
   }
 
   // Добавляем URL возврата и уведомлений
@@ -84,15 +125,37 @@ export async function initPayment(
   if (failUrl) params.FailURL = failUrl
   if (notificationUrl) params.NotificationURL = notificationUrl
 
-  // Генерируем токен
+  // Определяем PayType для разных способов оплаты
+  let payType = "O" // One-stage payment by default
+  if (paymentMethod === "sbp") {
+    payType = "O"
+  } else if (paymentMethod === "tpay") {
+    payType = "O"
+  }
+  params.PayType = payType
+
+  // Генерируем токен (без Receipt, DATA и сложных объектов)
   const token = generateToken(params)
 
-  // Формируем тело запроса
-  const requestBody = {
+  // Формируем полное тело запроса
+  const requestBody: Record<string, unknown> = {
     ...params,
     Token: token,
-    ...(metadata && { Receipt: metadata }),
   }
+
+  // Добавляем чек если есть email
+  if (receipt) {
+    requestBody.Receipt = receipt
+  }
+
+  // Добавляем DATA с email
+  if (customerEmail) {
+    requestBody.DATA = {
+      Email: customerEmail,
+    }
+  }
+
+  console.log("[T-Bank] Creating payment:", { orderId, amount, email: customerEmail, paymentMethod })
 
   try {
     const response = await fetch(`${TBANK_API_URL}/Init`, {
@@ -104,6 +167,8 @@ export async function initPayment(
     })
 
     const data: TBankPayment = await response.json()
+
+    console.log("[T-Bank] Response:", data)
 
     if (!data.Success) {
       console.error("T-Bank payment init error:", data.Message, data.ErrorCode)

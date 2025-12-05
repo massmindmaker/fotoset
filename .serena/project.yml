@@ -1,0 +1,81 @@
+# Serena configuration for Fotoset (PersonaCreator AI)
+# AI Photo Portrait Generation Platform
+
+project_name: "Fotoset"
+encoding: "utf-8"
+
+# Languages for semantic code analysis
+languages:
+  - typescript
+  - javascript
+  - css
+  - json
+  - bash
+
+# Use gitignore + additional paths to ignore
+ignore_all_files_in_gitignore: true
+ignored_paths:
+  - .next
+  - node_modules
+  - .git
+  - "*.lock"
+  - "*.log"
+  - dist
+  - build
+  - coverage
+
+# Project settings
+read_only: false
+excluded_tools: []
+included_optional_tools: []
+
+# Project context for AI assistants
+initial_prompt: |
+  # Fotoset (PersonaCreator AI)
+
+  ## Overview
+  Next.js 16 web application for generating 23 AI photo portraits using Google Imagen 3.0.
+  Users upload 10-20 reference photos → select style → pay 500₽ → receive 23 generated portraits.
+
+  ## Tech Stack
+  - Frontend: React 19, Next.js 16 (App Router), TypeScript
+  - Styling: Tailwind CSS 4 with OKLCH color space
+  - Database: Neon PostgreSQL (serverless)
+  - AI: Google Imagen 3.0 API (via YeScale proxy)
+  - Payments: T-Bank (Tinkoff) Payment API
+
+  ## Key Files
+  - `components/persona-app.tsx` - Main component (1099 lines), all views and state
+  - `lib/prompts.ts` - 23 generation prompts + 3 style configurations
+  - `lib/tbank.ts` - T-Bank payment integration
+  - `lib/imagen.ts` - Google Imagen API wrapper
+  - `lib/db.ts` - Database client and TypeScript types
+  - `app/api/generate/route.ts` - Photo generation endpoint
+  - `app/api/payment/` - Payment create, status, webhook routes
+
+  ## User Flow
+  1. Onboarding (3 steps) → 2. Upload (10-20 photos) → 3. Style selection
+  4. Payment (500₽) → 5. Generation (23 photos) → 6. Results gallery
+
+  ## Database Tables
+  - users (device_id, is_pro)
+  - avatars (user_id, name, status, thumbnail_url)
+  - generated_photos (avatar_id, style_id, prompt, image_url)
+  - payments (user_id, payment_id, amount, status)
+  - generation_jobs (avatar_id, style_id, status, progress)
+
+  ## Styles
+  - Professional: Business portraits for LinkedIn/resume
+  - Lifestyle: Casual photos for social media
+  - Creative: Artistic portfolio shots
+
+# Source file patterns for indexing
+source_patterns:
+  - "app/**/*.ts"
+  - "app/**/*.tsx"
+  - "components/**/*.tsx"
+  - "lib/**/*.ts"
+  - "styles/**/*.css"
+  - "*.json"
+  - "*.mjs"
+  - "*.js"
