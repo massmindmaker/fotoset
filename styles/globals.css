@@ -40,16 +40,27 @@
 }
 
 .light {
-  --background: oklch(0.97 0.012 350);
-  --foreground: oklch(0.16 0.035 350);
-  --card: oklch(0.99 0.008 350);
-  --card-foreground: oklch(0.16 0.035 350);
-  --primary: oklch(0.52 0.18 350);
-  --primary-foreground: oklch(0.98 0.01 350);
+  --background: oklch(0.97 0.015 350);
+  --foreground: oklch(0.18 0.04 350);
+  --card: oklch(1.00 0 350);
+  --card-foreground: oklch(0.18 0.04 350);
+  --popover: oklch(0.99 0.01 350);
+  --popover-foreground: oklch(0.18 0.04 350);
+  --primary: oklch(0.55 0.20 350);
+  --primary-foreground: oklch(0.99 0.005 350);
+  --secondary: oklch(0.92 0.025 350);
+  --secondary-foreground: oklch(0.25 0.04 350);
   --muted: oklch(0.94 0.018 350);
-  --muted-foreground: oklch(0.42 0.05 350);
-  --border: oklch(0.88 0.02 350);
-  --ring: oklch(0.52 0.18 350);
+  --muted-foreground: oklch(0.45 0.05 350);
+  --accent: oklch(0.75 0.14 80);
+  --accent-foreground: oklch(0.20 0.04 350);
+  --border: oklch(0.88 0.025 350);
+  --input: oklch(0.95 0.015 350);
+  --ring: oklch(0.55 0.20 350);
+  --sidebar: oklch(0.98 0.01 350);
+  --sidebar-foreground: oklch(0.18 0.04 350);
+  --sidebar-primary: oklch(0.55 0.20 350);
+  --sidebar-border: oklch(0.90 0.02 350);
 }
 
 @theme inline {
@@ -163,6 +174,29 @@
 .animate-logo-breathe { animation: logo-breathe 3s ease-in-out infinite; }
 .animate-main-image-enter { animation: main-image-enter 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 .animate-orbit-ring-enter { animation: orbit-ring-enter 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+/* Counter-rotate items to keep them vertical during orbit */
+@keyframes counter-rotate { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+@keyframes counter-rotate-reverse { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* Inner content of orbit items counter-rotates to stay upright */
+/* The wrapper div compensates for initial positioning angle, this animation cancels orbit rotation */
+.animate-orbit-smooth .orbit-content {
+  animation: counter-rotate var(--orbit-duration, 25s) linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+.animate-orbit-smooth-reverse .orbit-content-reverse {
+  animation: counter-rotate-reverse var(--orbit-duration, 35s) linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* Performance optimization for orbital elements */
+.animate-orbit-smooth, .animate-orbit-smooth-reverse {
+  will-change: transform;
+  transform-style: preserve-3d;
+}
 
 .holographic-shine { position: relative; overflow: hidden; }
 .holographic-shine::before {

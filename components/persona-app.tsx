@@ -4,7 +4,7 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import {
   Sparkles, Plus, ArrowLeft, ArrowRight, Camera, Loader2, X, CheckCircle2,
-  Download, User, Zap, Shield, Star, ChevronRight, Lock, Crown,
+  Download, User, Zap, Shield, Star, ChevronRight, Lock, Crown, Sun, Moon,
 } from "lucide-react"
 import { PaymentModal } from "./payment-modal"
 
@@ -51,6 +51,7 @@ export default function PersonaApp() {
   const [deviceId, setDeviceId] = useState("")
   const [isReady, setIsReady] = useState(false)
   const [selectedTier, setSelectedTier] = useState<PricingTier>(PRICING_TIERS[1])
+  const [theme, setTheme] = useState<"dark" | "light">("dark")
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -58,9 +59,18 @@ export default function PersonaApp() {
     setDeviceId(id)
     if (localStorage.getItem("pinglass_is_pro") === "true") setIsPro(true)
     if (localStorage.getItem("pinglass_onboarding_complete")) setViewState({ view: "DASHBOARD" })
+    const savedTheme = localStorage.getItem("pinglass_theme") as "dark" | "light" | null
+    if (savedTheme) { setTheme(savedTheme); document.documentElement.classList.toggle("light", savedTheme === "light") }
     setIsReady(true)
     fetch("/api/payment/status?device_id=" + id).then(r => r.json()).then(d => { if (d.isPro) { setIsPro(true); localStorage.setItem("pinglass_is_pro", "true") } }).catch(() => {})
   }, [])
+
+  const toggleTheme = () => {
+    const newTheme = theme === "dark" ? "light" : "dark"
+    setTheme(newTheme)
+    localStorage.setItem("pinglass_theme", newTheme)
+    document.documentElement.classList.toggle("light", newTheme === "light")
+  }
 
   const completeOnboarding = () => { localStorage.setItem("pinglass_onboarding_complete", "true"); setViewState({ view: "DASHBOARD" }) }
   const handleCreatePersona = () => {
@@ -100,14 +110,17 @@ export default function PersonaApp() {
       {viewState.view === "ONBOARDING" ? <OnboardingView onComplete={completeOnboarding} onStart={handleCreatePersona} />
        : viewState.view === "GENERATING" ? <GeneratingView progress={generationProgress} totalPhotos={selectedTier.photos} />
        : (<>
-        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
+        <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-black/5">
           <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center"><Sparkles className="w-4 h-4 text-primary-foreground" /></div>
-              <span className="font-semibold text-lg">PinGlass</span>
-              {isPro && <span className="text-xs bg-gradient-to-r from-primary to-accent text-white px-2 py-0.5 rounded-full">PRO</span>}
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-xl shadow-primary/30 ring-2 ring-primary/20"><Sparkles className="w-5 h-5 text-white" /></div>
+              <span className="font-bold text-lg drop-shadow-sm">PinGlass</span>
+              {isPro && <span className="text-xs bg-gradient-to-r from-primary to-accent text-white px-2.5 py-1 rounded-full shadow-md shadow-primary/30 font-medium">PRO</span>}
             </div>
-            {viewState.view === "DASHBOARD" && <button onClick={handleCreatePersona} className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium"><Plus className="w-4 h-4" />Создать</button>}
+            <div className="flex items-center gap-2">
+              <button onClick={toggleTheme} className="p-2.5 rounded-xl bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-all shadow-md shadow-black/5">{theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</button>
+              {viewState.view === "DASHBOARD" && <button onClick={handleCreatePersona} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-2xl text-sm font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 hover:scale-[1.02] transition-all active:scale-95"><Plus className="w-4 h-4" />Создать</button>}
+            </div>
           </div>
         </header>
         <main className="max-w-5xl mx-auto px-4 py-6">
@@ -155,36 +168,53 @@ const OnboardingView: React.FC<{ onComplete: () => void; onStart: () => void }> 
         <div className="absolute bottom-20 right-10 w-40 h-40 rounded-full bg-accent/10 blur-3xl animate-float" style={{ animationDelay: "-2s" }} />
       </div>
       <div className="relative z-10 flex flex-col items-center max-w-lg w-full">
-        <div className="relative w-full aspect-square max-w-sm mb-8">
-          <div className={"absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full bg-primary/30 blur-3xl transition-all duration-1000 " + (stage >= 1 ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
-          <div className={"absolute top-1/2 left-1/2 w-32 h-32 sm:w-40 sm:h-40 rounded-3xl overflow-hidden holographic-shine border-4 border-transparent animate-holographic-border shadow-2xl " + (stage >= 1 ? "animate-main-image-enter" : "opacity-0")} style={stage < 1 ? { transform: "translate(-50%, -50%) scale(0.3)" } : undefined}>
+        <div className="relative w-full aspect-square max-w-md mb-8">
+          <div className={"absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 rounded-full bg-primary/20 blur-3xl transition-all duration-1000 " + (stage >= 1 ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+          <div className={"absolute top-1/2 left-1/2 w-28 h-28 sm:w-36 sm:h-36 rounded-3xl overflow-hidden holographic-shine border-4 border-transparent animate-holographic-border shadow-2xl shadow-primary/30 " + (stage >= 1 ? "animate-main-image-enter" : "opacity-0")} style={stage < 1 ? { transform: "translate(-50%, -50%) scale(0.3)" } : undefined}>
             <img src={DEMO_PHOTOS[0]} alt="AI Portrait" className="w-full h-full object-cover" />
           </div>
+          {/* Inner orbit - 4 photos, clockwise, radius 115px */}
           <div className={"absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full " + (stage >= 2 ? "animate-orbit-ring-enter" : "opacity-0")}>
             <div className="absolute inset-0 animate-orbit-smooth" style={{ "--orbit-duration": "25s" } as React.CSSProperties}>
-              {DEMO_PHOTOS.slice(1, 5).map((src, i) => (
-                <div key={"inner-" + i} className={"absolute w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden shadow-lg " + (i % 2 === 0 ? "neon-frame" : "neon-frame-alt")} style={{ left: "50%", top: "50%", transform: "rotate(" + (i * 90 + 45) + "deg) translateX(95px) rotate(-" + (i * 90 + 45) + "deg) translate(-50%, -50%)", animationDelay: (i * 0.3) + "s" }}>
-                  <img src={src} alt={"Portrait " + i} className="w-full h-full object-cover" />
-                </div>
-              ))}
+              {DEMO_PHOTOS.slice(1, 5).map((src, i) => {
+                const angle = i * 90 + 45
+                return (
+                  <div key={"inner-" + i} className="absolute" style={{ left: "50%", top: "50%", transform: `rotate(${angle}deg) translateX(115px)` }}>
+                    {/* Wrapper compensates for positioning angle */}
+                    <div style={{ transform: `rotate(${-angle}deg)` }}>
+                      {/* Counter-rotation cancels orbit rotation */}
+                      <div className={"orbit-content w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden shadow-xl shadow-primary/20 -translate-x-1/2 -translate-y-1/2 " + (i % 2 === 0 ? "neon-frame" : "neon-frame-alt")}>
+                        <img src={src} alt={"Portrait " + i} className="w-full h-full object-cover" />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
+          {/* Outer orbit - 6 photos, counter-clockwise, radius 175px */}
           <div className={"absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full " + (stage >= 3 ? "animate-orbit-ring-enter" : "opacity-0")} style={{ animationDelay: "0.2s" }}>
             <div className="absolute inset-0 animate-orbit-smooth-reverse" style={{ "--orbit-duration": "35s" } as React.CSSProperties}>
-              {DEMO_PHOTOS.slice(5, 11).map((src, i) => (
-                <div key={"outer-" + i} className={"absolute w-11 h-11 sm:w-14 sm:h-14 rounded-xl overflow-hidden shadow-md " + (i % 2 === 1 ? "neon-frame-alt" : "neon-frame")} style={{ left: "50%", top: "50%", transform: "rotate(" + (i * 60 + 30) + "deg) translateX(145px) rotate(-" + (i * 60 + 30) + "deg) translate(-50%, -50%)", animationDelay: (i * 0.2 + 0.5) + "s" }}>
-                  <img src={src} alt={"Portrait outer " + i} className="w-full h-full object-cover" />
-                </div>
-              ))}
+              {DEMO_PHOTOS.slice(5, 11).map((src, i) => {
+                const angle = i * 60 + 30
+                return (
+                  <div key={"outer-" + i} className="absolute" style={{ left: "50%", top: "50%", transform: `rotate(${angle}deg) translateX(175px)` }}>
+                    {/* Wrapper compensates for positioning angle */}
+                    <div style={{ transform: `rotate(${-angle}deg)` }}>
+                      {/* Counter-rotation cancels orbit rotation */}
+                      <div className={"orbit-content-reverse w-10 h-10 sm:w-12 sm:h-12 rounded-2xl overflow-hidden shadow-lg shadow-accent/20 -translate-x-1/2 -translate-y-1/2 " + (i % 2 === 1 ? "neon-frame-alt" : "neon-frame")}>
+                        <img src={src} alt={"Portrait outer " + i} className="w-full h-full object-cover" />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
         <div className={"flex flex-col items-center mb-8 transition-all duration-1000 " + (stage >= 4 ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0")}>
-          <div className="w-20 h-20 sm:w-24 sm:h-24 mb-4 rounded-full overflow-hidden animate-logo-breathe border-2 border-primary/30">
-            <img src="/logo-cheetah.png" alt="PinGlass Logo" className="w-full h-full object-cover" />
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-bold"><span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">PINGLASS</span></h1>
-          <p className="text-muted-foreground max-w-md text-lg text-center mt-2">Создавайте впечатляющие AI-фотографии в розовых очках</p>
+          <h1 className="text-3xl sm:text-4xl font-bold mb-2"><span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent drop-shadow-lg">PINGLASS</span></h1>
+          <p className="text-muted-foreground max-w-md text-lg text-center">Создавайте впечатляющие AI-фотографии</p>
         </div>
         <button onClick={onStart} className={"w-full max-w-xs py-4 px-8 bg-gradient-to-r from-primary to-accent text-white font-semibold text-lg rounded-3xl hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-primary/25 " + (stage >= 4 ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0")} style={{ transitionDelay: "200ms" }}>
           <span className="flex items-center justify-center gap-2"><Sparkles className="w-5 h-5" />Начать!</span>
@@ -203,9 +233,9 @@ const DashboardView: React.FC<{ personas: Persona[]; onCreate: () => void; onSel
     </div>
     {personas.length === 0 ? (
       <div className="space-y-6">
-        <button onClick={onCreate} className="w-full p-6 sm:p-8 bg-gradient-to-br from-primary/5 via-primary/10 to-accent/5 rounded-3xl border-2 border-dashed border-primary/30 hover:border-primary/50 transition-all group text-left">
+        <button onClick={onCreate} className="w-full p-6 sm:p-8 bg-gradient-to-br from-primary/5 via-primary/10 to-accent/5 rounded-3xl border-2 border-dashed border-primary/30 hover:border-primary/50 transition-all group text-left shadow-xl shadow-primary/5 hover:shadow-2xl hover:shadow-primary/10">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 group-hover:bg-primary/20 transition-colors flex items-center justify-center"><Plus className="w-8 h-8 text-primary" /></div>
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 group-hover:from-primary/30 group-hover:to-accent/20 transition-colors flex items-center justify-center shadow-lg shadow-primary/10"><Plus className="w-8 h-8 text-primary drop-shadow-sm" /></div>
             <div className="flex-1"><h3 className="text-lg font-semibold text-foreground mb-1">Создать первый аватар</h3><p className="text-muted-foreground text-sm">Загрузите 10-20 своих фото и получите до 23 профессиональных портрета</p></div>
             <ChevronRight className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors hidden sm:block" />
           </div>
@@ -214,9 +244,9 @@ const DashboardView: React.FC<{ personas: Persona[]; onCreate: () => void; onSel
           <h3 className="text-sm font-medium text-muted-foreground mb-3">Тарифы</h3>
           <div className="grid grid-cols-3 gap-3">
             {PRICING_TIERS.map((tier) => (
-              <div key={tier.id} className={"p-4 rounded-2xl border " + (tier.popular ? "bg-primary/5 border-primary/30" : "bg-card border-border")}>
+              <div key={tier.id} className={"p-4 rounded-2xl border transition-all hover:scale-[1.02] " + (tier.popular ? "bg-gradient-to-br from-primary/10 to-accent/5 border-primary/40 shadow-lg shadow-primary/10" : "bg-card border-border shadow-md shadow-black/5")}>
                 {tier.popular && <div className="text-xs text-primary font-medium mb-1 flex items-center gap-1"><Star className="w-3 h-3" /> Популярный</div>}
-                <div className="text-2xl font-bold">{tier.photos}</div>
+                <div className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">{tier.photos}</div>
                 <div className="text-xs text-muted-foreground">фото</div>
                 <div className="text-sm font-semibold mt-2">{tier.price} ₽</div>
               </div>
@@ -224,8 +254,8 @@ const DashboardView: React.FC<{ personas: Persona[]; onCreate: () => void; onSel
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="p-4 bg-card rounded-2xl border border-border"><Zap className="w-5 h-5 text-primary mb-2" /><p className="text-sm font-medium">До 23 фото</p><p className="text-xs text-muted-foreground">На выбор</p></div>
-          <div className="p-4 bg-card rounded-2xl border border-border"><Shield className="w-5 h-5 text-green-500 mb-2" /><p className="text-sm font-medium">Безопасно</p><p className="text-xs text-muted-foreground">Фото не сохраняются</p></div>
+          <div className="p-4 bg-card rounded-2xl border border-border shadow-lg shadow-black/5 hover:shadow-xl transition-shadow"><div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3"><Zap className="w-5 h-5 text-primary" /></div><p className="text-sm font-medium">До 23 фото</p><p className="text-xs text-muted-foreground">На выбор</p></div>
+          <div className="p-4 bg-card rounded-2xl border border-border shadow-lg shadow-black/5 hover:shadow-xl transition-shadow"><div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center mb-3"><Shield className="w-5 h-5 text-green-500" /></div><p className="text-sm font-medium">Безопасно</p><p className="text-xs text-muted-foreground">Фото не сохраняются</p></div>
         </div>
       </div>
     ) : (
@@ -306,16 +336,16 @@ const TierSelectView: React.FC<{ persona: Persona; onBack: () => void; onGenerat
     </div>
     <div className="space-y-3">
       {PRICING_TIERS.map((tier) => (
-        <button key={tier.id} onClick={() => onSelectTier(tier)} className={"w-full p-4 sm:p-5 rounded-2xl transition-all border-2 text-left active:scale-[0.99] " + (selectedTier?.id === tier.id ? "border-primary bg-primary/5 shadow-lg shadow-primary/10" : "border-transparent bg-card hover:bg-muted/50")}>
+        <button key={tier.id} onClick={() => onSelectTier(tier)} className={"w-full p-4 sm:p-5 rounded-3xl transition-all border-2 text-left active:scale-[0.99] " + (selectedTier?.id === tier.id ? "border-primary bg-gradient-to-br from-primary/10 to-accent/5 shadow-2xl shadow-primary/20 ring-2 ring-primary/10" : "border-transparent bg-card shadow-lg shadow-black/5 hover:shadow-xl hover:bg-muted/50")}>
           <div className="flex items-center gap-4">
-            <div className={"w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shrink-0 " + (selectedTier?.id === tier.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}><span className="text-2xl font-bold">{tier.photos}</span></div>
+            <div className={"w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-lg transition-all " + (selectedTier?.id === tier.id ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-primary/30" : "bg-muted text-muted-foreground shadow-black/10")}><span className="text-2xl font-bold drop-shadow-sm">{tier.photos}</span></div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1"><h3 className="font-semibold text-lg text-foreground">{tier.photos} фотографий</h3>{tier.popular && <span className="px-2 py-0.5 bg-accent/20 text-accent text-xs font-medium rounded-full flex items-center gap-1"><Star className="w-3 h-3" /> Хит</span>}</div>
+              <div className="flex items-center gap-2 mb-1"><h3 className="font-semibold text-lg text-foreground">{tier.photos} фотографий</h3>{tier.popular && <span className="px-2.5 py-1 bg-gradient-to-r from-accent/30 to-accent/10 text-accent text-xs font-medium rounded-full flex items-center gap-1 shadow-sm"><Star className="w-3 h-3" /> Хит</span>}</div>
               <p className="text-sm text-muted-foreground">{tier.id === "starter" ? "Попробовать AI-фото" : tier.id === "standard" ? "Оптимальный выбор" : "Максимум возможностей"}</p>
             </div>
             <div className="text-right shrink-0"><div className="text-2xl font-bold text-foreground">{tier.price} ₽</div><div className="text-xs text-muted-foreground">{Math.round(tier.price / tier.photos)} ₽/фото</div></div>
           </div>
-          {selectedTier?.id === tier.id && <div className="flex items-center gap-1 mt-3 text-primary text-sm"><CheckCircle2 className="w-4 h-4" />Выбрано</div>}
+          {selectedTier?.id === tier.id && <div className="flex items-center gap-1 mt-3 text-primary text-sm font-medium"><CheckCircle2 className="w-4 h-4" />Выбрано</div>}
         </button>
       ))}
     </div>

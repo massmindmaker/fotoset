@@ -1,90 +1,264 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { generateImage } from "@/lib/imagen"
+import { generateMultipleImages, type GenerationResult } from "@/lib/imagen"
 import { PHOTOSET_PROMPTS, STYLE_CONFIGS } from "@/lib/prompts"
+import {
+  filterAndSortReferenceImages,
+  smartMergePrompt,
+  enhancePromptForConsistency,
+} from "@/lib/image-utils"
+
+// Конфигурация генерации
+const GENERATION_CONFIG = {
+  concurrency: 3,              // Параллельные запросы (оптимально для API rate limits)
+  maxPhotos: 23,               // Максимум фото за генерацию
+  maxReferenceImages: 20,      // Используем все изображения пользователя (10-20)
+  minReferenceImages: 1,       // Минимум для генерации
+}
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+
   try {
     const { deviceId, avatarId, styleId, referenceImages } = await request.json()
 
+    // Валидация входных данных
     if (!deviceId || !avatarId || !styleId) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Missing required fields: deviceId, avatarId, styleId" },
+        { status: 400 }
+      )
     }
 
-    // Проверяем пользователя
+    if (!referenceImages || referenceImages.length === 0) {
+      return NextResponse.json(
+        { error: "At least one reference image is required" },
+        { status: 400 }
+      )
+    }
+
+    // Проверяем пользователя и Pro статус
     const user = await sql`
       SELECT * FROM users WHERE device_id = ${deviceId}
     `.then((rows) => rows[0])
 
-    if (!user || !user.is_pro) {
-      return NextResponse.json({ error: "Pro subscription required" }, { status: 403 })
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    if (!user.is_pro) {
+      return NextResponse.json(
+        { error: "Pro subscription required for generation" },
+        { status: 403 }
+      )
     }
 
     // Получаем конфигурацию стиля
     const styleConfig = STYLE_CONFIGS[styleId as keyof typeof STYLE_CONFIGS]
     if (!styleConfig) {
-      return NextResponse.json({ error: "Invalid style" }, { status: 400 })
+      return NextResponse.json(
+        { error: `Invalid style: ${styleId}. Available: ${Object.keys(STYLE_CONFIGS).join(", ")}` },
+        { status: 400 }
+      )
     }
 
+    // Валидация и фильтрация референсных изображений
+    console.log(`[Generate] Validating ${referenceImages.length} reference images...`)
+    const { selected: validReferenceImages, rejected } = filterAndSortReferenceImages(
+      referenceImages,
+      GENERATION_CONFIG.maxReferenceImages
+    )
+
+    if (rejected.length > 0) {
+      console.warn(`[Generate] Rejected ${rejected.length} images:`, rejected)
+    }
+
+    if (validReferenceImages.length < GENERATION_CONFIG.minReferenceImages) {
+      return NextResponse.json(
+        {
+          error: "No valid reference images. Please upload clear photos.",
+          rejectedImages: rejected,
+        },
+        { status: 400 }
+      )
+    }
+
+    console.log(`[Generate] Using ${validReferenceImages.length} reference images`)
+
     // Создаем задачу генерации
+    const totalPhotos = Math.min(PHOTOSET_PROMPTS.length, GENERATION_CONFIG.maxPhotos)
+
     const job = await sql`
       INSERT INTO generation_jobs (avatar_id, style_id, status, total_photos)
-      VALUES (${avatarId}, ${styleId}, 'processing', 23)
+      VALUES (${avatarId}, ${styleId}, 'processing', ${totalPhotos})
       RETURNING *
     `.then((rows) => rows[0])
 
-    // Генерируем 23 фото
-    const generatedPhotos: string[] = []
-    const allPrompts = PHOTOSET_PROMPTS.slice(0, 23) // Берем первые 23 промпта
+    console.log(`[Generate] Created job ${job.id} for avatar ${avatarId}, style: ${styleId}`)
 
-    for (let i = 0; i < allPrompts.length; i++) {
-      try {
-        const fullPrompt = `${styleConfig.promptPrefix}${allPrompts[i]}${styleConfig.promptSuffix}`
+    // Подготавливаем промпты с умным слиянием
+    const basePrompts = PHOTOSET_PROMPTS.slice(0, totalPhotos)
+    const mergedPrompts = basePrompts.map(basePrompt =>
+      smartMergePrompt({
+        basePrompt,
+        stylePrefix: styleConfig.promptPrefix,
+        styleSuffix: styleConfig.promptSuffix,
+      })
+    ).map(prompt =>
+      // Добавляем улучшения для консистентности
+      enhancePromptForConsistency(prompt)
+    )
 
-        const imageUrl = await generateImage(fullPrompt, referenceImages)
+    console.log(`[Generate] Prepared ${mergedPrompts.length} prompts with smart merging`)
 
-        // Сохраняем фото в БД
-        await sql`
-          INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
-          VALUES (${avatarId}, ${styleId}, ${fullPrompt}, ${imageUrl})
-        `
+    // Batch генерация с прогресс-трекингом
+    let completedCount = 0
 
-        generatedPhotos.push(imageUrl)
+    const results: GenerationResult[] = await generateMultipleImages(
+      mergedPrompts,
+      validReferenceImages,
+      {
+        concurrency: GENERATION_CONFIG.concurrency,
+        onProgress: async (completed, total, success) => {
+          completedCount = completed
 
-        // Обновляем прогресс
-        await sql`
-          UPDATE generation_jobs 
-          SET completed_photos = ${i + 1}, updated_at = NOW()
-          WHERE id = ${job.id}
-        `
-      } catch (error) {
-        console.error(`Error generating image ${i + 1}:`, error)
-        // Продолжаем генерацию даже если одно фото не удалось
+          // Обновляем прогресс в БД каждые 3 фото
+          if (completed % 3 === 0 || completed === total) {
+            await sql`
+              UPDATE generation_jobs
+              SET completed_photos = ${completed}, updated_at = NOW()
+              WHERE id = ${job.id}
+            `.catch(err => console.error("[Generate] Progress update failed:", err))
+          }
+        },
       }
+    )
+
+    // Сохраняем успешные фото в БД
+    const successfulPhotos = results.filter(r => r.success)
+    const failedCount = results.length - successfulPhotos.length
+
+    for (const result of successfulPhotos) {
+      const promptIndex = results.indexOf(result)
+      const originalPrompt = mergedPrompts[promptIndex]
+
+      await sql`
+        INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
+        VALUES (${avatarId}, ${styleId}, ${originalPrompt}, ${result.url})
+      `.catch(err => console.error(`[Generate] Failed to save photo to DB:`, err))
     }
 
     // Обновляем статус задачи
+    const finalStatus = successfulPhotos.length > 0 ? "completed" : "failed"
     await sql`
-      UPDATE generation_jobs 
-      SET status = 'completed', updated_at = NOW()
+      UPDATE generation_jobs
+      SET status = ${finalStatus},
+          completed_photos = ${successfulPhotos.length},
+          error_message = ${failedCount > 0 ? `${failedCount} photos failed to generate` : null},
+          updated_at = NOW()
       WHERE id = ${job.id}
     `
 
     // Обновляем аватар
-    await sql`
-      UPDATE avatars 
-      SET status = 'ready', thumbnail_url = ${generatedPhotos[0] || null}, updated_at = NOW()
-      WHERE id = ${avatarId}
-    `
+    if (successfulPhotos.length > 0) {
+      await sql`
+        UPDATE avatars
+        SET status = 'ready',
+            thumbnail_url = ${successfulPhotos[0].url},
+            updated_at = NOW()
+        WHERE id = ${avatarId}
+      `
+    }
+
+    const elapsedTime = Math.round((Date.now() - startTime) / 1000)
+    console.log(`[Generate] Job ${job.id} completed in ${elapsedTime}s: ${successfulPhotos.length}/${totalPhotos} successful`)
 
     return NextResponse.json({
       success: true,
       jobId: job.id,
-      photosGenerated: generatedPhotos.length,
-      photos: generatedPhotos,
+      photosGenerated: successfulPhotos.length,
+      photosFailed: failedCount,
+      photos: successfulPhotos.map(r => r.url),
+      referenceImagesUsed: validReferenceImages.length,
+      referenceImagesRejected: rejected.length,
+      elapsedSeconds: elapsedTime,
+      style: styleConfig.name,
     })
   } catch (error) {
-    console.error("Generation error:", error)
-    return NextResponse.json({ error: "Generation failed" }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    console.error("[Generate] Fatal error:", errorMessage)
+
+    return NextResponse.json(
+      {
+        error: "Generation failed",
+        message: errorMessage,
+      },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * GET endpoint для проверки статуса генерации
+ */
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams
+  const jobId = searchParams.get("job_id")
+  const avatarId = searchParams.get("avatar_id")
+
+  if (!jobId && !avatarId) {
+    return NextResponse.json(
+      { error: "Either job_id or avatar_id is required" },
+      { status: 400 }
+    )
+  }
+
+  try {
+    let job
+
+    if (jobId) {
+      job = await sql`
+        SELECT * FROM generation_jobs WHERE id = ${jobId}
+      `.then(rows => rows[0])
+    } else {
+      // Получаем последнюю задачу для аватара
+      job = await sql`
+        SELECT * FROM generation_jobs
+        WHERE avatar_id = ${avatarId}
+        ORDER BY created_at DESC
+        LIMIT 1
+      `.then(rows => rows[0])
+    }
+
+    if (!job) {
+      return NextResponse.json({ error: "Job not found" }, { status: 404 })
+    }
+
+    // Получаем сгенерированные фото
+    const photos = await sql`
+      SELECT image_url FROM generated_photos
+      WHERE avatar_id = ${job.avatar_id} AND style_id = ${job.style_id}
+      ORDER BY created_at ASC
+    `
+
+    return NextResponse.json({
+      jobId: job.id,
+      status: job.status,
+      progress: {
+        completed: job.completed_photos,
+        total: job.total_photos,
+        percentage: Math.round((job.completed_photos / job.total_photos) * 100),
+      },
+      photos: photos.map((p: { image_url: string }) => p.image_url),
+      error: job.error_message,
+      createdAt: job.created_at,
+      updatedAt: job.updated_at,
+    })
+  } catch (error) {
+    console.error("[Generate] Status check error:", error)
+    return NextResponse.json(
+      { error: "Failed to check status" },
+      { status: 500 }
+    )
   }
 }
