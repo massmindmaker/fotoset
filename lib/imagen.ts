@@ -1,10 +1,46 @@
-// Google Imagen 3.0 API интеграция
-// Улучшенная версия с batch генерацией, negative prompts и множественными reference images
+// Multi-provider Image Generation API
+// Supports: Kie.ai (primary - cheapest), fal.ai (fallback), Google Imagen (legacy)
 
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY!
-const IMAGEN_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict"
+// Provider configuration
+const PROVIDERS = {
+  kie: {
+    name: "Kie.ai",
+    apiKey: process.env.KIE_API_KEY,
+    endpoint: "https://api.kie.ai/api/v1/jobs/createTask",
+    statusEndpoint: "https://api.kie.ai/api/v1/jobs/getTaskStatus",
+    model: "google/nano-banana-pro",
+    pricePerImage: 0.12,
+  },
+  fal: {
+    name: "fal.ai",
+    apiKey: process.env.FAL_API_KEY,
+    endpoint: "https://fal.run/fal-ai/nano-banana-pro",
+    pricePerImage: 0.15,
+  },
+  google: {
+    name: "Google Imagen",
+    apiKey: process.env.GOOGLE_API_KEY,
+    endpoint: "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict",
+    pricePerImage: 0.03,
+  },
+} as const
 
-// Глобальный negative prompt для улучшения качества портретов
+type ProviderName = keyof typeof PROVIDERS
+
+// Default provider order (cheapest first)
+const PROVIDER_ORDER: ProviderName[] = ["kie", "fal", "google"]
+
+// Get active provider based on available API keys
+function getActiveProvider(): ProviderName | null {
+  for (const name of PROVIDER_ORDER) {
+    if (PROVIDERS[name].apiKey) {
+      return name
+    }
+  }
+  return null
+}
+
+// Negative prompt for quality improvement
 const NEGATIVE_PROMPT = [
   "deformed", "distorted", "disfigured", "mutated",
   "bad anatomy", "wrong anatomy", "extra limbs", "missing limbs",
@@ -17,19 +53,12 @@ const NEGATIVE_PROMPT = [
   "mutation", "extra head", "extra body",
 ].join(", ")
 
-export interface ImagenResponse {
-  predictions: Array<{
-    bytesBase64Encoded: string
-    mimeType: string
-  }>
-}
-
 export interface GenerationOptions {
   prompt: string
   referenceImages?: string[]
   negativePrompt?: string
   aspectRatio?: "1:1" | "3:4" | "4:3" | "9:16" | "16:9"
-  guidanceScale?: number // 1-20, влияет на соответствие промпту
+  resolution?: "1K" | "2K" | "4K"
   seed?: number
 }
 
@@ -37,82 +66,212 @@ export interface GenerationResult {
   url: string
   success: boolean
   error?: string
+  provider?: string
 }
 
-/**
- * Подготовка референсных изображений для API
- * Используем все изображения пользователя для максимальной консистентности
- */
-function prepareReferenceImages(images: string[], maxImages = 20): string[] {
-  if (!images || images.length === 0) return []
+// ============ KIE.AI PROVIDER ============
 
-  return images.slice(0, maxImages).map(img => {
-    // Убираем data URI префикс если есть
-    if (img.startsWith("data:")) {
-      return img.split(",")[1]
-    }
-    return img
+interface KieTaskResponse {
+  task_id: string
+  status: string
+}
+
+interface KieStatusResponse {
+  status: "pending" | "processing" | "completed" | "failed"
+  output?: {
+    image_url?: string
+    images?: string[]
+  }
+  error?: string
+}
+
+async function generateWithKie(options: GenerationOptions): Promise<string> {
+  const { prompt, referenceImages, aspectRatio = "1:1", resolution = "2K" } = options
+  const config = PROVIDERS.kie
+
+  if (!config.apiKey) {
+    throw new Error("KIE_API_KEY not configured")
+  }
+
+  // Prepare request
+  const requestBody: Record<string, unknown> = {
+    model: config.model,
+    prompt: prompt,
+    aspect_ratio: aspectRatio,
+    resolution: resolution,
+    output_format: "png",
+  }
+
+  // Add reference images if provided
+  if (referenceImages && referenceImages.length > 0) {
+    requestBody.image_urls = referenceImages.slice(0, 5).map(img => {
+      // Convert base64 to data URI if needed
+      if (!img.startsWith("data:") && !img.startsWith("http")) {
+        return `data:image/jpeg;base64,${img}`
+      }
+      return img
+    })
+  }
+
+  // Create task
+  const createResponse = await fetch(config.endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify(requestBody),
   })
+
+  if (!createResponse.ok) {
+    const error = await createResponse.text()
+    console.error("[Kie.ai] Create task error:", error)
+    throw new Error(`Kie.ai task creation failed: ${createResponse.status}`)
+  }
+
+  const taskData: KieTaskResponse = await createResponse.json()
+  const taskId = taskData.task_id
+
+  if (!taskId) {
+    throw new Error("Kie.ai did not return task_id")
+  }
+
+  // Poll for completion (max 2 minutes)
+  const maxAttempts = 60
+  const pollInterval = 2000
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, pollInterval))
+
+    const statusResponse = await fetch(`${config.statusEndpoint}?task_id=${taskId}`, {
+      headers: {
+        "Authorization": `Bearer ${config.apiKey}`,
+      },
+    })
+
+    if (!statusResponse.ok) {
+      continue
+    }
+
+    const status: KieStatusResponse = await statusResponse.json()
+
+    if (status.status === "completed") {
+      const imageUrl = status.output?.image_url || status.output?.images?.[0]
+      if (imageUrl) {
+        return imageUrl
+      }
+      throw new Error("Kie.ai completed but no image URL")
+    }
+
+    if (status.status === "failed") {
+      throw new Error(status.error || "Kie.ai generation failed")
+    }
+  }
+
+  throw new Error("Kie.ai generation timeout")
 }
 
-/**
- * Генерация одного изображения через Imagen API
- */
-export async function generateImage(
-  options: GenerationOptions
-): Promise<string> {
-  const {
-    prompt,
-    referenceImages = [],
-    negativePrompt = NEGATIVE_PROMPT,
-    aspectRatio = "1:1",
-    guidanceScale,
-    seed,
-  } = options
+// ============ FAL.AI PROVIDER ============
 
-  // Формируем расширенный промпт с negative prompt
+interface FalResponse {
+  images: Array<{
+    url: string
+    width: number
+    height: number
+  }>
+}
+
+async function generateWithFal(options: GenerationOptions): Promise<string> {
+  const { prompt, referenceImages, aspectRatio = "1:1", resolution = "2K" } = options
+  const config = PROVIDERS.fal
+
+  if (!config.apiKey) {
+    throw new Error("FAL_API_KEY not configured")
+  }
+
+  const requestBody: Record<string, unknown> = {
+    prompt: prompt,
+    num_images: 1,
+    aspect_ratio: aspectRatio,
+    resolution: resolution,
+    output_format: "png",
+  }
+
+  // Add reference images for image-to-image
+  if (referenceImages && referenceImages.length > 0) {
+    requestBody.image = referenceImages[0].startsWith("data:")
+      ? referenceImages[0]
+      : `data:image/jpeg;base64,${referenceImages[0]}`
+  }
+
+  const response = await fetch(config.endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Key ${config.apiKey}`,
+    },
+    body: JSON.stringify(requestBody),
+  })
+
+  if (!response.ok) {
+    const error = await response.text()
+    console.error("[fal.ai] API error:", error)
+    throw new Error(`fal.ai generation failed: ${response.status}`)
+  }
+
+  const data: FalResponse = await response.json()
+
+  if (!data.images || data.images.length === 0) {
+    throw new Error("fal.ai returned no images")
+  }
+
+  return data.images[0].url
+}
+
+// ============ GOOGLE IMAGEN PROVIDER (Legacy) ============
+
+interface GoogleImagenResponse {
+  predictions: Array<{
+    bytesBase64Encoded: string
+    mimeType: string
+  }>
+}
+
+async function generateWithGoogle(options: GenerationOptions): Promise<string> {
+  const { prompt, referenceImages, negativePrompt = NEGATIVE_PROMPT, aspectRatio = "1:1" } = options
+  const config = PROVIDERS.google
+
+  if (!config.apiKey) {
+    throw new Error("GOOGLE_API_KEY not configured")
+  }
+
   const enhancedPrompt = negativePrompt
     ? `${prompt}\n\nAvoid: ${negativePrompt}`
     : prompt
 
-  // Подготавливаем все референсные изображения для максимальной консистентности
-  const preparedReferences = prepareReferenceImages(referenceImages, 20)
-
   const requestBody: Record<string, unknown> = {
-    instances: [
-      {
-        prompt: enhancedPrompt,
-      },
-    ],
+    instances: [{
+      prompt: enhancedPrompt,
+    }],
     parameters: {
       sampleCount: 1,
       aspectRatio: aspectRatio,
       personGeneration: "allow_adult",
-      // Добавляем guidanceScale если указан (влияет на соответствие промпту vs креативность)
-      ...(guidanceScale && { guidanceScale }),
-      // Добавляем seed для воспроизводимости
-      ...(seed && { seed }),
     },
   }
 
-  // Добавляем референсные изображения для консистентности лица
-  // Imagen 3 использует все предоставленные изображения для лучшего понимания субъекта
-  if (preparedReferences.length > 0) {
-    // Основное референсное изображение (главное лицо)
-    (requestBody.instances as Array<Record<string, unknown>>)[0].image = {
-      bytesBase64Encoded: preparedReferences[0],
-    }
+  // Add reference images
+  if (referenceImages && referenceImages.length > 0) {
+    const preparedRef = referenceImages[0].startsWith("data:")
+      ? referenceImages[0].split(",")[1]
+      : referenceImages[0]
 
-    // Дополнительные референсы для улучшения консистентности (если поддерживается)
-    if (preparedReferences.length > 1) {
-      (requestBody.instances as Array<Record<string, unknown>>)[0].referenceImages =
-        preparedReferences.slice(1).map(img => ({
-          bytesBase64Encoded: img,
-        }))
+    ;(requestBody.instances as Array<Record<string, unknown>>)[0].image = {
+      bytesBase64Encoded: preparedRef,
     }
   }
 
-  const response = await fetch(`${IMAGEN_API_URL}?key=${GOOGLE_API_KEY}`, {
+  const response = await fetch(`${config.endpoint}?key=${config.apiKey}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -122,23 +281,71 @@ export async function generateImage(
 
   if (!response.ok) {
     const error = await response.text()
-    console.error("[Imagen] API error:", error)
-    throw new Error(`Imagen generation failed: ${response.status}`)
+    console.error("[Google Imagen] API error:", error)
+    throw new Error(`Google Imagen generation failed: ${response.status}`)
   }
 
-  const data: ImagenResponse = await response.json()
+  const data: GoogleImagenResponse = await response.json()
 
   if (!data.predictions || data.predictions.length === 0) {
-    throw new Error("No image generated")
+    throw new Error("Google Imagen returned no images")
   }
 
-  // Возвращаем base64 изображение как data URI
   return `data:${data.predictions[0].mimeType};base64,${data.predictions[0].bytesBase64Encoded}`
 }
 
+// ============ UNIFIED GENERATION FUNCTION ============
+
 /**
- * Batch генерация с улучшенной обработкой ошибок
- * Использует Promise.allSettled для graceful error handling
+ * Generate a single image using available providers with automatic fallback
+ */
+export async function generateImage(options: GenerationOptions): Promise<string> {
+  const errors: Array<{ provider: string; error: string }> = []
+
+  // Try each provider in order
+  for (const providerName of PROVIDER_ORDER) {
+    const provider = PROVIDERS[providerName]
+
+    if (!provider.apiKey) {
+      continue
+    }
+
+    try {
+      console.log(`[Image Gen] Trying ${provider.name}...`)
+
+      let result: string
+
+      switch (providerName) {
+        case "kie":
+          result = await generateWithKie(options)
+          break
+        case "fal":
+          result = await generateWithFal(options)
+          break
+        case "google":
+          result = await generateWithGoogle(options)
+          break
+        default:
+          continue
+      }
+
+      console.log(`[Image Gen] ✓ Success with ${provider.name}`)
+      return result
+
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Unknown error"
+      console.error(`[Image Gen] ✗ ${provider.name} failed:`, errorMsg)
+      errors.push({ provider: provider.name, error: errorMsg })
+    }
+  }
+
+  // All providers failed
+  const errorSummary = errors.map(e => `${e.provider}: ${e.error}`).join("; ")
+  throw new Error(`All providers failed: ${errorSummary}`)
+}
+
+/**
+ * Batch generation with progress tracking
  */
 export async function generateMultipleImages(
   prompts: string[],
@@ -158,28 +365,29 @@ export async function generateMultipleImages(
   } = options
 
   const results: GenerationResult[] = []
-  const errors: Array<{ index: number; error: string }> = []
+  const activeProvider = getActiveProvider()
 
-  console.log(`[Imagen] Starting batch generation: ${prompts.length} images, concurrency: ${concurrency}`)
+  console.log(`[Image Gen] Starting batch: ${prompts.length} images, concurrency: ${concurrency}`)
+  console.log(`[Image Gen] Active provider: ${activeProvider ? PROVIDERS[activeProvider].name : "none"}`)
 
-  // Обрабатываем батчами для контроля нагрузки на API
+  // Process in batches
   for (let i = 0; i < prompts.length; i += concurrency) {
     const batch = prompts.slice(i, i + concurrency)
     const batchStartIndex = i
 
-    console.log(`[Imagen] Processing batch ${Math.floor(i / concurrency) + 1}/${Math.ceil(prompts.length / concurrency)} (${batch.length} images)`)
+    console.log(`[Image Gen] Batch ${Math.floor(i / concurrency) + 1}/${Math.ceil(prompts.length / concurrency)}`)
 
     const batchResults = await Promise.allSettled(
       batch.map((prompt, batchIndex) =>
         generateImage({
           prompt: `${stylePrefix}${prompt}${styleSuffix}`,
           referenceImages,
-          seed: Date.now() + batchIndex + batchStartIndex, // Уникальный seed для каждого изображения
+          seed: Date.now() + batchIndex + batchStartIndex,
         })
       )
     )
 
-    // Обрабатываем результаты батча
+    // Process results
     batchResults.forEach((result, batchIndex) => {
       const globalIndex = batchStartIndex + batchIndex
       const success = result.status === "fulfilled"
@@ -188,14 +396,13 @@ export async function generateMultipleImages(
         results.push({
           url: result.value,
           success: true,
+          provider: activeProvider ? PROVIDERS[activeProvider].name : undefined,
         })
-        console.log(`[Imagen] ✓ Image ${globalIndex + 1}/${prompts.length} generated`)
+        console.log(`[Image Gen] ✓ Image ${globalIndex + 1}/${prompts.length}`)
       } else {
         const errorMsg = result.reason instanceof Error ? result.reason.message : "Unknown error"
-        console.error(`[Imagen] ✗ Image ${globalIndex + 1}/${prompts.length} failed:`, errorMsg)
-        errors.push({ index: globalIndex, error: errorMsg })
+        console.error(`[Image Gen] ✗ Image ${globalIndex + 1}/${prompts.length}:`, errorMsg)
 
-        // Добавляем placeholder при ошибке
         results.push({
           url: "/generation-failed.jpg",
           success: false,
@@ -203,75 +410,112 @@ export async function generateMultipleImages(
         })
       }
 
-      // Callback для отслеживания прогресса
       onProgress?.(globalIndex + 1, prompts.length, success)
     })
 
-    // Задержка между батчами для соблюдения rate limits
+    // Rate limit delay between batches
     if (i + concurrency < prompts.length) {
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await new Promise(resolve => setTimeout(resolve, 1000))
     }
   }
 
-  // Логируем итоговую статистику
   const successCount = results.filter(r => r.success).length
-  console.log(`[Imagen] Generation complete: ${successCount}/${prompts.length} successful`)
+  console.log(`[Image Gen] Complete: ${successCount}/${prompts.length} successful`)
 
-  if (errors.length > 0) {
-    console.warn(`[Imagen] ${errors.length} generation(s) failed:`, errors)
+  return results
+}
+
+/**
+ * Test API connection for all configured providers
+ */
+export async function testConnections(): Promise<Record<string, {
+  configured: boolean
+  connected: boolean
+  message: string
+  pricePerImage: number
+}>> {
+  const results: Record<string, {
+    configured: boolean
+    connected: boolean
+    message: string
+    pricePerImage: number
+  }> = {}
+
+  for (const [name, config] of Object.entries(PROVIDERS)) {
+    results[name] = {
+      configured: !!config.apiKey,
+      connected: false,
+      message: config.apiKey ? "Not tested" : "API key not configured",
+      pricePerImage: config.pricePerImage,
+    }
+
+    if (!config.apiKey) continue
+
+    try {
+      // Simple connectivity test - just check if API responds
+      const testPrompt = "A simple blue square on white background"
+
+      if (name === "kie") {
+        const response = await fetch(config.endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${config.apiKey}`,
+          },
+          body: JSON.stringify({
+            model: PROVIDERS.kie.model,
+            prompt: testPrompt,
+            resolution: "1K",
+          }),
+        })
+        results[name].connected = response.status !== 401 && response.status !== 403
+        results[name].message = response.ok ? "Connected" : `HTTP ${response.status}`
+      } else if (name === "fal") {
+        const response = await fetch(config.endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Key ${config.apiKey}`,
+          },
+          body: JSON.stringify({ prompt: testPrompt, num_images: 1 }),
+        })
+        results[name].connected = response.status !== 401 && response.status !== 403
+        results[name].message = response.ok ? "Connected" : `HTTP ${response.status}`
+      } else if (name === "google") {
+        const response = await fetch(`${config.endpoint}?key=${config.apiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            instances: [{ prompt: testPrompt }],
+            parameters: { sampleCount: 1, aspectRatio: "1:1" },
+          }),
+        })
+        results[name].connected = response.status !== 401 && response.status !== 403
+        results[name].message = response.ok ? "Connected" : `HTTP ${response.status}`
+      }
+    } catch (error) {
+      results[name].message = error instanceof Error ? error.message : "Connection error"
+    }
   }
 
   return results
 }
 
 /**
- * Проверка доступности API и конфигурации
+ * Get current provider info
  */
-export async function testImagenConnection(): Promise<{
-  success: boolean
-  message: string
-  apiKeyConfigured: boolean
-}> {
-  if (!GOOGLE_API_KEY) {
-    return {
-      success: false,
-      message: "GOOGLE_API_KEY is not configured",
-      apiKeyConfigured: false,
-    }
+export function getProviderInfo(): {
+  active: string | null
+  available: string[]
+  pricing: Record<string, number>
+} {
+  const active = getActiveProvider()
+  const available = PROVIDER_ORDER.filter(name => !!PROVIDERS[name].apiKey)
+  const pricing: Record<string, number> = {}
+
+  for (const [name, config] of Object.entries(PROVIDERS)) {
+    pricing[name] = config.pricePerImage
   }
 
-  try {
-    // Простой тест - генерируем минимальное изображение
-    const testPrompt = "A simple blue square on white background, minimal, abstract"
-
-    const response = await fetch(`${IMAGEN_API_URL}?key=${GOOGLE_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        instances: [{ prompt: testPrompt }],
-        parameters: { sampleCount: 1, aspectRatio: "1:1" },
-      }),
-    })
-
-    if (response.ok) {
-      return {
-        success: true,
-        message: "Imagen API connected successfully",
-        apiKeyConfigured: true,
-      }
-    } else {
-      const error = await response.text()
-      return {
-        success: false,
-        message: `API error: ${response.status} - ${error}`,
-        apiKeyConfigured: true,
-      }
-    }
-  } catch (error) {
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : "Unknown connection error",
-      apiKeyConfigured: true,
-    }
-  }
+  return { active: active ? PROVIDERS[active].name : null, available, pricing }
 }

@@ -1,49 +1,22 @@
-// API route для проверки доступных моделей YeScale
+// API route для проверки доступных провайдеров генерации изображений
 import { NextResponse } from "next/server"
-
-const YESCALE_API_KEY = process.env.YESCALE_API_KEY || "sk-XdPb8LjjBVjQD5JsUW25MAKdzJ3lufQTqlz1v7XST9mBC55B"
-const YESCALE_BASE_URL = "https://api.yescale.io/v1beta"
+import { testConnections, getProviderInfo } from "@/lib/imagen"
 
 export async function GET() {
   try {
-    // Пробуем получить список моделей
-    const modelsResponse = await fetch(`${YESCALE_BASE_URL}/models`, {
-      headers: {
-        Authorization: `Bearer ${YESCALE_API_KEY}`,
-        "x-goog-api-key": YESCALE_API_KEY,
-      },
-    })
-
-    let modelsData = null
-    if (modelsResponse.ok) {
-      modelsData = await modelsResponse.json()
-    }
-
-    // Тестируем конкретную модель gemini-3-pro
-    const testResponse = await fetch(`${YESCALE_BASE_URL}/models/gemini-2.0-flash:generateContent`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${YESCALE_API_KEY}`,
-        "x-goog-api-key": YESCALE_API_KEY,
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: "Say hello in Russian" }],
-          },
-        ],
-      }),
-    })
-
-    const testData = await testResponse.json()
+    const providerInfo = getProviderInfo()
+    const connectionTests = await testConnections()
 
     return NextResponse.json({
       success: true,
-      modelsAvailable: modelsData,
-      testModelResponse: {
-        status: testResponse.status,
-        data: testData,
+      activeProvider: providerInfo.active,
+      availableProviders: providerInfo.available,
+      pricing: providerInfo.pricing,
+      connectionTests,
+      envStatus: {
+        KIE_API_KEY: !!process.env.KIE_API_KEY,
+        FAL_API_KEY: !!process.env.FAL_API_KEY,
+        GOOGLE_API_KEY: !!process.env.GOOGLE_API_KEY,
       },
     })
   } catch (error) {
