@@ -73,8 +73,22 @@
 2. **Никаких удержаний** — переводите полную сумму
 3. **Никакой отчётности** — всё на стороне самозанятого
 
-### Рекомендация
-**Начать с выплат только самозанятым** — проще юридически, меньше отчётности.
+### Выбранный вариант: Выплаты физлицам
+
+**Схема:**
+- Партнёр накапливает 10% от платежей рефералов
+- При выводе от 5000 ₽ удерживается НДФЛ 13%
+- Партнёр получает: сумма × 0.87
+
+**Пример:**
+- Баланс: 5000 ₽
+- НДФЛ 13%: 650 ₽ (платит ИП в налоговую)
+- К выплате: 4350 ₽
+
+**Обязанности ИП:**
+1. Удержать 13% при выплате
+2. Перечислить НДФЛ в налоговую до 28 числа след. месяца
+3. Сдавать 6-НДФЛ ежеквартально
 
 ---
 
@@ -128,21 +142,26 @@ CREATE TABLE referral_balances (
 CREATE TABLE referral_withdrawals (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id),
-    amount DECIMAL(10,2) NOT NULL,
-    status VARCHAR(20) DEFAULT 'pending',  -- pending, processing, completed, rejected
+
+    -- Суммы
+    amount DECIMAL(10,2) NOT NULL,           -- Сумма до вычета НДФЛ
+    ndfl_amount DECIMAL(10,2) NOT NULL,      -- НДФЛ 13%
+    payout_amount DECIMAL(10,2) NOT NULL,    -- К выплате (amount - ndfl)
+
+    status VARCHAR(20) DEFAULT 'pending',    -- pending, processing, completed, rejected
 
     -- Реквизиты для выплаты
-    payout_method VARCHAR(20) NOT NULL,  -- card, phone, selfemployed
-    payout_details JSONB NOT NULL,  -- {card: "4276...", phone: "+7..."}
-
-    -- Для самозанятых
-    inn VARCHAR(12),
-    receipt_url TEXT,  -- Ссылка на чек из "Мой налог"
+    payout_method VARCHAR(20) NOT NULL,      -- card, sbp
+    card_number VARCHAR(19),                 -- Номер карты (маскированный для хранения)
+    card_number_full VARCHAR(19),            -- Полный номер (зашифрованный или удалить после выплаты)
+    phone VARCHAR(20),                       -- Для СБП
+    recipient_name VARCHAR(200) NOT NULL,    -- ФИО получателя (для 6-НДФЛ)
 
     -- Служебное
-    processed_by VARCHAR(100),  -- Кто обработал
+    processed_by VARCHAR(100),               -- Кто обработал
     processed_at TIMESTAMP,
     rejection_reason TEXT,
+    ndfl_paid_at TIMESTAMP,                  -- Когда уплачен НДФЛ в налоговую
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -246,20 +265,21 @@ POST /api/admin/withdrawals/[id] — Обработать заявку (approve/
 │  Сумма к выводу: 5 200 ₽               │
 │                                         │
 │  Способ получения:                     │
-│  ○ На карту (с удержанием НДФЛ 13%)   │
+│  ● На карту                            │
 │  ○ По номеру телефона (СБП)           │
-│  ● Я самозанятый (без удержаний)      │
+│                                         │
+│  Номер карты:                          │
+│  [____ ____ ____ ____]                 │
+│                                         │
+│  ФИО получателя:                       │
+│  [_________________________]           │
 │                                         │
 │  ────────────────────────────────────  │
 │                                         │
-│  ИНН: [____________]                   │
-│                                         │
-│  Чек из "Мой налог":                   │
-│  [Загрузить чек] или [Ввести ссылку]   │
-│                                         │
+│  Сумма вывода:     5 200 ₽             │
+│  НДФЛ 13%:          -676 ₽             │
 │  ────────────────────────────────────  │
-│                                         │
-│  К получению: 5 200 ₽                  │
+│  К получению:      4 524 ₽             │
 │                                         │
 │  [Отправить заявку]                    │
 └─────────────────────────────────────────┘
