@@ -8,276 +8,269 @@ PinGlass uses React 19 with Next.js 16 App Router. All components are client-sid
 
 ## PersonaApp
 
-**File:** `components/persona-app.tsx` (1099 lines)
+**File:** `components/persona-app.tsx` (414 lines)
 
 Main application component managing all views and state.
 
-### Props
+### Exports
 
 ```typescript
-// No props - standalone component
+export interface PricingTier {
+  id: string
+  photos: number
+  price: number
+  popular?: boolean
+}
+
+export const PRICING_TIERS: PricingTier[] = [
+  { id: "starter", photos: 7, price: 499 },
+  { id: "standard", photos: 15, price: 999, popular: true },
+  { id: "premium", photos: 23, price: 1499 },
+]
+
+export default function PersonaApp()
 ```
 
 ### State
 
 ```typescript
-interface PersonaAppState {
-  viewState: ViewState
-  personas: Persona[]
-  currentPersonaIndex: number
-  isPro: boolean
-  deviceId: string
-  isReady: boolean
-  onboardingStep: number
-  generatingPhotos: boolean
-  showPaymentModal: boolean
-}
-
-type ViewState =
-  | 'ONBOARDING'
-  | 'DASHBOARD'
-  | 'CREATE_PERSONA_UPLOAD'
-  | 'SELECT_STYLE'
-  | 'GENERATING'
-  | 'RESULTS'
+const [viewState, setViewState] = useState<ViewState>({ view: "ONBOARDING" })
+const [personas, setPersonas] = useState<Persona[]>([])
+const [isGenerating, setIsGenerating] = useState(false)
+const [generationProgress, setGenerationProgress] = useState(0)
+const [isPro, setIsPro] = useState(false)
+const [isPaymentOpen, setIsPaymentOpen] = useState(false)
+const [deviceId, setDeviceId] = useState("")
+const [isReady, setIsReady] = useState(false)
+const [selectedTier, setSelectedTier] = useState<PricingTier>(PRICING_TIERS[1])
+const [theme, setTheme] = useState<"dark" | "light">("dark")
 ```
 
 ### Types
 
 ```typescript
-interface Persona {
-  id: string
-  name: string
-  createdAt: Date
-  uploadedImages: UploadedImage[]
-  generatedAssets: GeneratedAsset[]
-  selectedStyle: StylePreset | null
-  status: 'draft' | 'processing' | 'ready'
-}
-
 interface UploadedImage {
   id: string
-  file: File
-  preview: string
+  base64: string
+  mimeType: string
+  previewUrl: string
 }
 
 interface GeneratedAsset {
   id: string
+  type: "PHOTO"
   url: string
-  prompt: string
-  style: string
+  styleId: string
+  prompt?: string
+  createdAt: number
 }
 
-interface StylePreset {
-  id: 'professional' | 'lifestyle' | 'creative'
+interface Persona {
+  id: string
   name: string
-  description: string
-  thumbnail: string
+  status: "draft" | "processing" | "ready"
+  images: UploadedImage[]
+  generatedAssets: GeneratedAsset[]
+  thumbnailUrl?: string
 }
+
+type ViewState =
+  | { view: "ONBOARDING" }
+  | { view: "DASHBOARD" }
+  | { view: "CREATE_PERSONA_UPLOAD"; personaId: string }
+  | { view: "SELECT_TIER"; personaId: string }
+  | { view: "GENERATING"; personaId: string; progress: number }
+  | { view: "RESULTS"; personaId: string }
 ```
 
 ### Key Methods
 
-| Method | Description |
-|--------|-------------|
-| `handleUploadImages` | Process dropped/selected files |
-| `handleRemoveImage` | Remove image from upload queue |
-| `handleStyleSelect` | Set persona style |
-| `handleGenerate` | Start photo generation |
-| `handlePayment` | Open payment modal |
-| `handleDownload` | Download generated photo |
-| `handleDeletePersona` | Remove persona |
+| Method | Lines | Description |
+|--------|-------|-------------|
+| `getDeviceId()` | 37-42 | Get or create device ID from localStorage |
+| `toggleTheme()` | 68-73 | Switch between dark/light mode |
+| `completeOnboarding()` | 75 | Mark onboarding as complete |
+| `handleCreatePersona()` | 76-80 | Create new persona and navigate to upload |
+| `updatePersona()` | 81 | Update persona data |
+| `deletePersona()` | 82-85 | Remove persona with confirmation |
+| `getActivePersona()` | 86 | Get current persona from viewState |
+| `handleGenerate()` | 88-102 | Start AI photo generation |
+| `handlePaymentSuccess()` | 104 | Handle successful payment |
 
 ---
 
 ## Sub-Components (within PersonaApp)
 
-### OnboardingView
+### GeneratingView
 
-**Lines:** 423-517
+**Lines:** 138-152
 
-3-step tutorial carousel introducing the app.
+Progress indicator shown during AI generation.
 
 ```typescript
-function OnboardingView({
-  step,
-  onNext,
-  onSkip
-}: {
-  step: number
-  onNext: () => void
-  onSkip: () => void
-})
+const GeneratingView: React.FC<{
+  progress: number
+  totalPhotos: number
+}>
 ```
 
 **Features:**
-- Step indicators (dots)
-- Before/After image examples
-- Skip button
-- Next/Continue button
+- Pulsing loader icon
+- Progress bar with gradient
+- Photo count indicator (X of Y)
 
-**Steps:**
-1. Welcome - App introduction
-2. Upload - How to upload photos
-3. Results - What to expect
+---
+
+### OnboardingView
+
+**Lines:** 154-226
+
+Animated welcome screen with orbiting photo gallery.
+
+```typescript
+const OnboardingView: React.FC<{
+  onComplete: () => void
+  onStart: () => void
+}>
+```
+
+**Features:**
+- 4-stage animated entrance (logo, inner orbit, outer orbit, text)
+- Inner orbit: 4 photos rotating clockwise
+- Outer orbit: 6 photos rotating counter-clockwise
+- Holographic shine effects
+- "Start" and "Skip" buttons
+
+**Animation Stages:**
+1. Stage 1 (100ms): Main image appears
+2. Stage 2 (1200ms): Inner orbit (4 photos) enters
+3. Stage 3 (1800ms): Outer orbit (6 photos) enters
+4. Stage 4 (2400ms): Text and buttons fade in
 
 ---
 
 ### DashboardView
 
-**Lines:** 518-645
+**Lines:** 228-280
 
-Grid view of all user personas.
+Avatar gallery and pricing tiers display.
 
 ```typescript
-function DashboardView({
-  personas,
-  onCreateNew,
-  onSelectPersona,
-  onDeletePersona
-}: {
+const DashboardView: React.FC<{
   personas: Persona[]
-  onCreateNew: () => void
-  onSelectPersona: (index: number) => void
-  onDeletePersona: (id: string) => void
-})
+  onCreate: () => void
+  onSelect: (id: string) => void
+  onDelete: (id: string, e: React.MouseEvent) => void
+}>
 ```
 
 **Features:**
-- Persona cards with thumbnails
-- Status badges (draft/processing/ready)
-- Create new button (+ card)
-- Delete confirmation
+- Empty state with create prompt and pricing tiers
+- Persona grid with thumbnails
+- Status badges (draft/ready with photo count)
+- Delete button on hover
+- Feature highlights (up to 23 photos, secure)
 
 ---
 
 ### UploadView
 
-**Lines:** 646-792
+**Lines:** 282-328
 
 Multi-file upload interface.
 
 ```typescript
-function UploadView({
-  images,
-  onUpload,
-  onRemove,
-  onContinue,
-  onBack
-}: {
-  images: UploadedImage[]
-  onUpload: (files: FileList) => void
-  onRemove: (id: string) => void
-  onContinue: () => void
+const UploadView: React.FC<{
+  persona: Persona
+  updatePersona: (id: string, data: Partial<Persona>) => void
   onBack: () => void
-})
+  onNext: () => void
+}>
 ```
 
 **Features:**
-- Drag-and-drop zone
-- File input (multiple)
-- Image previews with remove button
-- 10-20 photo requirement indicator
-- Continue/Back buttons
+- Editable persona name
+- Progress bar (0-100% for 0-20 photos)
+- Tips panel (lighting, angles, no accessories)
+- Grid of uploaded photos with remove button
+- Add more button
+- Continue button (enabled when 10+ photos)
+- Mobile-friendly fixed bottom bar
 
 **Validation:**
 - Minimum: 10 photos
 - Maximum: 20 photos
-- Accepted formats: JPEG, PNG, WebP
+- Accepted formats: image/*
 
 ---
 
-### StyleSelectView
+### TierSelectView
 
-**Lines:** 793-885
+**Lines:** 331-364
 
-Style preset selection screen.
+Pricing tier selection screen.
 
 ```typescript
-function StyleSelectView({
-  onSelect,
-  onBack
-}: {
-  onSelect: (style: StylePreset) => void
+const TierSelectView: React.FC<{
+  persona: Persona
   onBack: () => void
-})
+  onGenerate: (tier: PricingTier) => void
+  isGenerating: boolean
+  isPro: boolean
+  onUpgrade: (tier: PricingTier) => void
+  selectedTier: PricingTier
+  onSelectTier: (tier: PricingTier) => void
+}>
 ```
 
-**Style Presets:**
+**Tiers:**
 
-| ID | Name | Description |
-|----|------|-------------|
-| `professional` | Professional | Business portraits, clean backgrounds |
-| `lifestyle` | Lifestyle | Casual photos, natural locations |
-| `creative` | Creative | Artistic shots, dramatic lighting |
-
-**Features:**
-- 3 style cards with thumbnails
-- Descriptions and example images
-- Back button
-
----
-
-### GeneratingView
-
-**Lines:** 390-422
-
-Progress indicator during generation.
-
-```typescript
-function GeneratingView({
-  progress,
-  total
-}: {
-  progress: number
-  total: number
-})
-```
+| ID | Photos | Price | Description |
+|----|--------|-------|-------------|
+| starter | 7 | 499 RUB | Try AI photos |
+| standard | 15 | 999 RUB | Optimal choice (popular) |
+| premium | 23 | 1499 RUB | Maximum features |
 
 **Features:**
-- Spinning loader
-- Progress counter (X/23)
-- Status message
-- "You can close this page" notice
+- 3 tier cards with selection state
+- Price per photo calculation
+- "Popular" badge on standard tier
+- Selected tier indicator
+- Pro users: "Generate" button
+- Non-Pro users: "Pay X RUB" button
 
 ---
 
 ### ResultsView
 
-**Lines:** 886-1032
+**Lines:** 366-414
 
-Gallery of generated photos.
+Gallery of generated photos with download options.
 
 ```typescript
-function ResultsView({
-  photos,
-  onDownload,
-  onDownloadAll,
-  onGenerateMore,
-  onBack
-}: {
-  photos: GeneratedAsset[]
-  onDownload: (photo: GeneratedAsset) => void
-  onDownloadAll: () => void
-  onGenerateMore: () => void
+const ResultsView: React.FC<{
+  persona: Persona
   onBack: () => void
-})
+  onGenerateMore: () => void
+}>
 ```
 
 **Features:**
-- Photo grid (responsive)
+- Desktop: Two-column layout
+  - Left: Large selected photo with download
+  - Right: Info card + thumbnail grid
+- Mobile: Single column with photo grid
 - Individual download buttons
-- Download all button
-- Generate more button
-- Back to dashboard
+- "Generate More" button
+- Persona info card with photo count
 
 ---
 
 ## PaymentModal
 
-**File:** `components/payment-modal.tsx` (79 lines)
+**File:** `components/payment-modal.tsx` (323 lines)
 
-Modal dialog for Pro subscription purchase.
+Modal dialog for payment processing.
 
 ### Props
 
@@ -285,29 +278,20 @@ Modal dialog for Pro subscription purchase.
 interface PaymentModalProps {
   isOpen: boolean
   onClose: () => void
-  onPay: () => void
-  isLoading?: boolean
+  onSuccess: () => void
+  deviceId: string
+  tier: PricingTier
 }
 ```
 
 ### Features
 
-- Feature list (23 photos, all styles, download)
-- Price display (500 ₽)
-- Pay button
-- Close button
-- Loading state
-
-### Usage
-
-```tsx
-<PaymentModal
-  isOpen={showPaymentModal}
-  onClose={() => setShowPaymentModal(false)}
-  onPay={handlePayment}
-  isLoading={paymentLoading}
-/>
-```
+- Tier selection (if opened from dashboard)
+- Feature list per tier
+- Payment button with T-Bank integration
+- Loading and processing states
+- Test mode support
+- Payment status polling
 
 ---
 
@@ -315,14 +299,14 @@ interface PaymentModalProps {
 
 **File:** `components/theme-provider.tsx` (11 lines)
 
-Dark mode theme provider.
+Dark mode theme provider wrapper.
 
 ### Props
 
 ```typescript
 interface ThemeProviderProps {
   children: React.ReactNode
-  defaultTheme?: 'light' | 'dark' | 'system'
+  defaultTheme?: "light" | "dark" | "system"
 }
 ```
 
@@ -330,7 +314,7 @@ interface ThemeProviderProps {
 
 ```tsx
 // app/layout.tsx
-<ThemeProvider defaultTheme="system">
+<ThemeProvider defaultTheme="dark">
   {children}
 </ThemeProvider>
 ```
@@ -343,25 +327,24 @@ From `lucide-react`:
 
 | Icon | Usage |
 |------|-------|
-| `Upload` | Upload zone |
-| `X` | Close/Remove buttons |
-| `Plus` | Create new |
-| `Trash2` | Delete |
-| `Download` | Download button |
-| `Check` | Success indicator |
-| `ChevronLeft` | Back navigation |
-| `ChevronRight` | Next navigation |
+| `Sparkles` | Logo, AI indicator, generate buttons |
+| `Plus` | Create new, add photos |
+| `ArrowLeft` | Back navigation |
+| `ArrowRight` | Next/continue |
+| `Camera` | Tips section |
 | `Loader2` | Loading spinner |
-| `Image` | Photo placeholder |
-| `Sparkles` | AI indicator |
-| `Crown` | Pro badge |
-| `CreditCard` | Payment |
-| `User` | Profile |
-| `Settings` | Settings |
-| `Moon` | Dark mode |
+| `X` | Close/remove buttons |
+| `CheckCircle2` | Selection indicator |
+| `Download` | Download buttons |
+| `User` | Avatar placeholder |
+| `Zap` | Feature highlight |
+| `Shield` | Security feature |
+| `Star` | Popular badge |
+| `ChevronRight` | Navigation arrow |
+| `Lock` | Locked feature |
+| `Crown` | Pro/payment indicator |
 | `Sun` | Light mode |
-| `Camera` | Photo action |
-| `Wand2` | Magic/AI |
+| `Moon` | Dark mode |
 
 ---
 
@@ -370,22 +353,20 @@ From `lucide-react`:
 ### Tailwind CSS 4 Classes
 
 ```tsx
-// Common patterns used
+// Card with glassmorphism
+<div className="bg-card border border-border rounded-2xl shadow-lg">
 
-// Card
-<div className="rounded-xl border bg-card p-4 shadow-sm">
+// Primary button with gradient
+<button className="bg-gradient-to-r from-primary to-accent text-white rounded-xl px-6 py-3">
 
-// Button (primary)
-<button className="bg-primary text-primary-foreground rounded-lg px-4 py-2 hover:bg-primary/90">
+// Secondary/muted button
+<button className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground">
 
-// Button (outline)
-<button className="border border-input bg-background rounded-lg px-4 py-2 hover:bg-accent">
+// Grid layouts
+<div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
 
-// Grid
-<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-
-// Responsive container
-<div className="container mx-auto px-4 max-w-4xl">
+// Fixed bottom bar (mobile)
+<div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t">
 ```
 
 ### CSS Variables (OKLCH)
@@ -395,15 +376,18 @@ From `lucide-react`:
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  /* ... */
+  --primary: oklch(0.7 0.15 330);       /* Pink */
+  --accent: oklch(0.65 0.2 300);        /* Purple */
+  --muted: oklch(0.95 0 0);
+  --border: oklch(0.9 0 0);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
+  --background: oklch(0.12 0.01 270);
   --foreground: oklch(0.985 0 0);
-  /* ... */
+  --primary: oklch(0.75 0.15 330);
+  --muted: oklch(0.2 0.01 270);
+  --border: oklch(0.25 0.01 270);
 }
 ```
 
@@ -413,28 +397,37 @@ From `lucide-react`:
 
 ```
 PersonaApp
-    │
-    ├── State lifted to top
-    │
-    ├── Props passed down to sub-components
-    │
-    └── Callbacks passed for actions
-        │
-        ├── OnboardingView
-        │   └── onNext, onSkip → Update viewState
-        │
-        ├── DashboardView
-        │   └── onCreateNew → Set viewState to UPLOAD
-        │   └── onSelectPersona → Set currentPersonaIndex
-        │
-        ├── UploadView
-        │   └── onUpload → Update persona.uploadedImages
-        │   └── onContinue → Set viewState to SELECT_STYLE
-        │
-        ├── StyleSelectView
-        │   └── onSelect → Set selectedStyle, trigger generation
-        │
-        └── ResultsView
-            └── onDownload → Trigger file download
-            └── onGenerateMore → Reset to UPLOAD view
+    |
+    +-- State lifted to top level
+    |
+    +-- Props passed down to sub-components
+    |
+    +-- Callbacks for actions
+        |
+        +-- OnboardingView
+        |   +-- onComplete -> completeOnboarding()
+        |   +-- onStart -> handleCreatePersona()
+        |
+        +-- DashboardView
+        |   +-- onCreate -> handleCreatePersona()
+        |   +-- onSelect -> setViewState(UPLOAD or RESULTS)
+        |   +-- onDelete -> deletePersona()
+        |
+        +-- UploadView
+        |   +-- updatePersona -> updatePersona()
+        |   +-- onBack -> setViewState(DASHBOARD)
+        |   +-- onNext -> setViewState(SELECT_TIER)
+        |
+        +-- TierSelectView
+        |   +-- onBack -> setViewState(UPLOAD)
+        |   +-- onGenerate -> handleGenerate()
+        |   +-- onUpgrade -> setIsPaymentOpen(true)
+        |
+        +-- ResultsView
+        |   +-- onBack -> setViewState(DASHBOARD)
+        |   +-- onGenerateMore -> setViewState(SELECT_TIER)
+        |
+        +-- PaymentModal
+            +-- onClose -> setIsPaymentOpen(false)
+            +-- onSuccess -> handlePaymentSuccess()
 ```

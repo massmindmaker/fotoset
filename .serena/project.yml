@@ -1,16 +1,13 @@
-# Serena configuration for Fotoset (PersonaCreator AI)
+# Serena configuration for PinGlass
 # AI Photo Portrait Generation Platform
 
-project_name: "Fotoset"
+project_name: "PinGlass"
 encoding: "utf-8"
 
 # Languages for semantic code analysis
 languages:
   - typescript
   - javascript
-  - css
-  - json
-  - bash
 
 # Use gitignore + additional paths to ignore
 ignore_all_files_in_gitignore: true
@@ -23,6 +20,7 @@ ignored_paths:
   - dist
   - build
   - coverage
+  - PinkGlass  # Screenshots folder
 
 # Project settings
 read_only: false
@@ -31,11 +29,11 @@ included_optional_tools: []
 
 # Project context for AI assistants
 initial_prompt: |
-  # Fotoset (PersonaCreator AI)
+  # PinGlass (AI Photo Portraits)
 
   ## Overview
-  Next.js 16 web application for generating 23 AI photo portraits using Google Imagen 3.0.
-  Users upload 10-20 reference photos → select style → pay 500₽ → receive 23 generated portraits.
+  Next.js 16 web application for generating AI photo portraits using Google Imagen 3.0.
+  Users upload 10-20 reference photos, select a pricing tier (7/15/23 photos), pay, and receive AI-generated portraits.
 
   ## Tech Stack
   - Frontend: React 19, Next.js 16 (App Router), TypeScript
@@ -44,18 +42,35 @@ initial_prompt: |
   - AI: Google Imagen 3.0 API (via YeScale proxy)
   - Payments: T-Bank (Tinkoff) Payment API
 
-  ## Key Files
-  - `components/persona-app.tsx` - Main component (1099 lines), all views and state
-  - `lib/prompts.ts` - 23 generation prompts + 3 style configurations
-  - `lib/tbank.ts` - T-Bank payment integration
-  - `lib/imagen.ts` - Google Imagen API wrapper
-  - `lib/db.ts` - Database client and TypeScript types
-  - `app/api/generate/route.ts` - Photo generation endpoint
-  - `app/api/payment/` - Payment create, status, webhook routes
+  ## Pricing Tiers
+  - Starter: 7 photos - 499 RUB
+  - Standard: 15 photos - 999 RUB (popular)
+  - Premium: 23 photos - 1499 RUB
+
+  ## Key Files (with line counts)
+  - `components/persona-app.tsx` (414 lines) - Main component, all views and state
+  - `components/payment-modal.tsx` (323 lines) - Payment UI with tier selection
+  - `lib/imagen.ts` (521 lines) - Google Imagen API wrapper
+  - `lib/prompts.ts` (103 lines) - 23 generation prompts + style configs
+  - `lib/tbank.ts` (240 lines) - T-Bank payment integration
+  - `lib/db.ts` (63 lines) - Database client and TypeScript types
+  - `app/api/generate/route.ts` (264 lines) - Photo generation endpoint
+  - `app/api/payment/create/route.ts` (73 lines) - Payment creation
+  - `app/api/payment/status/route.ts` (88 lines) - Payment status check
+  - `app/api/payment/webhook/route.ts` (58 lines) - T-Bank webhooks
+
+  ## Component Views (in persona-app.tsx)
+  - OnboardingView (lines 154-226) - Animated welcome with orbiting photos
+  - DashboardView (lines 228-280) - Avatar gallery with pricing tiers
+  - UploadView (lines 282-328) - Multi-file upload (10-20 photos)
+  - TierSelectView (lines 331-364) - Select 7/15/23 photo package
+  - GeneratingView (lines 138-152) - Progress indicator
+  - ResultsView (lines 366-414) - Generated photos gallery
 
   ## User Flow
-  1. Onboarding (3 steps) → 2. Upload (10-20 photos) → 3. Style selection
-  4. Payment (500₽) → 5. Generation (23 photos) → 6. Results gallery
+  1. Onboarding (animated intro) -> 2. Upload (10-20 photos)
+  3. Select tier (7/15/23 photos) -> 4. Payment (T-Bank)
+  5. Generation (AI photos) -> 6. Results gallery (download)
 
   ## Database Tables
   - users (device_id, is_pro)
@@ -64,10 +79,11 @@ initial_prompt: |
   - payments (user_id, payment_id, amount, status)
   - generation_jobs (avatar_id, style_id, status, progress)
 
-  ## Styles
-  - Professional: Business portraits for LinkedIn/resume
-  - Lifestyle: Casual photos for social media
-  - Creative: Artistic portfolio shots
+  ## Styles (in lib/prompts.ts)
+  - PinGlass: All 23 prompts, optimistic vibrant portraits
+  - Professional: 9 prompts for business/LinkedIn
+  - Lifestyle: 9 prompts for social media
+  - Creative: 9 prompts for artistic portfolio
 
 # Source file patterns for indexing
 source_patterns:
@@ -79,3 +95,4 @@ source_patterns:
   - "*.json"
   - "*.mjs"
   - "*.js"
+  - "*.md"

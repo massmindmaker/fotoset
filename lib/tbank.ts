@@ -9,6 +9,9 @@ const TBANK_API_URL = "https://securepay.tinkoff.ru/v2"
 export const IS_TEST_MODE = process.env.TBANK_TEST_MODE === "true" ||
   (!process.env.TBANK_TERMINAL_KEY && !process.env.TBANK_PASSWORD)
 
+// Demo mode - when no payment credentials are set, use demo payment page
+export const IS_DEMO_MODE = !process.env.TBANK_TERMINAL_KEY || !process.env.TBANK_PASSWORD
+
 export type PaymentMethod = "card" | "sbp" | "tpay"
 
 export interface TBankPayment {
@@ -183,8 +186,8 @@ export async function initPayment(
 }
 
 export async function getPaymentState(paymentId: string): Promise<TBankPayment> {
-  if (IS_TEST_MODE || paymentId.startsWith("test_")) {
-    console.log("[T-Bank] Test mode: returning confirmed payment")
+  if (IS_TEST_MODE || paymentId.startsWith("test_") || paymentId.startsWith("demo_")) {
+    console.log("[T-Bank] Test/Demo mode: returning confirmed payment")
     return {
       Success: true,
       Status: "CONFIRMED",

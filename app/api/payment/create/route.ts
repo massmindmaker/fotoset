@@ -1,13 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { initPayment, IS_TEST_MODE, type PaymentMethod } from "@/lib/tbank"
+import { initPayment, IS_TEST_MODE, IS_DEMO_MODE, type PaymentMethod } from "@/lib/tbank"
 
 export async function POST(request: NextRequest) {
   try {
-    const { deviceId, email, paymentMethod } = await request.json() as {
+    const { deviceId, email, paymentMethod, tierId, photoCount } = await request.json() as {
       deviceId: string
       email?: string
       paymentMethod?: PaymentMethod
+      tierId?: string
+      photoCount?: number
     }
 
     if (!deviceId) {
@@ -33,6 +35,29 @@ export async function POST(request: NextRequest) {
 
     // Определяем return URLs
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.headers.get("origin") || "http://localhost:3000"
+
+    // В демо-режиме направляем на специальную демо-страницу оплаты
+    if (IS_DEMO_MODE) {
+      const demoPaymentId = `demo_${Date.now()}_${Math.random().toString(36).substring(7)}`
+
+      // Сохраняем демо-платеж в БД
+      await sql`
+        INSERT INTO payments (user_id, yookassa_payment_id, amount, status)
+        VALUES (${user.id}, ${demoPaymentId}, 500, 'pending')
+      `
+
+      const demoUrl = `${baseUrl}/payment/demo?device_id=${deviceId}&payment_id=${demoPaymentId}&amount=500&tier=${tierId || 'standard'}&photos=${photoCount || 15}`
+
+      console.log("[Payment] Demo mode: created demo payment", { demoPaymentId, demoUrl })
+
+      return NextResponse.json({
+        paymentId: demoPaymentId,
+        confirmationUrl: demoUrl,
+        testMode: true,
+        demoMode: true,
+      })
+    }
+
     const successUrl = `${baseUrl}/payment/callback?device_id=${deviceId}&status=success`
     const failUrl = `${baseUrl}/payment/callback?device_id=${deviceId}&status=failed`
     const notificationUrl = `${baseUrl}/api/payment/webhook`

@@ -41,6 +41,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ isPro: true, status: "succeeded" })
     }
 
+    // Обработка демо-платежей
+    if (paymentId && paymentId.startsWith("demo_")) {
+      const isDemoConfirmed = searchParams.get("demo_confirmed") === "true"
+      if (isDemoConfirmed) {
+        console.log("[Payment] Demo mode: activating Pro for user", user.id)
+        await sql`
+          UPDATE users SET is_pro = TRUE, updated_at = NOW()
+          WHERE id = ${user.id}
+        `
+        await sql`
+          UPDATE payments SET status = 'succeeded', updated_at = NOW()
+          WHERE yookassa_payment_id = ${paymentId}
+        `.catch(() => {}) // Игнорируем ошибку если платежа нет
+        return NextResponse.json({ isPro: true, status: "succeeded", demoMode: true })
+      }
+      return NextResponse.json({ isPro: false, status: "pending", demoMode: true })
+    }
+
     if ((IS_TEST_MODE || isTestRequest) && paymentId) {
       console.log("[Payment] Test mode: activating Pro for user", user.id)
       await sql`

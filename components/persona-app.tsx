@@ -4,9 +4,10 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import {
   Sparkles, Plus, ArrowLeft, ArrowRight, Camera, Loader2, X, CheckCircle2,
-  Download, User, Zap, Shield, Star, ChevronRight, Lock, Crown, Sun, Moon,
+  User, Zap, Shield, Star, ChevronRight, Crown, Sun, Moon,
 } from "lucide-react"
 import { PaymentModal } from "./payment-modal"
+import ResultsGallery from "./results-gallery"
 
 export interface PricingTier { id: string; photos: number; price: number; popular?: boolean }
 
@@ -89,6 +90,31 @@ export default function PersonaApp() {
     const p = getActivePersona()!
     setIsGenerating(true); setGenerationProgress(0)
     setViewState({ view: "GENERATING", personaId: p.id, progress: 0 })
+
+    // Demo mode - use mock photos instead of real API
+    const USE_DEMO_MODE = true
+
+    if (USE_DEMO_MODE) {
+      // Simulate generation delay
+      for (let i = 0; i <= tier.photos; i++) {
+        await new Promise(r => setTimeout(r, 200))
+        setGenerationProgress(i)
+      }
+      // Create mock assets from demo photos
+      const mockPhotos = DEMO_PHOTOS.slice(0, tier.photos)
+      const newAssets: GeneratedAsset[] = mockPhotos.map((url, i) => ({
+        id: Date.now() + "-" + i,
+        type: "PHOTO" as const,
+        url,
+        styleId: "pinglass",
+        createdAt: Date.now() - i * 1000
+      }))
+      updatePersona(p.id, { status: "ready", generatedAssets: [...newAssets, ...p.generatedAssets], thumbnailUrl: p.thumbnailUrl || newAssets[0]?.url })
+      setViewState({ view: "RESULTS", personaId: p.id })
+      setIsGenerating(false); setGenerationProgress(0)
+      return
+    }
+
     try {
       const res = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ deviceId, avatarId: p.id, styleId: "pinglass", photoCount: tier.photos, referenceImages: p.images.slice(0,5).map(i => i.base64) }) })
@@ -115,7 +141,6 @@ export default function PersonaApp() {
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-xl shadow-primary/30 ring-2 ring-primary/20"><Sparkles className="w-5 h-5 text-white" /></div>
               <span className="font-bold text-lg drop-shadow-sm">PinGlass</span>
-              {isPro && <span className="text-xs bg-gradient-to-r from-primary to-accent text-white px-2.5 py-1 rounded-full shadow-md shadow-primary/30 font-medium">PRO</span>}
             </div>
             <div className="flex items-center gap-2">
               <button onClick={toggleTheme} className="p-2.5 rounded-xl bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-all shadow-md shadow-black/5">{theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</button>
@@ -137,16 +162,18 @@ export default function PersonaApp() {
 
 const GeneratingView: React.FC<{ progress: number; totalPhotos: number }> = ({ progress, totalPhotos }) => (
   <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-mesh">
-    <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mb-8 animate-pulse-glow">
-      <Loader2 className="w-10 h-10 text-primary animate-spin" />
+    <div className="w-24 h-24 rounded-3xl bg-primary/10 flex items-center justify-center mb-8 animate-pulse-glow">
+      <Loader2 className="w-12 h-12 text-primary animate-spin" />
     </div>
-    <h1 className="text-2xl font-bold text-center mb-2">Генерируем ваши фото</h1>
-    <p className="text-muted-foreground text-center mb-8">Создаём {totalPhotos} уникальных изображений...</p>
-    <div className="w-full max-w-xs">
-      <div className="h-2 bg-muted rounded-full overflow-hidden mb-2">
-        <div className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500" style={{ width: ((progress / totalPhotos) * 100) + "%" }} />
+    <div className="bg-background/60 backdrop-blur-xl rounded-3xl px-8 py-6 mb-8 border border-primary/20 shadow-2xl shadow-primary/10">
+      <h1 className="text-3xl sm:text-4xl font-bold text-center mb-3 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent drop-shadow-lg">Генерируем ваши фото</h1>
+      <p className="text-foreground/90 text-center text-lg font-medium">Создаём {totalPhotos} уникальных изображений...</p>
+    </div>
+    <div className="w-full max-w-md">
+      <div className="h-3 bg-muted/50 rounded-full overflow-hidden mb-3 border border-border/50 shadow-inner">
+        <div className="h-full bg-gradient-to-r from-primary via-accent to-primary transition-all duration-500 shadow-lg shadow-primary/30" style={{ width: ((progress / totalPhotos) * 100) + "%" }} />
       </div>
-      <p className="text-sm text-center text-muted-foreground">{progress} из {totalPhotos} фото</p>
+      <p className="text-base text-center font-semibold bg-background/60 backdrop-blur-sm rounded-2xl py-2 px-4 inline-block mx-auto w-full border border-border/30">{progress} из {totalPhotos} фото</p>
     </div>
   </div>
 )
@@ -321,7 +348,7 @@ const UploadView: React.FC<{ persona: Persona; updatePersona: (id: string, data:
         {persona.images.map((img) => (<div key={img.id} className="aspect-square rounded-xl bg-muted overflow-hidden relative group"><img src={img.previewUrl} alt="" className="w-full h-full object-cover" /><button onClick={() => removeImage(img.id)} className="absolute top-1 right-1 p-1.5 bg-black/50 hover:bg-red-500 rounded-lg text-white opacity-0 group-hover:opacity-100 transition-all"><X className="w-3.5 h-3.5" /></button></div>))}
       </div>
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
-        <button onClick={onNext} disabled={!isReady} className="w-full sm:w-auto px-6 py-3.5 bg-primary text-primary-foreground font-medium rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 active:scale-[0.98]">Выбрать пакет<ArrowRight className="w-4 h-4" /></button>
+        <button onClick={onNext} disabled={!isReady} className="w-full sm:w-auto px-6 py-3.5 bg-primary text-primary-foreground font-medium rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 active:scale-[0.98]">Далее<ArrowRight className="w-4 h-4" /></button>
         {!isReady && <p className="text-xs text-center text-muted-foreground mt-2 sm:hidden">Нужно ещё {10 - persona.images.length} фото</p>}
       </div>
     </div>
@@ -350,64 +377,41 @@ const TierSelectView: React.FC<{ persona: Persona; onBack: () => void; onGenerat
       ))}
     </div>
     <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
-      {isPro ? (
-        <button onClick={() => selectedTier && onGenerate(selectedTier)} disabled={!selectedTier || isGenerating} className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-primary to-accent text-white font-medium rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
-          {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" />Генерация...</> : <><Sparkles className="w-4 h-4" />Сгенерировать {selectedTier.photos} фото</>}
-        </button>
-      ) : (
-        <button onClick={() => selectedTier && onUpgrade(selectedTier)} disabled={!selectedTier} className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-primary to-accent text-white font-medium rounded-xl hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg shadow-primary/25">
-          <Crown className="w-4 h-4" />Оплатить {selectedTier?.price} ₽
-        </button>
-      )}
+      {/* Demo mode - always allow generation */}
+      <button onClick={() => selectedTier && onGenerate(selectedTier)} disabled={!selectedTier || isGenerating} className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-primary to-accent text-white font-medium rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg shadow-primary/25">
+        {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" />Генерация...</> : <><Sparkles className="w-4 h-4" />Сгенерировать {selectedTier.photos} фото</>}
+      </button>
     </div>
   </div>
 )
 
 const ResultsView: React.FC<{ persona: Persona; onBack: () => void; onGenerateMore: () => void }> = ({ persona, onBack, onGenerateMore }) => {
   const assets = [...persona.generatedAssets].sort((a, b) => b.createdAt - a.createdAt)
-  const [selectedPhoto, setSelectedPhoto] = useState(assets[0]?.url || null)
 
   return (
-    <div className="space-y-6 pb-6">
+    <div className="space-y-4 pb-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <button onClick={onBack} className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95"><ArrowLeft className="w-5 h-5" /></button>
-        <button onClick={onGenerateMore} className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 transition-opacity active:scale-95"><Sparkles className="w-4 h-4" /><span>Создать ещё</span></button>
+        <button onClick={onBack} className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <button onClick={onGenerateMore} className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary to-accent text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity active:scale-95 shadow-lg shadow-primary/25">
+          <Sparkles className="w-4 h-4" />
+          <span>Создать ещё</span>
+        </button>
       </div>
-      {assets.length === 0 ? <div className="text-center py-12"><p className="text-muted-foreground">Нет сгенерированных фото</p></div> : (
-        <>
-          <div className="hidden lg:grid lg:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="aspect-[3/4] rounded-3xl overflow-hidden bg-muted relative group">
-                <img src={selectedPhoto || assets[0]?.url} alt="Selected" className="w-full h-full object-cover" />
-                <a href={selectedPhoto || assets[0]?.url} download target="_blank" className="absolute bottom-4 right-4 p-3 bg-background/90 backdrop-blur-sm hover:bg-primary text-foreground hover:text-primary-foreground rounded-2xl opacity-0 group-hover:opacity-100 transition-all" rel="noreferrer"><Download className="w-5 h-5" /></a>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="p-6 bg-card border border-border rounded-3xl space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-primary"><img src={persona.thumbnailUrl || assets[0]?.url} alt={persona.name} className="w-full h-full object-cover" /></div>
-                  <div className="flex-1"><h3 className="font-semibold text-lg">{persona.name}</h3><p className="text-sm text-muted-foreground">PINGLASS</p></div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
-                  <div className="text-center"><div className="text-2xl font-bold">{assets.length}</div><div className="text-xs text-muted-foreground">Фотографий</div></div>
-                  <div className="text-center"><div className="text-2xl font-bold text-primary">AI</div><div className="text-xs text-muted-foreground">Генерация</div></div>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-3 max-h-[600px] overflow-y-auto pr-2">
-                {assets.map((asset) => (<button key={asset.id} onClick={() => setSelectedPhoto(asset.url)} className={"aspect-square rounded-2xl overflow-hidden bg-card border-2 transition-all hover:scale-105 " + (selectedPhoto === asset.url ? "border-primary ring-2 ring-primary/20" : "border-transparent")}><img src={asset.url} alt="" className="w-full h-full object-cover" /></button>))}
-              </div>
-            </div>
-          </div>
-          <div className="lg:hidden space-y-4">
-            <div className="flex items-center gap-4 p-4 bg-card border border-border rounded-2xl">
-              <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-primary"><img src={persona.thumbnailUrl || assets[0]?.url} alt={persona.name} className="w-full h-full object-cover" /></div>
-              <div className="flex-1"><h3 className="font-semibold">{persona.name}</h3><p className="text-sm text-muted-foreground">{assets.length} фотографий</p></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {assets.map((asset) => (<div key={asset.id} className="rounded-2xl overflow-hidden bg-card shadow-sm border border-border group"><div className="aspect-square relative"><img src={asset.url} alt="" className="w-full h-full object-cover" /><a href={asset.url} download target="_blank" className="absolute top-2 right-2 p-2.5 bg-black/50 hover:bg-primary text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all" rel="noreferrer"><Download className="w-4 h-4" /></a></div></div>))}
-            </div>
-          </div>
-        </>
+
+      {/* Gallery */}
+      {assets.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Нет сгенерированных фото</p>
+        </div>
+      ) : (
+        <ResultsGallery
+          assets={assets}
+          personaName={persona.name}
+          thumbnailUrl={persona.thumbnailUrl}
+        />
       )}
     </div>
   )

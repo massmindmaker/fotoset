@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { CheckCircle2, Loader2, XCircle } from "lucide-react"
 
-export default function PaymentCallbackPage() {
+function PaymentCallbackContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
@@ -14,6 +14,7 @@ export default function PaymentCallbackPage() {
       const deviceId = searchParams.get("device_id")
       const paymentId = searchParams.get("payment_id")
       const isTestPayment = searchParams.get("test") === "true"
+      const isDemoPayment = paymentId?.startsWith("demo_")
 
       if (!deviceId) {
         setStatus("error")
@@ -21,7 +22,12 @@ export default function PaymentCallbackPage() {
       }
 
       try {
-        const url = `/api/payment/status?device_id=${deviceId}${paymentId ? `&payment_id=${paymentId}` : ""}${isTestPayment ? "&test=true" : ""}`
+        // Для демо-платежей добавляем флаг подтверждения
+        let url = `/api/payment/status?device_id=${deviceId}`
+        if (paymentId) url += `&payment_id=${paymentId}`
+        if (isTestPayment) url += "&test=true"
+        if (isDemoPayment) url += "&demo_confirmed=true"
+
         const res = await fetch(url)
         const data = await res.json()
 
@@ -31,7 +37,7 @@ export default function PaymentCallbackPage() {
           setTimeout(() => {
             router.push("/")
           }, 2000)
-        } else if (isTestPayment) {
+        } else if (isTestPayment || isDemoPayment) {
           setTimeout(checkPayment, 1000)
         } else {
           setTimeout(checkPayment, 2000)
@@ -45,13 +51,14 @@ export default function PaymentCallbackPage() {
   }, [searchParams, router])
 
   const isTest = searchParams.get("test") === "true"
+  const isDemo = searchParams.get("payment_id")?.startsWith("demo_")
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="text-center">
-        {isTest && (
+        {(isTest || isDemo) && (
           <div className="mb-4 px-3 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-full inline-block">
-            Тестовый режим
+            {isDemo ? "Демо-режим" : "Тестовый режим"}
           </div>
         )}
 
@@ -86,5 +93,21 @@ export default function PaymentCallbackPage() {
         )}
       </div>
     </div>
+  )
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    </div>
+  )
+}
+
+export default function PaymentCallbackPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <PaymentCallbackContent />
+    </Suspense>
   )
 }

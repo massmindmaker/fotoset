@@ -13,6 +13,8 @@ Production:  https://your-domain.com/api
 
 ### POST /api/user
 
+**File:** `app/api/user/route.ts` (35 lines)
+
 Get or create user by device ID.
 
 **Request:**
@@ -36,30 +38,23 @@ Get or create user by device ID.
 - `400` - Missing deviceId
 - `500` - Database error
 
-**Example:**
-```typescript
-const response = await fetch('/api/user', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ deviceId: 'my-device-id' })
-})
-const user = await response.json()
-```
-
 ---
 
 ## Photo Generation
 
 ### POST /api/generate
 
-Generate 23 AI photos for a persona.
+**File:** `app/api/generate/route.ts` (264 lines)
+
+Generate AI photos for a persona.
 
 **Request:**
 ```json
 {
   "deviceId": "string",
   "avatarId": "string",
-  "styleId": "professional" | "lifestyle" | "creative",
+  "styleId": "pinglass",
+  "photoCount": 7 | 15 | 23,
   "referenceImages": ["base64-image-data", "..."]
 }
 ```
@@ -68,8 +63,6 @@ Generate 23 AI photos for a persona.
 ```json
 {
   "success": true,
-  "jobId": "123",
-  "photosGenerated": 23,
   "photos": [
     "data:image/png;base64,iVBORw0...",
     "data:image/png;base64,iVBORw0...",
@@ -93,17 +86,17 @@ Generate 23 AI photos for a persona.
 
 **Notes:**
 - Requires user to have Pro status
-- Uses first reference image for AI consistency
-- Generates 9 photos based on selected style
-- Each style has different prompt configurations
+- Uses first 5 reference images for AI consistency
+- Generates N photos based on `photoCount` parameter
+- Uses prompts from `lib/prompts.ts`
 
-**Style Configurations:**
+**Photo Count Options:**
 
-| Style | Prompt Indices | Description |
-|-------|----------------|-------------|
-| professional | 3,4,11,6,18,21,0,19,7 | Business portraits, clean backgrounds |
-| lifestyle | 1,2,4,5,8,12,15,16,22 | Casual, natural locations |
-| creative | 9,13,16,17,10,20,14,7,6 | Artistic, dramatic lighting |
+| Tier | Photos | Prompts Used |
+|------|--------|--------------|
+| Starter | 7 | First 7 from 23 |
+| Standard | 15 | First 15 from 23 |
+| Premium | 23 | All 23 prompts |
 
 ---
 
@@ -111,13 +104,16 @@ Generate 23 AI photos for a persona.
 
 ### POST /api/payment/create
 
+**File:** `app/api/payment/create/route.ts` (73 lines)
+
 Create a new payment order.
 
 **Request:**
 ```json
 {
   "deviceId": "string",
-  "avatarId": "string (optional)"
+  "amount": 499 | 999 | 1499,
+  "description": "PinGlass - 7 photos"
 }
 ```
 
@@ -145,13 +141,14 @@ Create a new payment order.
 - `500` - Payment creation failed
 
 **Notes:**
-- Amount: 500 RUB
 - Test mode activates when T-Bank credentials are missing
 - Redirects user to T-Bank payment page
 
 ---
 
 ### GET /api/payment/status
+
+**File:** `app/api/payment/status/route.ts` (88 lines)
 
 Check payment status and Pro subscription.
 
@@ -192,12 +189,13 @@ const { isPro, status } = await response.json()
 
 ### POST /api/payment/webhook
 
+**File:** `app/api/payment/webhook/route.ts` (58 lines)
+
 Handle T-Bank payment notifications.
 
 **Request Headers:**
 ```
 Content-Type: application/json
-X-Signature: sha256-signature
 ```
 
 **Request Body:**
@@ -209,7 +207,7 @@ X-Signature: sha256-signature
   "Status": "CONFIRMED",
   "PaymentId": 123456789,
   "ErrorCode": "0",
-  "Amount": 50000,
+  "Amount": 49900,
   "Token": "signature_token"
 }
 ```
@@ -236,15 +234,15 @@ X-Signature: sha256-signature
 
 ### GET /api/test-models
 
-Test YeScale API availability.
+**File:** `app/api/test-models/route.ts` (31 lines)
+
+Test API availability.
 
 **Response:**
 ```json
 {
-  "models": ["gemini-1.5-flash", "imagen-3.0"],
-  "testResponse": {
-    "text": "Hello from Gemini!"
-  }
+  "models": ["imagen-3.0"],
+  "status": "ok"
 }
 ```
 
@@ -272,6 +270,7 @@ All endpoints return errors in this format:
 | "User is not Pro" | Generation without Pro status | Complete payment first |
 | "User is already Pro" | Duplicate payment attempt | Refresh page |
 | "Payment creation failed" | T-Bank API error | Check credentials |
+| "Invalid request" | Missing required fields | Check request body |
 
 ---
 
@@ -289,8 +288,15 @@ Currently no rate limiting implemented.
 ## TypeScript Types
 
 ```typescript
-// Request/Response types
+// Pricing Tiers
+interface PricingTier {
+  id: string       // "starter" | "standard" | "premium"
+  photos: number   // 7 | 15 | 23
+  price: number    // 499 | 999 | 1499
+  popular?: boolean
+}
 
+// Request/Response types
 interface UserRequest {
   deviceId: string
 }
@@ -304,20 +310,20 @@ interface UserResponse {
 interface GenerateRequest {
   deviceId: string
   avatarId: string
-  styleId: 'professional' | 'lifestyle' | 'creative'
-  referenceImages: string[]
+  styleId: "pinglass"
+  photoCount: 7 | 15 | 23
+  referenceImages: string[]  // base64 encoded
 }
 
 interface GenerateResponse {
   success: boolean
-  jobId: string
-  photosGenerated: number
-  photos: string[]
+  photos: string[]  // base64 data URLs
 }
 
 interface PaymentCreateRequest {
   deviceId: string
-  avatarId?: string
+  amount: number
+  description?: string
 }
 
 interface PaymentCreateResponse {
@@ -328,8 +334,28 @@ interface PaymentCreateResponse {
 
 interface PaymentStatusResponse {
   isPro: boolean
-  status: 'succeeded' | 'pending' | 'canceled'
+  status: "succeeded" | "pending" | "canceled"
 }
+```
 
-type StyleId = 'professional' | 'lifestyle' | 'creative'
+---
+
+## Environment Variables
+
+```env
+# Database (Required)
+DATABASE_URL=postgresql://user:pass@host/db
+
+# Google AI (Required for generation)
+GOOGLE_API_KEY=AIza...
+
+# T-Bank Payment (Optional - test mode without)
+TBANK_TERMINAL_KEY=...
+TBANK_PASSWORD=...
+
+# YeScale Proxy (Optional)
+YESCALE_API_KEY=...
+
+# App URL (Required for callbacks)
+NEXT_PUBLIC_APP_URL=https://your-domain.com
 ```

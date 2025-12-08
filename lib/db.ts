@@ -12,6 +12,21 @@ export const sql = databaseUrl
       throw new Error("DATABASE_URL is not configured")
     }) as any)
 
+// Query function with parameterized queries support (PostgreSQL $1, $2, etc.)
+export async function query<T = any>(
+  text: string,
+  params?: any[]
+): Promise<{ rows: T[] }> {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is not configured")
+  }
+
+  const db = neon(process.env.DATABASE_URL)
+  const result = await db.unsafe(text, params)
+  return { rows: result as T[] }
+}
+
+
 export type User = {
   id: number
   device_id: string
@@ -60,4 +75,23 @@ export type GenerationJob = {
   error_message: string | null
   created_at: string
   updated_at: string
+}
+
+export type PhotoFavorite = {
+  id: number
+  user_id: number
+  photo_id: number
+  created_at: string
+}
+
+export type SharedGallery = {
+  id: number
+  share_token: string
+  user_id: number
+  avatar_id: number | null
+  photo_ids: number[]
+  title: string | null
+  expires_at: string
+  view_count: number
+  created_at: string
 }
