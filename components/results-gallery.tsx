@@ -67,8 +67,8 @@ const ShareModal: React.FC<{
   const shareUrl = isMultiple ? asset[0].url : asset.url
 
   const shareText = isMultiple
-    ? `Мои AI-фото от ${personaName} (${photoCount} фото)`
-    : `Моё AI-фото от ${personaName}`
+    ? `Мои AI-фото от ${personaName} (${photoCount} фото)\n\nСоздай свои на pinglass.ru`
+    : `Моё AI-фото от ${personaName}\n\nСоздай свои на pinglass.ru`
 
   const copyLink = async () => {
     try {
@@ -468,7 +468,8 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
             title: "PinGlass Photo",
-            text: `Моё AI-фото от ${personaName}`,
+            text: `Моё AI-фото от ${personaName}\n\nСоздай свои на pinglass.ru`,
+            url: "https://pinglass.ru",
             files: [file]
           })
           return
@@ -507,7 +508,8 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
         if (navigator.canShare({ files })) {
           await navigator.share({
             title: "PinGlass Photos",
-            text: `Мои AI-фото от ${personaName} (${photosToShare.length} фото)`,
+            text: `Мои AI-фото от ${personaName} (${photosToShare.length} фото)\n\nСоздай свои на pinglass.ru`,
+            url: "https://pinglass.ru",
             files
           })
           return

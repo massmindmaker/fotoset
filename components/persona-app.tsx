@@ -59,7 +59,7 @@ export default function PersonaApp() {
     const id = getDeviceId()
     setDeviceId(id)
     if (localStorage.getItem("pinglass_is_pro") === "true") setIsPro(true)
-    if (localStorage.getItem("pinglass_onboarding_complete")) setViewState({ view: "DASHBOARD" })
+    // Onboarding shows on every app load - removed localStorage check
     const savedTheme = localStorage.getItem("pinglass_theme") as "dark" | "light" | null
     if (savedTheme) { setTheme(savedTheme); document.documentElement.classList.toggle("light", savedTheme === "light") }
     setIsReady(true)
@@ -73,7 +73,7 @@ export default function PersonaApp() {
     document.documentElement.classList.toggle("light", newTheme === "light")
   }
 
-  const completeOnboarding = () => { localStorage.setItem("pinglass_onboarding_complete", "true"); setViewState({ view: "DASHBOARD" }) }
+  const completeOnboarding = () => { setViewState({ view: "DASHBOARD" }) }
   const handleCreatePersona = () => {
     const newId = Date.now().toString()
     setPersonas([...personas, { id: newId, name: "Мой аватар", status: "draft", images: [], generatedAssets: [] }])
