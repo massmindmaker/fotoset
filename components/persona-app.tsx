@@ -64,6 +64,17 @@ export default function PersonaApp() {
     if (savedTheme) { setTheme(savedTheme); document.documentElement.classList.toggle("light", savedTheme === "light") }
     setIsReady(true)
     fetch("/api/payment/status?device_id=" + id).then(r => r.json()).then(d => { if (d.isPro) { setIsPro(true); localStorage.setItem("pinglass_is_pro", "true") } }).catch(() => {})
+
+    // Handle referral code from URL
+    const urlParams = new URLSearchParams(window.location.search)
+    const refCode = urlParams.get("ref")
+    if (refCode && !localStorage.getItem("pinglass_referral_applied")) {
+      localStorage.setItem("pinglass_pending_referral", refCode)
+      // Clean URL without reload
+      const url = new URL(window.location.href)
+      url.searchParams.delete("ref")
+      window.history.replaceState({}, "", url.pathname)
+    }
   }, [])
 
   const toggleTheme = () => {

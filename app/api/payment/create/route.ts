@@ -1,15 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/db"
+import { sql, query } from "@/lib/db"
 import { initPayment, IS_TEST_MODE, IS_DEMO_MODE, type PaymentMethod } from "@/lib/tbank"
 
 export async function POST(request: NextRequest) {
   try {
-    const { deviceId, email, paymentMethod, tierId, photoCount } = await request.json() as {
+    const { deviceId, email, paymentMethod, tierId, photoCount, referralCode } = await request.json() as {
       deviceId: string
       email?: string
       paymentMethod?: PaymentMethod
       tierId?: string
       photoCount?: number
+      referralCode?: string
     }
 
     if (!deviceId) {
@@ -31,6 +32,11 @@ export async function POST(request: NextRequest) {
     // Проверяем, не Pro ли уже
     if (user.is_pro) {
       return NextResponse.json({ error: "Вы уже Pro пользователь" }, { status: 400 })
+    }
+
+    // Apply referral code if provided and not already applied
+    if (referralCode) {
+      await applyReferralCode(user.id, referralCode)
     }
 
     // Определяем return URLs
@@ -94,5 +100,47 @@ export async function POST(request: NextRequest) {
     console.error("Payment creation error:", error)
     const message = error instanceof Error ? error.message : "Failed to create payment"
     return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
+// Apply referral code (silent, non-blocking)
+async function applyReferralCode(userId: number, code: string) {
+  try {
+    // Check if already referred
+    const existing = await query(
+      "SELECT id FROM referrals WHERE referred_id = $1",
+      [userId]
+    )
+    if (existing.rows.length > 0) return
+
+    // Find code owner
+    const codeResult = await query<{ user_id: number }>(
+      "SELECT user_id FROM referral_codes WHERE code = $1 AND is_active = true",
+      [code.toUpperCase()]
+    )
+    if (codeResult.rows.length === 0) return
+
+    const referrerId = codeResult.rows[0].user_id
+    if (referrerId === userId) return // Can't refer yourself
+
+    // Create referral
+    await query(
+      "INSERT INTO referrals (referrer_id, referred_id, referral_code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+      [referrerId, userId, code.toUpperCase()]
+    )
+
+    // Update referrer count
+    await query(
+      `INSERT INTO referral_balances (user_id, referrals_count)
+       VALUES ($1, 1)
+       ON CONFLICT (user_id) DO UPDATE SET
+         referrals_count = referral_balances.referrals_count + 1,
+         updated_at = NOW()`,
+      [referrerId]
+    )
+
+    console.log(`[Referral] Applied code ${code} for user ${userId}, referrer: ${referrerId}`)
+  } catch (error) {
+    console.error("[Referral] Error applying code:", error)
   }
 }

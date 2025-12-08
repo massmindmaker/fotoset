@@ -95,3 +95,58 @@ export type SharedGallery = {
   view_count: number
   created_at: string
 }
+
+// Referral Program Types
+export type ReferralCode = {
+  id: number
+  user_id: number
+  code: string
+  created_at: string
+  is_active: boolean
+}
+
+export type Referral = {
+  id: number
+  referrer_id: number
+  referred_id: number
+  referral_code: string
+  created_at: string
+}
+
+export type ReferralEarning = {
+  id: number
+  referrer_id: number
+  referred_id: number
+  payment_id: number | null
+  amount: number
+  original_amount: number
+  created_at: string
+}
+
+export type ReferralBalance = {
+  id: number
+  user_id: number
+  balance: number
+  total_earned: number
+  total_withdrawn: number
+  referrals_count: number
+  updated_at: string
+}
+
+export type ReferralWithdrawal = {
+  id: number
+  user_id: number
+  amount: number
+  ndfl_amount: number
+  payout_amount: number
+  status: "pending" | "processing" | "completed" | "rejected"
+  payout_method: "card" | "sbp"
+  card_number: string | null
+  phone: string | null
+  recipient_name: string
+  processed_by: string | null
+  processed_at: string | null
+  rejection_reason: string | null
+  ndfl_paid_at: string | null
+  created_at: string
+}
