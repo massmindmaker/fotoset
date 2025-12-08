@@ -260,6 +260,34 @@ const Lightbox: React.FC<{
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [currentIndex, assets.length, onClose, onNavigate])
 
+  // Touch/swipe navigation for mobile
+  const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [touchEnd, setTouchEnd] = useState<number | null>(null)
+  const minSwipeDistance = 50
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > minSwipeDistance
+    const isRightSwipe = distance < -minSwipeDistance
+
+    if (isLeftSwipe && currentIndex < assets.length - 1) {
+      onNavigate(currentIndex + 1)
+    }
+    if (isRightSwipe && currentIndex > 0) {
+      onNavigate(currentIndex - 1)
+    }
+  }
+
   // Prevent body scroll
   useEffect(() => {
     document.body.style.overflow = "hidden"
@@ -292,8 +320,13 @@ const Lightbox: React.FC<{
         </div>
       </div>
 
-      {/* Main image area */}
-      <div className="flex-1 flex items-center justify-center relative px-4 pb-4">
+      {/* Main image area with swipe support */}
+      <div
+        className="flex-1 flex items-center justify-center relative px-4 pb-4"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         {/* Previous button */}
         {currentIndex > 0 && (
           <button
