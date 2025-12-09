@@ -37,13 +37,40 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Проверяем пользователя (без Pro проверки - оплата per-package)
-    const user = await sql`
+    // Проверяем или создаем пользователя
+    let user = await sql`
       SELECT * FROM users WHERE device_id = ${deviceId}
     `.then((rows) => rows[0])
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      // Создаем пользователя если не существует
+      user = await sql`
+        INSERT INTO users (device_id) VALUES (${deviceId})
+        RETURNING *
+      `.then((rows) => rows[0])
+      console.log(`[Generate] Created new user ${user.id} for device ${deviceId}`)
+    }
+
+    // Проверяем avatar - если это timestamp string от фронтенда, создаем новый в БД
+    let dbAvatarId: number
+
+    // Проверяем существует ли avatar с таким ID
+    const existingAvatar = await sql`
+      SELECT id FROM avatars WHERE id = ${parseInt(avatarId) || 0} AND user_id = ${user.id}
+    `.then((rows) => rows[0])
+
+    if (existingAvatar) {
+      dbAvatarId = existingAvatar.id
+      console.log(`[Generate] Using existing avatar ${dbAvatarId}`)
+    } else {
+      // Создаем новый avatar в БД
+      const newAvatar = await sql`
+        INSERT INTO avatars (user_id, name, status)
+        VALUES (${user.id}, 'Мой аватар', 'processing')
+        RETURNING id
+      `.then((rows) => rows[0])
+      dbAvatarId = newAvatar.id
+      console.log(`[Generate] Created new avatar ${dbAvatarId} (frontend ID was: ${avatarId})`)
     }
 
     // Получаем конфигурацию стиля
@@ -85,11 +112,11 @@ export async function POST(request: NextRequest) {
 
     const job = await sql`
       INSERT INTO generation_jobs (avatar_id, style_id, status, total_photos)
-      VALUES (${avatarId}, ${styleId}, 'processing', ${totalPhotos})
+      VALUES (${dbAvatarId}, ${styleId}, 'processing', ${totalPhotos})
       RETURNING *
     `.then((rows) => rows[0])
 
-    console.log(`[Generate] Created job ${job.id} for avatar ${avatarId}, style: ${styleId}, photos: ${totalPhotos} (requested: ${photoCount || 'default'})`)
+    console.log(`[Generate] Created job ${job.id} for avatar ${dbAvatarId}, style: ${styleId}, photos: ${totalPhotos} (requested: ${photoCount || 'default'})`)
 
     // Подготавливаем промпты с умным слиянием
     const basePrompts = PHOTOSET_PROMPTS.slice(0, totalPhotos)
@@ -139,7 +166,7 @@ export async function POST(request: NextRequest) {
 
       await sql`
         INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
-        VALUES (${avatarId}, ${styleId}, ${originalPrompt}, ${result.url})
+        VALUES (${dbAvatarId}, ${styleId}, ${originalPrompt}, ${result.url})
       `.catch(err => console.error(`[Generate] Failed to save photo to DB:`, err))
     }
 
@@ -161,7 +188,7 @@ export async function POST(request: NextRequest) {
         SET status = 'ready',
             thumbnail_url = ${successfulPhotos[0].url},
             updated_at = NOW()
-        WHERE id = ${avatarId}
+        WHERE id = ${dbAvatarId}
       `
     }
 
@@ -171,6 +198,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       jobId: job.id,
+      avatarId: dbAvatarId, // Database avatar ID for frontend sync
       photosGenerated: successfulPhotos.length,
       photosFailed: failedCount,
       photos: successfulPhotos.map(r => r.url),

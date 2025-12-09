@@ -41,16 +41,26 @@ export async function generateWithNanoBanana(
   // Prepare reference images (up to 14) as Buffer objects
   // Replicate SDK automatically uploads Buffer objects to their servers
   const refs = Array.isArray(referenceImages) ? referenceImages : [referenceImages];
+  console.log(`[NanoBananaPro] Received ${refs.length} reference images`);
+
   const preparedRefs = refs
     .slice(0, 14)
     .filter(ref => ref && ref.length > 0)
-    .map(ref => {
+    .map((ref, idx) => {
       // Skip URLs - they don't need Buffer conversion
       if (ref.startsWith('http://') || ref.startsWith('https://')) {
+        console.log(`[NanoBananaPro] Image ${idx}: URL (${ref.substring(0, 50)}...)`);
         return ref; // Return URL as-is
       }
       // Convert base64/data URI to Buffer for automatic upload
-      return dataUriToBuffer(ref);
+      try {
+        const buffer = dataUriToBuffer(ref);
+        console.log(`[NanoBananaPro] Image ${idx}: Converted to Buffer (${buffer.length} bytes)`);
+        return buffer;
+      } catch (err) {
+        console.error(`[NanoBananaPro] Image ${idx}: Buffer conversion failed:`, err);
+        throw err;
+      }
     });
 
   // Determine resolution based on options
