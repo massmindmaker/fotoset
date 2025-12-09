@@ -47,7 +47,7 @@ export default function PersonaApp() {
   const [personas, setPersonas] = useState<Persona[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationProgress, setGenerationProgress] = useState(0)
-  const [isPro, setIsPro] = useState(false)
+  // isPro state removed - users pay per package, no subscription
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
   const [deviceId, setDeviceId] = useState("")
   const [isReady, setIsReady] = useState(false)
@@ -58,12 +58,12 @@ export default function PersonaApp() {
     if (typeof window === "undefined") return
     const id = getDeviceId()
     setDeviceId(id)
-    if (localStorage.getItem("pinglass_is_pro") === "true") setIsPro(true)
+    // Removed isPro check - users pay per package
     // Onboarding shows on every app load - removed localStorage check
     const savedTheme = localStorage.getItem("pinglass_theme") as "dark" | "light" | null
     if (savedTheme) { setTheme(savedTheme); document.documentElement.classList.toggle("light", savedTheme === "light") }
     setIsReady(true)
-    fetch("/api/payment/status?device_id=" + id).then(r => r.json()).then(d => { if (d.isPro) { setIsPro(true); localStorage.setItem("pinglass_is_pro", "true") } }).catch(() => {})
+    // Removed isPro status check - users pay per package
 
     // Handle referral code from URL
     const urlParams = new URLSearchParams(window.location.search)
@@ -103,7 +103,7 @@ export default function PersonaApp() {
     setViewState({ view: "GENERATING", personaId: p.id, progress: 0 })
 
     // Demo mode - use mock photos instead of real API
-    const USE_DEMO_MODE = true
+    const USE_DEMO_MODE = false
 
     if (USE_DEMO_MODE) {
       // Simulate generation delay
@@ -138,7 +138,7 @@ export default function PersonaApp() {
     finally { setIsGenerating(false); setGenerationProgress(0) }
   }
 
-  const handlePaymentSuccess = () => { setIsPro(true); localStorage.setItem("pinglass_is_pro", "true"); setIsPaymentOpen(false); if (viewState.view === "SELECT_TIER") handleGenerate(selectedTier) }
+  const handlePaymentSuccess = () => { setIsPaymentOpen(false); if (viewState.view === "SELECT_TIER") handleGenerate(selectedTier) }
 
   if (!isReady) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
 
@@ -162,7 +162,7 @@ export default function PersonaApp() {
         <main className="max-w-5xl mx-auto px-4 py-6">
           {viewState.view === "DASHBOARD" && <DashboardView personas={personas} onCreate={handleCreatePersona} onSelect={id => { const p = personas.find(x => x.id === id); setViewState(p?.status === "draft" ? { view: "CREATE_PERSONA_UPLOAD", personaId: id } : { view: "RESULTS", personaId: id }) }} onDelete={deletePersona} />}
           {viewState.view === "CREATE_PERSONA_UPLOAD" && getActivePersona() && <UploadView persona={getActivePersona()!} updatePersona={updatePersona} onBack={() => setViewState({ view: "DASHBOARD" })} onNext={() => setViewState({ view: "SELECT_TIER", personaId: viewState.personaId })} />}
-          {viewState.view === "SELECT_TIER" && getActivePersona() && <TierSelectView persona={getActivePersona()!} onBack={() => setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: viewState.personaId })} onGenerate={handleGenerate} isGenerating={isGenerating} isPro={isPro} onUpgrade={t => { setSelectedTier(t); setIsPaymentOpen(true) }} selectedTier={selectedTier} onSelectTier={setSelectedTier} />}
+          {viewState.view === "SELECT_TIER" && getActivePersona() && <TierSelectView persona={getActivePersona()!} onBack={() => setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: viewState.personaId })} onGenerate={handleGenerate} isGenerating={isGenerating} onUpgrade={t => { setSelectedTier(t); setIsPaymentOpen(true) }} selectedTier={selectedTier} onSelectTier={setSelectedTier} />}
           {viewState.view === "RESULTS" && getActivePersona() && <ResultsView persona={getActivePersona()!} onBack={() => setViewState({ view: "DASHBOARD" })} onGenerateMore={() => setViewState({ view: "SELECT_TIER", personaId: viewState.personaId })} />}
         </main>
       </>)}
@@ -366,7 +366,7 @@ const UploadView: React.FC<{ persona: Persona; updatePersona: (id: string, data:
   )
 }
 
-const TierSelectView: React.FC<{ persona: Persona; onBack: () => void; onGenerate: (tier: PricingTier) => void; isGenerating: boolean; isPro: boolean; onUpgrade: (tier: PricingTier) => void; selectedTier: PricingTier; onSelectTier: (tier: PricingTier) => void }> = ({ onBack, onGenerate, isGenerating, isPro, onUpgrade, selectedTier, onSelectTier }) => (
+const TierSelectView: React.FC<{ persona: Persona; onBack: () => void; onGenerate: (tier: PricingTier) => void; isGenerating: boolean; onUpgrade: (tier: PricingTier) => void; selectedTier: PricingTier; onSelectTier: (tier: PricingTier) => void }> = ({ onBack, onGenerate, isGenerating, onUpgrade, selectedTier, onSelectTier }) => (
   <div className="space-y-6 pb-24 sm:pb-6">
     <div className="flex items-center gap-3">
       <button onClick={onBack} className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95"><ArrowLeft className="w-5 h-5" /></button>
@@ -388,9 +388,9 @@ const TierSelectView: React.FC<{ persona: Persona; onBack: () => void; onGenerat
       ))}
     </div>
     <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
-      {/* Demo mode - always allow generation */}
-      <button onClick={() => selectedTier && onGenerate(selectedTier)} disabled={!selectedTier || isGenerating} className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-primary to-accent text-white font-medium rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg shadow-primary/25">
-        {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" />Генерация...</> : <><Sparkles className="w-4 h-4" />Сгенерировать {selectedTier.photos} фото</>}
+      {/* Payment flow - user pays for selected tier, then generation starts */}
+      <button onClick={() => selectedTier && onUpgrade(selectedTier)} disabled={!selectedTier || isGenerating} className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-primary to-accent text-white font-medium rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg shadow-primary/25">
+        {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" />Генерация...</> : <><Sparkles className="w-4 h-4" />Оплатить и получить {selectedTier.photos} фото</>}
       </button>
     </div>
   </div>

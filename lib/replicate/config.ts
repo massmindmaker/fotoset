@@ -7,7 +7,7 @@ import type { ModelType, ProviderConfig, GenerationOptions, ReplicateConfig } fr
 export function getReplicateConfig(): ReplicateConfig {
   return {
     apiToken: process.env.REPLICATE_API_TOKEN || '',
-    defaultModel: (process.env.REPLICATE_PRIMARY_MODEL as ModelType) || 'flux-pulid',
+    defaultModel: (process.env.REPLICATE_PRIMARY_MODEL as ModelType) || 'nano-banana-pro',
     maxRetries: parseInt(process.env.REPLICATE_MAX_RETRIES || '3', 10),
     timeoutMs: 120000, // 2 minutes per image
     budgetPerGeneration: parseFloat(process.env.REPLICATE_BUDGET_PER_GENERATION || '0.80'),
@@ -72,10 +72,24 @@ export const PROVIDERS: Record<ModelType, ProviderConfig> = {
     },
     available: true,
   },
+  'nano-banana-pro': {
+    name: 'nano-banana-pro',
+    modelId: 'google/nano-banana-pro',
+    costPerImage: 0.15, // $0.15 for 1K/2K, $0.30 for 4K
+    maxBatchSize: 1,
+    defaultOptions: {
+      width: 1024,
+      height: 1024,
+      outputFormat: 'jpg',
+    },
+    available: true,
+  },
 };
 
 // Fallback order (primary to tertiary)
+// Nano Banana Pro first - best multi-reference support (up to 14 images)
 export const FALLBACK_ORDER: ModelType[] = [
+  'nano-banana-pro',
   'flux-pulid',
   'flux-kontext-pro',
   'instant-id',
@@ -94,6 +108,7 @@ export const BATCH_DEFAULTS = {
 
 // Retry configuration
 export const RETRY_CONFIG = {
+  maxRetries: 3,
   initialDelayMs: 1000,
   maxDelayMs: 30000,
   backoffMultiplier: 2,

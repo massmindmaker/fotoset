@@ -1,7 +1,9 @@
 // Multi-provider Image Generation API
 // Supports: Replicate (primary - best quality), Kie.ai, fal.ai, Google Imagen (legacy)
 
-import { generatePortrait, prepareImageForReplicate } from "./replicate"
+import { generatePortrait as replicateGeneratePortrait } from "./replicate/index"
+import { prepareImageForApi as prepareImageForReplicate } from "./replicate/utils/image-processor"
+import type { GenerationOptions as ReplicateOptions, GenerationResult as ReplicateResult } from "./replicate/types"
 
 // Provider configuration
 const PROVIDERS = {
@@ -78,7 +80,7 @@ export interface GenerationResult {
   provider?: string
 }
 
-// ============ REPLICATE PROVIDER (Flux-PuLID) ============
+// ============ REPLICATE PROVIDER (Nano Banana Pro / Flux-PuLID) ============
 
 async function generateWithReplicate(options: GenerationOptions): Promise<string> {
   const { prompt, referenceImages, seed } = options
@@ -92,19 +94,29 @@ async function generateWithReplicate(options: GenerationOptions): Promise<string
   const preparedRefs = referenceImages?.map(prepareImageForReplicate) || []
 
   try {
-    const result = await generatePortrait({
-      prompt,
-      referenceImages: preparedRefs,
+    // Use the unified generatePortrait function with proper signature
+    // (prompt, referenceImage, options)
+    const replicateOptions: ReplicateOptions = {
       seed,
-      numInferenceSteps: 28,
+      steps: 28,
       guidanceScale: 4,
       width: 896,
       height: 1152,
       idWeight: 1.2, // Slightly higher for better face consistency
-    })
+    }
 
-    console.log(`[Replicate] ✓ Generated image successfully`)
-    return result
+    const result: ReplicateResult = await replicateGeneratePortrait(
+      prompt,
+      preparedRefs[0] || '', // Primary reference image
+      replicateOptions
+    )
+
+    if (!result.success) {
+      throw new Error(result.error || 'Generation failed')
+    }
+
+    console.log(`[Replicate] ✓ Generated image with ${result.model} (${result.latencyMs}ms)`)
+    return result.url
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error"
     console.error(`[Replicate] Generation failed:`, errorMsg)

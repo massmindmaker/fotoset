@@ -23,6 +23,7 @@ export class CostTracker {
         'flux-pulid': 0,
         'flux-kontext-pro': 0,
         'instant-id': 0,
+        'nano-banana-pro': 0,
       },
       byStatus: {
         successful: 0,
@@ -135,6 +136,7 @@ export class CostTracker {
         'flux-pulid': 0,
         'flux-kontext-pro': 0,
         'instant-id': 0,
+        'nano-banana-pro': 0,
       },
       byStatus: {
         successful: 0,

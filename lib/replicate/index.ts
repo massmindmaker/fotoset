@@ -25,11 +25,12 @@ import {
 import { generateWithPuLID, testPuLIDConnection } from './providers/flux-pulid';
 import { generateWithKontext, testKontextConnection } from './providers/flux-kontext';
 import { generateWithInstantID, testInstantIDConnection } from './providers/instant-id';
+import { generateWithNanoBanana, testNanoBananaConnection } from './providers/nano-banana-pro';
 
 // Re-export types and utilities
 export * from './types';
 export { CostTracker, formatCost } from './utils/cost-tracker';
-export { prepareReferenceImages } from './utils/image-processor';
+export { prepareReferenceImages, prepareImageForApi as prepareImageForReplicate } from './utils/image-processor';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -67,6 +68,8 @@ export async function generatePortrait(
               return generateWithKontext(prompt, referenceImage, options);
             case 'instant-id':
               return generateWithInstantID(prompt, referenceImage, options);
+            case 'nano-banana-pro':
+              return generateWithNanoBanana(prompt, referenceImage, options);
             default:
               throw new Error(`Unknown provider: ${providerName}`);
           }
@@ -275,6 +278,15 @@ export async function testConnections(): Promise<Record<ModelType, {
     connected: instantIDTest.success,
     message: instantIDTest.message,
     costPerImage: PROVIDERS['instant-id'].costPerImage,
+  };
+
+  // Test Nano Banana Pro
+  const nanoBananaTest = await testNanoBananaConnection();
+  results['nano-banana-pro'] = {
+    available: PROVIDERS['nano-banana-pro'].available,
+    connected: nanoBananaTest.success,
+    message: nanoBananaTest.message,
+    costPerImage: PROVIDERS['nano-banana-pro'].costPerImage,
   };
 
   return results;

@@ -4,7 +4,8 @@
 export type ModelType =
   | 'flux-pulid'
   | 'flux-kontext-pro'
-  | 'instant-id';
+  | 'instant-id'
+  | 'nano-banana-pro';
 
 export interface ReplicateConfig {
   apiToken: string;
