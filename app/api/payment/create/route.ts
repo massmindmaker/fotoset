@@ -29,11 +29,6 @@ export async function POST(request: NextRequest) {
       `.then((rows) => rows[0])
     }
 
-    // Проверяем, не Pro ли уже
-    if (user.is_pro) {
-      return NextResponse.json({ error: "Вы уже Pro пользователь" }, { status: 400 })
-    }
-
     // Apply referral code if provided and not already applied
     if (referralCode) {
       await applyReferralCode(user.id, referralCode)

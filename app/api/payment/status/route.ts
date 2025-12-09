@@ -15,10 +15,10 @@ export async function GET(request: NextRequest) {
 
     if (!process.env.DATABASE_URL) {
       console.warn("[v0] DATABASE_URL not configured, using test mode")
-      return NextResponse.json({ isPro: false, status: "pending", testMode: true })
+      return NextResponse.json({ paid: false, status: "pending", testMode: true })
     }
 
-    // Проверяем статус пользователя
+    // Проверяем пользователя
     let user
     try {
       user = await sql`
@@ -33,74 +33,66 @@ export async function GET(request: NextRequest) {
       }
     } catch (dbError) {
       console.error("[v0] Database error:", dbError)
-      return NextResponse.json({ isPro: false, status: "pending", error: "db_unavailable" })
+      return NextResponse.json({ paid: false, status: "pending", error: "db_unavailable" })
     }
 
-    // Если уже Pro
-    if (user.is_pro) {
-      return NextResponse.json({ isPro: true, status: "succeeded" })
+    // Если нет payment_id, просто возвращаем pending
+    if (!paymentId) {
+      return NextResponse.json({ paid: false, status: "pending" })
     }
 
     // Обработка демо-платежей
-    if (paymentId && paymentId.startsWith("demo_")) {
+    if (paymentId.startsWith("demo_")) {
       const isDemoConfirmed = searchParams.get("demo_confirmed") === "true"
       if (isDemoConfirmed) {
-        console.log("[Payment] Demo mode: activating Pro for user", user.id)
-        await sql`
-          UPDATE users SET is_pro = TRUE, updated_at = NOW()
-          WHERE id = ${user.id}
-        `
+        console.log("[Payment] Demo mode: confirming payment for user", user.id)
         await sql`
           UPDATE payments SET status = 'succeeded', updated_at = NOW()
           WHERE yookassa_payment_id = ${paymentId}
-        `.catch(() => {}) // Игнорируем ошибку если платежа нет
-        return NextResponse.json({ isPro: true, status: "succeeded", demoMode: true })
+        `.catch(() => {})
+        return NextResponse.json({ paid: true, status: "succeeded", demoMode: true })
       }
-      return NextResponse.json({ isPro: false, status: "pending", demoMode: true })
+      return NextResponse.json({ paid: false, status: "pending", demoMode: true })
     }
 
+    // Test mode
     if ((IS_TEST_MODE || isTestRequest) && paymentId) {
-      console.log("[Payment] Test mode: activating Pro for user", user.id)
-      await sql`
-        UPDATE users SET is_pro = TRUE, updated_at = NOW()
-        WHERE id = ${user.id}
-      `
-      // Обновляем платеж если есть
+      console.log("[Payment] Test mode: confirming payment for user", user.id)
       if (paymentId.startsWith("test_")) {
         await sql`
           UPDATE payments SET status = 'succeeded', updated_at = NOW()
           WHERE yookassa_payment_id = ${paymentId}
-        `.catch(() => {}) // Игнорируем ошибку если платежа нет
+        `.catch(() => {})
       }
-      return NextResponse.json({ isPro: true, status: "succeeded", testMode: true })
+      return NextResponse.json({ paid: true, status: "succeeded", testMode: true })
     }
 
-    // Если передан payment_id, проверяем его статус в T-Bank
-    if (paymentId) {
-      try {
-        const payment = await getPaymentState(paymentId)
+    // Проверяем статус платежа в T-Bank
+    try {
+      const payment = await getPaymentState(paymentId)
 
-        if (payment.Status === "CONFIRMED" || payment.Status === "AUTHORIZED") {
-          await sql`
-            UPDATE users SET is_pro = TRUE, updated_at = NOW()
-            WHERE id = ${user.id}
-          `
-          await sql`
-            UPDATE payments SET status = 'succeeded', updated_at = NOW()
-            WHERE yookassa_payment_id = ${paymentId}
-          `
-          return NextResponse.json({ isPro: true, status: "succeeded" })
-        }
-
-        return NextResponse.json({ isPro: false, status: payment.Status?.toLowerCase() || "pending" })
-      } catch {
-        // Игнорируем ошибку проверки платежа
+      if (payment.Status === "CONFIRMED" || payment.Status === "AUTHORIZED") {
+        await sql`
+          UPDATE payments SET status = 'succeeded', updated_at = NOW()
+          WHERE yookassa_payment_id = ${paymentId}
+        `
+        return NextResponse.json({ paid: true, status: "succeeded" })
       }
-    }
 
-    return NextResponse.json({ isPro: user.is_pro, status: user.is_pro ? "succeeded" : "pending" })
+      return NextResponse.json({ paid: false, status: payment.Status?.toLowerCase() || "pending" })
+    } catch {
+      // Проверяем статус платежа в БД если T-Bank недоступен
+      const dbPayment = await sql`
+        SELECT status FROM payments WHERE yookassa_payment_id = ${paymentId}
+      `.then(rows => rows[0])
+
+      if (dbPayment?.status === 'succeeded') {
+        return NextResponse.json({ paid: true, status: "succeeded" })
+      }
+      return NextResponse.json({ paid: false, status: "pending" })
+    }
   } catch (error) {
     console.error("Status check error:", error)
-    return NextResponse.json({ isPro: false, status: "pending", error: "check_failed" })
+    return NextResponse.json({ paid: false, status: "pending", error: "check_failed" })
   }
 }

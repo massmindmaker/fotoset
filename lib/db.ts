@@ -30,7 +30,6 @@ export async function query<T = any>(
 export type User = {
   id: number
   device_id: string
-  is_pro: boolean
   created_at: string
   updated_at: string
 }

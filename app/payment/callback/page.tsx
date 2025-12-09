@@ -31,9 +31,9 @@ function PaymentCallbackContent() {
         const res = await fetch(url)
         const data = await res.json()
 
-        if (data.isPro) {
+        if (data.paid) {
           setStatus("success")
-          localStorage.setItem("pinglass_is_pro", "true")
+          // Перенаправляем обратно для начала генерации
           setTimeout(() => {
             router.push("/")
           }, 2000)

@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       id: user.id,
       deviceId: user.device_id,
-      isPro: user.is_pro,
     })
   } catch (error) {
     console.error("User error:", error)

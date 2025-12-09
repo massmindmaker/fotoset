@@ -37,27 +37,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Проверяем пользователя и Pro статус
+    // Проверяем пользователя (без Pro проверки - оплата per-package)
     const user = await sql`
       SELECT * FROM users WHERE device_id = ${deviceId}
     `.then((rows) => rows[0])
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
-    }
-
-    // Bypass Pro check for testing (set BYPASS_PRO_CHECK=true in env)
-    const bypassProCheck = process.env.BYPASS_PRO_CHECK === 'true'
-
-    if (!user.is_pro && !bypassProCheck) {
-      return NextResponse.json(
-        { error: "Pro subscription required for generation" },
-        { status: 403 }
-      )
-    }
-
-    if (bypassProCheck && !user.is_pro) {
-      console.log(`[Generate] Pro check bypassed for user ${user.device_id}`)
     }
 
     // Получаем конфигурацию стиля

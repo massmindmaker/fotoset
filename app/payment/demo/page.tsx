@@ -31,11 +31,9 @@ function DemoPaymentContent() {
       )
       const data = await res.json()
 
-      if (data.isPro) {
+      if (data.paid) {
         setIsSuccess(true)
-        localStorage.setItem("pinglass_is_pro", "true")
-
-        // Редирект на главную через 2 секунды
+        // Редирект на главную для начала генерации
         setTimeout(() => {
           router.push("/")
         }, 2000)
@@ -59,7 +57,7 @@ function DemoPaymentContent() {
           </div>
           <h1 className="text-2xl font-bold text-foreground mb-2">Демо-оплата успешна!</h1>
           <p className="text-muted-foreground mb-4">
-            Ваш Pro-статус активирован. Перенаправляем вас обратно...
+            Оплата подтверждена. Перенаправляем вас обратно...
           </p>
           <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
         </div>

@@ -30,20 +30,14 @@ export async function POST(request: NextRequest) {
         WHERE yookassa_payment_id = ${paymentId}
       `
 
-      // Получаем платеж и обновляем пользователя на Pro
+      // Получаем платеж для реферальной программы
       const payment = await sql`
         SELECT user_id FROM payments
         WHERE yookassa_payment_id = ${paymentId}
       `.then((rows) => rows[0])
 
       if (payment) {
-        await sql`
-          UPDATE users
-          SET is_pro = TRUE, updated_at = NOW()
-          WHERE id = ${payment.user_id}
-        `
-
-        // Process referral earning
+        // Process referral earning (Pro статус больше не используется)
         await processReferralEarning(payment.user_id, paymentId)
       }
     } else if (status === "REJECTED") {
