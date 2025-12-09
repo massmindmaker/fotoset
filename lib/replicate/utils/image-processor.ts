@@ -130,6 +130,43 @@ export function prepareImageForApi(base64Image: string): string {
 }
 
 /**
+ * Convert data URI or base64 string to Buffer for Replicate SDK
+ * Replicate SDK automatically uploads Buffer objects to their servers
+ */
+export function dataUriToBuffer(base64Image: string): Buffer {
+  // Extract base64 data from data URI
+  let base64Data: string;
+
+  if (base64Image.startsWith('data:')) {
+    // Data URI format: data:image/jpeg;base64,/9j/4AAQ...
+    const parts = base64Image.split(',');
+    base64Data = parts[1] || parts[0];
+  } else if (base64Image.startsWith('http://') || base64Image.startsWith('https://')) {
+    // For URLs, throw error - should not convert URLs to Buffer
+    throw new Error('Cannot convert URL to Buffer - URLs should be passed directly');
+  } else {
+    // Already raw base64
+    base64Data = base64Image;
+  }
+
+  return Buffer.from(base64Data, 'base64');
+}
+
+/**
+ * Prepare images as Buffer array for Replicate models that need upload
+ * Used by nano-banana-pro and other models that require server-side image processing
+ */
+export function prepareImagesAsBuffers(images: string[]): Buffer[] {
+  return images.map(img => {
+    // Skip URLs - they don't need conversion
+    if (img.startsWith('http://') || img.startsWith('https://')) {
+      throw new Error('URL images should be handled separately');
+    }
+    return dataUriToBuffer(img);
+  });
+}
+
+/**
  * Validate reference image
  */
 export interface ImageValidation {

@@ -4,7 +4,7 @@
 import Replicate from 'replicate';
 import type { GenerationOptions, GenerationResult, ModelType } from '../types';
 import { PROVIDERS, getReplicateConfig } from '../config';
-import { prepareImageForApi } from '../utils/image-processor';
+import { dataUriToBuffer } from '../utils/image-processor';
 
 const config = getReplicateConfig();
 const provider = PROVIDERS['nano-banana-pro'];
@@ -16,7 +16,7 @@ const replicate = config.apiToken
 
 export interface NanoBananaProInput {
   prompt: string;
-  image_input?: string[];        // Up to 14 reference images
+  image_input?: (Buffer | string)[];  // Up to 14 reference images: Buffer (auto-uploaded) or URL string
   resolution?: '1K' | '2K' | '4K';
   aspect_ratio?: 'match_input_image' | '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
   output_format?: 'jpg' | 'png';
@@ -38,9 +38,20 @@ export async function generateWithNanoBanana(
 
   const startTime = Date.now();
 
-  // Prepare reference images (up to 14)
+  // Prepare reference images (up to 14) as Buffer objects
+  // Replicate SDK automatically uploads Buffer objects to their servers
   const refs = Array.isArray(referenceImages) ? referenceImages : [referenceImages];
-  const preparedRefs = refs.slice(0, 14).map(prepareImageForApi);
+  const preparedRefs = refs
+    .slice(0, 14)
+    .filter(ref => ref && ref.length > 0)
+    .map(ref => {
+      // Skip URLs - they don't need Buffer conversion
+      if (ref.startsWith('http://') || ref.startsWith('https://')) {
+        return ref; // Return URL as-is
+      }
+      // Convert base64/data URI to Buffer for automatic upload
+      return dataUriToBuffer(ref);
+    });
 
   // Determine resolution based on options
   let resolution: '1K' | '2K' | '4K' = '2K';
@@ -75,6 +86,7 @@ export async function generateWithNanoBanana(
   // Add reference images if available
   if (preparedRefs.length > 0) {
     input.image_input = preparedRefs;
+    console.log(`[NanoBananaPro] Using ${preparedRefs.length} reference images (as Buffer for auto-upload)`);
   }
 
   try {
