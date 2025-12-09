@@ -9,9 +9,9 @@ import { prepareImageForApi } from '../utils/image-processor';
 const config = getReplicateConfig();
 const provider = PROVIDERS['flux-kontext-pro'];
 
-// Initialize Replicate client
+// Initialize Replicate client with useFileOutput: false to get URLs directly
 const replicate = config.apiToken
-  ? new Replicate({ auth: config.apiToken })
+  ? new Replicate({ auth: config.apiToken, useFileOutput: false })
   : null;
 
 export interface KontextInput {

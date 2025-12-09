@@ -9,9 +9,10 @@ import { dataUriToBuffer } from '../utils/image-processor';
 const config = getReplicateConfig();
 const provider = PROVIDERS['nano-banana-pro'];
 
-// Initialize Replicate client
+// Initialize Replicate client with useFileOutput: false to get URLs directly
+// (Replicate SDK v1.0+ returns FileOutput/ReadableStream by default)
 const replicate = config.apiToken
-  ? new Replicate({ auth: config.apiToken })
+  ? new Replicate({ auth: config.apiToken, useFileOutput: false })
   : null;
 
 export interface NanoBananaProInput {
