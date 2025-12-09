@@ -1,8 +1,17 @@
 // Multi-provider Image Generation API
-// Supports: Kie.ai (primary - cheapest), fal.ai (fallback), Google Imagen (legacy)
+// Supports: Replicate (primary - best quality), Kie.ai, fal.ai, Google Imagen (legacy)
+
+import { generatePortrait, prepareImageForReplicate } from "./replicate"
 
 // Provider configuration
 const PROVIDERS = {
+  replicate: {
+    name: "Replicate Flux-PuLID",
+    apiKey: process.env.REPLICATE_API_TOKEN,
+    endpoint: "https://api.replicate.com/v1/predictions",
+    model: "zsxkib/flux-pulid",
+    pricePerImage: 0.05, // ~$0.05 per generation
+  },
   kie: {
     name: "Kie.ai",
     apiKey: process.env.KIE_API_KEY,
@@ -27,8 +36,8 @@ const PROVIDERS = {
 
 type ProviderName = keyof typeof PROVIDERS
 
-// Default provider order (cheapest first)
-const PROVIDER_ORDER: ProviderName[] = ["kie", "fal", "google"]
+// Default provider order (Replicate first for best face consistency)
+const PROVIDER_ORDER: ProviderName[] = ["replicate", "kie", "fal", "google"]
 
 // Get active provider based on available API keys
 function getActiveProvider(): ProviderName | null {
@@ -67,6 +76,40 @@ export interface GenerationResult {
   success: boolean
   error?: string
   provider?: string
+}
+
+// ============ REPLICATE PROVIDER (Flux-PuLID) ============
+
+async function generateWithReplicate(options: GenerationOptions): Promise<string> {
+  const { prompt, referenceImages, seed } = options
+  const config = PROVIDERS.replicate
+
+  if (!config.apiKey) {
+    throw new Error("REPLICATE_API_TOKEN not configured")
+  }
+
+  // Prepare reference images for Replicate
+  const preparedRefs = referenceImages?.map(prepareImageForReplicate) || []
+
+  try {
+    const result = await generatePortrait({
+      prompt,
+      referenceImages: preparedRefs,
+      seed,
+      numInferenceSteps: 28,
+      guidanceScale: 4,
+      width: 896,
+      height: 1152,
+      idWeight: 1.2, // Slightly higher for better face consistency
+    })
+
+    console.log(`[Replicate] ✓ Generated image successfully`)
+    return result
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "Unknown error"
+    console.error(`[Replicate] Generation failed:`, errorMsg)
+    throw new Error(`Replicate generation failed: ${errorMsg}`)
+  }
 }
 
 // ============ KIE.AI PROVIDER ============
@@ -316,6 +359,9 @@ export async function generateImage(options: GenerationOptions): Promise<string>
       let result: string
 
       switch (providerName) {
+        case "replicate":
+          result = await generateWithReplicate(options)
+          break
         case "kie":
           result = await generateWithKie(options)
           break
@@ -455,7 +501,13 @@ export async function testConnections(): Promise<Record<string, {
       // Simple connectivity test - just check if API responds
       const testPrompt = "A simple blue square on white background"
 
-      if (name === "kie") {
+      if (name === "replicate") {
+        // Use the imported test function from replicate.ts
+        const { testReplicateConnection } = await import("./replicate")
+        const testResult = await testReplicateConnection()
+        results[name].connected = testResult.success
+        results[name].message = testResult.message
+      } else if (name === "kie") {
         const response = await fetch(config.endpoint, {
           method: "POST",
           headers: {
