@@ -46,11 +46,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    if (!user.is_pro) {
+    // Bypass Pro check for testing (set BYPASS_PRO_CHECK=true in env)
+    const bypassProCheck = process.env.BYPASS_PRO_CHECK === 'true'
+
+    if (!user.is_pro && !bypassProCheck) {
       return NextResponse.json(
         { error: "Pro subscription required for generation" },
         { status: 403 }
       )
+    }
+
+    if (bypassProCheck && !user.is_pro) {
+      console.log(`[Generate] Pro check bypassed for user ${user.device_id}`)
     }
 
     // Получаем конфигурацию стиля
