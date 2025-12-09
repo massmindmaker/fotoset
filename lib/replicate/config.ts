@@ -7,10 +7,10 @@ import type { ModelType, ProviderConfig, GenerationOptions, ReplicateConfig } fr
 export function getReplicateConfig(): ReplicateConfig {
   return {
     apiToken: process.env.REPLICATE_API_TOKEN || '',
-    defaultModel: (process.env.REPLICATE_PRIMARY_MODEL as ModelType) || 'flux-pulid',
+    defaultModel: (process.env.REPLICATE_PRIMARY_MODEL as ModelType) || 'nano-banana-pro',
     maxRetries: parseInt(process.env.REPLICATE_MAX_RETRIES || '3', 10),
     timeoutMs: 120000, // 2 minutes per image
-    budgetPerGeneration: parseFloat(process.env.REPLICATE_BUDGET_PER_GENERATION || '0.80'),
+    budgetPerGeneration: parseFloat(process.env.REPLICATE_BUDGET_PER_GENERATION || '5.00'),
     enableFallback: process.env.REPLICATE_ENABLE_FALLBACK !== 'false',
   };
 }
@@ -87,8 +87,9 @@ export const PROVIDERS: Record<ModelType, ProviderConfig> = {
 };
 
 // Fallback order (primary to tertiary)
-// Flux-PuLID first - proven working model with good face consistency
+// Nano Banana Pro first - supports up to 14 reference images for best face consistency
 export const FALLBACK_ORDER: ModelType[] = [
+  'nano-banana-pro',
   'flux-pulid',
   'flux-kontext-pro',
   'instant-id',
