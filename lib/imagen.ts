@@ -105,9 +105,11 @@ async function generateWithReplicate(options: GenerationOptions): Promise<string
       idWeight: 1.2, // Slightly higher for better face consistency
     }
 
+    // Pass all reference images (up to 14) for better face consistency
+    console.log(`[Replicate] Using ${preparedRefs.length} reference images`)
     const result: ReplicateResult = await replicateGeneratePortrait(
       prompt,
-      preparedRefs[0] || '', // Primary reference image
+      preparedRefs.length > 0 ? preparedRefs : '',
       replicateOptions
     )
 

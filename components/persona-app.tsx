@@ -128,7 +128,7 @@ export default function PersonaApp() {
 
     try {
       const res = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId, avatarId: p.id, styleId: "pinglass", photoCount: tier.photos, referenceImages: p.images.slice(0,5).map(i => i.base64) }) })
+        body: JSON.stringify({ deviceId, avatarId: p.id, styleId: "pinglass", photoCount: tier.photos, referenceImages: p.images.slice(0,14).map(i => i.base64) }) })
       if (!res.ok) throw new Error((await res.json()).error || "Failed")
       const data = await res.json()
       const newAssets: GeneratedAsset[] = data.photos.map((url: string, i: number) => ({ id: Date.now() + "-" + i, type: "PHOTO" as const, url, styleId: "pinglass", createdAt: Date.now() }))

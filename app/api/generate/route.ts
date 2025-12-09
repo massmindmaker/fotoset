@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now()
 
   try {
-    const { deviceId, avatarId, styleId, referenceImages } = await request.json()
+    const { deviceId, avatarId, styleId, referenceImages, photoCount } = await request.json()
 
     // Валидация входных данных
     if (!deviceId || !avatarId || !styleId) {
@@ -79,7 +79,9 @@ export async function POST(request: NextRequest) {
     console.log(`[Generate] Using ${validReferenceImages.length} reference images`)
 
     // Создаем задачу генерации
-    const totalPhotos = Math.min(PHOTOSET_PROMPTS.length, GENERATION_CONFIG.maxPhotos)
+    // Используем photoCount из тира (7/15/23), но не больше доступных промптов
+    const requestedPhotos = photoCount && photoCount > 0 ? photoCount : GENERATION_CONFIG.maxPhotos
+    const totalPhotos = Math.min(requestedPhotos, PHOTOSET_PROMPTS.length, GENERATION_CONFIG.maxPhotos)
 
     const job = await sql`
       INSERT INTO generation_jobs (avatar_id, style_id, status, total_photos)
@@ -87,7 +89,7 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `.then((rows) => rows[0])
 
-    console.log(`[Generate] Created job ${job.id} for avatar ${avatarId}, style: ${styleId}`)
+    console.log(`[Generate] Created job ${job.id} for avatar ${avatarId}, style: ${styleId}, photos: ${totalPhotos} (requested: ${photoCount || 'default'})`)
 
     // Подготавливаем промпты с умным слиянием
     const basePrompts = PHOTOSET_PROMPTS.slice(0, totalPhotos)

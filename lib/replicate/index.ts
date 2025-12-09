@@ -36,10 +36,11 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Generate a single portrait with automatic fallback
+ * @param referenceImages - Single image or array of images (up to 14 for nano-banana-pro)
  */
 export async function generatePortrait(
   prompt: string,
-  referenceImage: string,
+  referenceImages: string | string[],
   options: GenerationOptions = {}
 ): Promise<GenerationResult> {
   const config = getReplicateConfig();
@@ -63,13 +64,18 @@ export async function generatePortrait(
         async () => {
           switch (providerName) {
             case 'nano-banana-pro':
-              return generateWithNanoBanana(prompt, referenceImage, options);
+              // Nano Banana Pro supports up to 14 reference images
+              return generateWithNanoBanana(prompt, referenceImages, options);
             case 'flux-pulid':
-              return generateWithPuLID(prompt, referenceImage, options);
+              // PuLID uses single reference (first from array)
+              const pulidRef = Array.isArray(referenceImages) ? referenceImages[0] : referenceImages;
+              return generateWithPuLID(prompt, pulidRef, options);
             case 'flux-kontext-pro':
-              return generateWithKontext(prompt, referenceImage, options);
+              const kontextRef = Array.isArray(referenceImages) ? referenceImages[0] : referenceImages;
+              return generateWithKontext(prompt, kontextRef, options);
             case 'instant-id':
-              return generateWithInstantID(prompt, referenceImage, options);
+              const instantIdRef = Array.isArray(referenceImages) ? referenceImages[0] : referenceImages;
+              return generateWithInstantID(prompt, instantIdRef, options);
             default:
               throw new Error(`Unknown provider: ${providerName}`);
           }
