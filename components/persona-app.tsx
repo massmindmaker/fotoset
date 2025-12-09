@@ -6,6 +6,7 @@ import {
   Sparkles, Plus, ArrowLeft, ArrowRight, Camera, Loader2, X, CheckCircle2,
   User, Zap, Shield, Star, ChevronRight, Crown, Sun, Moon,
 } from "lucide-react"
+import Link from "next/link"
 import { PaymentModal } from "./payment-modal"
 import ResultsGallery from "./results-gallery"
 
@@ -32,7 +33,6 @@ type ViewState =
   | { view: "ONBOARDING" } | { view: "DASHBOARD" }
   | { view: "CREATE_PERSONA_UPLOAD"; personaId: string }
   | { view: "SELECT_TIER"; personaId: string }
-  | { view: "GENERATING"; personaId: string; progress: number }
   | { view: "RESULTS"; personaId: string }
 
 function getDeviceId(): string {
@@ -46,7 +46,7 @@ export default function PersonaApp() {
   const [viewState, setViewState] = useState<ViewState>({ view: "ONBOARDING" })
   const [personas, setPersonas] = useState<Persona[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
-  const [generationProgress, setGenerationProgress] = useState(0)
+  const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 })
   // isPro state removed - users pay per package, no subscription
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
   const [deviceId, setDeviceId] = useState("")
@@ -99,30 +99,38 @@ export default function PersonaApp() {
 
   const handleGenerate = async (tier: PricingTier) => {
     const p = getActivePersona()!
-    setIsGenerating(true); setGenerationProgress(0)
-    setViewState({ view: "GENERATING", personaId: p.id, progress: 0 })
+    setIsGenerating(true)
+    setGenerationProgress({ completed: 0, total: tier.photos })
+
+    // Progressive UX: Immediately show results screen with skeleton loaders
+    setViewState({ view: "RESULTS", personaId: p.id })
+    updatePersona(p.id, { status: "processing" })
 
     // Demo mode - use mock photos instead of real API
     const USE_DEMO_MODE = false
 
     if (USE_DEMO_MODE) {
-      // Simulate generation delay
-      for (let i = 0; i <= tier.photos; i++) {
-        await new Promise(r => setTimeout(r, 200))
-        setGenerationProgress(i)
-      }
-      // Create mock assets from demo photos
+      // Simulate progressive loading
       const mockPhotos = DEMO_PHOTOS.slice(0, tier.photos)
-      const newAssets: GeneratedAsset[] = mockPhotos.map((url, i) => ({
-        id: Date.now() + "-" + i,
-        type: "PHOTO" as const,
-        url,
-        styleId: "pinglass",
-        createdAt: Date.now() - i * 1000
-      }))
-      updatePersona(p.id, { status: "ready", generatedAssets: [...newAssets, ...p.generatedAssets], thumbnailUrl: p.thumbnailUrl || newAssets[0]?.url })
-      setViewState({ view: "RESULTS", personaId: p.id })
-      setIsGenerating(false); setGenerationProgress(0)
+      for (let i = 0; i < tier.photos; i++) {
+        await new Promise(r => setTimeout(r, 800))
+        const newAsset: GeneratedAsset = {
+          id: Date.now() + "-" + i,
+          type: "PHOTO" as const,
+          url: mockPhotos[i] || mockPhotos[0],
+          styleId: "pinglass",
+          createdAt: Date.now()
+        }
+        setPersonas(prev => prev.map(persona =>
+          persona.id === p.id
+            ? { ...persona, generatedAssets: [newAsset, ...persona.generatedAssets], thumbnailUrl: persona.thumbnailUrl || newAsset.url }
+            : persona
+        ))
+        setGenerationProgress({ completed: i + 1, total: tier.photos })
+      }
+      updatePersona(p.id, { status: "ready" })
+      setIsGenerating(false)
+      setGenerationProgress({ completed: 0, total: 0 })
       return
     }
 
@@ -133,9 +141,13 @@ export default function PersonaApp() {
       const data = await res.json()
       const newAssets: GeneratedAsset[] = data.photos.map((url: string, i: number) => ({ id: Date.now() + "-" + i, type: "PHOTO" as const, url, styleId: "pinglass", createdAt: Date.now() }))
       updatePersona(p.id, { status: "ready", generatedAssets: [...newAssets, ...p.generatedAssets], thumbnailUrl: p.thumbnailUrl || newAssets[0]?.url })
-      setViewState({ view: "RESULTS", personaId: p.id })
-    } catch (e) { alert(e instanceof Error ? e.message : "Ошибка"); setViewState({ view: "SELECT_TIER", personaId: p.id }) }
-    finally { setIsGenerating(false); setGenerationProgress(0) }
+      setGenerationProgress({ completed: tier.photos, total: tier.photos })
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Ошибка")
+      updatePersona(p.id, { status: "draft" })
+      setViewState({ view: "SELECT_TIER", personaId: p.id })
+    }
+    finally { setIsGenerating(false); setGenerationProgress({ completed: 0, total: 0 }) }
   }
 
   const handlePaymentSuccess = () => { setIsPaymentOpen(false); if (viewState.view === "SELECT_TIER") handleGenerate(selectedTier) }
@@ -145,7 +157,6 @@ export default function PersonaApp() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {viewState.view === "ONBOARDING" ? <OnboardingView onComplete={completeOnboarding} onStart={handleCreatePersona} />
-       : viewState.view === "GENERATING" ? <GeneratingView progress={generationProgress} totalPhotos={selectedTier.photos} />
        : (<>
         <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-black/5">
           <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -163,31 +174,28 @@ export default function PersonaApp() {
           {viewState.view === "DASHBOARD" && <DashboardView personas={personas} onCreate={handleCreatePersona} onSelect={id => { const p = personas.find(x => x.id === id); setViewState(p?.status === "draft" ? { view: "CREATE_PERSONA_UPLOAD", personaId: id } : { view: "RESULTS", personaId: id }) }} onDelete={deletePersona} />}
           {viewState.view === "CREATE_PERSONA_UPLOAD" && getActivePersona() && <UploadView persona={getActivePersona()!} updatePersona={updatePersona} onBack={() => setViewState({ view: "DASHBOARD" })} onNext={() => setViewState({ view: "SELECT_TIER", personaId: viewState.personaId })} />}
           {viewState.view === "SELECT_TIER" && getActivePersona() && <TierSelectView persona={getActivePersona()!} onBack={() => setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: viewState.personaId })} onGenerate={handleGenerate} isGenerating={isGenerating} onUpgrade={t => { setSelectedTier(t); setIsPaymentOpen(true) }} selectedTier={selectedTier} onSelectTier={setSelectedTier} />}
-          {viewState.view === "RESULTS" && getActivePersona() && <ResultsView persona={getActivePersona()!} onBack={() => setViewState({ view: "DASHBOARD" })} onGenerateMore={() => setViewState({ view: "SELECT_TIER", personaId: viewState.personaId })} />}
+          {viewState.view === "RESULTS" && getActivePersona() && <ResultsView persona={getActivePersona()!} onBack={() => setViewState({ view: "DASHBOARD" })} onGenerateMore={() => setViewState({ view: "SELECT_TIER", personaId: viewState.personaId })} isGenerating={isGenerating} generationProgress={generationProgress} />}
         </main>
+        <footer className="mt-auto py-6 px-4 border-t border-border/50">
+          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-4">
+              <Link href="/oferta" className="hover:text-foreground transition-colors">
+                Публичная оферта
+              </Link>
+              <Link href="/privacy" className="hover:text-foreground transition-colors">
+                Политика конфиденциальности
+              </Link>
+            </div>
+            <div className="text-center sm:text-right">
+              <p>ИП Бобров С.Н. ИНН 772790586848</p>
+            </div>
+          </div>
+        </footer>
       </>)}
       {isPaymentOpen && <PaymentModal isOpen={isPaymentOpen} onClose={() => setIsPaymentOpen(false)} onSuccess={handlePaymentSuccess} deviceId={deviceId} tier={selectedTier} />}
     </div>
   )
 }
-
-const GeneratingView: React.FC<{ progress: number; totalPhotos: number }> = ({ progress, totalPhotos }) => (
-  <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-mesh">
-    <div className="w-24 h-24 rounded-3xl bg-primary/10 flex items-center justify-center mb-8 animate-pulse-glow">
-      <Loader2 className="w-12 h-12 text-primary animate-spin" />
-    </div>
-    <div className="bg-background/60 backdrop-blur-xl rounded-3xl px-8 py-6 mb-8 border border-primary/20 shadow-2xl shadow-primary/10">
-      <h1 className="text-3xl sm:text-4xl font-bold text-center mb-3 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent drop-shadow-lg">Генерируем ваши фото</h1>
-      <p className="text-foreground/90 text-center text-lg font-medium">Создаём {totalPhotos} уникальных изображений...</p>
-    </div>
-    <div className="w-full max-w-md">
-      <div className="h-3 bg-muted/50 rounded-full overflow-hidden mb-3 border border-border/50 shadow-inner">
-        <div className="h-full bg-gradient-to-r from-primary via-accent to-primary transition-all duration-500 shadow-lg shadow-primary/30" style={{ width: ((progress / totalPhotos) * 100) + "%" }} />
-      </div>
-      <p className="text-base text-center font-semibold bg-background/60 backdrop-blur-sm rounded-2xl py-2 px-4 inline-block mx-auto w-full border border-border/30">{progress} из {totalPhotos} фото</p>
-    </div>
-  </div>
-)
 
 const OnboardingView: React.FC<{ onComplete: () => void; onStart: () => void }> = ({ onComplete, onStart }) => {
   const [stage, setStage] = useState(0)
@@ -257,7 +265,6 @@ const OnboardingView: React.FC<{ onComplete: () => void; onStart: () => void }> 
         <button onClick={onStart} className={"w-full max-w-xs py-4 px-8 bg-gradient-to-r from-primary to-accent text-white font-semibold text-lg rounded-3xl hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-primary/25 " + (stage >= 4 ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0")} style={{ transitionDelay: "200ms" }}>
           <span className="flex items-center justify-center gap-2"><Sparkles className="w-5 h-5" />Начать!</span>
         </button>
-        <button onClick={onComplete} className={"mt-6 text-sm text-muted-foreground hover:text-foreground transition-colors " + (stage >= 4 ? "opacity-100" : "opacity-0")} style={{ transitionDelay: "400ms" }}>Пропустить</button>
       </div>
     </div>
   )
@@ -396,33 +403,63 @@ const TierSelectView: React.FC<{ persona: Persona; onBack: () => void; onGenerat
   </div>
 )
 
-const ResultsView: React.FC<{ persona: Persona; onBack: () => void; onGenerateMore: () => void }> = ({ persona, onBack, onGenerateMore }) => {
+const ResultsView: React.FC<{ persona: Persona; onBack: () => void; onGenerateMore: () => void; isGenerating: boolean; generationProgress: { completed: number; total: number } }> = ({ persona, onBack, onGenerateMore, isGenerating, generationProgress }) => {
   const assets = [...persona.generatedAssets].sort((a, b) => b.createdAt - a.createdAt)
+  const pendingCount = isGenerating ? Math.max(0, generationProgress.total - assets.length) : 0
 
   return (
     <div className="space-y-4 pb-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <button onClick={onBack} className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95">
+        <button onClick={onBack} disabled={isGenerating} className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95 disabled:opacity-50">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <button onClick={onGenerateMore} className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary to-accent text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity active:scale-95 shadow-lg shadow-primary/25">
-          <Sparkles className="w-4 h-4" />
-          <span>Создать ещё</span>
-        </button>
+        {isGenerating ? (
+          <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/10 rounded-xl">
+            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            <span className="text-sm font-medium text-primary">{assets.length} / {generationProgress.total} фото</span>
+          </div>
+        ) : (
+          <button onClick={onGenerateMore} className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary to-accent text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity active:scale-95 shadow-lg shadow-primary/25">
+            <Sparkles className="w-4 h-4" />
+            <span>Создать ещё</span>
+          </button>
+        )}
       </div>
 
-      {/* Gallery */}
-      {assets.length === 0 ? (
+      {/* Progress bar during generation */}
+      {isGenerating && generationProgress.total > 0 && (
+        <div className="space-y-2">
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500 ease-out" style={{ width: ((assets.length / generationProgress.total) * 100) + "%" }} />
+          </div>
+          <p className="text-xs text-muted-foreground text-center">Генерируем ваши фото...</p>
+        </div>
+      )}
+
+      {/* Gallery with skeleton loaders */}
+      {assets.length === 0 && !isGenerating ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">Нет сгенерированных фото</p>
         </div>
       ) : (
-        <ResultsGallery
-          assets={assets}
-          personaName={persona.name}
-          thumbnailUrl={persona.thumbnailUrl}
-        />
+        <div className="space-y-4">
+          <ResultsGallery
+            assets={assets}
+            personaName={persona.name}
+            thumbnailUrl={persona.thumbnailUrl}
+          />
+          {/* Skeleton loaders for pending photos */}
+          {pendingCount > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {Array.from({ length: pendingCount }).map((_, i) => (
+                <div key={"skeleton-" + i} className="aspect-[3/4] rounded-2xl bg-gradient-to-br from-muted to-muted/50 animate-pulse flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 text-muted-foreground/50 animate-spin" />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

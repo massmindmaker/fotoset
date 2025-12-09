@@ -10,7 +10,7 @@ import {
 
 // Конфигурация генерации
 const GENERATION_CONFIG = {
-  concurrency: 3,              // Параллельные запросы (оптимально для API rate limits)
+  concurrency: 5,              // Параллельные запросы (увеличено для скорости)
   maxPhotos: 23,               // Максимум фото за генерацию
   maxReferenceImages: 20,      // Используем все изображения пользователя (10-20)
   minReferenceImages: 1,       // Минимум для генерации
@@ -54,23 +54,31 @@ export async function POST(request: NextRequest) {
     // Проверяем avatar - если это timestamp string от фронтенда, создаем новый в БД
     let dbAvatarId: number
 
-    // Проверяем существует ли avatar с таким ID
-    const existingAvatar = await sql`
-      SELECT id FROM avatars WHERE id = ${parseInt(avatarId) || 0} AND user_id = ${user.id}
-    `.then((rows) => rows[0])
+    // PostgreSQL INTEGER max = 2,147,483,647
+    // Frontend генерирует ID как Date.now() (~1.7 trillion), что переполняет INTEGER
+    const parsedAvatarId = parseInt(avatarId)
+    const isValidDbId = !isNaN(parsedAvatarId) && parsedAvatarId > 0 && parsedAvatarId <= 2147483647
+
+    let existingAvatar = null
+    if (isValidDbId) {
+      // Только если ID в валидном диапазоне INTEGER, ищем в БД
+      existingAvatar = await sql`
+        SELECT id FROM avatars WHERE id = ${parsedAvatarId} AND user_id = ${user.id}
+      `.then((rows) => rows[0])
+    }
 
     if (existingAvatar) {
       dbAvatarId = existingAvatar.id
       console.log(`[Generate] Using existing avatar ${dbAvatarId}`)
     } else {
-      // Создаем новый avatar в БД
+      // Создаем новый avatar в БД (frontend ID был timestamp-based или не найден)
       const newAvatar = await sql`
         INSERT INTO avatars (user_id, name, status)
         VALUES (${user.id}, 'Мой аватар', 'processing')
         RETURNING id
       `.then((rows) => rows[0])
       dbAvatarId = newAvatar.id
-      console.log(`[Generate] Created new avatar ${dbAvatarId} (frontend ID was: ${avatarId})`)
+      console.log(`[Generate] Created new avatar ${dbAvatarId} (frontend ID was: ${avatarId}, valid DB ID: ${isValidDbId})`)
     }
 
     // Получаем конфигурацию стиля

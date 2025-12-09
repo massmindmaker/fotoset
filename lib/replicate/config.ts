@@ -97,8 +97,8 @@ export const FALLBACK_ORDER: ModelType[] = [
 
 // Batch generation defaults
 export const BATCH_DEFAULTS = {
-  concurrency: 3,
-  delayBetweenBatchesMs: 1000,
+  concurrency: 5,                // Увеличено для скорости (было 3)
+  delayBetweenBatchesMs: 500,    // Уменьшено для скорости (было 1000)
   maxRetries: 3,
   maxPhotosPerGeneration: 23,
   minReferenceImages: 1,

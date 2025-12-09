@@ -4,8 +4,8 @@ import { Analytics } from "@vercel/analytics/next"
 import "../styles/globals.css"
 
 export const metadata: Metadata = {
-  title: "PinGlass - AI фотографии в розовых очках",
-  description: "Создавайте впечатляющие AI-фотографии в розовых очках для соцсетей, бизнеса и творческих проектов",
+  title: "PinGlass - Создай свои лучшие Фото",
+  description: "Создавайте впечатляющие AI-фотографии для соцсетей, бизнеса и творческих проектов",
   generator: 'v0.app',
   icons: {
     icon: '/icon.svg',
@@ -19,6 +19,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: "#1a0a10",
+  viewportFit: "cover",
 }
 
 export default function RootLayout({
