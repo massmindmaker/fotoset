@@ -22,7 +22,8 @@ export async function query<T = any>(
   }
 
   const db = neon(process.env.DATABASE_URL)
-  const result = await db.unsafe(text, params)
+  // Use the neon function directly with tagged template or call with array
+  const result = await db(text, params || [])
   return { rows: result as T[] }
 }
 
