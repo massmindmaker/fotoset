@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 
-const TELEGRAM_BOT_TOKEN = "7471601819:AAHwSvJ45aiK5nKyTLhnI0KJ9cTHMJbx27g"
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || ""
 
 interface TelegramWebAppUser {
   id: number

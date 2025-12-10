@@ -149,3 +149,10 @@ export type ReferralWithdrawal = {
   ndfl_paid_at: string | null
   created_at: string
 }
+
+export type ReferencePhoto = {
+  id: number
+  avatar_id: number
+  image_url: string
+  created_at: string
+}

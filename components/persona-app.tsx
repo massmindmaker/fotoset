@@ -65,7 +65,7 @@ export default function PersonaApp() {
     setIsReady(true)
     // Removed isPro status check - users pay per package
 
-    // Handle referral code from URL
+    // Handle referral code from URL (web)
     const urlParams = new URLSearchParams(window.location.search)
     const refCode = urlParams.get("ref")
     if (refCode && !localStorage.getItem("pinglass_referral_applied")) {
@@ -74,6 +74,23 @@ export default function PersonaApp() {
       const url = new URL(window.location.href)
       url.searchParams.delete("ref")
       window.history.replaceState({}, "", url.pathname)
+    }
+
+    // Handle Telegram WebApp start_param
+    try {
+      const tg = window.Telegram?.WebApp
+      if (tg?.initDataUnsafe?.start_param) {
+        const telegramRefCode = tg.initDataUnsafe.start_param
+        if (telegramRefCode && !localStorage.getItem("pinglass_referral_applied")) {
+          localStorage.setItem("pinglass_pending_referral", telegramRefCode)
+          console.log("Telegram referral code detected:", telegramRefCode)
+        }
+        // Expand the WebApp to full height
+        tg.ready()
+        tg.expand()
+      }
+    } catch (e) {
+      console.error("Failed to process Telegram start_param:", e)
     }
   }, [])
 

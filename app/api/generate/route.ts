@@ -113,6 +113,27 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Generate] Using ${validReferenceImages.length} reference images`)
 
+    // Сохраняем референсные изображения в БД для повторного использования
+    // Используем batch INSERT для атомарности и производительности
+    console.log(`[Generate] Saving ${validReferenceImages.length} reference images to DB...`)
+    let savedCount = 0
+    try {
+      // Batch insert all reference photos in a single transaction
+      const insertPromises = validReferenceImages.map(imageUrl =>
+        sql`INSERT INTO reference_photos (avatar_id, image_url) VALUES (${dbAvatarId}, ${imageUrl})`
+      )
+      const results = await Promise.allSettled(insertPromises)
+      savedCount = results.filter(r => r.status === 'fulfilled').length
+      const failedCount = results.filter(r => r.status === 'rejected').length
+      if (failedCount > 0) {
+        console.warn(`[Generate] ${failedCount}/${validReferenceImages.length} reference photos failed to save`)
+      }
+    } catch (err) {
+      console.error(`[Generate] Failed to save reference photos:`, err)
+      // Continue with generation even if saving fails
+    }
+    console.log(`[Generate] Saved ${savedCount}/${validReferenceImages.length} reference images for avatar ${dbAvatarId}`)
+
     // Создаем задачу генерации
     // Используем photoCount из тира (7/15/23), но не больше доступных промптов
     const requestedPhotos = photoCount && photoCount > 0 ? photoCount : GENERATION_CONFIG.maxPhotos

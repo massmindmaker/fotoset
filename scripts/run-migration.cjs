@@ -1,13 +1,12 @@
-// Migration runner script
-import { createPool } from '@vercel/postgres';
+const { Pool } = require('pg');
 
-const pool = createPool({
-  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL
+const pool = new Pool({
+  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
 
 async function runMigration() {
   const client = await pool.connect();
-
   try {
     console.log('Running migration 005_add_reference_photos...');
 
@@ -33,7 +32,7 @@ async function runMigration() {
 
     console.log('Table structure:');
     result.rows.forEach(row => console.log('  -', row.column_name, ':', row.data_type));
-    console.log('Migration completed!');
+    console.log('Migration completed successfully!');
 
   } catch (error) {
     console.error('Migration error:', error.message);

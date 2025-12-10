@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react"
 import {
   Gift, Copy, Check, Users, Wallet, TrendingUp, ArrowRight,
-  Loader2, X, CreditCard, Phone, AlertCircle, ChevronDown
+  Loader2, X, CreditCard, Phone, AlertCircle, ChevronDown, Send
 } from "lucide-react"
 
 interface ReferralStats {
@@ -43,6 +43,7 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
   const [copied, setCopied] = useState(false)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [showEarnings, setShowEarnings] = useState(false)
+  const [copiedTelegram, setCopiedTelegram] = useState(false)
 
   useEffect(() => {
     if (isOpen && deviceId) {
@@ -90,6 +91,25 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
     await navigator.clipboard.writeText(stats.code)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const copyTelegramLink = async () => {
+    if (!stats?.code) return
+    // URL encode referral code to handle special characters safely
+    const sanitizedCode = encodeURIComponent(stats.code)
+    const telegramDeeplink = `https://t.me/Pinglass_bot/Pinglass?startapp=${sanitizedCode}`
+    await navigator.clipboard.writeText(telegramDeeplink)
+    setCopiedTelegram(true)
+    setTimeout(() => setCopiedTelegram(false), 2000)
+  }
+
+  const shareTelegram = () => {
+    if (!stats?.code) return
+    // URL encode referral code to handle special characters safely
+    const sanitizedCode = encodeURIComponent(stats.code)
+    const telegramDeeplink = `https://t.me/Pinglass_bot/Pinglass?startapp=${sanitizedCode}`
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(telegramDeeplink)}&text=${encodeURIComponent('Создай свои AI-фотографии в PinGlass!')}`
+    window.open(shareUrl, '_blank')
   }
 
   if (!isOpen) return null
@@ -149,22 +169,55 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
                 </div>
               </div>
 
-              {/* Share Link */}
-              <div className="p-4 bg-card rounded-2xl border border-border">
-                <p className="text-sm text-muted-foreground mb-2">Ссылка для друзей:</p>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/?ref=${stats.code}`}
-                    className="flex-1 px-3 py-2 bg-muted rounded-xl text-sm text-foreground truncate"
-                  />
+              {/* Share Links */}
+              <div className="space-y-3">
+                {/* Web Link */}
+                <div className="p-4 bg-card rounded-2xl border border-border">
+                  <p className="text-sm text-muted-foreground mb-2">Веб-ссылка:</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={`${typeof window !== 'undefined' ? window.location.origin : ''}/?ref=${stats.code}`}
+                      className="flex-1 px-3 py-2 bg-muted rounded-xl text-sm text-foreground truncate"
+                    />
+                    <button
+                      onClick={copyLink}
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+                    >
+                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {copied ? "Скопировано" : "Копировать"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Telegram Link */}
+                <div className="p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/5 rounded-2xl border border-blue-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Send className="w-4 h-4 text-blue-500" />
+                    <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Telegram ссылка:</p>
+                  </div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <input
+                      type="text"
+                      readOnly
+                      value={`https://t.me/Pinglass_bot/Pinglass?startapp=${encodeURIComponent(stats.code)}`}
+                      className="flex-1 px-3 py-2 bg-blue-500/5 rounded-xl text-sm text-foreground truncate border border-blue-500/10"
+                    />
+                    <button
+                      onClick={copyTelegramLink}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors flex items-center gap-2"
+                    >
+                      {copiedTelegram ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {copiedTelegram ? "Скопировано" : "Копировать"}
+                    </button>
+                  </div>
                   <button
-                    onClick={copyLink}
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+                    onClick={shareTelegram}
+                    className="w-full py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
                   >
-                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    {copied ? "Скопировано" : "Копировать"}
+                    <Send className="w-4 h-4" />
+                    Поделиться в Telegram
                   </button>
                 </div>
               </div>
