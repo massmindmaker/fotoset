@@ -57,7 +57,18 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
       const res = await fetch(`/api/referral/stats?device_id=${deviceId}`)
       const data = await res.json()
       if (data.success) {
-        setStats(data.stats)
+        // API возвращает данные на верхнем уровне, не в stats
+        setStats({
+          code: data.code,
+          balance: data.balance,
+          totalEarned: data.totalEarned,
+          totalWithdrawn: data.totalWithdrawn,
+          referralsCount: data.referralsCount,
+          pendingWithdrawal: data.pendingWithdrawal,
+          canWithdraw: data.canWithdraw,
+          minWithdrawal: data.minWithdrawal,
+          payoutPreview: data.payoutPreview,
+        })
       }
     } catch (e) {
       console.error("Failed to fetch referral stats:", e)
@@ -70,7 +81,7 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
     try {
       const res = await fetch(`/api/referral/earnings?device_id=${deviceId}`)
       const data = await res.json()
-      if (data.success) {
+      if (data.success && Array.isArray(data.earnings)) {
         setEarnings(data.earnings)
       }
     } catch (e) {

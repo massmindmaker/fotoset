@@ -245,30 +245,40 @@ export function AnimatedLogoCompact({
       >
         <defs>
           <filter id="neonGlowCompact" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
             <feMerge>
+              <feMergeNode in="coloredBlur"/>
               <feMergeNode in="coloredBlur"/>
               <feMergeNode in="SourceGraphic"/>
             </feMerge>
           </filter>
 
           <radialGradient id="bgGradientCompact" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#A0004F"/>
-            <stop offset="100%" stopColor="#8B0040"/>
+            <stop offset="0%" stopColor="#D42A7D"/>
+            <stop offset="100%" stopColor="#B51A65"/>
+          </radialGradient>
+
+          <radialGradient id="lensGlowCompact" cx="30%" cy="30%" r="70%">
+            <stop offset="0%" stopColor="#FF69B4" stopOpacity="0.4"/>
+            <stop offset="100%" stopColor="#FF1493" stopOpacity="0.1"/>
           </radialGradient>
         </defs>
 
         {/* Background */}
         <circle cx="100" cy="100" r="98" fill="url(#bgGradientCompact)"/>
 
-        {/* Simplified glasses - just the glowing frames */}
+        {/* Lens fills for depth */}
+        <circle cx="72" cy="100" r="26" fill="url(#lensGlowCompact)" opacity="0.6"/>
+        <circle cx="128" cy="100" r="26" fill="url(#lensGlowCompact)" opacity="0.6"/>
+
+        {/* Glasses frames - brighter pink */}
         <circle
           cx="72"
           cy="100"
           r="28"
           fill="none"
-          stroke="#FF1493"
-          strokeWidth="6"
+          stroke="#FF69B4"
+          strokeWidth="5"
           filter="url(#neonGlowCompact)"
           className="pinglass-lens-glow"
         />
@@ -277,27 +287,27 @@ export function AnimatedLogoCompact({
           cy="100"
           r="28"
           fill="none"
-          stroke="#FF1493"
-          strokeWidth="6"
+          stroke="#FF69B4"
+          strokeWidth="5"
           filter="url(#neonGlowCompact)"
           className="pinglass-lens-glow"
         />
 
+        {/* Inner ring detail */}
+        <circle cx="72" cy="100" r="22" fill="none" stroke="#FFB6C1" strokeWidth="1" opacity="0.5"/>
+        <circle cx="128" cy="100" r="22" fill="none" stroke="#FFB6C1" strokeWidth="1" opacity="0.5"/>
+
+        {/* Lens highlights */}
+        <ellipse cx="64" cy="92" rx="8" ry="5" fill="#FFFFFF" opacity="0.25"/>
+        <ellipse cx="120" cy="92" rx="8" ry="5" fill="#FFFFFF" opacity="0.25"/>
+
         {/* Bridge */}
-        <line
-          x1="100"
-          y1="100"
-          x2="100"
-          y2="100"
-          stroke="#FF1493"
+        <path
+          d="M97 100 Q100 92 103 100"
+          fill="none"
+          stroke="#FF69B4"
           strokeWidth="4"
           filter="url(#neonGlowCompact)"
-        />
-        <path
-          d="M97 100 Q100 94 103 100"
-          fill="none"
-          stroke="#FF1493"
-          strokeWidth="4"
         />
       </svg>
     </div>

@@ -78,6 +78,7 @@ export async function GET(request: NextRequest) {
     const payoutAmount = availableBalance - ndflAmount
 
     return NextResponse.json({
+      success: true,
       code: codeResult.rows[0]?.code || null,
       balance: Number(balance.balance),
       availableBalance,

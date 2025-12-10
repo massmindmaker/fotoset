@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
     )
 
     return NextResponse.json({
+      success: true,
       earnings: earningsResult.rows.map((e) => ({
         id: e.id,
         amount: Number(e.amount),
