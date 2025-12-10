@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { query, ReferralEarning } from "@/lib/db"
+import { sql } from "@/lib/db"
 
 // GET: Get earnings history
 export async function GET(request: NextRequest) {
@@ -13,41 +13,38 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user
-    const userResult = await query<{ id: number }>(
-      "SELECT id FROM users WHERE device_id = $1",
-      [deviceId]
-    )
+    const userResult = await sql`
+      SELECT id FROM users WHERE device_id = ${deviceId}
+    `
 
-    if (userResult.rows.length === 0) {
+    if (userResult.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const userId = userResult.rows[0].id
+    const userId = userResult[0].id
 
     // Get earnings with pagination
-    const earningsResult = await query<ReferralEarning>(
-      `SELECT * FROM referral_earnings
-       WHERE referrer_id = $1
-       ORDER BY created_at DESC
-       LIMIT $2 OFFSET $3`,
-      [userId, limit, offset]
-    )
+    const earningsResult = await sql`
+      SELECT * FROM referral_earnings
+      WHERE referrer_id = ${userId}
+      ORDER BY created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `
 
     // Get total count
-    const countResult = await query<{ count: number }>(
-      "SELECT COUNT(*) as count FROM referral_earnings WHERE referrer_id = $1",
-      [userId]
-    )
+    const countResult = await sql`
+      SELECT COUNT(*) as count FROM referral_earnings WHERE referrer_id = ${userId}
+    `
 
     return NextResponse.json({
       success: true,
-      earnings: earningsResult.rows.map((e) => ({
+      earnings: earningsResult.map((e: any) => ({
         id: e.id,
         amount: Number(e.amount),
         originalAmount: Number(e.original_amount),
         date: e.created_at,
       })),
-      total: Number(countResult.rows[0]?.count || 0),
+      total: Number(countResult[0]?.count || 0),
       limit,
       offset,
     })

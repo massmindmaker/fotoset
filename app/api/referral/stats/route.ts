@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { query, ReferralBalance } from "@/lib/db"
+import { sql } from "@/lib/db"
 
 const MIN_WITHDRAWAL = 5000 // Минимум для вывода
 const NDFL_RATE = 0.13 // НДФЛ 13%
@@ -14,30 +14,27 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user
-    const userResult = await query<{ id: number }>(
-      "SELECT id FROM users WHERE device_id = $1",
-      [deviceId]
-    )
+    const userResult = await sql`
+      SELECT id FROM users WHERE device_id = ${deviceId}
+    `
 
-    if (userResult.rows.length === 0) {
+    if (userResult.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const userId = userResult.rows[0].id
+    const userId = userResult[0].id
 
     // Get referral code
-    const codeResult = await query<{ code: string }>(
-      "SELECT code FROM referral_codes WHERE user_id = $1 AND is_active = true",
-      [userId]
-    )
+    const codeResult = await sql`
+      SELECT code FROM referral_codes WHERE user_id = ${userId} AND is_active = true
+    `
 
     // Get balance
-    const balanceResult = await query<ReferralBalance>(
-      "SELECT * FROM referral_balances WHERE user_id = $1",
-      [userId]
-    )
+    const balanceResult = await sql`
+      SELECT * FROM referral_balances WHERE user_id = ${userId}
+    `
 
-    const balance = balanceResult.rows[0] || {
+    const balance = balanceResult[0] || {
       balance: 0,
       total_earned: 0,
       total_withdrawn: 0,
@@ -45,31 +42,25 @@ export async function GET(request: NextRequest) {
     }
 
     // Get recent referrals (last 10)
-    const referralsResult = await query<{
-      id: number
-      created_at: string
-      total_earned: number
-    }>(
-      `SELECT r.id, r.created_at,
-              COALESCE(SUM(e.amount), 0) as total_earned
-       FROM referrals r
-       LEFT JOIN referral_earnings e ON e.referred_id = r.referred_id
-       WHERE r.referrer_id = $1
-       GROUP BY r.id, r.created_at
-       ORDER BY r.created_at DESC
-       LIMIT 10`,
-      [userId]
-    )
+    const referralsResult = await sql`
+      SELECT r.id, r.created_at,
+             COALESCE(SUM(e.amount), 0) as total_earned
+      FROM referrals r
+      LEFT JOIN referral_earnings e ON e.referred_id = r.referred_id
+      WHERE r.referrer_id = ${userId}
+      GROUP BY r.id, r.created_at
+      ORDER BY r.created_at DESC
+      LIMIT 10
+    `
 
     // Get pending withdrawals
-    const pendingResult = await query<{ total: number }>(
-      `SELECT COALESCE(SUM(amount), 0) as total
-       FROM referral_withdrawals
-       WHERE user_id = $1 AND status IN ('pending', 'processing')`,
-      [userId]
-    )
+    const pendingResult = await sql`
+      SELECT COALESCE(SUM(amount), 0) as total
+      FROM referral_withdrawals
+      WHERE user_id = ${userId} AND status IN ('pending', 'processing')
+    `
 
-    const pendingWithdrawal = Number(pendingResult.rows[0]?.total || 0)
+    const pendingWithdrawal = Number(pendingResult[0]?.total || 0)
     const availableBalance = Number(balance.balance) - pendingWithdrawal
     const canWithdraw = availableBalance >= MIN_WITHDRAWAL
 
@@ -79,7 +70,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      code: codeResult.rows[0]?.code || null,
+      code: codeResult[0]?.code || null,
       balance: Number(balance.balance),
       availableBalance,
       totalEarned: Number(balance.total_earned),
@@ -95,7 +86,7 @@ export async function GET(request: NextRequest) {
             payout: payoutAmount,
           }
         : null,
-      recentReferrals: referralsResult.rows.map((r) => ({
+      recentReferrals: referralsResult.map((r: any) => ({
         id: r.id,
         date: r.created_at,
         earned: Number(r.total_earned),
