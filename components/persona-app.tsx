@@ -4,7 +4,7 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import {
   Sparkles, Plus, ArrowLeft, ArrowRight, Camera, Loader2, X, CheckCircle2,
-  User, Zap, Shield, Star, ChevronRight, Crown, Sun, Moon, Gift,
+  User, Zap, Shield, Star, ChevronRight, Crown, Sun, Moon, Gift, Send,
 } from "lucide-react"
 import Link from "next/link"
 import { PaymentModal } from "./payment-modal"
@@ -83,6 +83,21 @@ export default function PersonaApp() {
     try {
       const tg = window.Telegram?.WebApp
       if (tg?.initDataUnsafe) {
+        // Extract and save Telegram user ID for notifications
+        const telegramUserId = tg.initDataUnsafe.user?.id
+        if (telegramUserId) {
+          // Save user ID to backend
+          fetch("/api/user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              deviceId: getDeviceId(),
+              telegramUserId: telegramUserId
+            })
+          }).catch(err => console.error("[Telegram] Failed to save user ID:", err))
+        }
+
+        // Handle referral code from start_param
         const telegramRefCode = tg.initDataUnsafe.start_param
         if (telegramRefCode && !localStorage.getItem("pinglass_referral_applied")) {
           localStorage.setItem("pinglass_pending_referral", telegramRefCode)
@@ -488,6 +503,46 @@ const TierSelectView: React.FC<{ persona: Persona; onBack: () => void; onGenerat
 const ResultsView: React.FC<{ persona: Persona; onBack: () => void; onGenerateMore: () => void; isGenerating: boolean; generationProgress: { completed: number; total: number } }> = ({ persona, onBack, onGenerateMore, isGenerating, generationProgress }) => {
   const assets = [...persona.generatedAssets].sort((a, b) => b.createdAt - a.createdAt)
   const pendingCount = isGenerating ? Math.max(0, generationProgress.total - assets.length) : 0
+  const [isSendingToTelegram, setIsSendingToTelegram] = useState(false)
+  const [telegramSent, setTelegramSent] = useState(false)
+
+  const sendToTelegram = async () => {
+    if (assets.length === 0 || isSendingToTelegram) return
+
+    setIsSendingToTelegram(true)
+    try {
+      // Get Telegram user ID from WebApp if available
+      const tg = typeof window !== "undefined" ? (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp : null
+      const telegramUserId = tg?.initDataUnsafe?.user?.id
+
+      const deviceId = localStorage.getItem("pinglass_device_id")
+
+      const response = await fetch("/api/telegram/send-photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceId,
+          telegramUserId,
+          photoUrls: assets.map(a => a.url)
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setTelegramSent(true)
+        // Show success briefly, then allow re-send
+        setTimeout(() => setTelegramSent(false), 5000)
+      } else {
+        alert(data.error || "Не удалось отправить фото")
+      }
+    } catch (error) {
+      console.error("Failed to send to Telegram:", error)
+      alert("Ошибка отправки в Telegram")
+    } finally {
+      setIsSendingToTelegram(false)
+    }
+  }
 
   return (
     <div className="space-y-4 pb-6">
@@ -502,10 +557,26 @@ const ResultsView: React.FC<{ persona: Persona; onBack: () => void; onGenerateMo
             <span className="text-sm font-medium text-primary">{assets.length} / {generationProgress.total} фото</span>
           </div>
         ) : (
-          <button onClick={onGenerateMore} className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary to-accent text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity active:scale-95 shadow-lg shadow-primary/25">
-            <Sparkles className="w-4 h-4" />
-            <span>Создать ещё</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={sendToTelegram}
+              disabled={isSendingToTelegram || assets.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#0088cc] hover:bg-[#0077b5] text-white rounded-xl text-sm font-medium transition-all active:scale-95 shadow-lg shadow-[#0088cc]/25 disabled:opacity-50"
+            >
+              {isSendingToTelegram ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : telegramSent ? (
+                <CheckCircle2 className="w-4 h-4" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+              <span>{telegramSent ? "Отправлено!" : "В Telegram"}</span>
+            </button>
+            <button onClick={onGenerateMore} className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary to-accent text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity active:scale-95 shadow-lg shadow-primary/25">
+              <Sparkles className="w-4 h-4" />
+              <span>Ещё</span>
+            </button>
+          </div>
         )}
       </div>
 
