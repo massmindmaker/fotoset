@@ -27,3 +27,7 @@ dist-ssr
 .mcp.json
 .claude/
 .serena/memories/
+
+.env*.local
+photos/
+test-replicate-local.mjs

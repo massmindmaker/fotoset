@@ -7,6 +7,7 @@ import {
   smartMergePrompt,
   enhancePromptForConsistency,
 } from "@/lib/image-utils"
+import { sendGenerationNotification } from "@/lib/telegram-notify"
 
 // Конфигурация генерации
 const GENERATION_CONFIG = {
@@ -219,6 +220,26 @@ export async function POST(request: NextRequest) {
             updated_at = NOW()
         WHERE id = ${dbAvatarId}
       `
+    }
+
+    // Отправляем уведомление в Telegram если пользователь подключен
+    try {
+      const userWithTelegram = await sql`
+        SELECT telegram_user_id FROM users WHERE id = ${user.id}
+      `.then(rows => rows[0])
+
+      if (userWithTelegram?.telegram_user_id && successfulPhotos.length > 0) {
+        await sendGenerationNotification(
+          userWithTelegram.telegram_user_id,
+          successfulPhotos.length,
+          successfulPhotos[0].url,
+          dbAvatarId
+        )
+        console.log(`[Generate] Telegram notification sent to user ${userWithTelegram.telegram_user_id}`)
+      }
+    } catch (notifyError) {
+      console.error("[Generate] Telegram notification failed:", notifyError)
+      // Don't fail the generation if notification fails
     }
 
     const elapsedTime = Math.round((Date.now() - startTime) / 1000)

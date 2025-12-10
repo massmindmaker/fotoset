@@ -30,6 +30,7 @@ export async function query<T = any>(
 export type User = {
   id: number
   device_id: string
+  telegram_user_id?: number
   created_at: string
   updated_at: string
 }

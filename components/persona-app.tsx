@@ -4,11 +4,13 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import {
   Sparkles, Plus, ArrowLeft, ArrowRight, Camera, Loader2, X, CheckCircle2,
-  User, Zap, Shield, Star, ChevronRight, Crown, Sun, Moon,
+  User, Zap, Shield, Star, ChevronRight, Crown, Sun, Moon, Gift,
 } from "lucide-react"
 import Link from "next/link"
 import { PaymentModal } from "./payment-modal"
 import ResultsGallery from "./results-gallery"
+import { ReferralPanel } from "./referral-panel"
+import { AnimatedLogoCompact } from "./animated-logo"
 
 export interface PricingTier { id: string; photos: number; price: number; popular?: boolean }
 
@@ -53,6 +55,7 @@ export default function PersonaApp() {
   const [isReady, setIsReady] = useState(false)
   const [selectedTier, setSelectedTier] = useState<PricingTier>(PRICING_TIERS[1])
   const [theme, setTheme] = useState<"dark" | "light">("dark")
+  const [isReferralOpen, setIsReferralOpen] = useState(false)
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -79,7 +82,7 @@ export default function PersonaApp() {
     // Handle Telegram WebApp start_param
     try {
       const tg = window.Telegram?.WebApp
-      if (tg?.initDataUnsafe?.start_param) {
+      if (tg?.initDataUnsafe) {
         const telegramRefCode = tg.initDataUnsafe.start_param
         if (telegramRefCode && !localStorage.getItem("pinglass_referral_applied")) {
           localStorage.setItem("pinglass_pending_referral", telegramRefCode)
@@ -123,48 +126,108 @@ export default function PersonaApp() {
     setViewState({ view: "RESULTS", personaId: p.id })
     updatePersona(p.id, { status: "processing" })
 
-    // Demo mode - use mock photos instead of real API
-    const USE_DEMO_MODE = false
-
-    if (USE_DEMO_MODE) {
-      // Simulate progressive loading
-      const mockPhotos = DEMO_PHOTOS.slice(0, tier.photos)
-      for (let i = 0; i < tier.photos; i++) {
-        await new Promise(r => setTimeout(r, 800))
-        const newAsset: GeneratedAsset = {
-          id: Date.now() + "-" + i,
-          type: "PHOTO" as const,
-          url: mockPhotos[i] || mockPhotos[0],
-          styleId: "pinglass",
-          createdAt: Date.now()
-        }
-        setPersonas(prev => prev.map(persona =>
-          persona.id === p.id
-            ? { ...persona, generatedAssets: [newAsset, ...persona.generatedAssets], thumbnailUrl: persona.thumbnailUrl || newAsset.url }
-            : persona
-        ))
-        setGenerationProgress({ completed: i + 1, total: tier.photos })
-      }
-      updatePersona(p.id, { status: "ready" })
-      setIsGenerating(false)
-      setGenerationProgress({ completed: 0, total: 0 })
-      return
-    }
-
     try {
-      const res = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId, avatarId: p.id, styleId: "pinglass", photoCount: tier.photos, referenceImages: p.images.slice(0,14).map(i => i.base64) }) })
+      // Start generation
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceId,
+          avatarId: p.id,
+          styleId: "pinglass",
+          photoCount: tier.photos,
+          referenceImages: p.images.slice(0,14).map(i => i.base64)
+        })
+      })
+
       if (!res.ok) throw new Error((await res.json()).error || "Failed")
       const data = await res.json()
-      const newAssets: GeneratedAsset[] = data.photos.map((url: string, i: number) => ({ id: Date.now() + "-" + i, type: "PHOTO" as const, url, styleId: "pinglass", createdAt: Date.now() }))
-      updatePersona(p.id, { status: "ready", generatedAssets: [...newAssets, ...p.generatedAssets], thumbnailUrl: p.thumbnailUrl || newAssets[0]?.url })
-      setGenerationProgress({ completed: tier.photos, total: tier.photos })
+
+      // If we got all photos immediately (fast generation), use them
+      if (data.photos && data.photos.length > 0) {
+        const newAssets: GeneratedAsset[] = data.photos.map((url: string, i: number) => ({
+          id: `${data.jobId}-${i}`,
+          type: "PHOTO" as const,
+          url,
+          styleId: "pinglass",
+          createdAt: Date.now()
+        }))
+        updatePersona(p.id, {
+          status: "ready",
+          generatedAssets: [...newAssets, ...p.generatedAssets],
+          thumbnailUrl: p.thumbnailUrl || newAssets[0]?.url
+        })
+        setGenerationProgress({ completed: data.photos.length, total: tier.photos })
+        setIsGenerating(false)
+        return
+      }
+
+      // If jobId returned, start polling for progressive updates
+      if (data.jobId) {
+        let lastPhotoCount = 0
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusRes = await fetch(`/api/generate?job_id=${data.jobId}`)
+            const statusData = await statusRes.json()
+
+            // Update progress
+            setGenerationProgress({
+              completed: statusData.progress?.completed || 0,
+              total: statusData.progress?.total || tier.photos
+            })
+
+            // Add new photos as they appear
+            if (statusData.photos && statusData.photos.length > lastPhotoCount) {
+              const newPhotos = statusData.photos.slice(lastPhotoCount)
+              const newAssets: GeneratedAsset[] = newPhotos.map((url: string, i: number) => ({
+                id: `${data.jobId}-${lastPhotoCount + i}`,
+                type: "PHOTO" as const,
+                url,
+                styleId: "pinglass",
+                createdAt: Date.now()
+              }))
+
+              setPersonas(prev => prev.map(persona =>
+                persona.id === p.id
+                  ? {
+                      ...persona,
+                      generatedAssets: [...newAssets, ...persona.generatedAssets],
+                      thumbnailUrl: persona.thumbnailUrl || newAssets[0]?.url
+                    }
+                  : persona
+              ))
+              lastPhotoCount = statusData.photos.length
+            }
+
+            // Check if generation is complete
+            if (statusData.status === "completed" || statusData.status === "failed") {
+              clearInterval(pollInterval)
+              updatePersona(p.id, { status: statusData.status === "completed" ? "ready" : "draft" })
+              setIsGenerating(false)
+              setGenerationProgress({ completed: 0, total: 0 })
+
+              if (statusData.status === "failed") {
+                alert(statusData.error || "Генерация не удалась")
+              }
+            }
+          } catch (pollError) {
+            console.error("Polling error:", pollError)
+          }
+        }, 3000) // Poll every 3 seconds
+
+        // Safety: Stop polling after 15 minutes max
+        setTimeout(() => {
+          clearInterval(pollInterval)
+          setIsGenerating(false)
+        }, 15 * 60 * 1000)
+      }
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Ошибка")
+      alert(e instanceof Error ? e.message : "Ошибка генерации")
       updatePersona(p.id, { status: "draft" })
       setViewState({ view: "SELECT_TIER", personaId: p.id })
+      setIsGenerating(false)
+      setGenerationProgress({ completed: 0, total: 0 })
     }
-    finally { setIsGenerating(false); setGenerationProgress({ completed: 0, total: 0 }) }
   }
 
   const handlePaymentSuccess = () => { setIsPaymentOpen(false); if (viewState.view === "SELECT_TIER") handleGenerate(selectedTier) }
@@ -178,10 +241,11 @@ export default function PersonaApp() {
         <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-black/5">
           <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-xl shadow-primary/30 ring-2 ring-primary/20"><Sparkles className="w-5 h-5 text-white" /></div>
+              <AnimatedLogoCompact size={40} className="shadow-xl shadow-primary/30 rounded-2xl ring-2 ring-primary/20" />
               <span className="font-bold text-lg drop-shadow-sm">PinGlass</span>
             </div>
             <div className="flex items-center gap-2">
+              <button onClick={() => setIsReferralOpen(true)} className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 hover:from-amber-500/30 hover:to-orange-500/20 text-amber-600 hover:text-amber-500 transition-all shadow-md shadow-amber-500/10" title="Партнёрская программа"><Gift className="w-4 h-4" /></button>
               <button onClick={toggleTheme} className="p-2.5 rounded-xl bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-all shadow-md shadow-black/5">{theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</button>
               {viewState.view === "DASHBOARD" && <button onClick={handleCreatePersona} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-2xl text-sm font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 hover:scale-[1.02] transition-all active:scale-95"><Plus className="w-4 h-4" />Создать</button>}
             </div>
@@ -210,6 +274,7 @@ export default function PersonaApp() {
         </footer>
       </>)}
       {isPaymentOpen && <PaymentModal isOpen={isPaymentOpen} onClose={() => setIsPaymentOpen(false)} onSuccess={handlePaymentSuccess} deviceId={deviceId} tier={selectedTier} />}
+      <ReferralPanel deviceId={deviceId} isOpen={isReferralOpen} onClose={() => setIsReferralOpen(false)} />
     </div>
   )
 }
