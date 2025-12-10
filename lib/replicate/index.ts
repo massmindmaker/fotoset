@@ -149,10 +149,11 @@ export async function generateBatchPortraits(
     const batchStart = batchIndex * concurrency;
     const batchPrompts = prompts.slice(batchStart, batchStart + concurrency);
 
-    // Rotate reference image for variety
-    const batchRef = rotateReference(topReferences, batchIndex);
+    // Use ALL top references for face consistency (no rotation)
+    // Nano Banana Pro supports up to 14 references for better consistency
+    const batchRef = topReferences;
 
-    console.log(`[Replicate] Batch ${batchIndex + 1}/${totalBatches}`);
+    console.log(`[Replicate] Batch ${batchIndex + 1}/${totalBatches}, using ${topReferences.length} refs`);
 
     // Process batch
     const batchResults = await Promise.allSettled(

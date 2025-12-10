@@ -7,12 +7,19 @@ import {
 } from "lucide-react"
 
 interface ReferralStats {
-  code: string
+  code: string | null
   balance: number
   totalEarned: number
   totalWithdrawn: number
   referralsCount: number
   pendingWithdrawal: number
+  canWithdraw?: boolean
+  minWithdrawal?: number
+  payoutPreview?: {
+    amount: number
+    ndfl: number
+    payout: number
+  } | null
 }
 
 interface ReferralEarning {
@@ -40,6 +47,7 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
   const [stats, setStats] = useState<ReferralStats | null>(null)
   const [earnings, setEarnings] = useState<ReferralEarning[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [showEarnings, setShowEarnings] = useState(false)
@@ -53,9 +61,20 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
 
   const fetchStats = async () => {
     setLoading(true)
+    setError(null)
     try {
+      if (!deviceId) {
+        setError("Device ID отсутствует")
+        return
+      }
       const res = await fetch(`/api/referral/stats?device_id=${deviceId}`)
       const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || `Ошибка: ${res.status}`)
+        return
+      }
+
       if (data.success) {
         // API возвращает данные на верхнем уровне, не в stats
         setStats({
@@ -69,9 +88,12 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
           minWithdrawal: data.minWithdrawal,
           payoutPreview: data.payoutPreview,
         })
+      } else {
+        setError(data.error || "Не удалось загрузить данные")
       }
     } catch (e) {
       console.error("Failed to fetch referral stats:", e)
+      setError(e instanceof Error ? e.message : "Ошибка сети")
     } finally {
       setLoading(false)
     }
@@ -344,7 +366,8 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
             </>
           ) : (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">Не удалось загрузить данные</p>
+              <AlertCircle className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground">{error || "Не удалось загрузить данные"}</p>
               <button
                 onClick={fetchStats}
                 className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm"
