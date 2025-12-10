@@ -11,10 +11,11 @@ import { sendGenerationNotification } from "@/lib/telegram-notify"
 
 // Конфигурация генерации
 const GENERATION_CONFIG = {
-  concurrency: 5,              // Параллельные запросы (увеличено для скорости)
+  concurrency: 7,              // Параллельные запросы (увеличено для скорости)
   maxPhotos: 23,               // Максимум фото за генерацию
   maxReferenceImages: 20,      // Используем все изображения пользователя (10-20)
   minReferenceImages: 1,       // Минимум для генерации
+  maxRetries: 2,               // Максимум попыток для failed генераций
 }
 
 /**
@@ -56,6 +57,7 @@ async function runBackgroundGeneration(params: {
       validReferenceImages,
       {
         concurrency,
+        maxRetries: GENERATION_CONFIG.maxRetries,
         onProgress: async (completed, total) => {
           // Update progress in DB every 3 photos or at completion
           if (completed % 3 === 0 || completed === total) {
@@ -276,10 +278,10 @@ export async function POST(request: NextRequest) {
     console.log(`[Generate] Saved ${savedCount}/${validReferenceImages.length} reference images for avatar ${dbAvatarId}`)
 
     // Создаем задачу генерации
-    // Используем selectedPrompts из стиля для определения доступных промптов
-    const availablePromptIndices = styleConfig.selectedPrompts || Array.from({ length: PHOTOSET_PROMPTS.length }, (_, i) => i)
+    // ВАЖНО: Количество фото определяется ТОЛЬКО запросом пользователя (7/15/23)
+    // Стили влияют только на оформление промптов, НЕ на количество
     const requestedPhotos = photoCount && photoCount > 0 ? photoCount : GENERATION_CONFIG.maxPhotos
-    const totalPhotos = Math.min(requestedPhotos, availablePromptIndices.length, GENERATION_CONFIG.maxPhotos)
+    const totalPhotos = Math.min(requestedPhotos, PHOTOSET_PROMPTS.length, GENERATION_CONFIG.maxPhotos)
 
     const job = await sql`
       INSERT INTO generation_jobs (avatar_id, style_id, status, total_photos)
@@ -287,11 +289,11 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `.then((rows) => rows[0])
 
-    console.log(`[Generate] Created job ${job.id} for avatar ${dbAvatarId}, style: ${styleId}, photos: ${totalPhotos}/${availablePromptIndices.length} available`)
+    console.log(`[Generate] Created job ${job.id} for avatar ${dbAvatarId}, style: ${styleId}, requested: ${requestedPhotos}, generating: ${totalPhotos}`)
 
-    // Подготавливаем промпты с умным слиянием - используем selectedPrompts для выбора нужных промптов
-    const selectedIndices = availablePromptIndices.slice(0, totalPhotos)
-    const basePrompts = selectedIndices.map(i => PHOTOSET_PROMPTS[i])
+    // Берём первые N промптов из полного списка (23 промпта доступно)
+    // Стиль применяется через prefix/suffix, но не ограничивает количество
+    const basePrompts = PHOTOSET_PROMPTS.slice(0, totalPhotos)
     const mergedPrompts = basePrompts.map(basePrompt =>
       smartMergePrompt({
         basePrompt,

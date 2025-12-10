@@ -405,13 +405,15 @@ export async function generateImage(options: GenerationOptions): Promise<string>
 }
 
 /**
- * Batch generation with progress tracking
+ * Batch generation with progress tracking and retry logic
+ * Guarantees exact number of photos by retrying failed generations
  */
 export async function generateMultipleImages(
   prompts: string[],
   referenceImages?: string[],
   options: {
     concurrency?: number
+    maxRetries?: number
     onProgress?: (completed: number, total: number, success: boolean) => void
     stylePrefix?: string
     styleSuffix?: string
@@ -419,18 +421,20 @@ export async function generateMultipleImages(
 ): Promise<GenerationResult[]> {
   const {
     concurrency = 3,
+    maxRetries = 2,
     onProgress,
     stylePrefix = "",
     styleSuffix = "",
   } = options
 
-  const results: GenerationResult[] = []
+  const results: GenerationResult[] = new Array(prompts.length)
+  const failedIndices: number[] = []
   const activeProvider = getActiveProvider()
 
-  console.log(`[Image Gen] Starting batch: ${prompts.length} images, concurrency: ${concurrency}`)
+  console.log(`[Image Gen] Starting batch: ${prompts.length} images, concurrency: ${concurrency}, maxRetries: ${maxRetries}`)
   console.log(`[Image Gen] Active provider: ${activeProvider ? PROVIDERS[activeProvider].name : "none"}`)
 
-  // Process in batches
+  // First pass: generate all images
   for (let i = 0; i < prompts.length; i += concurrency) {
     const batch = prompts.slice(i, i + concurrency)
     const batchStartIndex = i
@@ -453,21 +457,21 @@ export async function generateMultipleImages(
       const success = result.status === "fulfilled"
 
       if (success) {
-        results.push({
+        results[globalIndex] = {
           url: result.value,
           success: true,
           provider: activeProvider ? PROVIDERS[activeProvider].name : undefined,
-        })
+        }
         console.log(`[Image Gen] ✓ Image ${globalIndex + 1}/${prompts.length}`)
       } else {
         const errorMsg = result.reason instanceof Error ? result.reason.message : "Unknown error"
         console.error(`[Image Gen] ✗ Image ${globalIndex + 1}/${prompts.length}:`, errorMsg)
-
-        results.push({
-          url: "/generation-failed.jpg",
+        failedIndices.push(globalIndex)
+        results[globalIndex] = {
+          url: "",
           success: false,
           error: errorMsg,
-        })
+        }
       }
 
       onProgress?.(globalIndex + 1, prompts.length, success)
@@ -475,12 +479,66 @@ export async function generateMultipleImages(
 
     // Rate limit delay between batches
     if (i + concurrency < prompts.length) {
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await new Promise(resolve => setTimeout(resolve, 800))
+    }
+  }
+
+  // Retry failed generations to guarantee photo count
+  let retryAttempt = 0
+  while (failedIndices.length > 0 && retryAttempt < maxRetries) {
+    retryAttempt++
+    const toRetry = [...failedIndices]
+    failedIndices.length = 0
+
+    console.log(`[Image Gen] Retry attempt ${retryAttempt}/${maxRetries} for ${toRetry.length} failed images`)
+
+    for (let i = 0; i < toRetry.length; i += concurrency) {
+      const batch = toRetry.slice(i, i + concurrency)
+
+      const batchResults = await Promise.allSettled(
+        batch.map((originalIndex) =>
+          generateImage({
+            prompt: `${stylePrefix}${prompts[originalIndex]}${styleSuffix}`,
+            referenceImages,
+            seed: Date.now() + originalIndex + retryAttempt * 1000,
+          })
+        )
+      )
+
+      batchResults.forEach((result, batchIndex) => {
+        const originalIndex = batch[batchIndex]
+        const success = result.status === "fulfilled"
+
+        if (success) {
+          results[originalIndex] = {
+            url: result.value,
+            success: true,
+            provider: activeProvider ? PROVIDERS[activeProvider].name : undefined,
+          }
+          console.log(`[Image Gen] ✓ Retry success for image ${originalIndex + 1}`)
+        } else {
+          failedIndices.push(originalIndex)
+          console.error(`[Image Gen] ✗ Retry failed for image ${originalIndex + 1}`)
+        }
+      })
+
+      if (i + concurrency < toRetry.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+    }
+  }
+
+  // Mark remaining failures
+  for (const idx of failedIndices) {
+    results[idx] = {
+      url: "/generation-failed.jpg",
+      success: false,
+      error: "All retry attempts failed",
     }
   }
 
   const successCount = results.filter(r => r.success).length
-  console.log(`[Image Gen] Complete: ${successCount}/${prompts.length} successful`)
+  console.log(`[Image Gen] Complete: ${successCount}/${prompts.length} successful (${failedIndices.length} final failures)`)
 
   return results
 }
