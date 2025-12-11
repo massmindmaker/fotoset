@@ -9,6 +9,7 @@ import {
   type GenerationJobPayload,
   GENERATION_CONFIG,
 } from "@/lib/qstash"
+import { uploadFromUrl, generatePromptKey, isR2Configured } from "@/lib/r2"
 
 // POST /api/jobs/process - Process a generation chunk
 export async function POST(request: Request) {
@@ -78,10 +79,25 @@ export async function POST(request: Request) {
 
         const imageUrl = await generateImage(options)
 
+        // Upload to R2 if configured, fallback to original URL
+        let finalImageUrl = imageUrl
+        const useR2 = isR2Configured()
+        if (useR2) {
+          try {
+            const r2Key = generatePromptKey(avatarId.toString(), styleId, promptIndex, "png")
+            const r2Result = await uploadFromUrl(imageUrl, r2Key)
+            finalImageUrl = r2Result.url
+            console.log(`[Jobs/Process] Uploaded to R2: ${r2Key}`)
+          } catch (r2Error) {
+            console.warn(`[Jobs/Process] R2 upload failed, using original URL:`, r2Error)
+            // Keep original URL as fallback
+          }
+        }
+
         // Save to database
         await sql`
           INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
-          VALUES (${avatarId}, ${styleId}, ${prompt.substring(0, 500)}, ${imageUrl})
+          VALUES (${avatarId}, ${styleId}, ${prompt.substring(0, 500)}, ${finalImageUrl})
         `
 
         // Update job progress

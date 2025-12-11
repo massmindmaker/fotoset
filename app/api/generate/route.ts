@@ -21,6 +21,7 @@ import {
   publishGenerationJob,
   GENERATION_CONFIG as QSTASH_CONFIG,
 } from "@/lib/qstash"
+import { uploadFromUrl, generatePromptKey, isR2Configured } from "@/lib/r2"
 
 const logger = createLogger("Generate")
 
@@ -106,24 +107,47 @@ async function runBackgroundGeneration(params: {
     )
 
     // Save each successful photo to DB immediately
+    const useR2 = isR2Configured()
+    if (useR2) {
+      logger.info("R2 storage enabled, will upload generated images", { jobId })
+    }
+
     for (let i = 0; i < results.length; i++) {
       const result = results[i]
       if (result.success && result.url) {
         successCount++
         const originalPrompt = mergedPrompts[i]
 
+        // Upload to R2 if configured, fallback to original URL
+        let finalImageUrl = result.url
+        if (useR2) {
+          try {
+            const r2Key = generatePromptKey(dbAvatarId.toString(), styleId, i, "png")
+            const r2Result = await uploadFromUrl(result.url, r2Key)
+            finalImageUrl = r2Result.url
+            logger.debug("Uploaded to R2", { jobId, photoIndex: i, r2Key })
+          } catch (r2Error) {
+            logger.warn("R2 upload failed, using original URL", {
+              jobId,
+              photoIndex: i,
+              error: r2Error instanceof Error ? r2Error.message : "Unknown",
+            })
+            // Keep original URL as fallback
+          }
+        }
+
         // Save photo to DB
         await sql`
           INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
-          VALUES (${dbAvatarId}, ${styleId}, ${originalPrompt}, ${result.url})
+          VALUES (${dbAvatarId}, ${styleId}, ${originalPrompt}, ${finalImageUrl})
         `.catch(err => logger.error("Failed to save photo to DB", { jobId, photoIndex: i, error: err.message }))
 
         // Set first photo as thumbnail
         if (!firstPhotoUrl) {
-          firstPhotoUrl = result.url
+          firstPhotoUrl = finalImageUrl
           await sql`
             UPDATE avatars
-            SET thumbnail_url = ${result.url}, updated_at = NOW()
+            SET thumbnail_url = ${finalImageUrl}, updated_at = NOW()
             WHERE id = ${dbAvatarId}
           `.catch(err => logger.error("Failed to update thumbnail", { avatarId: dbAvatarId, error: err.message }))
         }
