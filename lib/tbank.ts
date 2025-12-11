@@ -1,16 +1,25 @@
 // T-Bank (Tinkoff) Payment Integration
 import crypto from "crypto"
 
-const TBANK_TERMINAL_KEY = process.env.TBANK_TERMINAL_KEY || "TinkoffBankTest"
-const TBANK_PASSWORD = process.env.TBANK_PASSWORD || "TinkoffBankTest"
+const TBANK_TERMINAL_KEY = process.env.TBANK_TERMINAL_KEY || ""
+const TBANK_PASSWORD = process.env.TBANK_PASSWORD || ""
 const TBANK_API_URL = "https://securepay.tinkoff.ru/v2"
 
-// Test mode only if explicitly no credentials
-export const IS_TEST_MODE = process.env.TBANK_TEST_MODE === "true" ||
-  (!process.env.TBANK_TERMINAL_KEY && !process.env.TBANK_PASSWORD)
+// Check if credentials are configured
+export const HAS_CREDENTIALS = !!(TBANK_TERMINAL_KEY && TBANK_PASSWORD)
 
-// Demo mode - when no payment credentials are set, use demo payment page
-export const IS_DEMO_MODE = !process.env.TBANK_TERMINAL_KEY || !process.env.TBANK_PASSWORD
+// Test mode - when terminal key contains "DEMO" (uses real API but with test cards)
+export const IS_TEST_MODE = TBANK_TERMINAL_KEY.includes("DEMO") ||
+  TBANK_TERMINAL_KEY.toLowerCase().includes("test")
+
+// Log config (without secrets)
+if (typeof window === 'undefined') {
+  console.log("[T-Bank] Config:", {
+    mode: !HAS_CREDENTIALS ? "NO CREDENTIALS" : IS_TEST_MODE ? "TEST" : "PRODUCTION",
+    terminalKeySet: !!TBANK_TERMINAL_KEY,
+    passwordSet: !!TBANK_PASSWORD,
+  })
+}
 
 export type PaymentMethod = "card" | "sbp" | "tpay"
 
@@ -59,25 +68,6 @@ function generateToken(params: Record<string, string | number>): string {
   return crypto.createHash("sha256").update(concatenated).digest("hex")
 }
 
-function createTestPayment(
-  amount: number,
-  orderId: string,
-  description: string,
-  successUrl: string,
-  failUrl: string,
-): TBankPayment {
-  const testId = `test_${Date.now()}_${Math.random().toString(36).substring(7)}`
-
-  return {
-    Success: true,
-    Status: "NEW",
-    PaymentId: testId,
-    OrderId: orderId,
-    Amount: amount * 100, // в копейках
-    // В тестовом режиме сразу редиректим на success
-    PaymentURL: `${successUrl}&payment_id=${testId}&test=true`,
-  }
-}
 
 export async function initPayment(
   amount: number,
@@ -89,10 +79,18 @@ export async function initPayment(
   customerEmail?: string,
   paymentMethod?: PaymentMethod,
 ): Promise<TBankPayment> {
-  if (IS_TEST_MODE) {
-    console.log("[T-Bank] Test mode: creating mock payment")
-    return createTestPayment(amount, orderId, description, successUrl, failUrl)
+  // Check if credentials are configured
+  if (!HAS_CREDENTIALS) {
+    throw new Error("T-Bank credentials not configured. Set TBANK_TERMINAL_KEY and TBANK_PASSWORD environment variables.")
   }
+
+  // Log API call
+  console.log("[T-Bank] Calling API", {
+    testMode: IS_TEST_MODE,
+    orderId,
+    amount,
+    terminalKeyLength: TBANK_TERMINAL_KEY.length
+  })
 
   const amountInKopeks = amount * 100
 
@@ -158,7 +156,19 @@ export async function initPayment(
     }
   }
 
-  console.log("[T-Bank] Creating payment:", { orderId, amount, email: customerEmail, paymentMethod })
+  // Log request (without sensitive data)
+  console.log("[T-Bank] Request:", {
+    url: `${TBANK_API_URL}/Init`,
+    orderId,
+    amount,
+    amountInKopeks,
+    email: customerEmail,
+    paymentMethod,
+    successUrl,
+    failUrl,
+    hasReceipt: !!receipt,
+    hasData: !!customerEmail,
+  })
 
   try {
     const response = await fetch(`${TBANK_API_URL}/Init`, {
@@ -171,29 +181,36 @@ export async function initPayment(
 
     const data: TBankPayment = await response.json()
 
-    console.log("[T-Bank] Response:", data)
+    console.log("[T-Bank] Response:", {
+      success: data.Success,
+      errorCode: data.ErrorCode,
+      message: data.Message,
+      paymentId: data.PaymentId,
+      status: data.Status,
+      hasPaymentUrl: !!data.PaymentURL,
+    })
 
     if (!data.Success) {
-      console.error("T-Bank payment init error:", data.Message, data.ErrorCode)
-      throw new Error(`T-Bank payment creation failed: ${data.Message || data.ErrorCode}`)
+      console.error("[T-Bank] Payment init failed:", {
+        errorCode: data.ErrorCode,
+        message: data.Message,
+        orderId,
+        amount: amountInKopeks,
+      })
+      throw new Error(`T-Bank error ${data.ErrorCode}: ${data.Message || "Unknown error"}`)
     }
 
     return data
   } catch (error) {
-    console.error("T-Bank API error:", error)
+    console.error("[T-Bank] API error:", error)
     throw error
   }
 }
 
 export async function getPaymentState(paymentId: string): Promise<TBankPayment> {
-  if (IS_TEST_MODE || paymentId.startsWith("test_") || paymentId.startsWith("demo_")) {
-    console.log("[T-Bank] Test/Demo mode: returning confirmed payment")
-    return {
-      Success: true,
-      Status: "CONFIRMED",
-      PaymentId: paymentId,
-      Amount: 50000, // 500 рублей в копейках
-    }
+  // Check if credentials are configured
+  if (!HAS_CREDENTIALS) {
+    throw new Error("T-Bank credentials not configured")
   }
 
   const params = {
