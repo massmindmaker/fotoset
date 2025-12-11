@@ -157,79 +157,93 @@ export default function PersonaApp() {
       let currentDeviceId = getDeviceId()
       setDeviceId(currentDeviceId)
 
-      const savedTheme = localStorage.getItem("pinglass_theme") as "dark" | "light" | null
-      if (savedTheme) {
-        setTheme(savedTheme)
-        document.documentElement.classList.toggle("light", savedTheme === "light")
-      }
-
       try {
-        const tg = window.Telegram?.WebApp
-        if (tg?.initData) {
-          const authRes = await fetch("/api/telegram/auth", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ initData: tg.initData }),
-          })
+        const savedTheme = localStorage.getItem("pinglass_theme") as "dark" | "light" | null
+        if (savedTheme) {
+          setTheme(savedTheme)
+          document.documentElement.classList.toggle("light", savedTheme === "light")
+        }
 
-          if (authRes.ok) {
-            const authData = await authRes.json()
-            if (authData.deviceId) {
-              // Update deviceId to Telegram-based ID for persistence across sessions
-              localStorage.setItem("pinglass_device_id", authData.deviceId)
-              currentDeviceId = authData.deviceId
-              setDeviceId(authData.deviceId)
-              console.log("[TG Auth] Using Telegram deviceId:", authData.deviceId)
+        // Telegram auth with timeout to prevent blank screen
+        try {
+          const tg = window.Telegram?.WebApp
+          if (tg?.initData) {
+            // Add 5s timeout for Telegram auth to prevent hanging
+            const authPromise = fetch("/api/telegram/auth", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ initData: tg.initData }),
+            })
+            const timeoutPromise = new Promise<Response>((_, reject) =>
+              setTimeout(() => reject(new Error("Telegram auth timeout")), 5000)
+            )
+
+            const authRes = await Promise.race([authPromise, timeoutPromise])
+
+            if (authRes.ok) {
+              const authData = await authRes.json()
+              if (authData.deviceId) {
+                // Update deviceId to Telegram-based ID for persistence across sessions
+                localStorage.setItem("pinglass_device_id", authData.deviceId)
+                currentDeviceId = authData.deviceId
+                setDeviceId(authData.deviceId)
+                console.log("[TG Auth] Using Telegram deviceId:", authData.deviceId)
+              }
             }
+
+            const telegramRefCode = tg.initDataUnsafe?.start_param
+            if (telegramRefCode && !localStorage.getItem("pinglass_referral_applied")) {
+              localStorage.setItem("pinglass_pending_referral", telegramRefCode)
+              console.log("Telegram referral code detected:", telegramRefCode)
+            }
+
+            tg.ready()
+            tg.expand()
           }
+        } catch (e) {
+          console.error("Failed to process Telegram auth:", e)
+        }
 
-          const telegramRefCode = tg.initDataUnsafe?.start_param
-          if (telegramRefCode && !localStorage.getItem("pinglass_referral_applied")) {
-            localStorage.setItem("pinglass_pending_referral", telegramRefCode)
-            console.log("Telegram referral code detected:", telegramRefCode)
+        // Use the current deviceId (may have been updated by Telegram auth)
+        // Add timeout to prevent blank screen if API hangs
+        const loadAvatarsWithTimeout = Promise.race([
+          loadAvatarsFromServer(currentDeviceId),
+          new Promise<Persona[]>((resolve) => setTimeout(() => resolve([]), 10000)) // 10s timeout
+        ])
+        const loadedAvatars = await loadAvatarsWithTimeout
+
+        // Check if onboarding was completed (flag OR has avatars)
+        const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"
+        const hasAvatars = loadedAvatars && loadedAvatars.length > 0
+
+        if (!onboardingComplete && !hasAvatars) {
+          // First time user - show onboarding
+          setViewState({ view: "ONBOARDING" })
+        } else {
+          // Mark onboarding as complete if user has avatars
+          if (hasAvatars && !onboardingComplete) {
+            localStorage.setItem("pinglass_onboarding_complete", "true")
           }
-
-          tg.ready()
-          tg.expand()
-        }
-      } catch (e) {
-        console.error("Failed to process Telegram auth:", e)
-      }
-
-      // Use the current deviceId (may have been updated by Telegram auth)
-      // Add timeout to prevent blank screen if API hangs
-      const loadAvatarsWithTimeout = Promise.race([
-        loadAvatarsFromServer(currentDeviceId),
-        new Promise<Persona[]>((resolve) => setTimeout(() => resolve([]), 10000)) // 10s timeout
-      ])
-      const loadedAvatars = await loadAvatarsWithTimeout
-
-      // Check if onboarding was completed (flag OR has avatars)
-      const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"
-      const hasAvatars = loadedAvatars && loadedAvatars.length > 0
-
-      if (!onboardingComplete && !hasAvatars) {
-        // First time user - show onboarding
-        setViewState({ view: "ONBOARDING" })
-      } else {
-        // Mark onboarding as complete if user has avatars
-        if (hasAvatars && !onboardingComplete) {
-          localStorage.setItem("pinglass_onboarding_complete", "true")
-        }
-        // Returning user - restore saved view or go to dashboard
-        const savedViewState = loadViewState()
-        if (savedViewState) {
-          if (savedViewState.view === "DASHBOARD" || savedViewState.view === "RESULTS") {
-            setViewState(savedViewState)
+          // Returning user - restore saved view or go to dashboard
+          const savedViewState = loadViewState()
+          if (savedViewState) {
+            if (savedViewState.view === "DASHBOARD" || savedViewState.view === "RESULTS") {
+              setViewState(savedViewState)
+            } else {
+              setViewState({ view: "DASHBOARD" })
+            }
           } else {
             setViewState({ view: "DASHBOARD" })
           }
-        } else {
-          setViewState({ view: "DASHBOARD" })
         }
+      } catch (e) {
+        console.error("[Init] Critical error:", e)
+        // On any error, show onboarding as fallback
+        setViewState({ view: "ONBOARDING" })
+      } finally {
+        // ALWAYS show UI - never leave user on blank screen
+        setIsReady(true)
       }
-
-      setIsReady(true)
     }
 
     initApp()
