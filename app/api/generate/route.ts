@@ -80,6 +80,21 @@ async function runBackgroundGeneration(params: {
   let firstPhotoUrl: string | null = null
 
   try {
+    // RACE CONDITION FIX: Atomic lock to prevent dual execution
+    // Only proceed if we can atomically update status from 'pending' to 'processing'
+    const lockResult = await sql`
+      UPDATE generation_jobs
+      SET status = 'processing', updated_at = NOW()
+      WHERE id = ${jobId} AND status = 'pending'
+      RETURNING id
+    `
+
+    if (lockResult.length === 0) {
+      // Job already being processed or completed - skip to prevent duplicate execution
+      logger.warn("Job already locked/processing, skipping duplicate execution", { jobId })
+      return
+    }
+
     logger.info("Starting background generation", {
       jobId,
       avatarId: dbAvatarId,
@@ -373,7 +388,7 @@ export async function POST(request: NextRequest) {
 
     const job = await sql`
       INSERT INTO generation_jobs (avatar_id, style_id, status, total_photos)
-      VALUES (${dbAvatarId}, ${styleId}, 'processing', ${totalPhotos})
+      VALUES (${dbAvatarId}, ${styleId}, 'pending', ${totalPhotos})
       RETURNING *
     `.then((rows) => rows[0])
 

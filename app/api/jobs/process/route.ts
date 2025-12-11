@@ -39,21 +39,54 @@ export async function POST(request: Request) {
   })
 
   try {
-    // Verify job exists and is still processing
-    const job = await sql`
-      SELECT id, status, completed_photos, total_photos
-      FROM generation_jobs
-      WHERE id = ${jobId}
-    `.then((rows) => rows[0])
+    // For first chunk, use atomic lock to prevent dual execution with local after()
+    if (startIndex === 0) {
+      const lockResult = await sql`
+        UPDATE generation_jobs
+        SET status = 'processing', updated_at = NOW()
+        WHERE id = ${jobId} AND status = 'pending'
+        RETURNING id
+      `
 
-    if (!job) {
-      console.error("[Jobs/Process] Job not found:", jobId)
-      return NextResponse.json({ error: "Job not found" }, { status: 404 })
-    }
+      if (lockResult.length === 0) {
+        // Check if already processing (which is fine) or finished
+        const job = await sql`
+          SELECT status FROM generation_jobs WHERE id = ${jobId}
+        `.then((rows) => rows[0])
 
-    if (job.status === "completed" || job.status === "failed") {
-      console.log("[Jobs/Process] Job already finished:", job.status)
-      return NextResponse.json({ success: true, skipped: true })
+        if (!job) {
+          console.error("[Jobs/Process] Job not found:", jobId)
+          return NextResponse.json({ error: "Job not found" }, { status: 404 })
+        }
+
+        if (job.status === "completed" || job.status === "failed") {
+          console.log("[Jobs/Process] Job already finished:", job.status)
+          return NextResponse.json({ success: true, skipped: true })
+        }
+
+        // If status is 'processing', another executor started first - skip this one
+        if (job.status === "processing") {
+          console.log("[Jobs/Process] Job already being processed by another executor, skipping")
+          return NextResponse.json({ success: true, skipped: true, reason: "already_processing" })
+        }
+      }
+    } else {
+      // For subsequent chunks, just verify job exists and is still processing
+      const job = await sql`
+        SELECT id, status, completed_photos, total_photos
+        FROM generation_jobs
+        WHERE id = ${jobId}
+      `.then((rows) => rows[0])
+
+      if (!job) {
+        console.error("[Jobs/Process] Job not found:", jobId)
+        return NextResponse.json({ error: "Job not found" }, { status: 404 })
+      }
+
+      if (job.status === "completed" || job.status === "failed") {
+        console.log("[Jobs/Process] Job already finished:", job.status)
+        return NextResponse.json({ success: true, skipped: true })
+      }
     }
 
     // Get prompts for this chunk
