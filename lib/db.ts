@@ -22,9 +22,9 @@ export async function query<T = any>(
   }
 
   const db = neon(process.env.DATABASE_URL)
-  // Use the neon function directly with tagged template or call with array
-  const result = await db(text, params || [])
-  return { rows: result as T[] }
+  // Use .query() method for conventional function call with placeholders
+  const result = await db.query(text, params || [])
+  return { rows: result.rows as T[] }
 }
 
 

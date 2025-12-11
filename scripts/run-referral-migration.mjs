@@ -19,7 +19,17 @@ async function runMigration() {
   console.log("Running referral migration...")
 
   try {
-    await sql(migration)
+    // Split migration into separate statements and run each
+    const statements = migration
+      .split(';')
+      .map(s => s.trim())
+      .filter(s => s.length > 0 && !s.startsWith('--'))
+
+    for (const stmt of statements) {
+      await sql.query(stmt)
+      console.log("✓ Executed:", stmt.substring(0, 50) + "...")
+    }
+
     console.log("✅ Referral tables created successfully!")
   } catch (error) {
     console.error("❌ Migration failed:", error.message)
