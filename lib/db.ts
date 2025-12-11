@@ -22,9 +22,9 @@ export async function query<T = any>(
   }
 
   const db = neon(process.env.DATABASE_URL)
-  // Use .query() method for conventional function call with placeholders
+  // neon .query() returns array directly (not { rows: [] } like pg Pool)
   const result = await db.query(text, params || [])
-  return { rows: result.rows as T[] }
+  return { rows: result as T[] }
 }
 
 
