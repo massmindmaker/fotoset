@@ -13,13 +13,7 @@ Sentry.init({
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
 
-  // Enable profiling for performance monitoring
-  profilesSampleRate: 1.0,
-
-  integrations: [
-    // Add profiling integration for server-side performance
-    Sentry.nodeProfilingIntegration(),
-  ],
+  // Profiling disabled - requires @sentry/profiling-node which has compatibility issues with Next.js 16
 
   // Filter events before sending
   beforeSend(event, hint) {
