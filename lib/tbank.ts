@@ -77,65 +77,39 @@ export async function initPayment(
   failUrl: string,
   notificationUrl?: string,
   customerEmail?: string,
-  paymentMethod?: PaymentMethod,
+  _paymentMethod?: PaymentMethod,
 ): Promise<TBankPayment> {
   // Check if credentials are configured
   if (!HAS_CREDENTIALS) {
     throw new Error("T-Bank credentials not configured. Set TBANK_TERMINAL_KEY and TBANK_PASSWORD environment variables.")
   }
 
+  const amountInKopeks = Math.round(amount * 100)
+
   // Log API call
   console.log("[T-Bank] Calling API", {
     testMode: IS_TEST_MODE,
     orderId,
     amount,
-    terminalKeyLength: TBANK_TERMINAL_KEY.length
+    amountInKopeks,
+    terminalKeyLength: TBANK_TERMINAL_KEY.length,
+    terminalKeyPrefix: TBANK_TERMINAL_KEY.substring(0, 6),
   })
 
-  const amountInKopeks = amount * 100
-
-  // Создаём чек для ФЗ-54
-  const receipt: Receipt | undefined = customerEmail
-    ? {
-        Email: customerEmail,
-        Taxation: "usn_income",
-        Items: [
-          {
-            Name: description,
-            Price: amountInKopeks,
-            Quantity: 1,
-            Amount: amountInKopeks,
-            Tax: "none",
-            PaymentMethod: "full_payment",
-            PaymentObject: "service",
-          },
-        ],
-      }
-    : undefined
-
-  // Параметры для создания платежа
+  // Все параметры для Token (кроме Receipt, DATA, Token)
   const params: Record<string, string | number> = {
     TerminalKey: TBANK_TERMINAL_KEY,
     Amount: amountInKopeks,
     OrderId: orderId,
-    Description: description,
+    Description: description.substring(0, 250), // Max 250 chars
   }
 
-  // Добавляем URL возврата и уведомлений
+  // Добавляем URL в params ДО генерации токена
   if (successUrl) params.SuccessURL = successUrl
   if (failUrl) params.FailURL = failUrl
   if (notificationUrl) params.NotificationURL = notificationUrl
 
-  // Определяем PayType для разных способов оплаты
-  let payType = "O" // One-stage payment by default
-  if (paymentMethod === "sbp") {
-    payType = "O"
-  } else if (paymentMethod === "tpay") {
-    payType = "O"
-  }
-  params.PayType = payType
-
-  // Генерируем токен (без Receipt, DATA и сложных объектов)
+  // Генерируем токен из ВСЕХ параметров (кроме Receipt, DATA)
   const token = generateToken(params)
 
   // Формируем полное тело запроса
@@ -144,31 +118,13 @@ export async function initPayment(
     Token: token,
   }
 
-  // Добавляем чек если есть email
-  if (receipt) {
-    requestBody.Receipt = receipt
-  }
-
-  // Добавляем DATA с email
+  // DATA добавляется ПОСЛЕ генерации токена (не участвует в подписи)
   if (customerEmail) {
-    requestBody.DATA = {
-      Email: customerEmail,
-    }
+    requestBody.DATA = { Email: customerEmail }
   }
 
-  // Log request (without sensitive data)
-  console.log("[T-Bank] Request:", {
-    url: `${TBANK_API_URL}/Init`,
-    orderId,
-    amount,
-    amountInKopeks,
-    email: customerEmail,
-    paymentMethod,
-    successUrl,
-    failUrl,
-    hasReceipt: !!receipt,
-    hasData: !!customerEmail,
-  })
+  // Log request
+  console.log("[T-Bank] Request body:", JSON.stringify(requestBody, null, 2))
 
   try {
     const response = await fetch(`${TBANK_API_URL}/Init`, {
