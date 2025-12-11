@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/db"
+import { getDeviceId, verifyResourceOwnership } from "@/lib/auth-utils"
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -14,17 +15,19 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid avatar ID" }, { status: 400 })
   }
 
+  // SECURITY: Verify ownership before returning data
+  const deviceId = getDeviceId(request)
+  const ownership = await verifyResourceOwnership(deviceId, "avatar", avatarId)
+
+  if (!ownership.resourceExists) {
+    return NextResponse.json({ error: "Avatar not found" }, { status: 404 })
+  }
+
+  if (!ownership.authorized) {
+    return NextResponse.json({ error: "Access denied" }, { status: 403 })
+  }
+
   try {
-    // Verify avatar exists
-    const avatarResult = await query(
-      "SELECT id, user_id FROM avatars WHERE id = $1",
-      [avatarId]
-    )
-
-    if (avatarResult.rows.length === 0) {
-      return NextResponse.json({ error: "Avatar not found" }, { status: 404 })
-    }
-
     // Get reference photos
     const photosResult = await query(
       `SELECT id, image_url, created_at
@@ -61,6 +64,18 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
   if (isNaN(avatarId)) {
     return NextResponse.json({ error: "Invalid avatar ID" }, { status: 400 })
+  }
+
+  // SECURITY: Verify ownership before deleting
+  const deviceId = getDeviceId(request)
+  const ownership = await verifyResourceOwnership(deviceId, "avatar", avatarId)
+
+  if (!ownership.resourceExists) {
+    return NextResponse.json({ error: "Avatar not found" }, { status: 404 })
+  }
+
+  if (!ownership.authorized) {
+    return NextResponse.json({ error: "Access denied" }, { status: 403 })
   }
 
   try {

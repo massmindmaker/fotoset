@@ -1,174 +1,364 @@
-import { NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/db"
+import { type NextRequest } from "next/server"
+import { sql } from "@/lib/db"
+import {
+  success,
+  error,
+  validateRequired,
+  createLogger,
+} from "@/lib/api-utils"
+
+const logger = createLogger("Avatars/[id]")
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface RouteParams {
   params: Promise<{ id: string }>
 }
 
+interface AvatarDetail {
+  id: number
+  name: string
+  status: "draft" | "processing" | "ready"
+  thumbnailUrl: string | null
+  createdAt: string
+  updatedAt: string
+  photos: {
+    id: number
+    styleId: string
+    prompt: string
+    imageUrl: string
+    createdAt: string
+  }[]
+  generationJob?: {
+    id: number
+    status: string
+    completedPhotos: number
+    totalPhotos: number
+    errorMessage: string | null
+  }
+}
+
+interface UpdateAvatarRequest {
+  name?: string
+  status?: "draft" | "processing" | "ready"
+  thumbnailUrl?: string
+}
+
+// ============================================================================
 // GET /api/avatars/:id - Get single avatar with photos
+// ============================================================================
+
+
+// ============================================================================
+// Helper: Get device ID from request
+// ============================================================================
+
+function getDeviceId(request: NextRequest, body?: any): string | null {
+  const headerDeviceId = request.headers.get("x-device-id")
+  if (headerDeviceId) return headerDeviceId
+  const queryDeviceId = request.nextUrl.searchParams.get("device_id")
+  if (queryDeviceId) return queryDeviceId
+  if (body?.deviceId) return body.deviceId
+  return null
+}
+
+// ============================================================================
+// Helper: Verify avatar ownership
+// ============================================================================
+
+async function verifyAvatarOwnership(
+  avatarId: number,
+  deviceId: string
+): Promise<{ avatar: any; authorized: boolean }> {
+  const avatar = await sql`
+    SELECT a.*, u.device_id as owner_device_id
+    FROM avatars a
+    JOIN users u ON u.id = a.user_id
+    WHERE a.id = ${avatarId}
+  `.then((rows) => rows[0])
+
+  if (!avatar) {
+    return { avatar: null, authorized: false }
+  }
+
+  return { avatar, authorized: avatar.owner_device_id === deviceId }
+}
+
+// ============================================================================
+// GET /api/avatars/:id - Get single avatar with photos
+// ============================================================================
+
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const { id } = await params
   const avatarId = parseInt(id, 10)
 
-  if (isNaN(avatarId)) {
-    return NextResponse.json({ error: "Invalid avatar ID" }, { status: 400 })
+  if (isNaN(avatarId) || avatarId <= 0) {
+    return error("VALIDATION_ERROR", "Invalid avatar ID")
+  }
+
+  // IDOR Protection: Get device ID for authorization
+  const deviceId = getDeviceId(request)
+  if (!deviceId) {
+    return error("UNAUTHORIZED", "Device ID required (header x-device-id or query device_id)")
   }
 
   try {
-    // Get avatar
-    const avatarResult = await query(
-      `SELECT
-        a.id,
-        a.name,
-        a.status,
-        a.thumbnail_url,
-        a.created_at,
-        a.updated_at
-      FROM avatars a
-      WHERE a.id = $1`,
-      [avatarId]
-    )
+    // Verify ownership
+    const { avatar, authorized } = await verifyAvatarOwnership(avatarId, deviceId)
 
-    if (avatarResult.rows.length === 0) {
-      return NextResponse.json({ error: "Avatar not found" }, { status: 404 })
+    if (!avatar) {
+      return error("AVATAR_NOT_FOUND", `Avatar with ID ${avatarId} not found`)
     }
 
-    const avatar = avatarResult.rows[0]
+    if (!authorized) {
+      logger.warn("Unauthorized avatar access attempt", { avatarId, deviceId })
+      return error("FORBIDDEN", "You don't have access to this avatar")
+    }
 
     // Get photos
-    const photosResult = await query(
-      `SELECT id, style_id, prompt, image_url, created_at
-       FROM generated_photos
-       WHERE avatar_id = $1
-       ORDER BY created_at DESC`,
-      [avatarId]
-    )
+    const photos = await sql`
+      SELECT id, style_id, prompt, image_url, created_at
+      FROM generated_photos
+      WHERE avatar_id = ${avatarId}
+      ORDER BY created_at DESC
+    `
 
-    const photos = photosResult.rows.map((row) => ({
-      id: row.id,
-      styleId: row.style_id,
-      prompt: row.prompt,
-      imageUrl: row.image_url,
-      createdAt: row.created_at,
-    }))
+    // Get latest generation job status
+    const latestJob = await sql`
+      SELECT id, status, completed_photos, total_photos, error_message
+      FROM generation_jobs
+      WHERE avatar_id = ${avatarId}
+      ORDER BY created_at DESC
+      LIMIT 1
+    `.then((rows) => rows[0])
 
-    return NextResponse.json({
+    const response: AvatarDetail = {
       id: avatar.id,
       name: avatar.name,
       status: avatar.status,
       thumbnailUrl: avatar.thumbnail_url,
       createdAt: avatar.created_at,
       updatedAt: avatar.updated_at,
-      photos,
+      photos: photos.map((row: any) => ({
+        id: row.id,
+        styleId: row.style_id,
+        prompt: row.prompt,
+        imageUrl: row.image_url,
+        createdAt: row.created_at,
+      })),
+    }
+
+    if (latestJob) {
+      response.generationJob = {
+        id: latestJob.id,
+        status: latestJob.status,
+        completedPhotos: latestJob.completed_photos,
+        totalPhotos: latestJob.total_photos,
+        errorMessage: latestJob.error_message,
+      }
+    }
+
+    logger.info("Avatar fetched", { avatarId, photoCount: photos.length })
+    return success(response)
+  } catch (err) {
+    logger.error("Failed to fetch avatar", {
+      error: err instanceof Error ? err.message : "Unknown error",
+      avatarId,
     })
-  } catch (error) {
-    console.error("[API] GET /api/avatars/:id error:", error)
-    return NextResponse.json(
-      { error: "Failed to fetch avatar" },
-      { status: 500 }
-    )
+    return error("DATABASE_ERROR", "Failed to fetch avatar")
   }
 }
 
+// ============================================================================
 // PATCH /api/avatars/:id - Update avatar
+// ============================================================================
+
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { id } = await params
   const avatarId = parseInt(id, 10)
 
-  if (isNaN(avatarId)) {
-    return NextResponse.json({ error: "Invalid avatar ID" }, { status: 400 })
+  if (isNaN(avatarId) || avatarId <= 0) {
+    return error("VALIDATION_ERROR", "Invalid avatar ID")
   }
 
   try {
     const body = await request.json()
-    const { name, status, thumbnailUrl } = body
+    const { name, status, thumbnailUrl } = body as UpdateAvatarRequest
 
-    // Build dynamic update query
-    const updates: string[] = []
-    const values: (string | number)[] = []
-    let paramIndex = 1
-
-    if (name !== undefined) {
-      updates.push(`name = $${paramIndex++}`)
-      values.push(name)
+    // IDOR Protection: Get device ID for authorization
+    const deviceId = getDeviceId(request, body)
+    if (!deviceId) {
+      return error("UNAUTHORIZED", "Device ID required")
     }
 
-    if (status !== undefined) {
-      updates.push(`status = $${paramIndex++}`)
-      values.push(status)
+    // Verify ownership
+    const { avatar: existing, authorized } = await verifyAvatarOwnership(avatarId, deviceId)
+
+    if (!existing) {
+      return error("AVATAR_NOT_FOUND", `Avatar with ID ${avatarId} not found`)
     }
 
-    if (thumbnailUrl !== undefined) {
-      updates.push(`thumbnail_url = $${paramIndex++}`)
-      values.push(thumbnailUrl)
+    if (!authorized) {
+      logger.warn("Unauthorized avatar update attempt", { avatarId, deviceId })
+      return error("FORBIDDEN", "You don't have access to this avatar")
     }
 
-    if (updates.length === 0) {
-      return NextResponse.json({ error: "No fields to update" }, { status: 400 })
+    // Validate status if provided
+    if (status && !["draft", "processing", "ready"].includes(status)) {
+      return error("VALIDATION_ERROR", "Invalid status. Must be: draft, processing, or ready")
     }
 
-    updates.push(`updated_at = NOW()`)
-    values.push(avatarId)
+    let updated: any = null
 
-    const result = await query(
-      `UPDATE avatars SET ${updates.join(", ")} WHERE id = $${paramIndex} RETURNING *`,
-      values
-    )
-
-    if (result.rows.length === 0) {
-      return NextResponse.json({ error: "Avatar not found" }, { status: 404 })
+    if (name !== undefined && status !== undefined && thumbnailUrl !== undefined) {
+      updated = await sql`
+        UPDATE avatars
+        SET name = ${name}, status = ${status}, thumbnail_url = ${thumbnailUrl}, updated_at = NOW()
+        WHERE id = ${avatarId}
+        RETURNING id, name, status, thumbnail_url, created_at, updated_at
+      `.then((rows) => rows[0])
+    } else if (name !== undefined && status !== undefined) {
+      updated = await sql`
+        UPDATE avatars
+        SET name = ${name}, status = ${status}, updated_at = NOW()
+        WHERE id = ${avatarId}
+        RETURNING id, name, status, thumbnail_url, created_at, updated_at
+      `.then((rows) => rows[0])
+    } else if (name !== undefined && thumbnailUrl !== undefined) {
+      updated = await sql`
+        UPDATE avatars
+        SET name = ${name}, thumbnail_url = ${thumbnailUrl}, updated_at = NOW()
+        WHERE id = ${avatarId}
+        RETURNING id, name, status, thumbnail_url, created_at, updated_at
+      `.then((rows) => rows[0])
+    } else if (status !== undefined && thumbnailUrl !== undefined) {
+      updated = await sql`
+        UPDATE avatars
+        SET status = ${status}, thumbnail_url = ${thumbnailUrl}, updated_at = NOW()
+        WHERE id = ${avatarId}
+        RETURNING id, name, status, thumbnail_url, created_at, updated_at
+      `.then((rows) => rows[0])
+    } else if (name !== undefined) {
+      updated = await sql`
+        UPDATE avatars
+        SET name = ${name}, updated_at = NOW()
+        WHERE id = ${avatarId}
+        RETURNING id, name, status, thumbnail_url, created_at, updated_at
+      `.then((rows) => rows[0])
+    } else if (status !== undefined) {
+      updated = await sql`
+        UPDATE avatars
+        SET status = ${status}, updated_at = NOW()
+        WHERE id = ${avatarId}
+        RETURNING id, name, status, thumbnail_url, created_at, updated_at
+      `.then((rows) => rows[0])
+    } else if (thumbnailUrl !== undefined) {
+      updated = await sql`
+        UPDATE avatars
+        SET thumbnail_url = ${thumbnailUrl}, updated_at = NOW()
+        WHERE id = ${avatarId}
+        RETURNING id, name, status, thumbnail_url, created_at, updated_at
+      `.then((rows) => rows[0])
+    } else {
+      return error("VALIDATION_ERROR", "No fields to update. Provide: name, status, or thumbnailUrl")
     }
 
-    const avatar = result.rows[0]
-
-    return NextResponse.json({
-      id: avatar.id,
-      name: avatar.name,
-      status: avatar.status,
-      thumbnailUrl: avatar.thumbnail_url,
-      updatedAt: avatar.updated_at,
+    logger.info("Avatar updated", {
+      avatarId,
+      updates: { name, status, thumbnailUrl: thumbnailUrl ? "[set]" : undefined },
     })
-  } catch (error) {
-    console.error("[API] PATCH /api/avatars/:id error:", error)
-    return NextResponse.json(
-      { error: "Failed to update avatar" },
-      { status: 500 }
-    )
+
+    return success({
+      id: updated.id,
+      name: updated.name,
+      status: updated.status,
+      thumbnailUrl: updated.thumbnail_url,
+      createdAt: updated.created_at,
+      updatedAt: updated.updated_at,
+    })
+  } catch (err) {
+    logger.error("Failed to update avatar", {
+      error: err instanceof Error ? err.message : "Unknown error",
+      avatarId,
+    })
+    return error("DATABASE_ERROR", "Failed to update avatar")
   }
 }
 
-// DELETE /api/avatars/:id - Delete avatar and its photos
+// ============================================================================
+// DELETE /api/avatars/:id - Delete avatar and all related data
+// ============================================================================
+
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const { id } = await params
   const avatarId = parseInt(id, 10)
 
-  if (isNaN(avatarId)) {
-    return NextResponse.json({ error: "Invalid avatar ID" }, { status: 400 })
+  if (isNaN(avatarId) || avatarId <= 0) {
+    return error("VALIDATION_ERROR", "Invalid avatar ID")
+  }
+
+  // IDOR Protection: Get device ID for authorization
+  const deviceId = getDeviceId(request)
+  if (!deviceId) {
+    return error("UNAUTHORIZED", "Device ID required (header x-device-id or query device_id)")
   }
 
   try {
-    // Delete associated photos first (cascade should handle this, but being explicit)
-    await query("DELETE FROM generated_photos WHERE avatar_id = $1", [avatarId])
+    // Verify ownership
+    const { avatar: existing, authorized } = await verifyAvatarOwnership(avatarId, deviceId)
 
-    // Delete generation jobs
-    await query("DELETE FROM generation_jobs WHERE avatar_id = $1", [avatarId])
-
-    // Delete avatar
-    const result = await query(
-      "DELETE FROM avatars WHERE id = $1 RETURNING id",
-      [avatarId]
-    )
-
-    if (result.rows.length === 0) {
-      return NextResponse.json({ error: "Avatar not found" }, { status: 404 })
+    if (!existing) {
+      return error("AVATAR_NOT_FOUND", `Avatar with ID ${avatarId} not found`)
     }
 
-    return NextResponse.json({ success: true, deletedId: avatarId })
-  } catch (error) {
-    console.error("[API] DELETE /api/avatars/:id error:", error)
-    return NextResponse.json(
-      { error: "Failed to delete avatar" },
-      { status: 500 }
-    )
+    if (!authorized) {
+      logger.warn("Unauthorized avatar delete attempt", { avatarId, deviceId })
+      return error("FORBIDDEN", "You don't have access to this avatar")
+    }
+
+    // Delete in order of dependencies:
+    const deletedRefPhotos = await sql`
+      DELETE FROM reference_photos WHERE avatar_id = ${avatarId}
+      RETURNING id
+    `
+
+    const deletedPhotos = await sql`
+      DELETE FROM generated_photos WHERE avatar_id = ${avatarId}
+      RETURNING id
+    `
+
+    const deletedJobs = await sql`
+      DELETE FROM generation_jobs WHERE avatar_id = ${avatarId}
+      RETURNING id
+    `
+
+    await sql`
+      DELETE FROM avatars WHERE id = ${avatarId}
+    `
+
+    logger.info("Avatar deleted", {
+      avatarId,
+      deletedPhotos: deletedPhotos.length,
+      deletedRefPhotos: deletedRefPhotos.length,
+      deletedJobs: deletedJobs.length,
+    })
+
+    return success({
+      deleted: true,
+      avatarId,
+      deletedCounts: {
+        photos: deletedPhotos.length,
+        referencePhotos: deletedRefPhotos.length,
+        generationJobs: deletedJobs.length,
+      },
+    })
+  } catch (err) {
+    logger.error("Failed to delete avatar", {
+      error: err instanceof Error ? err.message : "Unknown error",
+      avatarId,
+    })
+    return error("DATABASE_ERROR", "Failed to delete avatar")
   }
 }

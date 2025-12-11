@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"
 import { generateMultipleImages, type GenerationResult } from "@/lib/imagen"
 import { PHOTOSET_PROMPTS, STYLE_CONFIGS } from "@/lib/prompts"
@@ -8,15 +8,44 @@ import {
   enhancePromptForConsistency,
 } from "@/lib/image-utils"
 import { sendGenerationNotification } from "@/lib/telegram-notify"
+import {
+  success,
+  error,
+  validateRequired,
+  applyRateLimit,
+  createLogger,
+  type RateLimitConfig,
+} from "@/lib/api-utils"
+import {
+  HAS_QSTASH,
+  publishGenerationJob,
+  GENERATION_CONFIG as QSTASH_CONFIG,
+} from "@/lib/qstash"
 
-// Конфигурация генерации
+const logger = createLogger("Generate")
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
 const GENERATION_CONFIG = {
-  concurrency: 7,              // Параллельные запросы (увеличено для скорости)
-  maxPhotos: 23,               // Максимум фото за генерацию
-  maxReferenceImages: 20,      // Используем все изображения пользователя (10-20)
-  minReferenceImages: 1,       // Минимум для генерации
-  maxRetries: 2,               // Максимум попыток для failed генераций
+  concurrency: 7,              // Parallel requests (increased for speed)
+  maxPhotos: 23,               // Max photos per generation
+  maxReferenceImages: 20,      // Use all user images (10-20)
+  minReferenceImages: 1,       // Minimum for generation
+  maxRetries: 2,               // Max retries for failed generations
 }
+
+// Rate limit: 3 generations per hour per device
+const RATE_LIMIT_CONFIG: RateLimitConfig = {
+  windowMs: 60 * 60 * 1000, // 1 hour
+  maxRequests: 3,
+  keyPrefix: "gen",
+}
+
+// ============================================================================
+// Background Generation
+// ============================================================================
 
 /**
  * Background generation function - runs after response is sent
@@ -50,7 +79,12 @@ async function runBackgroundGeneration(params: {
   let firstPhotoUrl: string | null = null
 
   try {
-    console.log(`[Generate Background] Starting job ${jobId} for avatar ${dbAvatarId}`)
+    logger.info("Starting background generation", {
+      jobId,
+      avatarId: dbAvatarId,
+      totalPhotos,
+      concurrency,
+    })
 
     const results: GenerationResult[] = await generateMultipleImages(
       mergedPrompts,
@@ -65,7 +99,7 @@ async function runBackgroundGeneration(params: {
               UPDATE generation_jobs
               SET completed_photos = ${completed}, updated_at = NOW()
               WHERE id = ${jobId}
-            `.catch(err => console.error("[Generate Background] Progress update failed:", err))
+            `.catch(err => logger.error("Progress update failed", { jobId, error: err.message }))
           }
         },
       }
@@ -82,7 +116,7 @@ async function runBackgroundGeneration(params: {
         await sql`
           INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
           VALUES (${dbAvatarId}, ${styleId}, ${originalPrompt}, ${result.url})
-        `.catch(err => console.error(`[Generate Background] Failed to save photo ${i} to DB:`, err))
+        `.catch(err => logger.error("Failed to save photo to DB", { jobId, photoIndex: i, error: err.message }))
 
         // Set first photo as thumbnail
         if (!firstPhotoUrl) {
@@ -91,10 +125,15 @@ async function runBackgroundGeneration(params: {
             UPDATE avatars
             SET thumbnail_url = ${result.url}, updated_at = NOW()
             WHERE id = ${dbAvatarId}
-          `.catch(err => console.error("[Generate Background] Failed to update thumbnail:", err))
+          `.catch(err => logger.error("Failed to update thumbnail", { avatarId: dbAvatarId, error: err.message }))
         }
       } else {
         failedCount++
+        logger.warn("Photo generation failed", {
+          jobId,
+          photoIndex: i,
+          error: result.error,
+        })
       }
     }
 
@@ -131,18 +170,30 @@ async function runBackgroundGeneration(params: {
           firstPhotoUrl,
           dbAvatarId
         )
-        console.log(`[Generate Background] Telegram notification sent to user ${userWithTelegram.telegram_user_id}`)
+        logger.info("Telegram notification sent", {
+          telegramUserId: userWithTelegram.telegram_user_id,
+          successCount,
+        })
       }
     } catch (notifyError) {
-      console.error("[Generate Background] Telegram notification failed:", notifyError)
+      logger.error("Telegram notification failed", {
+        error: notifyError instanceof Error ? notifyError.message : "Unknown",
+      })
     }
 
     const elapsedTime = Math.round((Date.now() - startTime) / 1000)
-    console.log(`[Generate Background] Job ${jobId} completed in ${elapsedTime}s: ${successCount}/${totalPhotos} successful`)
+    logger.info("Generation completed", {
+      jobId,
+      avatarId: dbAvatarId,
+      successCount,
+      failedCount,
+      totalPhotos,
+      elapsedSeconds: elapsedTime,
+    })
 
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error"
-    console.error(`[Generate Background] Job ${jobId} fatal error:`, errorMessage)
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    logger.error("Generation fatal error", { jobId, error: errorMessage })
 
     // Update job status to failed
     await sql`
@@ -151,7 +202,7 @@ async function runBackgroundGeneration(params: {
           error_message = ${errorMessage},
           updated_at = NOW()
       WHERE id = ${jobId}
-    `.catch(err => console.error("[Generate Background] Failed to update job status:", err))
+    `.catch(e => logger.error("Failed to update job status", { jobId, error: e.message }))
 
     // Reset avatar status
     await sql`
@@ -162,52 +213,75 @@ async function runBackgroundGeneration(params: {
   }
 }
 
+// ============================================================================
+// POST /api/generate - Start photo generation
+// ============================================================================
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
 
   try {
-    const { deviceId, avatarId, styleId, referenceImages, photoCount } = await request.json()
+    const body = await request.json()
 
-    // Валидация входных данных
-    if (!deviceId || !avatarId || !styleId) {
-      return NextResponse.json(
-        { error: "Missing required fields: deviceId, avatarId, styleId" },
-        { status: 400 }
-      )
+    // Validate required fields
+    const validation = validateRequired(body, ["deviceId", "avatarId", "styleId", "referenceImages"])
+    if (!validation.valid) {
+      const missingFields = (validation as { valid: false; missing: string[] }).missing
+      logger.warn("Validation failed", { missing: missingFields })
+      return error("VALIDATION_ERROR", `Missing required fields: ${missingFields.join(", ")}`)
     }
 
-    if (!referenceImages || referenceImages.length === 0) {
-      return NextResponse.json(
-        { error: "At least one reference image is required" },
-        { status: 400 }
-      )
+    const { deviceId, avatarId, styleId, referenceImages, photoCount } = body
+
+    // Apply rate limit
+    const rateLimitError = applyRateLimit(deviceId, RATE_LIMIT_CONFIG)
+    if (rateLimitError) {
+      logger.warn("Rate limit exceeded", { deviceId })
+      return rateLimitError
     }
 
-    // Проверяем или создаем пользователя
+    // Validate reference images
+    if (!Array.isArray(referenceImages) || referenceImages.length === 0) {
+      return error("NO_REFERENCE_IMAGES", "At least one reference image is required")
+    }
+
+    // Validate style
+    const styleConfig = STYLE_CONFIGS[styleId as keyof typeof STYLE_CONFIGS]
+    if (!styleConfig) {
+      return error("INVALID_STYLE", `Invalid style: ${styleId}. Available: ${Object.keys(STYLE_CONFIGS).join(", ")}`)
+    }
+
+    logger.info("Generation request received", {
+      deviceId,
+      avatarId,
+      styleId,
+      referenceCount: referenceImages.length,
+      requestedPhotos: photoCount,
+    })
+
+    // Find or create user
     let user = await sql`
       SELECT * FROM users WHERE device_id = ${deviceId}
     `.then((rows) => rows[0])
 
     if (!user) {
-      // Создаем пользователя если не существует
       user = await sql`
         INSERT INTO users (device_id) VALUES (${deviceId})
         RETURNING *
       `.then((rows) => rows[0])
-      console.log(`[Generate] Created new user ${user.id} for device ${deviceId}`)
+      logger.info("Created new user", { userId: user.id, deviceId })
     }
 
-    // Проверяем avatar - если это timestamp string от фронтенда, создаем новый в БД
+    // Handle avatar - if timestamp string from frontend, create new in DB
     let dbAvatarId: number
 
     // PostgreSQL INTEGER max = 2,147,483,647
-    // Frontend генерирует ID как Date.now() (~1.7 trillion), что переполняет INTEGER
+    // Frontend generates ID as Date.now() (~1.7 trillion), which overflows INTEGER
     const parsedAvatarId = parseInt(avatarId)
     const isValidDbId = !isNaN(parsedAvatarId) && parsedAvatarId > 0 && parsedAvatarId <= 2147483647
 
     let existingAvatar = null
     if (isValidDbId) {
-      // Только если ID в валидном диапазоне INTEGER, ищем в БД
       existingAvatar = await sql`
         SELECT id FROM avatars WHERE id = ${parsedAvatarId} AND user_id = ${user.id}
       `.then((rows) => rows[0])
@@ -215,52 +289,42 @@ export async function POST(request: NextRequest) {
 
     if (existingAvatar) {
       dbAvatarId = existingAvatar.id
-      console.log(`[Generate] Using existing avatar ${dbAvatarId}`)
+      logger.info("Using existing avatar", { avatarId: dbAvatarId })
     } else {
-      // Создаем новый avatar в БД (frontend ID был timestamp-based или не найден)
       const newAvatar = await sql`
         INSERT INTO avatars (user_id, name, status)
-        VALUES (${user.id}, 'Мой аватар', 'processing')
+        VALUES (${user.id}, 'My Avatar', 'processing')
         RETURNING id
       `.then((rows) => rows[0])
       dbAvatarId = newAvatar.id
-      console.log(`[Generate] Created new avatar ${dbAvatarId} (frontend ID was: ${avatarId}, valid DB ID: ${isValidDbId})`)
+      logger.info("Created new avatar", {
+        avatarId: dbAvatarId,
+        frontendId: avatarId,
+        wasValidDbId: isValidDbId,
+      })
     }
 
-    // Получаем конфигурацию стиля
-    const styleConfig = STYLE_CONFIGS[styleId as keyof typeof STYLE_CONFIGS]
-    if (!styleConfig) {
-      return NextResponse.json(
-        { error: `Invalid style: ${styleId}. Available: ${Object.keys(STYLE_CONFIGS).join(", ")}` },
-        { status: 400 }
-      )
-    }
-
-    // Валидация и фильтрация референсных изображений
-    console.log(`[Generate] Validating ${referenceImages.length} reference images...`)
+    // Validate and filter reference images
+    logger.info("Validating reference images", { count: referenceImages.length })
     const { selected: validReferenceImages, rejected } = filterAndSortReferenceImages(
       referenceImages,
       GENERATION_CONFIG.maxReferenceImages
     )
 
     if (rejected.length > 0) {
-      console.warn(`[Generate] Rejected ${rejected.length} images:`, rejected)
+      logger.warn("Some images rejected", { rejectedCount: rejected.length, reasons: rejected })
     }
 
     if (validReferenceImages.length < GENERATION_CONFIG.minReferenceImages) {
-      return NextResponse.json(
-        {
-          error: "No valid reference images. Please upload clear photos.",
-          rejectedImages: rejected,
-        },
-        { status: 400 }
-      )
+      return error("NO_REFERENCE_IMAGES", "No valid reference images. Please upload clear photos.", {
+        rejectedImages: rejected,
+      })
     }
 
-    console.log(`[Generate] Using ${validReferenceImages.length} reference images`)
+    logger.info("Reference images validated", { validCount: validReferenceImages.length })
 
-    // Сохраняем референсные изображения в БД для повторного использования
-    console.log(`[Generate] Saving ${validReferenceImages.length} reference images to DB...`)
+    // Save reference images to DB for reuse
+    logger.info("Saving reference images to DB", { count: validReferenceImages.length })
     let savedCount = 0
     try {
       const insertPromises = validReferenceImages.map(imageUrl =>
@@ -270,16 +334,16 @@ export async function POST(request: NextRequest) {
       savedCount = results.filter(r => r.status === 'fulfilled').length
       const failedCount = results.filter(r => r.status === 'rejected').length
       if (failedCount > 0) {
-        console.warn(`[Generate] ${failedCount}/${validReferenceImages.length} reference photos failed to save`)
+        logger.warn("Some reference photos failed to save", { savedCount, failedCount })
       }
     } catch (err) {
-      console.error(`[Generate] Failed to save reference photos:`, err)
+      logger.error("Failed to save reference photos", {
+        error: err instanceof Error ? err.message : "Unknown",
+      })
     }
-    console.log(`[Generate] Saved ${savedCount}/${validReferenceImages.length} reference images for avatar ${dbAvatarId}`)
+    logger.info("Reference images saved", { savedCount, avatarId: dbAvatarId })
 
-    // Создаем задачу генерации
-    // ВАЖНО: Количество фото определяется ТОЛЬКО запросом пользователя (7/15/23)
-    // Стили влияют только на оформление промптов, НЕ на количество
+    // Create generation job
     const requestedPhotos = photoCount && photoCount > 0 ? photoCount : GENERATION_CONFIG.maxPhotos
     const totalPhotos = Math.min(requestedPhotos, PHOTOSET_PROMPTS.length, GENERATION_CONFIG.maxPhotos)
 
@@ -289,10 +353,15 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `.then((rows) => rows[0])
 
-    console.log(`[Generate] Created job ${job.id} for avatar ${dbAvatarId}, style: ${styleId}, requested: ${requestedPhotos}, generating: ${totalPhotos}`)
+    logger.info("Generation job created", {
+      jobId: job.id,
+      avatarId: dbAvatarId,
+      styleId,
+      requestedPhotos,
+      totalPhotos,
+    })
 
-    // Берём первые N промптов из полного списка (23 промпта доступно)
-    // Стиль применяется через prefix/suffix, но не ограничивает количество
+    // Prepare prompts with style
     const basePrompts = PHOTOSET_PROMPTS.slice(0, totalPhotos)
     const mergedPrompts = basePrompts.map(basePrompt =>
       smartMergePrompt({
@@ -304,27 +373,68 @@ export async function POST(request: NextRequest) {
       enhancePromptForConsistency(prompt)
     )
 
-    console.log(`[Generate] Prepared ${mergedPrompts.length} prompts with smart merging`)
+    logger.info("Prompts prepared", { count: mergedPrompts.length })
 
-    // Start background generation without awaiting
-    // This allows the API to return immediately while generation continues
-    Promise.resolve().then(() => {
-      runBackgroundGeneration({
-        jobId: job.id,
-        dbAvatarId,
-        userId: user.id,
-        styleId,
-        mergedPrompts,
-        validReferenceImages,
-        totalPhotos,
-        startTime,
-        concurrency: GENERATION_CONFIG.concurrency,
+    // Choose processing method: QStash (background) or local (blocking)
+    if (HAS_QSTASH) {
+      // Use QStash for reliable background processing (survives Vercel timeout)
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.headers.get("origin") || "http://localhost:3000"
+
+      logger.info("Using QStash for background generation", { baseUrl })
+
+      const qstashResult = await publishGenerationJob(
+        {
+          jobId: job.id,
+          avatarId: dbAvatarId,
+          deviceId,
+          styleId,
+          photoCount: totalPhotos,
+          referenceImages: validReferenceImages,
+          startIndex: 0,
+          chunkSize: QSTASH_CONFIG.CHUNK_SIZE,
+        },
+        baseUrl
+      )
+
+      if (!qstashResult) {
+        logger.error("Failed to publish to QStash, falling back to local")
+        // Fall back to local generation
+        Promise.resolve().then(() => {
+          runBackgroundGeneration({
+            jobId: job.id,
+            dbAvatarId,
+            userId: user.id,
+            styleId,
+            mergedPrompts,
+            validReferenceImages,
+            totalPhotos,
+            startTime,
+            concurrency: GENERATION_CONFIG.concurrency,
+          })
+        })
+      } else {
+        logger.info("Job published to QStash", { messageId: qstashResult.messageId })
+      }
+    } else {
+      // Local generation (may timeout on Vercel)
+      logger.info("Using local background generation (QStash not configured)")
+      Promise.resolve().then(() => {
+        runBackgroundGeneration({
+          jobId: job.id,
+          dbAvatarId,
+          userId: user.id,
+          styleId,
+          mergedPrompts,
+          validReferenceImages,
+          totalPhotos,
+          startTime,
+          concurrency: GENERATION_CONFIG.concurrency,
+        })
       })
-    })
+    }
 
     // Return immediately with job info for polling
-    return NextResponse.json({
-      success: true,
+    return success({
       jobId: job.id,
       avatarId: dbAvatarId,
       status: "processing",
@@ -332,64 +442,74 @@ export async function POST(request: NextRequest) {
       referenceImagesUsed: validReferenceImages.length,
       referenceImagesRejected: rejected.length,
       style: styleConfig.name,
+      processingMode: HAS_QSTASH ? "qstash" : "local",
     })
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error"
-    console.error("[Generate] Fatal error:", errorMessage)
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    logger.error("Generation request failed", { error: errorMessage })
 
-    return NextResponse.json(
-      {
-        error: "Generation failed",
-        message: errorMessage,
-      },
-      { status: 500 }
-    )
+    return error("GENERATION_FAILED", "Generation failed to start", {
+      message: errorMessage,
+    })
   }
 }
 
-/**
- * GET endpoint для проверки статуса генерации
- */
+// ============================================================================
+// GET /api/generate - Check generation status
+// ============================================================================
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const jobId = searchParams.get("job_id")
   const avatarId = searchParams.get("avatar_id")
 
   if (!jobId && !avatarId) {
-    return NextResponse.json(
-      { error: "Either job_id or avatar_id is required" },
-      { status: 400 }
-    )
+    return error("VALIDATION_ERROR", "Either job_id or avatar_id is required")
   }
 
   try {
     let job
 
     if (jobId) {
+      const parsedJobId = parseInt(jobId, 10)
+      if (isNaN(parsedJobId)) {
+        return error("VALIDATION_ERROR", "Invalid job_id")
+      }
       job = await sql`
-        SELECT * FROM generation_jobs WHERE id = ${jobId}
+        SELECT * FROM generation_jobs WHERE id = ${parsedJobId}
       `.then(rows => rows[0])
     } else {
+      const parsedAvatarId = parseInt(avatarId!, 10)
+      if (isNaN(parsedAvatarId)) {
+        return error("VALIDATION_ERROR", "Invalid avatar_id")
+      }
       job = await sql`
         SELECT * FROM generation_jobs
-        WHERE avatar_id = ${avatarId}
+        WHERE avatar_id = ${parsedAvatarId}
         ORDER BY created_at DESC
         LIMIT 1
       `.then(rows => rows[0])
     }
 
     if (!job) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 })
+      return error("NOT_FOUND", "Generation job not found")
     }
 
-    // Получаем сгенерированные фото
+    // Get generated photos
     const photos = await sql`
       SELECT image_url FROM generated_photos
       WHERE avatar_id = ${job.avatar_id} AND style_id = ${job.style_id}
       ORDER BY created_at ASC
     `
 
-    return NextResponse.json({
+    logger.info("Status checked", {
+      jobId: job.id,
+      status: job.status,
+      completed: job.completed_photos,
+      total: job.total_photos,
+    })
+
+    return success({
       jobId: job.id,
       avatarId: job.avatar_id,
       status: job.status,
@@ -403,11 +523,10 @@ export async function GET(request: NextRequest) {
       createdAt: job.created_at,
       updatedAt: job.updated_at,
     })
-  } catch (error) {
-    console.error("[Generate] Status check error:", error)
-    return NextResponse.json(
-      { error: "Failed to check status" },
-      { status: 500 }
-    )
+  } catch (err) {
+    logger.error("Status check failed", {
+      error: err instanceof Error ? err.message : "Unknown",
+    })
+    return error("DATABASE_ERROR", "Failed to check generation status")
   }
 }

@@ -66,13 +66,13 @@ export default function PersonaApp() {
   const [isReferralOpen, setIsReferralOpen] = useState(false)
 
   // Load avatars from server
-  const loadAvatarsFromServer = async (deviceIdParam: string): Promise<Persona[]> => {
+  const loadAvatarsFromServer = async (deviceIdParam: string) => {
     try {
       const res = await fetch(`/api/avatars?device_id=${deviceIdParam}`)
-      if (!res.ok) return []
+      if (!res.ok) return
 
       const data = await res.json()
-      if (!data.avatars || data.avatars.length === 0) return []
+      if (!data.avatars || data.avatars.length === 0) return
 
       const loadedPersonas: Persona[] = await Promise.all(
         data.avatars.map(async (avatar: { id: number; name: string; status: string; thumbnailUrl?: string }) => {
@@ -112,10 +112,8 @@ export default function PersonaApp() {
       )
 
       setPersonas(loadedPersonas)
-      return loadedPersonas
     } catch (err) {
       console.error("[Init] Failed to load avatars:", err)
-      return []
     }
   }
 
@@ -178,29 +176,13 @@ export default function PersonaApp() {
         console.error("Failed to process Telegram auth:", e)
       }
 
-      const loadedAvatars = await loadAvatarsFromServer(id)
+      await loadAvatarsFromServer(id)
 
-      // Check if onboarding was completed (flag OR has avatars)
-      const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"
-      const hasAvatars = loadedAvatars && loadedAvatars.length > 0
-
-      if (!onboardingComplete && !hasAvatars) {
-        // First time user - show onboarding
-        setViewState({ view: "ONBOARDING" })
-      } else {
-        // Mark onboarding as complete if user has avatars
-        if (hasAvatars && !onboardingComplete) {
-          localStorage.setItem("pinglass_onboarding_complete", "true")
-        }
-        // Returning user - restore saved view or go to dashboard
-        const savedViewState = loadViewState()
-        if (savedViewState) {
-          if (savedViewState.view === "DASHBOARD" || savedViewState.view === "RESULTS") {
-            setViewState(savedViewState)
-          } else {
-            setViewState({ view: "DASHBOARD" })
-          }
-        } else {
+      const savedViewState = loadViewState()
+      if (savedViewState) {
+        if (savedViewState.view === "DASHBOARD" || savedViewState.view === "RESULTS") {
+          setViewState(savedViewState)
+        } else if (savedViewState.view !== "ONBOARDING") {
           setViewState({ view: "DASHBOARD" })
         }
       }
@@ -224,13 +206,8 @@ export default function PersonaApp() {
     document.documentElement.classList.toggle("light", newTheme === "light")
   }
 
-  const completeOnboarding = () => {
-    localStorage.setItem("pinglass_onboarding_complete", "true")
-    setViewState({ view: "DASHBOARD" })
-  }
+  const completeOnboarding = () => { setViewState({ view: "DASHBOARD" }) }
   const handleCreatePersona = () => {
-    // Mark onboarding as complete when user starts creating
-    localStorage.setItem("pinglass_onboarding_complete", "true")
     const newId = Date.now().toString()
     setPersonas([...personas, { id: newId, name: "Мой аватар", status: "draft", images: [], generatedAssets: [] }])
     setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: newId })

@@ -1,18 +1,16 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect, lazy, Suspense } from "react"
+import { useState, useRef, useEffect } from "react"
 import {
   Sparkles, Plus, ArrowLeft, ArrowRight, Camera, Loader2, X, CheckCircle2,
   User, Zap, Shield, Star, ChevronRight, Crown, Sun, Moon, Gift, Send,
 } from "lucide-react"
 import Link from "next/link"
-
-// Lazy load heavy components
-const PaymentModal = lazy(() => import("./payment-modal").then(m => ({ default: m.PaymentModal })))
-const ResultsGallery = lazy(() => import("./results-gallery"))
-const ReferralPanel = lazy(() => import("./referral-panel").then(m => ({ default: m.ReferralPanel })))
-const AnimatedLogoCompact = lazy(() => import("./animated-logo").then(m => ({ default: m.AnimatedLogoCompact })))
+import { PaymentModal } from "./payment-modal"
+import ResultsGallery from "./results-gallery"
+import { ReferralPanel } from "./referral-panel"
+import { AnimatedLogoCompact } from "./animated-logo"
 
 export interface PricingTier { id: string; photos: number; price: number; popular?: boolean }
 
@@ -46,18 +44,12 @@ function getDeviceId(): string {
   return deviceId
 }
 
-// Loading fallback component
-const ComponentLoader = () => (
-  <div className="flex items-center justify-center py-4">
-    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-  </div>
-)
-
 export default function PersonaApp() {
   const [viewState, setViewState] = useState<ViewState>({ view: "ONBOARDING" })
   const [personas, setPersonas] = useState<Persona[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 })
+  // isPro state removed - users pay per package, no subscription
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
   const [deviceId, setDeviceId] = useState("")
   const [isReady, setIsReady] = useState(false)
@@ -66,14 +58,15 @@ export default function PersonaApp() {
   const [isReferralOpen, setIsReferralOpen] = useState(false)
 
   // Load avatars from server
-  const loadAvatarsFromServer = async (deviceIdParam: string): Promise<Persona[]> => {
+  const loadAvatarsFromServer = async (deviceIdParam: string) => {
     try {
       const res = await fetch(`/api/avatars?device_id=${deviceIdParam}`)
-      if (!res.ok) return []
+      if (!res.ok) return
 
       const data = await res.json()
-      if (!data.avatars || data.avatars.length === 0) return []
+      if (!data.avatars || data.avatars.length === 0) return
 
+      // Load full avatar data with photos for each avatar
       const loadedPersonas: Persona[] = await Promise.all(
         data.avatars.map(async (avatar: { id: number; name: string; status: string; thumbnailUrl?: string }) => {
           try {
@@ -94,7 +87,7 @@ export default function PersonaApp() {
               id: String(avatar.id),
               name: avatar.name,
               status: avatar.status as "draft" | "processing" | "ready",
-              images: [],
+              images: [], // Server avatars don't have local images
               generatedAssets,
               thumbnailUrl: avatar.thumbnailUrl
             }
@@ -112,18 +105,18 @@ export default function PersonaApp() {
       )
 
       setPersonas(loadedPersonas)
-      return loadedPersonas
     } catch (err) {
       console.error("[Init] Failed to load avatars:", err)
-      return []
     }
   }
 
+  // Save view state to localStorage
   const saveViewState = (state: ViewState) => {
     if (typeof window === "undefined") return
     localStorage.setItem("pinglass_view_state", JSON.stringify(state))
   }
 
+  // Load view state from localStorage
   const loadViewState = (): ViewState | null => {
     if (typeof window === "undefined") return null
     try {
@@ -142,15 +135,18 @@ export default function PersonaApp() {
       const id = getDeviceId()
       setDeviceId(id)
 
+      // Load theme
       const savedTheme = localStorage.getItem("pinglass_theme") as "dark" | "light" | null
       if (savedTheme) {
         setTheme(savedTheme)
         document.documentElement.classList.toggle("light", savedTheme === "light")
       }
 
+      // Handle Telegram WebApp authentication
       try {
         const tg = window.Telegram?.WebApp
         if (tg?.initData) {
+          // Send initData to server for validation
           const authRes = await fetch("/api/telegram/auth", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -160,17 +156,20 @@ export default function PersonaApp() {
           if (authRes.ok) {
             const authData = await authRes.json()
             if (authData.deviceId) {
+              // Use server-validated device ID
               localStorage.setItem("pinglass_device_id", authData.deviceId)
               setDeviceId(authData.deviceId)
             }
           }
 
+          // Handle referral code from start_param
           const telegramRefCode = tg.initDataUnsafe?.start_param
           if (telegramRefCode && !localStorage.getItem("pinglass_referral_applied")) {
             localStorage.setItem("pinglass_pending_referral", telegramRefCode)
             console.log("Telegram referral code detected:", telegramRefCode)
           }
 
+          // Expand the WebApp to full height
           tg.ready()
           tg.expand()
         }
@@ -178,29 +177,17 @@ export default function PersonaApp() {
         console.error("Failed to process Telegram auth:", e)
       }
 
-      const loadedAvatars = await loadAvatarsFromServer(id)
+      // Load avatars from server
+      await loadAvatarsFromServer(id)
 
-      // Check if onboarding was completed (flag OR has avatars)
-      const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"
-      const hasAvatars = loadedAvatars && loadedAvatars.length > 0
-
-      if (!onboardingComplete && !hasAvatars) {
-        // First time user - show onboarding
-        setViewState({ view: "ONBOARDING" })
-      } else {
-        // Mark onboarding as complete if user has avatars
-        if (hasAvatars && !onboardingComplete) {
-          localStorage.setItem("pinglass_onboarding_complete", "true")
-        }
-        // Returning user - restore saved view or go to dashboard
-        const savedViewState = loadViewState()
-        if (savedViewState) {
-          if (savedViewState.view === "DASHBOARD" || savedViewState.view === "RESULTS") {
-            setViewState(savedViewState)
-          } else {
-            setViewState({ view: "DASHBOARD" })
-          }
-        } else {
+      // Restore view state if available (but not for upload/tier views that need local images)
+      const savedViewState = loadViewState()
+      if (savedViewState) {
+        // Only restore DASHBOARD or RESULTS views (not upload/tier that need local file state)
+        if (savedViewState.view === "DASHBOARD" || savedViewState.view === "RESULTS") {
+          setViewState(savedViewState)
+        } else if (savedViewState.view !== "ONBOARDING") {
+          // For other views, go to dashboard
           setViewState({ view: "DASHBOARD" })
         }
       }
@@ -211,6 +198,7 @@ export default function PersonaApp() {
     initApp()
   }, [])
 
+  // Save view state when it changes
   useEffect(() => {
     if (isReady) {
       saveViewState(viewState)
@@ -224,13 +212,8 @@ export default function PersonaApp() {
     document.documentElement.classList.toggle("light", newTheme === "light")
   }
 
-  const completeOnboarding = () => {
-    localStorage.setItem("pinglass_onboarding_complete", "true")
-    setViewState({ view: "DASHBOARD" })
-  }
+  const completeOnboarding = () => { setViewState({ view: "DASHBOARD" }) }
   const handleCreatePersona = () => {
-    // Mark onboarding as complete when user starts creating
-    localStorage.setItem("pinglass_onboarding_complete", "true")
     const newId = Date.now().toString()
     setPersonas([...personas, { id: newId, name: "Мой аватар", status: "draft", images: [], generatedAssets: [] }])
     setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: newId })
@@ -242,13 +225,14 @@ export default function PersonaApp() {
   }
   const getActivePersona = () => "personaId" in viewState ? personas.find(p => p.id === viewState.personaId) : null
 
+  // Helper to convert File to base64
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = (ev) => {
         const result = ev.target?.result as string
         if (result) {
-          resolve(result.split(",")[1])
+          resolve(result.split(",")[1]) // Remove data:image/...;base64, prefix
         } else {
           reject(new Error("Empty file"))
         }
@@ -263,14 +247,17 @@ export default function PersonaApp() {
     setIsGenerating(true)
     setGenerationProgress({ completed: 0, total: tier.photos })
 
+    // Progressive UX: Immediately show results screen with skeleton loaders
     setViewState({ view: "RESULTS", personaId: p.id })
     updatePersona(p.id, { status: "processing" })
 
     try {
+      // Convert Files to base64 only at send time (not stored in state)
       const referenceImages = await Promise.all(
         p.images.slice(0, 14).map(img => fileToBase64(img.file))
       )
 
+      // Start generation
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -286,6 +273,7 @@ export default function PersonaApp() {
       if (!res.ok) throw new Error((await res.json()).error || "Failed")
       const data = await res.json()
 
+      // If we got all photos immediately (fast generation), use them
       if (data.photos && data.photos.length > 0) {
         const newAssets: GeneratedAsset[] = data.photos.map((url: string, i: number) => ({
           id: `${data.jobId}-${i}`,
@@ -304,6 +292,7 @@ export default function PersonaApp() {
         return
       }
 
+      // If jobId returned, start polling for progressive updates
       if (data.jobId) {
         let lastPhotoCount = 0
         const pollInterval = setInterval(async () => {
@@ -311,11 +300,13 @@ export default function PersonaApp() {
             const statusRes = await fetch(`/api/generate?job_id=${data.jobId}`)
             const statusData = await statusRes.json()
 
+            // Update progress
             setGenerationProgress({
               completed: statusData.progress?.completed || 0,
               total: statusData.progress?.total || tier.photos
             })
 
+            // Add new photos as they appear
             if (statusData.photos && statusData.photos.length > lastPhotoCount) {
               const newPhotos = statusData.photos.slice(lastPhotoCount)
               const newAssets: GeneratedAsset[] = newPhotos.map((url: string, i: number) => ({
@@ -338,6 +329,7 @@ export default function PersonaApp() {
               lastPhotoCount = statusData.photos.length
             }
 
+            // Check if generation is complete
             if (statusData.status === "completed" || statusData.status === "failed") {
               clearInterval(pollInterval)
               updatePersona(p.id, { status: statusData.status === "completed" ? "ready" : "draft" })
@@ -351,8 +343,9 @@ export default function PersonaApp() {
           } catch (pollError) {
             console.error("Polling error:", pollError)
           }
-        }, 3000)
+        }, 3000) // Poll every 3 seconds
 
+        // Safety: Stop polling after 15 minutes max
         setTimeout(() => {
           clearInterval(pollInterval)
           setIsGenerating(false)
@@ -378,9 +371,7 @@ export default function PersonaApp() {
         <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-black/5">
           <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Suspense fallback={<div className="w-10 h-10" />}>
-                <AnimatedLogoCompact size={40} className="shadow-xl shadow-primary/30 rounded-2xl ring-2 ring-primary/20" />
-              </Suspense>
+              <AnimatedLogoCompact size={40} className="shadow-xl shadow-primary/30 rounded-2xl ring-2 ring-primary/20" />
               <span className="font-bold text-lg drop-shadow-sm">PinGlass</span>
             </div>
             <div className="flex items-center gap-2">
@@ -394,11 +385,7 @@ export default function PersonaApp() {
           {viewState.view === "DASHBOARD" && <DashboardView personas={personas} onCreate={handleCreatePersona} onSelect={id => { const p = personas.find(x => x.id === id); setViewState(p?.status === "draft" ? { view: "CREATE_PERSONA_UPLOAD", personaId: id } : { view: "RESULTS", personaId: id }) }} onDelete={deletePersona} />}
           {viewState.view === "CREATE_PERSONA_UPLOAD" && getActivePersona() && <UploadView persona={getActivePersona()!} updatePersona={updatePersona} onBack={() => setViewState({ view: "DASHBOARD" })} onNext={() => setViewState({ view: "SELECT_TIER", personaId: viewState.personaId })} />}
           {viewState.view === "SELECT_TIER" && getActivePersona() && <TierSelectView persona={getActivePersona()!} onBack={() => setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: viewState.personaId })} onGenerate={handleGenerate} isGenerating={isGenerating} onUpgrade={t => { setSelectedTier(t); setIsPaymentOpen(true) }} selectedTier={selectedTier} onSelectTier={setSelectedTier} />}
-          {viewState.view === "RESULTS" && getActivePersona() && (
-            <Suspense fallback={<ComponentLoader />}>
-              <ResultsView persona={getActivePersona()!} onBack={() => setViewState({ view: "DASHBOARD" })} onGenerateMore={() => setViewState({ view: "SELECT_TIER", personaId: viewState.personaId })} isGenerating={isGenerating} generationProgress={generationProgress} />
-            </Suspense>
-          )}
+          {viewState.view === "RESULTS" && getActivePersona() && <ResultsView persona={getActivePersona()!} onBack={() => setViewState({ view: "DASHBOARD" })} onGenerateMore={() => setViewState({ view: "SELECT_TIER", personaId: viewState.personaId })} isGenerating={isGenerating} generationProgress={generationProgress} />}
         </main>
         <footer className="mt-auto py-6 px-4 border-t border-border/50">
           <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
@@ -416,14 +403,8 @@ export default function PersonaApp() {
           </div>
         </footer>
       </>)}
-      {isPaymentOpen && (
-        <Suspense fallback={<ComponentLoader />}>
-          <PaymentModal isOpen={isPaymentOpen} onClose={() => setIsPaymentOpen(false)} onSuccess={handlePaymentSuccess} deviceId={deviceId} tier={selectedTier} />
-        </Suspense>
-      )}
-      <Suspense fallback={null}>
-        <ReferralPanel deviceId={deviceId} isOpen={isReferralOpen} onClose={() => setIsReferralOpen(false)} />
-      </Suspense>
+      {isPaymentOpen && <PaymentModal isOpen={isPaymentOpen} onClose={() => setIsPaymentOpen(false)} onSuccess={handlePaymentSuccess} deviceId={deviceId} tier={selectedTier} />}
+      <ReferralPanel deviceId={deviceId} isOpen={isReferralOpen} onClose={() => setIsReferralOpen(false)} />
     </div>
   )
 }
@@ -448,17 +429,20 @@ const OnboardingView: React.FC<{ onComplete: () => void; onStart: () => void }> 
         <div className="relative w-full aspect-square max-w-md mb-8">
           <div className={"absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 rounded-full bg-primary/20 blur-3xl transition-all duration-1000 " + (stage >= 1 ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
           <div className={"absolute top-1/2 left-1/2 w-28 h-28 sm:w-36 sm:h-36 rounded-3xl overflow-hidden holographic-shine border-4 border-transparent animate-holographic-border shadow-2xl shadow-primary/30 " + (stage >= 1 ? "animate-main-image-enter" : "opacity-0")} style={stage < 1 ? { transform: "translate(-50%, -50%) scale(0.3)" } : undefined}>
-            <img src={DEMO_PHOTOS[0]} alt="AI Portrait" className="w-full h-full object-cover" loading="eager" />
+            <img src={DEMO_PHOTOS[0]} alt="AI Portrait" className="w-full h-full object-cover" />
           </div>
+          {/* Inner orbit - 4 photos, clockwise, radius 115px */}
           <div className={"absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full " + (stage >= 2 ? "animate-orbit-ring-enter" : "opacity-0")}>
             <div className="absolute inset-0 animate-orbit-smooth" style={{ "--orbit-duration": "25s" } as React.CSSProperties}>
               {DEMO_PHOTOS.slice(1, 5).map((src, i) => {
                 const angle = i * 90 + 45
                 return (
                   <div key={"inner-" + i} className="absolute" style={{ left: "50%", top: "50%", transform: `rotate(${angle}deg) translateX(115px)` }}>
+                    {/* Wrapper compensates for positioning angle */}
                     <div style={{ transform: `rotate(${-angle}deg)` }}>
+                      {/* Counter-rotation cancels orbit rotation */}
                       <div className={"orbit-content w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden shadow-xl shadow-primary/20 -translate-x-1/2 -translate-y-1/2 " + (i % 2 === 0 ? "neon-frame" : "neon-frame-alt")}>
-                        <img src={src} alt={"Portrait " + i} className="w-full h-full object-cover" loading="lazy" />
+                        <img src={src} alt={"Portrait " + i} className="w-full h-full object-cover" />
                       </div>
                     </div>
                   </div>
@@ -466,15 +450,18 @@ const OnboardingView: React.FC<{ onComplete: () => void; onStart: () => void }> 
               })}
             </div>
           </div>
+          {/* Outer orbit - 6 photos, counter-clockwise, radius 175px */}
           <div className={"absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full " + (stage >= 3 ? "animate-orbit-ring-enter" : "opacity-0")} style={{ animationDelay: "0.2s" }}>
             <div className="absolute inset-0 animate-orbit-smooth-reverse" style={{ "--orbit-duration": "35s" } as React.CSSProperties}>
               {DEMO_PHOTOS.slice(5, 11).map((src, i) => {
                 const angle = i * 60 + 30
                 return (
                   <div key={"outer-" + i} className="absolute" style={{ left: "50%", top: "50%", transform: `rotate(${angle}deg) translateX(175px)` }}>
+                    {/* Wrapper compensates for positioning angle */}
                     <div style={{ transform: `rotate(${-angle}deg)` }}>
+                      {/* Counter-rotation cancels orbit rotation */}
                       <div className={"orbit-content-reverse w-10 h-10 sm:w-12 sm:h-12 rounded-2xl overflow-hidden shadow-lg shadow-accent/20 -translate-x-1/2 -translate-y-1/2 " + (i % 2 === 1 ? "neon-frame-alt" : "neon-frame")}>
-                        <img src={src} alt={"Portrait outer " + i} className="w-full h-full object-cover" loading="lazy" />
+                        <img src={src} alt={"Portrait outer " + i} className="w-full h-full object-cover" />
                       </div>
                     </div>
                   </div>
@@ -536,12 +523,12 @@ const DashboardView: React.FC<{ personas: Persona[]; onCreate: () => void; onSel
         </button>
         {personas.map((persona) => (
           <div key={persona.id} onClick={() => onSelect(persona.id)} className="aspect-[4/5] bg-card rounded-2xl overflow-hidden relative cursor-pointer group shadow-sm border border-border hover:shadow-md transition-all active:scale-[0.98]">
-            {persona.thumbnailUrl ? <img src={persona.thumbnailUrl} alt={persona.name} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" loading="lazy" /> : <div className="w-full h-full bg-muted flex flex-col items-center justify-center p-4 text-center"><div className="w-14 h-14 rounded-full bg-background mb-3 flex items-center justify-center"><User className="w-7 h-7 text-muted-foreground" /></div></div>}
+            {persona.thumbnailUrl ? <img src={persona.thumbnailUrl} alt={persona.name} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" /> : <div className="w-full h-full bg-muted flex flex-col items-center justify-center p-4 text-center"><div className="w-14 h-14 rounded-full bg-background mb-3 flex items-center justify-center"><User className="w-7 h-7 text-muted-foreground" /></div></div>}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent p-3 flex flex-col justify-end">
               <h3 className="text-sm font-semibold text-white truncate">{persona.name}</h3>
               <div className="flex items-center gap-1.5 mt-1"><span className={"w-1.5 h-1.5 rounded-full " + (persona.status === "ready" ? "bg-green-400" : "bg-amber-400")} /><span className="text-[10px] text-white/80">{persona.status === "ready" ? persona.generatedAssets.length + " фото" : "Черновик"}</span></div>
             </div>
-            <button onClick={(e) => onDelete(persona.id, e)} className="absolute top-2 right-2 p-2 bg-black/40 hover:bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all" aria-label="Удалить аватар"><X className="w-4 h-4" /></button>
+            <button onClick={(e) => onDelete(persona.id, e)} className="absolute top-2 right-2 p-2 bg-black/40 hover:bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all"><X className="w-4 h-4" /></button>
           </div>
         ))}
       </div>
@@ -554,22 +541,25 @@ const UploadView: React.FC<{ persona: Persona; updatePersona: (id: string, data:
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || typeof window === "undefined") return
     const newImages: UploadedImage[] = []
-    const MAX_FILE_SIZE = 10 * 1024 * 1024
+    const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
     const VALID_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]
 
     for (let i = 0; i < e.target.files.length; i++) {
       const file = e.target.files[i]
 
+      // Validate file type
       if (!VALID_TYPES.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i)) {
         console.warn(`[Upload] Skipped invalid file type: ${file.name} (${file.type})`)
         continue
       }
 
+      // Validate file size
       if (file.size > MAX_FILE_SIZE) {
         console.warn(`[Upload] Skipped large file: ${file.name} (${Math.round(file.size / 1024 / 1024)}MB)`)
         continue
       }
 
+      // Store File object directly - no base64 conversion in memory
       newImages.push({
         id: Math.random().toString(),
         file,
@@ -583,6 +573,7 @@ const UploadView: React.FC<{ persona: Persona; updatePersona: (id: string, data:
     updatePersona(persona.id, updates)
   }
   const removeImage = (imgId: string) => {
+    // Revoke object URL to free memory
     const img = persona.images.find(i => i.id === imgId)
     if (img) URL.revokeObjectURL(img.previewUrl)
     updatePersona(persona.id, { images: persona.images.filter((i) => i.id !== imgId) })
@@ -593,25 +584,25 @@ const UploadView: React.FC<{ persona: Persona; updatePersona: (id: string, data:
   return (
     <div className="space-y-6 pb-24 sm:pb-6">
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95" aria-label="Назад"><ArrowLeft className="w-5 h-5" /></button>
+        <button onClick={onBack} className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95"><ArrowLeft className="w-5 h-5" /></button>
         <div className="flex-1">
-          <input value={persona.name} onChange={(e) => updatePersona(persona.id, { name: e.target.value })} className="text-lg font-semibold bg-transparent border-none p-0 focus:ring-0 outline-none w-full" placeholder="Название аватара..." aria-label="Название аватара" />
+          <input value={persona.name} onChange={(e) => updatePersona(persona.id, { name: e.target.value })} className="text-lg font-semibold bg-transparent border-none p-0 focus:ring-0 outline-none w-full" placeholder="Название аватара..." />
           <div className="flex items-center gap-2 mt-1">
-            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-[120px]" role="progressbar" aria-valuenow={persona.images.length} aria-valuemin={0} aria-valuemax={20}><div className={"h-full transition-all duration-500 " + (isReady ? "bg-green-500" : "bg-primary")} style={{ width: progress + "%" }} /></div>
+            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-[120px]"><div className={"h-full transition-all duration-500 " + (isReady ? "bg-green-500" : "bg-primary")} style={{ width: progress + "%" }} /></div>
             <span className={"text-xs " + (isReady ? "text-green-600 font-medium" : "text-muted-foreground")}>{persona.images.length}/20 фото</span>
           </div>
         </div>
       </div>
       <div className="p-4 bg-primary/5 border border-primary/10 rounded-2xl">
         <div className="flex gap-3">
-          <Camera className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
+          <Camera className="w-5 h-5 text-primary shrink-0 mt-0.5" />
           <div><p className="text-sm font-medium text-foreground mb-1">Советы для лучшего результата</p><ul className="text-xs text-muted-foreground space-y-1"><li>• Хорошее освещение лица</li><li>• Разные ракурсы и выражения</li><li>• Без солнечных очков и головных уборов</li></ul></div>
         </div>
       </div>
       <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 sm:gap-3">
-        <button onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/50 transition-all flex flex-col items-center justify-center gap-1 group active:scale-95" aria-label="Добавить фото"><Plus className="w-6 h-6 text-muted-foreground group-hover:text-primary" /><span className="text-[10px] text-muted-foreground">Добавить</span></button>
-        <input type="file" multiple accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileUpload} aria-label="Выбрать файлы" />
-        {persona.images.map((img) => (<div key={img.id} className="aspect-square rounded-xl bg-muted overflow-hidden relative group"><img src={img.previewUrl} alt="" className="w-full h-full object-cover" loading="lazy" /><button onClick={() => removeImage(img.id)} className="absolute top-1 right-1 p-1.5 bg-black/50 hover:bg-red-500 rounded-lg text-white opacity-0 group-hover:opacity-100 transition-all" aria-label="Удалить фото"><X className="w-3.5 h-3.5" /></button></div>))}
+        <button onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/50 transition-all flex flex-col items-center justify-center gap-1 group active:scale-95"><Plus className="w-6 h-6 text-muted-foreground group-hover:text-primary" /><span className="text-[10px] text-muted-foreground">Добавить</span></button>
+        <input type="file" multiple accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+        {persona.images.map((img) => (<div key={img.id} className="aspect-square rounded-xl bg-muted overflow-hidden relative group"><img src={img.previewUrl} alt="" className="w-full h-full object-cover" /><button onClick={() => removeImage(img.id)} className="absolute top-1 right-1 p-1.5 bg-black/50 hover:bg-red-500 rounded-lg text-white opacity-0 group-hover:opacity-100 transition-all"><X className="w-3.5 h-3.5" /></button></div>))}
       </div>
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
         <button onClick={onNext} disabled={!isReady} className="w-full sm:w-auto px-6 py-3.5 bg-primary text-primary-foreground font-medium rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 active:scale-[0.98]">Далее<ArrowRight className="w-4 h-4" /></button>
@@ -624,12 +615,12 @@ const UploadView: React.FC<{ persona: Persona; updatePersona: (id: string, data:
 const TierSelectView: React.FC<{ persona: Persona; onBack: () => void; onGenerate: (tier: PricingTier) => void; isGenerating: boolean; onUpgrade: (tier: PricingTier) => void; selectedTier: PricingTier; onSelectTier: (tier: PricingTier) => void }> = ({ onBack, onGenerate, isGenerating, onUpgrade, selectedTier, onSelectTier }) => (
   <div className="space-y-6 pb-24 sm:pb-6">
     <div className="flex items-center gap-3">
-      <button onClick={onBack} className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95" aria-label="Назад"><ArrowLeft className="w-5 h-5" /></button>
+      <button onClick={onBack} className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95"><ArrowLeft className="w-5 h-5" /></button>
       <div><h2 className="text-lg font-semibold">Выберите пакет</h2><p className="text-sm text-muted-foreground">PINGLASS</p></div>
     </div>
     <div className="space-y-3">
       {PRICING_TIERS.map((tier) => (
-        <button key={tier.id} onClick={() => onSelectTier(tier)} className={"w-full p-4 sm:p-5 rounded-3xl transition-all border-2 text-left active:scale-[0.99] " + (selectedTier?.id === tier.id ? "border-primary bg-gradient-to-br from-primary/10 to-accent/5 shadow-2xl shadow-primary/20 ring-2 ring-primary/10" : "border-transparent bg-card shadow-lg shadow-black/5 hover:shadow-xl hover:bg-muted/50")} aria-pressed={selectedTier?.id === tier.id}>
+        <button key={tier.id} onClick={() => onSelectTier(tier)} className={"w-full p-4 sm:p-5 rounded-3xl transition-all border-2 text-left active:scale-[0.99] " + (selectedTier?.id === tier.id ? "border-primary bg-gradient-to-br from-primary/10 to-accent/5 shadow-2xl shadow-primary/20 ring-2 ring-primary/10" : "border-transparent bg-card shadow-lg shadow-black/5 hover:shadow-xl hover:bg-muted/50")}>
           <div className="flex items-center gap-4">
             <div className={"w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-lg transition-all " + (selectedTier?.id === tier.id ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-primary/30" : "bg-muted text-muted-foreground shadow-black/10")}><span className="text-2xl font-bold drop-shadow-sm">{tier.photos}</span></div>
             <div className="flex-1 min-w-0">
@@ -643,6 +634,7 @@ const TierSelectView: React.FC<{ persona: Persona; onBack: () => void; onGenerat
       ))}
     </div>
     <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
+      {/* Payment flow - user pays for selected tier, then generation starts */}
       <button onClick={() => selectedTier && onUpgrade(selectedTier)} disabled={!selectedTier || isGenerating} className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-primary to-accent text-white font-medium rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg shadow-primary/25">
         {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" />Генерация...</> : <><Sparkles className="w-4 h-4" />Оплатить и получить {selectedTier.photos} фото</>}
       </button>
@@ -661,6 +653,7 @@ const ResultsView: React.FC<{ persona: Persona; onBack: () => void; onGenerateMo
 
     setIsSendingToTelegram(true)
     try {
+      // Get Telegram user ID from WebApp if available
       const tg = typeof window !== "undefined" ? (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp : null
       const telegramUserId = tg?.initDataUnsafe?.user?.id
 
@@ -680,6 +673,7 @@ const ResultsView: React.FC<{ persona: Persona; onBack: () => void; onGenerateMo
 
       if (data.success) {
         setTelegramSent(true)
+        // Show success briefly, then allow re-send
         setTimeout(() => setTelegramSent(false), 5000)
       } else {
         alert(data.error || "Не удалось отправить фото")
@@ -694,8 +688,9 @@ const ResultsView: React.FC<{ persona: Persona; onBack: () => void; onGenerateMo
 
   return (
     <div className="space-y-4 pb-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <button onClick={onBack} disabled={isGenerating} className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95 disabled:opacity-50" aria-label="Назад">
+        <button onClick={onBack} disabled={isGenerating} className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95 disabled:opacity-50">
           <ArrowLeft className="w-5 h-5" />
         </button>
         {isGenerating ? (
@@ -709,7 +704,6 @@ const ResultsView: React.FC<{ persona: Persona; onBack: () => void; onGenerateMo
               onClick={sendToTelegram}
               disabled={isSendingToTelegram || assets.length === 0}
               className="flex items-center gap-2 px-4 py-2.5 bg-[#0088cc] hover:bg-[#0077b5] text-white rounded-xl text-sm font-medium transition-all active:scale-95 shadow-lg shadow-[#0088cc]/25 disabled:opacity-50"
-              aria-label="Отправить в Telegram"
             >
               {isSendingToTelegram ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -728,6 +722,7 @@ const ResultsView: React.FC<{ persona: Persona; onBack: () => void; onGenerateMo
         )}
       </div>
 
+      {/* Progress bar during generation */}
       {isGenerating && generationProgress.total > 0 && (
         <div className="space-y-2">
           <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -737,6 +732,7 @@ const ResultsView: React.FC<{ persona: Persona; onBack: () => void; onGenerateMo
         </div>
       )}
 
+      {/* Gallery with skeleton loaders */}
       {assets.length === 0 && !isGenerating ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">Нет сгенерированных фото</p>
@@ -748,10 +744,11 @@ const ResultsView: React.FC<{ persona: Persona; onBack: () => void; onGenerateMo
             personaName={persona.name}
             thumbnailUrl={persona.thumbnailUrl}
           />
+          {/* Skeleton loaders for pending photos */}
           {pendingCount > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {Array.from({ length: pendingCount }).map((_, i) => (
-                <div key={"skeleton-" + i} className="aspect-[3/4] rounded-2xl bg-gradient-to-br from-muted to-muted/50 animate-pulse flex items-center justify-center" role="status" aria-label="Загрузка фото">
+                <div key={"skeleton-" + i} className="aspect-[3/4] rounded-2xl bg-gradient-to-br from-muted to-muted/50 animate-pulse flex items-center justify-center">
                   <Loader2 className="w-6 h-6 text-muted-foreground/50 animate-spin" />
                 </div>
               ))}

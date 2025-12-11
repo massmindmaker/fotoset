@@ -4,6 +4,16 @@ import { sql } from "@/lib/db"
 const MIN_WITHDRAWAL = 5000 // Минимум для вывода
 const NDFL_RATE = 0.13 // НДФЛ 13%
 
+// Generate unique referral code
+function generateCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // No 0,O,1,I for clarity
+  let code = ""
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)]
+  }
+  return code
+}
+
 // GET: Get partner statistics
 export async function GET(request: NextRequest) {
   try {
@@ -13,33 +23,67 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "device_id required" }, { status: 400 })
     }
 
-    // Get user
-    const userResult = await sql`
+    // Get or create user
+    let userResult = await sql`
       SELECT id FROM users WHERE device_id = ${deviceId}
     `
 
+    let userId: number
+
     if (userResult.length === 0) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      // Create new user
+      const newUser = await sql`
+        INSERT INTO users (device_id) VALUES (${deviceId})
+        RETURNING id
+      `
+      userId = newUser[0].id
+      console.log(`[Referral] Created new user ${userId} for device ${deviceId}`)
+    } else {
+      userId = userResult[0].id
     }
 
-    const userId = userResult[0].id
-
-    // Get referral code
-    const codeResult = await sql`
+    // Get or create referral code
+    let codeResult = await sql`
       SELECT code FROM referral_codes WHERE user_id = ${userId} AND is_active = true
     `
 
-    // Get balance
-    const balanceResult = await sql`
+    let referralCode: string | null = codeResult[0]?.code || null
+
+    // Create referral code if doesn't exist
+    if (!referralCode) {
+      let code = generateCode()
+      let attempts = 0
+      const maxAttempts = 10
+
+      // Ensure unique code
+      while (attempts < maxAttempts) {
+        const duplicate = await sql`SELECT id FROM referral_codes WHERE code = ${code}`
+        if (duplicate.length === 0) break
+        code = generateCode()
+        attempts++
+      }
+
+      if (attempts < maxAttempts) {
+        await sql`INSERT INTO referral_codes (user_id, code, is_active) VALUES (${userId}, ${code}, true)`
+        referralCode = code
+        console.log(`[Referral] Created code ${code} for user ${userId}`)
+      }
+    }
+
+    // Get or create balance record
+    let balanceResult = await sql`
       SELECT * FROM referral_balances WHERE user_id = ${userId}
     `
 
-    const balance = balanceResult[0] || {
-      balance: 0,
-      total_earned: 0,
-      total_withdrawn: 0,
-      referrals_count: 0,
+    if (balanceResult.length === 0) {
+      await sql`
+        INSERT INTO referral_balances (user_id, balance, total_earned, total_withdrawn, referrals_count)
+        VALUES (${userId}, 0, 0, 0, 0)
+      `
+      balanceResult = [{ balance: 0, total_earned: 0, total_withdrawn: 0, referrals_count: 0 }]
     }
+
+    const balance = balanceResult[0]
 
     // Get recent referrals (last 10)
     const referralsResult = await sql`
@@ -70,7 +114,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      code: codeResult[0]?.code || null,
+      code: referralCode,
       balance: Number(balance.balance),
       availableBalance,
       totalEarned: Number(balance.total_earned),

@@ -27,7 +27,7 @@ PinGlass/
 │   │   ├── payment/
 │   │   │   ├── create/route.ts    # Создание платежа
 │   │   │   ├── status/route.ts    # Проверка статуса
-│   │   │   └── webhook/route.ts   # YooKassa webhooks
+│   │   │   └── webhook/route.ts   # T-Bank webhooks
 │   │   ├── user/route.ts          # Управление пользователями
 │   │   └── test-models/route.ts   # Тестирование API
 │   ├── payment/callback/          # Callback страница оплаты
@@ -41,7 +41,7 @@ PinGlass/
 │   ├── db.ts                      # Neon PostgreSQL клиент
 │   ├── imagen.ts                  # Google Imagen API
 │   ├── yescale.ts                 # YeScale API wrapper
-│   ├── yookassa.ts                # Платежная интеграция
+│   ├── tbank.ts                   # T-Bank платежная интеграция
 │   ├── prompts.ts                 # 23 промпта + стили
 │   └── utils.ts                   # Tailwind utilities
 ├── styles/globals.css             # Глобальные стили + CSS переменные
@@ -59,7 +59,7 @@ PinGlass/
 - Отказоустойчивость при ошибках отдельных фото
 
 ### 2. Payment System
-- Интеграция с YooKassa (500 ₽)
+- Интеграция с T-Bank (500 ₽)
 - Test mode для разработки
 - Webhook для real-time обновлений статуса
 - Pro-статус по device ID (без аккаунтов)
@@ -168,18 +168,18 @@ App Load → Check localStorage isPro
          ▼
 ┌─────────────────┐
 │ POST /api/      │
-│ payment/create  │ → Creates YooKassa order
+│ payment/create  │ → Creates T-Bank order
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
 │ Redirect to     │
-│ YooKassa        │ ← External payment page
+│ T-Bank          │ ← External payment page
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│ YooKassa        │
+│ T-Bank          │
 │ processes       │
 └────────┬────────┘
     ┌────┴────┐
@@ -308,7 +308,7 @@ App Load → Check localStorage isPro
 **Response:** `{ "isPro": boolean, "status": "succeeded" | "pending" }`
 
 ### `POST /api/payment/webhook`
-YooKassa webhook handler. Обрабатывает `payment.succeeded` и `payment.canceled`.
+T-Bank webhook handler. Обрабатывает `payment.succeeded` и `payment.canceled`. Верифицирует подпись SHA256.
 
 ### `POST /api/user`
 Получение/создание пользователя.
@@ -397,7 +397,7 @@ CREATE TABLE generated_photos (
 CREATE TABLE payments (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id),
-  yookassa_payment_id VARCHAR(255),
+  tbank_payment_id VARCHAR(255),
   amount DECIMAL(10,2),
   currency VARCHAR(3) DEFAULT 'RUB',
   status VARCHAR(20), -- pending, succeeded, canceled
@@ -473,7 +473,7 @@ pnpm lint
 
 - Device ID-based auth (no passwords)
 - API keys should be in environment variables only
-- Payment webhooks verify YooKassa signatures
+- Payment webhooks verify T-Bank SHA256 signatures
 - No rate limiting implemented (consider adding)
 
 ---

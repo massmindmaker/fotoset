@@ -24,74 +24,35 @@ interface ResultsGalleryProps {
   thumbnailUrl?: string
 }
 
-// Telegram Link Modal Component
-const TelegramLinkModal: React.FC<{
-  linkCode: string
-  onClose: () => void
-}> = ({ linkCode, onClose }) => {
-  const [copied, setCopied] = useState(false)
-
-  const copyCode = () => {
-    navigator.clipboard.writeText(linkCode)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+// Telegram Web App types
+declare global {
+  interface Window {
+    Telegram?: {
+      WebApp: {
+        initData: string
+        initDataUnsafe: {
+          user?: {
+            id: number
+            first_name: string
+            last_name?: string
+            username?: string
+          }
+        }
+        ready: () => void
+        close: () => void
+        expand: () => void
+        showAlert: (message: string, callback?: () => void) => void
+      }
+    }
   }
+}
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="bg-card border border-border rounded-2xl max-w-md w-full p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-lg">Привязать Telegram</h3>
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Для отправки фото в Telegram нужно привязать аккаунт:
-          </p>
-
-          <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">
-            <li>Откройте бот @Pinglass_bot в Telegram</li>
-            <li>Отправьте команду /start</li>
-            <li>Отправьте код привязки:</li>
-          </ol>
-
-          <div className="relative">
-            <div className="p-4 bg-muted rounded-xl font-mono text-center text-lg font-semibold">
-              {linkCode}
-            </div>
-            <button
-              onClick={copyCode}
-              className="absolute top-2 right-2 p-2 bg-primary text-primary-foreground rounded-lg text-xs hover:opacity-90 transition-all flex items-center gap-1"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-3 h-3" />
-                  Скопировано
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3 h-3" />
-                  Копировать
-                </>
-              )}
-            </button>
-          </div>
-
-          <a
-            href={`https://t.me/Pinglass_bot?start=${linkCode}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full px-4 py-3 bg-primary text-primary-foreground rounded-xl text-center font-medium hover:opacity-90 transition-all"
-          >
-            Открыть Telegram
-          </a>
-        </div>
-      </div>
-    </div>
-  )
+// Get Telegram Web App instance
+function getTelegramWebApp() {
+  if (typeof window !== "undefined" && window.Telegram?.WebApp) {
+    return window.Telegram.WebApp
+  }
+  return null
 }
 
 // Share Modal Component
@@ -105,9 +66,10 @@ const ShareModal: React.FC<{
   const photoCount = isMultiple ? asset.length : 1
   const shareUrl = isMultiple ? asset[0].url : asset.url
 
+  const appUrl = typeof window !== "undefined" ? window.location.origin : ""
   const shareText = isMultiple
-    ? `Мои AI-фото от ${personaName} (${photoCount} фото)`
-    : `Моё AI-фото от ${personaName}`
+    ? `Мои AI-фото от ${personaName} (${photoCount} фото)\n\nСоздай свои: ${appUrl}`
+    : `Моё AI-фото от ${personaName}\n\nСоздай свои: ${appUrl}`
 
   const copyLink = async () => {
     try {
@@ -298,6 +260,34 @@ const Lightbox: React.FC<{
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [currentIndex, assets.length, onClose, onNavigate])
 
+  // Touch/swipe navigation for mobile
+  const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [touchEnd, setTouchEnd] = useState<number | null>(null)
+  const minSwipeDistance = 50
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > minSwipeDistance
+    const isRightSwipe = distance < -minSwipeDistance
+
+    if (isLeftSwipe && currentIndex < assets.length - 1) {
+      onNavigate(currentIndex + 1)
+    }
+    if (isRightSwipe && currentIndex > 0) {
+      onNavigate(currentIndex - 1)
+    }
+  }
+
   // Prevent body scroll
   useEffect(() => {
     document.body.style.overflow = "hidden"
@@ -330,8 +320,13 @@ const Lightbox: React.FC<{
         </div>
       </div>
 
-      {/* Main image area */}
-      <div className="flex-1 flex items-center justify-center relative px-4 pb-4">
+      {/* Main image area with swipe support */}
+      <div
+        className="flex-1 flex items-center justify-center relative px-4 pb-4"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         {/* Previous button */}
         {currentIndex > 0 && (
           <button
@@ -391,11 +386,9 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
   const [isDownloading, setIsDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState(0)
 
-  // Telegram state
-  const [telegramLinked, setTelegramLinked] = useState(false)
+  // Telegram Web App state
   const [telegramLoading, setTelegramLoading] = useState(false)
-  const [showTelegramModal, setShowTelegramModal] = useState(false)
-  const [telegramLinkCode, setTelegramLinkCode] = useState("")
+  const [isTelegramApp, setIsTelegramApp] = useState(false)
 
   // Share modal state
   const [shareModalAsset, setShareModalAsset] = useState<GeneratedAsset | GeneratedAsset[] | null>(null)
@@ -410,22 +403,14 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
     }
   }, [])
 
-  // Check Telegram link status on mount
+  // Initialize Telegram Web App on mount
   useEffect(() => {
-    const checkTelegramStatus = async () => {
-      const deviceId = localStorage.getItem("pinglass_device_id")
-      if (!deviceId) return
-
-      try {
-        const response = await fetch(`/api/telegram/link?device_id=${deviceId}`)
-        const data = await response.json()
-        setTelegramLinked(data.linked || false)
-      } catch (e) {
-        console.error("Failed to check Telegram status:", e)
-      }
+    const tg = getTelegramWebApp()
+    if (tg && tg.initData) {
+      setIsTelegramApp(true)
+      tg.ready()
+      tg.expand()
     }
-
-    checkTelegramStatus()
   }, [])
 
   // Save favorites to localStorage
@@ -517,7 +502,8 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
             title: "PinGlass Photo",
-            text: `Моё AI-фото от ${personaName}`,
+            text: `Моё AI-фото от ${personaName}\n\nСоздай свои: ${window.location.origin}`,
+            url: window.location.origin,
             files: [file]
           })
           return
@@ -556,7 +542,8 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
         if (navigator.canShare({ files })) {
           await navigator.share({
             title: "PinGlass Photos",
-            text: `Мои AI-фото от ${personaName} (${photosToShare.length} фото)`,
+            text: `Мои AI-фото от ${personaName} (${photosToShare.length} фото)\n\nСоздай свои: ${window.location.origin}`,
+            url: window.location.origin,
             files
           })
           return
@@ -574,66 +561,48 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
     setShareModalAsset(photosToShare)
   }
 
-  // Telegram send handler
+  // Telegram Web App send handler - прямая отправка без кодов
   const handleTelegramSend = async () => {
-    const deviceId = localStorage.getItem("pinglass_device_id")
-    if (!deviceId) {
-      alert("Device ID не найден")
+    const tg = getTelegramWebApp()
+
+    if (!tg || !tg.initData) {
+      // Fallback message if not in Telegram Web App
+      alert("Эта функция доступна только при открытии из Telegram бота @Pinglass_bot")
       return
     }
 
     setTelegramLoading(true)
 
     try {
-      // Check if linked
-      if (!telegramLinked) {
-        // Get link code
-        const linkResponse = await fetch("/api/telegram/link", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ deviceId })
+      const photosToSend = selectedIds.size > 0
+        ? assets.filter(a => selectedIds.has(a.id)).map(a => a.url)
+        : assets.map(a => a.url)
+
+      const response = await fetch("/api/telegram/webapp-send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          initData: tg.initData,
+          photoUrls: photosToSend,
+          personaName
         })
+      })
 
-        const linkData = await linkResponse.json()
+      const data = await response.json()
 
-        if (linkData.code) {
-          setTelegramLinkCode(linkData.code)
-          setShowTelegramModal(true)
-        } else if (linkData.linked) {
-          setTelegramLinked(true)
-          alert("Telegram уже привязан! Нажмите ещё раз для отправки фото.")
-        } else {
-          alert("Не удалось получить код привязки")
-        }
+      if (data.success && data.sent > 0) {
+        tg.showAlert(`Отправлено ${data.sent} из ${data.total} фото в чат!`)
+      } else if (data.code === "INVALID_INIT_DATA" || data.code === "NO_INIT_DATA") {
+        tg.showAlert("Ошибка авторизации. Переоткройте приложение из Telegram.")
       } else {
-        // Send photos
-        const photosToSend = selectedIds.size > 0
-          ? assets.filter(a => selectedIds.has(a.id)).map(a => a.url)
-          : assets.map(a => a.url)
-
-        const sendResponse = await fetch("/api/telegram/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            deviceId,
-            photoUrls: photosToSend
-          })
-        })
-
-        const sendData = await sendResponse.json()
-
-        if (sendData.sent > 0) {
-          alert(`Отправлено ${sendData.sent} из ${sendData.total} фото в Telegram`)
-        } else if (sendData.error === "NOT_LINKED") {
-          setTelegramLinked(false)
-          alert("Telegram не привязан. Нажмите ещё раз для привязки.")
-        } else {
-          alert("Ошибка при отправке в Telegram: " + (sendData.error || "Неизвестная ошибка"))
-        }
+        tg.showAlert(`Ошибка: ${data.error || "Не удалось отправить фото"}`)
       }
     } catch (e) {
-      console.error("Telegram error:", e)
-      alert("Ошибка при работе с Telegram")
+      console.error("Telegram send error:", e)
+      const tgApp = getTelegramWebApp()
+      if (tgApp) {
+        tgApp.showAlert("Ошибка сети. Попробуйте ещё раз.")
+      }
     } finally {
       setTelegramLoading(false)
     }
@@ -670,19 +639,21 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
             <span className="hidden sm:inline">{isSelectionMode ? "Готово" : "Выбрать"}</span>
           </button>
 
-          {/* Telegram button */}
-          <button
-            onClick={handleTelegramSend}
-            disabled={telegramLoading}
-            className="px-3 py-2 bg-[#0088cc] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50"
-          >
-            {telegramLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-            <span className="hidden sm:inline">Telegram</span>
-          </button>
+          {/* Telegram button - показывается только в Telegram Web App */}
+          {isTelegramApp && (
+            <button
+              onClick={handleTelegramSend}
+              disabled={telegramLoading}
+              className="px-3 py-2 bg-[#0088cc] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50"
+            >
+              {telegramLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+              <span className="hidden sm:inline">{selectedIds.size > 0 ? `Отправить (${selectedIds.size})` : "В чат"}</span>
+            </button>
+          )}
 
           {/* Download all */}
           <button
@@ -851,14 +822,6 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
           onShare={sharePhoto}
           favorites={favorites}
           onToggleFavorite={toggleFavorite}
-        />
-      )}
-
-      {/* Telegram Link Modal */}
-      {showTelegramModal && (
-        <TelegramLinkModal
-          linkCode={telegramLinkCode}
-          onClose={() => setShowTelegramModal(false)}
         />
       )}
 

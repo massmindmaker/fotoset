@@ -4,54 +4,69 @@ import { verifyWebhookSignature } from "@/lib/tbank"
 
 const REFERRAL_RATE = 0.10 // 10% партнёру
 
-// Webhook от T-Bank
+// Webhook from T-Bank
 export async function POST(request: NextRequest) {
   try {
     const notification = await request.json()
 
-    // Проверяем подпись вебхука
+    // Log incoming webhook (without sensitive data)
+    console.log("[T-Bank Webhook] Received:", {
+      status: notification.Status,
+      paymentId: notification.PaymentId,
+      orderId: notification.OrderId,
+      amount: notification.Amount,
+      errorCode: notification.ErrorCode,
+    })
+
+    // Verify webhook signature
     const receivedToken = notification.Token || ""
     const isValid = verifyWebhookSignature(notification, receivedToken)
 
     if (!isValid) {
-      console.error("Invalid webhook signature")
+      console.error("[T-Bank Webhook] Invalid signature for payment:", notification.PaymentId)
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 })
     }
 
     const paymentId = notification.PaymentId
     const status = notification.Status
 
-    // T-Bank статусы: NEW, CONFIRMED, REJECTED, AUTHORIZED, PARTIAL_REFUNDED, REFUNDED
+    // T-Bank statuses: NEW, CONFIRMED, REJECTED, AUTHORIZED, PARTIAL_REFUNDED, REFUNDED
     if (status === "CONFIRMED" || status === "AUTHORIZED") {
-      // Обновляем статус платежа
+      console.log("[T-Bank Webhook] Payment confirmed:", paymentId)
+
+      // Update payment status
       await sql`
         UPDATE payments
         SET status = 'succeeded', updated_at = NOW()
         WHERE yookassa_payment_id = ${paymentId}
       `
 
-      // Получаем платеж для реферальной программы
+      // Get payment for referral program
       const payment = await sql`
         SELECT user_id FROM payments
         WHERE yookassa_payment_id = ${paymentId}
       `.then((rows) => rows[0])
 
       if (payment) {
-        // Process referral earning (Pro статус больше не используется)
+        // Process referral earning
         await processReferralEarning(payment.user_id, paymentId)
       }
     } else if (status === "REJECTED") {
+      console.log("[T-Bank Webhook] Payment rejected:", paymentId)
+
       await sql`
         UPDATE payments
         SET status = 'canceled', updated_at = NOW()
         WHERE yookassa_payment_id = ${paymentId}
       `
+    } else {
+      console.log("[T-Bank Webhook] Unhandled status:", status, "for payment:", paymentId)
     }
 
-    // T-Bank требует ответ "OK" для подтверждения получения
+    // T-Bank expects "OK" response to confirm receipt
     return NextResponse.json({ success: true }, { status: 200 })
   } catch (error) {
-    console.error("Webhook error:", error)
+    console.error("[T-Bank Webhook] Error:", error)
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 })
   }
 }
@@ -85,24 +100,23 @@ async function processReferralEarning(userId: number, paymentId: string) {
     const originalAmount = Number(payment.amount)
     const earningAmount = Math.round(originalAmount * REFERRAL_RATE * 100) / 100
 
-    // Check if earning already recorded for this payment
-    const existingEarning = await query(
-      "SELECT id FROM referral_earnings WHERE payment_id = $1",
-      [payment.id]
-    )
-
-    if (existingEarning.rows.length > 0) {
-      return // Already processed
-    }
-
-    // Record earning
-    await query(
+    // ATOMIC: Insert earning with ON CONFLICT to prevent duplicates
+    // This handles race conditions when webhook fires multiple times
+    const insertResult = await query<{ id: number }>(
       `INSERT INTO referral_earnings (referrer_id, referred_id, payment_id, amount, original_amount)
-       VALUES ($1, $2, $3, $4, $5)`,
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (payment_id) DO NOTHING
+       RETURNING id`,
       [referrerId, userId, payment.id, earningAmount, originalAmount]
     )
 
-    // Update referrer balance
+    // If no row returned, earning was already processed (idempotent)
+    if (insertResult.rows.length === 0) {
+      console.log(`[Referral] Earning already processed for payment ${paymentId}`)
+      return
+    }
+
+    // Update referrer balance atomically
     await query(
       `INSERT INTO referral_balances (user_id, balance, total_earned, referrals_count)
        VALUES ($1, $2, $2, 0)

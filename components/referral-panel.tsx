@@ -48,7 +48,6 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
   const [earnings, setEarnings] = useState<ReferralEarning[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [showEarnings, setShowEarnings] = useState(false)
   const [copiedTelegram, setCopiedTelegram] = useState(false)
@@ -111,38 +110,82 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
     }
   }
 
-  const copyLink = async () => {
-    if (!stats?.code) return
-    const link = `${window.location.origin}/?ref=${stats.code}`
-    await navigator.clipboard.writeText(link)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  const copyCode = async () => {
-    if (!stats?.code) return
-    await navigator.clipboard.writeText(stats.code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   const copyTelegramLink = async () => {
     if (!stats?.code) return
-    // URL encode referral code to handle special characters safely
     const sanitizedCode = encodeURIComponent(stats.code)
     const telegramDeeplink = `https://t.me/Pinglass_bot/Pinglass?startapp=${sanitizedCode}`
-    await navigator.clipboard.writeText(telegramDeeplink)
-    setCopiedTelegram(true)
-    setTimeout(() => setCopiedTelegram(false), 2000)
+
+    try {
+      // Try Telegram WebApp API first (works in Telegram Mini Apps)
+      const tg = (window as unknown as { Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void; showAlert?: (msg: string) => void } } }).Telegram?.WebApp
+
+      // Try modern clipboard API
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(telegramDeeplink)
+        setCopiedTelegram(true)
+        setTimeout(() => setCopiedTelegram(false), 2000)
+        return
+      }
+
+      // Fallback: create temporary textarea
+      const textArea = document.createElement('textarea')
+      textArea.value = telegramDeeplink
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-9999px'
+      textArea.style.top = '-9999px'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+
+      const success = document.execCommand('copy')
+      document.body.removeChild(textArea)
+
+      if (success) {
+        setCopiedTelegram(true)
+        setTimeout(() => setCopiedTelegram(false), 2000)
+      } else if (tg?.showAlert) {
+        tg.showAlert('Скопируйте ссылку вручную: ' + telegramDeeplink)
+      } else {
+        alert('Не удалось скопировать. Ссылка: ' + telegramDeeplink)
+      }
+    } catch (err) {
+      console.error('Copy failed:', err)
+      // Last resort - show the link
+      alert('Ссылка для копирования:\n' + telegramDeeplink)
+    }
   }
 
   const shareTelegram = () => {
     if (!stats?.code) return
-    // URL encode referral code to handle special characters safely
     const sanitizedCode = encodeURIComponent(stats.code)
     const telegramDeeplink = `https://t.me/Pinglass_bot/Pinglass?startapp=${sanitizedCode}`
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(telegramDeeplink)}&text=${encodeURIComponent('Создай свои AI-фотографии в PinGlass!')}`
-    window.open(shareUrl, '_blank')
+    const shareText = 'Создай свои AI-фотографии в PinGlass!'
+
+    try {
+      // Check for Telegram WebApp API
+      const tg = (window as unknown as { Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void; switchInlineQuery?: (query: string, chatTypes?: string[]) => void } } }).Telegram?.WebApp
+
+      if (tg?.openTelegramLink) {
+        // Use Telegram's native share via openTelegramLink
+        const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(telegramDeeplink)}&text=${encodeURIComponent(shareText)}`
+        tg.openTelegramLink(shareUrl)
+        return
+      }
+
+      // Fallback: regular window.open
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(telegramDeeplink)}&text=${encodeURIComponent(shareText)}`
+      const popup = window.open(shareUrl, '_blank', 'noopener,noreferrer')
+
+      // If popup was blocked, try location change
+      if (!popup || popup.closed) {
+        window.location.href = shareUrl
+      }
+    } catch (err) {
+      console.error('Share failed:', err)
+      // Fallback to direct navigation
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(telegramDeeplink)}&text=${encodeURIComponent(shareText)}`
+      window.location.href = shareUrl
+    }
   }
 
   if (!isOpen) return null
@@ -158,7 +201,7 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
       {/* Panel */}
       <div className="relative w-full max-w-lg bg-background rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-hidden shadow-2xl border border-border animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
         {/* Header */}
-        <div className="sticky top-0 bg-background/95 backdrop-blur-xl z-10 px-6 py-4 border-b border-border">
+        <div className="sticky top-0 bg-background/95 backdrop-blur-xl z-10 px-4 sm:px-6 py-4 border-b border-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
@@ -179,53 +222,15 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
         </div>
 
         {/* Content */}
-        <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-80px)] space-y-4">
+        <div className="px-4 sm:px-6 py-4 overflow-y-auto max-h-[calc(90vh-80px)] space-y-4">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : stats ? (
             <>
-              {/* Referral Code */}
-              <div className="p-4 bg-gradient-to-br from-primary/10 to-accent/5 rounded-2xl border border-primary/20">
-                <p className="text-sm text-muted-foreground mb-2">Ваш код:</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 text-2xl font-mono font-bold text-foreground tracking-wider">
-                    {stats.code}
-                  </code>
-                  <button
-                    onClick={copyCode}
-                    className="p-2.5 bg-primary/10 hover:bg-primary/20 rounded-xl text-primary transition-colors"
-                  >
-                    {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Share Links */}
-              <div className="space-y-3">
-                {/* Web Link */}
-                <div className="p-4 bg-card rounded-2xl border border-border">
-                  <p className="text-sm text-muted-foreground mb-2">Веб-ссылка:</p>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={`${typeof window !== 'undefined' ? window.location.origin : ''}/?ref=${stats.code}`}
-                      className="flex-1 px-3 py-2 bg-muted rounded-xl text-sm text-foreground truncate"
-                    />
-                    <button
-                      onClick={copyLink}
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
-                    >
-                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      {copied ? "Скопировано" : "Копировать"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Telegram Link */}
-                <div className="p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/5 rounded-2xl border border-blue-500/20">
+              {/* Telegram Referral Link */}
+              <div className="p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/5 rounded-2xl border border-blue-500/20">
                   <div className="flex items-center gap-2 mb-2">
                     <Send className="w-4 h-4 text-blue-500" />
                     <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Telegram ссылка:</p>
@@ -235,14 +240,14 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
                       type="text"
                       readOnly
                       value={`https://t.me/Pinglass_bot/Pinglass?startapp=${encodeURIComponent(stats.code)}`}
-                      className="flex-1 px-3 py-2 bg-blue-500/5 rounded-xl text-sm text-foreground truncate border border-blue-500/10"
+                      className="flex-1 min-w-0 px-3 py-2 bg-blue-500/5 rounded-xl text-sm text-foreground truncate border border-blue-500/10"
                     />
                     <button
                       onClick={copyTelegramLink}
-                      className="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors flex items-center gap-2"
+                      className="shrink-0 w-10 h-10 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors flex items-center justify-center"
                     >
                       {copiedTelegram ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      {copiedTelegram ? "Скопировано" : "Копировать"}
+                      
                     </button>
                   </div>
                   <button
@@ -252,7 +257,6 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
                     <Send className="w-4 h-4" />
                     Поделиться в Telegram
                   </button>
-                </div>
               </div>
 
               {/* Stats Grid */}

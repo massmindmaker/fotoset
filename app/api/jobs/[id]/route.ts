@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/db"
+import { getDeviceId, verifyResourceOwnership } from "@/lib/auth-utils"
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -12,6 +13,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   if (isNaN(jobId)) {
     return NextResponse.json({ error: "Invalid job ID" }, { status: 400 })
+  }
+
+  // SECURITY: Verify ownership before returning job data
+  const deviceId = getDeviceId(request)
+  const ownership = await verifyResourceOwnership(deviceId, "job", jobId)
+
+  if (!ownership.resourceExists) {
+    return NextResponse.json({ error: "Job not found" }, { status: 404 })
+  }
+
+  if (!ownership.authorized) {
+    return NextResponse.json({ error: "Access denied" }, { status: 403 })
   }
 
   try {
@@ -31,10 +44,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       WHERE j.id = $1`,
       [jobId]
     )
-
-    if (jobResult.rows.length === 0) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 })
-    }
 
     const job = jobResult.rows[0]
 
