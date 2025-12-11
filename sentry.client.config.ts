@@ -37,7 +37,7 @@ Sentry.init({
   tracePropagationTargets: [
     "localhost",
     /^https:\/\/.*\.vercel\.app/,
-    /^https:\/\/pinglass\.ru/,
+    /^https:\/\/(www\.)?pinglass\.ru/,
   ],
 
   // Ignore certain errors that are not actionable

@@ -44,7 +44,7 @@ const SECURITY_HEADERS = {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https://*.vercel-insights.com https://*.google.com https://*.googleapis.com https://api.yescale.ai wss://ws.yescale.ai",
+    "connect-src 'self' https://*.vercel-insights.com https://*.google.com https://*.googleapis.com https://api.yescale.ai wss://ws.yescale.ai https://*.sentry.io https://*.ingest.sentry.io https://api.replicate.com https://*.upstash.io https://qstash.upstash.io",
     "frame-src 'self' https://telegram.org https://yoomoney.ru https://securepayments.tinkoff.ru",
     "media-src 'self' blob:",
     "worker-src 'self' blob:",
@@ -183,6 +183,8 @@ export async function middleware(request: NextRequest) {
     const allowedOrigins = [
       process.env.NEXT_PUBLIC_APP_URL || 'https://fotoset.vercel.app',
       'https://fotoset.vercel.app',
+      'https://pinglass.ru',
+      'https://www.pinglass.ru',
       'https://telegram.org',
       'https://web.telegram.org',
     ];
