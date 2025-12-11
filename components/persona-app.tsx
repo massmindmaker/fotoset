@@ -197,7 +197,12 @@ export default function PersonaApp() {
       }
 
       // Use the current deviceId (may have been updated by Telegram auth)
-      const loadedAvatars = await loadAvatarsFromServer(currentDeviceId)
+      // Add timeout to prevent blank screen if API hangs
+      const loadAvatarsWithTimeout = Promise.race([
+        loadAvatarsFromServer(currentDeviceId),
+        new Promise<Persona[]>((resolve) => setTimeout(() => resolve([]), 10000)) // 10s timeout
+      ])
+      const loadedAvatars = await loadAvatarsWithTimeout
 
       // Check if onboarding was completed (flag OR has avatars)
       const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"
