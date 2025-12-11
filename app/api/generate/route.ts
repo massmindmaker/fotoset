@@ -1,4 +1,4 @@
-import { type NextRequest } from "next/server"
+import { type NextRequest, after } from "next/server"
 import { sql } from "@/lib/db"
 import { generateMultipleImages, type GenerationResult } from "@/lib/imagen"
 import { PHOTOSET_PROMPTS, STYLE_CONFIGS } from "@/lib/prompts"
@@ -423,7 +423,7 @@ export async function POST(request: NextRequest) {
       if (!qstashResult) {
         logger.error("Failed to publish to QStash, falling back to local")
         // Fall back to local generation
-        Promise.resolve().then(() => {
+        after(() => {
           runBackgroundGeneration({
             jobId: job.id,
             dbAvatarId,
@@ -442,7 +442,7 @@ export async function POST(request: NextRequest) {
     } else {
       // Local generation (may timeout on Vercel)
       logger.info("Using local background generation (QStash not configured)")
-      Promise.resolve().then(() => {
+      after(() => {
         runBackgroundGeneration({
           jobId: job.id,
           dbAvatarId,
