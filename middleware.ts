@@ -177,15 +177,35 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // CORS headers for API routes (if needed for external calls)
+  // CORS headers for API routes - SECURITY: Restrict to allowed origins only
   if (pathname.startsWith('/api/')) {
+    const origin = request.headers.get('origin');
+    const allowedOrigins = [
+      process.env.NEXT_PUBLIC_APP_URL || 'https://fotoset.vercel.app',
+      'https://fotoset.vercel.app',
+      'https://telegram.org',
+      'https://web.telegram.org',
+    ];
+
+    // Only set CORS headers if origin is allowed
+    if (origin && allowedOrigins.some(allowed => origin.startsWith(allowed))) {
+      response.headers.set('Access-Control-Allow-Origin', origin);
+      response.headers.set('Access-Control-Allow-Credentials', 'true');
+    }
+    // For same-origin requests (no origin header), allow them through
+
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-device-id, x-telegram-init-data');
     response.headers.set('Access-Control-Max-Age', '86400');
 
     // Handle preflight requests
     if (request.method === 'OPTIONS') {
-      return new NextResponse(null, { status: 204, headers: response.headers });
+      // Only respond to preflight if origin is allowed
+      if (origin && allowedOrigins.some(allowed => origin.startsWith(allowed))) {
+        return new NextResponse(null, { status: 204, headers: response.headers });
+      }
+      // Block preflight from unknown origins
+      return new NextResponse(null, { status: 403 });
     }
   }
 

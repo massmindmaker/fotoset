@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { Analytics } from "@vercel/analytics/next"
+import { fontVariables } from "./fonts"
 import "../styles/globals.css"
 
 export const metadata: Metadata = {
@@ -16,8 +17,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5, // WCAG 2.1 - allow zoom for accessibility
+  userScalable: true, // WCAG 2.1 Level AA requirement
   themeColor: "#1a0a10",
   viewportFit: "cover",
 }
@@ -28,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ru">
+    <html lang="ru" className={fontVariables}>
       <head>
         <script src="https://telegram.org/js/telegram-web-app.js" async />
       </head>

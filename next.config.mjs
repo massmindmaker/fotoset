@@ -6,7 +6,29 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true,
+    // Enable image optimization for better performance
+    unoptimized: false,
+    formats: ['image/webp'],
+    deviceSizes: [640, 750, 1080, 1920],
+    minimumCacheTTL: 3600,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.r2.cloudflarestorage.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'pub-8c1af6d8a8944be49e5e168a1b0f03c8.r2.dev',
+      },
+      {
+        protocol: 'https',
+        hostname: 'storage.googleapis.com',
+      },
+    ],
+  },
+  // Optimize package imports to reduce bundle size
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'file-saver', 'jszip'],
   },
   // Empty turbopack config to suppress warning about webpack config
   // Sentry SDK doesn't fully support Turbopack yet, but serverside instrumentation works
