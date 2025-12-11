@@ -189,10 +189,12 @@ export async function middleware(request: NextRequest) {
       'https://web.telegram.org',
     ];
 
-    // Only set CORS headers if origin is allowed
-    if (origin && allowedOrigins.some(allowed => origin.startsWith(allowed))) {
+    // Only set CORS headers if origin is allowed (SECURE: exact match only)
+    if (origin && allowedOrigins.includes(origin)) {
       response.headers.set('Access-Control-Allow-Origin', origin);
       response.headers.set('Access-Control-Allow-Credentials', 'true');
+    } else if (origin) {
+      console.warn('[Security] Rejected CORS request from:', origin);
     }
     // For same-origin requests (no origin header), allow them through
 
@@ -202,8 +204,8 @@ export async function middleware(request: NextRequest) {
 
     // Handle preflight requests
     if (request.method === 'OPTIONS') {
-      // Only respond to preflight if origin is allowed
-      if (origin && allowedOrigins.some(allowed => origin.startsWith(allowed))) {
+      // Only respond to preflight if origin is allowed (SECURE: exact match)
+      if (origin && allowedOrigins.includes(origin)) {
         return new NextResponse(null, { status: 204, headers: response.headers });
       }
       // Block preflight from unknown origins
