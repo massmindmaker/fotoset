@@ -153,21 +153,26 @@ const AssetCard = memo<{
 
 AssetCard.displayName = 'AssetCard'
 
-// Share Modal Component (unchanged)
+// Share Modal Component with referral link
 const ShareModal: React.FC<{
   asset: GeneratedAsset | GeneratedAsset[]
   onClose: () => void
   personaName: string
-}> = ({ asset, onClose, personaName }) => {
+  referralCode?: string | null
+}> = ({ asset, onClose, personaName, referralCode }) => {
   const [copied, setCopied] = useState(false)
   const isMultiple = Array.isArray(asset)
   const photoCount = isMultiple ? asset.length : 1
   const shareUrl = isMultiple ? asset[0].url : asset.url
 
-  const appUrl = typeof window !== "undefined" ? window.location.origin : ""
+  // Build referral link for PinGlass promotion
+  const appUrl = referralCode
+    ? `https://t.me/PinGlassBot/app?startapp=${referralCode}`
+    : (typeof window !== "undefined" ? window.location.origin : "")
+
   const shareText = isMultiple
-    ? `Мои AI-фото от ${personaName} (${photoCount} фото)\n\nСоздай свои: ${appUrl}`
-    : `Моё AI-фото от ${personaName}\n\nСоздай свои: ${appUrl}`
+    ? `Мои AI-фото от ${personaName} (${photoCount} фото)\n\nPinGlass - создай свои AI-портреты:\n${appUrl}`
+    : `Моё AI-фото от ${personaName}\n\nPinGlass - создай свои AI-портреты:\n${appUrl}`
 
   const copyLink = async () => {
     try {
@@ -482,8 +487,9 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
   const [isDownloading, setIsDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState(0)
   const [shareModalAsset, setShareModalAsset] = useState<GeneratedAsset | GeneratedAsset[] | null>(null)
+  const [referralCode, setReferralCode] = useState<string | null>(null)
 
-  // Load favorites from localStorage
+  // Load favorites and referral code from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("pinglass_favorites")
     if (saved) {
@@ -491,6 +497,25 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
         setFavorites(new Set(JSON.parse(saved)))
       } catch {}
     }
+
+    // Load referral code for sharing
+    const loadReferralCode = async () => {
+      const deviceId = localStorage.getItem("pinglass_device_id")
+      if (!deviceId) return
+
+      try {
+        const res = await fetch(`/api/referral/code?device_id=${deviceId}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.code) {
+            setReferralCode(data.code)
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load referral code:", e)
+      }
+    }
+    loadReferralCode()
   }, [])
 
   // Memoized handlers to prevent re-creating functions
@@ -566,6 +591,11 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
   }, [personaName])
 
   const sharePhoto = useCallback(async (asset: GeneratedAsset) => {
+    // Build referral link
+    const shareUrl = referralCode
+      ? `https://t.me/PinGlassBot/app?startapp=${referralCode}`
+      : window.location.origin
+
     if (navigator.share && navigator.canShare) {
       try {
         const response = await fetch(asset.url)
@@ -574,9 +604,8 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
 
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
-            title: "PinGlass Photo",
-            text: `Моё AI-фото от ${personaName}\n\nСоздай свои: ${window.location.origin}`,
-            url: window.location.origin,
+            title: "PinGlass - AI Фото",
+            text: `Моё AI-фото от ${personaName}\n\nPinGlass - создай свои AI-портреты:\n${shareUrl}`,
             files: [file]
           })
           return
@@ -590,7 +619,7 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
     }
 
     setShareModalAsset(asset)
-  }, [personaName])
+  }, [personaName, referralCode])
 
   const selectedAssets = assets.filter(a => selectedIds.has(a.id))
   const favoriteAssets = assets.filter(a => favorites.has(a.id))
@@ -738,6 +767,7 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
           asset={shareModalAsset}
           onClose={() => setShareModalAsset(null)}
           personaName={personaName}
+          referralCode={referralCode}
         />
       )}
     </div>

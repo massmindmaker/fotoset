@@ -154,8 +154,8 @@ export default function PersonaApp() {
     if (typeof window === "undefined") return
 
     const initApp = async () => {
-      const id = getDeviceId()
-      setDeviceId(id)
+      let currentDeviceId = getDeviceId()
+      setDeviceId(currentDeviceId)
 
       const savedTheme = localStorage.getItem("pinglass_theme") as "dark" | "light" | null
       if (savedTheme) {
@@ -175,8 +175,11 @@ export default function PersonaApp() {
           if (authRes.ok) {
             const authData = await authRes.json()
             if (authData.deviceId) {
+              // Update deviceId to Telegram-based ID for persistence across sessions
               localStorage.setItem("pinglass_device_id", authData.deviceId)
+              currentDeviceId = authData.deviceId
               setDeviceId(authData.deviceId)
+              console.log("[TG Auth] Using Telegram deviceId:", authData.deviceId)
             }
           }
 
@@ -193,7 +196,8 @@ export default function PersonaApp() {
         console.error("Failed to process Telegram auth:", e)
       }
 
-      const loadedAvatars = await loadAvatarsFromServer(id)
+      // Use the current deviceId (may have been updated by Telegram auth)
+      const loadedAvatars = await loadAvatarsFromServer(currentDeviceId)
 
       // Check if onboarding was completed (flag OR has avatars)
       const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"

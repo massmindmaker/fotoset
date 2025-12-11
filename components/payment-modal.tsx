@@ -105,21 +105,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         throw new Error((data as unknown as { error: string }).error || "Ошибка создания платежа")
       }
 
-      // Test mode - simulate success
-      if (data.testMode) {
-        setStep("SUCCESS")
-        setTimeout(() => {
-          onSuccess()
-          onClose()
-        }, 2000)
-        return
-      }
-
-      // Production - redirect to payment page
+      // Always redirect to T-Bank payment page (works for both test and production)
+      // In test mode, user enters test card data manually on T-Bank form:
+      // Success: 4111 1111 1111 1111, Fail: 5555 5555 5555 5599
       if (data.confirmationUrl) {
         setStep("REDIRECT")
-        // Open payment in new window or redirect
         window.location.href = data.confirmationUrl
+      } else {
+        throw new Error("Не получен URL для оплаты")
       }
     } catch (error) {
       console.error("Payment error:", error)
