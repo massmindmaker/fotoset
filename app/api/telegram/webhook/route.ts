@@ -3,6 +3,15 @@ import { query } from "@/lib/db"
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 
+// Demo photos for welcome message
+const DEMO_PHOTOS = [
+  "https://www.pinglass.ru/demo/Screenshot_1.png",
+  "https://www.pinglass.ru/demo/Screenshot_2.png",
+  "https://www.pinglass.ru/demo/Screenshot_3.png",
+  "https://www.pinglass.ru/demo/Screenshot_4.png",
+  "https://www.pinglass.ru/demo/Screenshot_5.png",
+]
+
 interface TelegramUpdate {
   message?: {
     chat: { id: number; username?: string; first_name?: string }
@@ -22,6 +31,27 @@ async function sendTelegramMessage(chatId: number, text: string) {
       chat_id: chatId,
       text,
       parse_mode: "HTML",
+    }),
+  })
+}
+
+// Send media group (photos) via Telegram API
+async function sendTelegramPhotos(chatId: number, photoUrls: string[], caption?: string) {
+  if (!TELEGRAM_BOT_TOKEN) return
+
+  const media = photoUrls.map((url, index) => ({
+    type: "photo",
+    media: url,
+    caption: index === 0 ? caption : undefined,
+    parse_mode: index === 0 ? "HTML" : undefined,
+  }))
+
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMediaGroup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      media,
     }),
   })
 }
@@ -47,13 +77,15 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Telegram] Message from ${chatId}: ${text}`)
 
-    // Handle /start command
+    // Handle /start command - send welcome with demo photos
     if (text === "/start") {
-      await sendTelegramMessage(
+      await sendTelegramPhotos(
         chatId,
-        `Привет, ${username}! Это бот PinGlass.\n\n` +
-          `Чтобы получать сгенерированные фото сюда, введите код из приложения.\n\n` +
-          `Формат: <code>XXXXXX</code>`
+        DEMO_PHOTOS,
+        `<b>PinGlass</b> — AI-фотопортреты\n\n` +
+          `Привет, ${username}! Создавай профессиональные фото с помощью ИИ.\n\n` +
+          `Загрузи свои фото в приложении и получи 23 уникальных портрета в разных стилях.\n\n` +
+          `Для привязки аккаунта введите код из приложения.`
       )
       return NextResponse.json({ ok: true })
     }
