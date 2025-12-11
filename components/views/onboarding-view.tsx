@@ -1,8 +1,11 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
-import { Sparkles } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { Sparkles, Send } from "lucide-react"
+
+// Telegram Mini App URL
+const TELEGRAM_MINIAPP_URL = "https://t.me/Pinglass_bot/Pinglass"
 
 const DEMO_PHOTOS = [
   "/demo/Screenshot_1.png", "/demo/Screenshot_2.png", "/demo/Screenshot_3.png",
@@ -18,8 +21,13 @@ export interface OnboardingViewProps {
 
 export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onStart }) => {
   const [stage, setStage] = useState(0)
+  const [isInTelegram, setIsInTelegram] = useState(false)
 
   useEffect(() => {
+    // Check if running inside Telegram WebApp
+    const tg = typeof window !== "undefined" ? window.Telegram?.WebApp : null
+    setIsInTelegram(!!tg?.initData)
+
     const t1 = setTimeout(() => setStage(1), 100)
     const t2 = setTimeout(() => setStage(2), 1200)
     const t3 = setTimeout(() => setStage(3), 1800)
@@ -31,6 +39,16 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSt
       clearTimeout(t4)
     }
   }, [])
+
+  const handleStart = useCallback(() => {
+    if (isInTelegram) {
+      // In Telegram - proceed with normal flow
+      onStart()
+    } else {
+      // In web browser - redirect to Telegram Mini App
+      window.location.href = TELEGRAM_MINIAPP_URL
+    }
+  }, [isInTelegram, onStart])
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden bg-gradient-mesh">
@@ -147,7 +165,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSt
           </p>
         </div>
         <button
-          onClick={onStart}
+          onClick={handleStart}
           className={
             "w-full max-w-xs py-4 px-8 bg-gradient-to-r from-primary to-accent text-white font-semibold text-lg rounded-3xl hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-primary/25 " +
             (stage >= 4 ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0")
@@ -155,8 +173,17 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSt
           style={{ transitionDelay: "200ms" }}
         >
           <span className="flex items-center justify-center gap-2">
-            <Sparkles className="w-5 h-5" />
-            Начать!
+            {isInTelegram ? (
+              <>
+                <Sparkles className="w-5 h-5" />
+                Начать!
+              </>
+            ) : (
+              <>
+                <Send className="w-5 h-5" />
+                Открыть в Telegram
+              </>
+            )}
           </span>
         </button>
       </div>

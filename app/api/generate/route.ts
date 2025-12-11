@@ -262,15 +262,19 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    // Validate required fields
-    const validation = validateRequired(body, ["deviceId", "avatarId", "styleId", "referenceImages"])
+    // Validate required fields (referenceImages optional if useStoredReferences=true)
+    const { deviceId, avatarId, styleId, referenceImages, photoCount, useStoredReferences } = body
+
+    const requiredFields = useStoredReferences
+      ? ["deviceId", "avatarId", "styleId"]
+      : ["deviceId", "avatarId", "styleId", "referenceImages"]
+
+    const validation = validateRequired(body, requiredFields)
     if (!validation.valid) {
       const missingFields = (validation as { valid: false; missing: string[] }).missing
       logger.warn("Validation failed", { missing: missingFields })
       return error("VALIDATION_ERROR", `Missing required fields: ${missingFields.join(", ")}`)
     }
-
-    const { deviceId, avatarId, styleId, referenceImages, photoCount } = body
 
     // Apply rate limit
     const rateLimitError = applyRateLimit(deviceId, RATE_LIMIT_CONFIG)
@@ -279,9 +283,42 @@ export async function POST(request: NextRequest) {
       return rateLimitError
     }
 
-    // Validate reference images
-    if (!Array.isArray(referenceImages) || referenceImages.length === 0) {
-      return error("NO_REFERENCE_IMAGES", "At least one reference image is required")
+    // Get reference images - either from request or from stored DB records
+    let referenceImagesList: string[] = []
+
+    if (useStoredReferences) {
+      // Fetch stored reference photos from database
+      logger.info("Using stored reference images", { avatarId })
+
+      // First verify the avatar belongs to this user
+      const avatarCheck = await sql`
+        SELECT a.id FROM avatars a
+        JOIN users u ON a.user_id = u.id
+        WHERE u.device_id = ${deviceId} AND a.id = ${parseInt(avatarId)}
+      `.then(rows => rows[0])
+
+      if (!avatarCheck) {
+        return error("AVATAR_NOT_FOUND", "Avatar not found or access denied")
+      }
+
+      const storedRefs = await sql`
+        SELECT image_url FROM reference_photos
+        WHERE avatar_id = ${parseInt(avatarId)}
+        ORDER BY created_at ASC
+      `
+
+      if (storedRefs.length === 0) {
+        return error("NO_REFERENCE_IMAGES", "No stored reference images found. Please upload photos first.")
+      }
+
+      referenceImagesList = storedRefs.map((r: { image_url: string }) => r.image_url)
+      logger.info("Loaded stored references", { count: referenceImagesList.length })
+    } else {
+      // Use provided reference images
+      if (!Array.isArray(referenceImages) || referenceImages.length === 0) {
+        return error("NO_REFERENCE_IMAGES", "At least one reference image is required")
+      }
+      referenceImagesList = referenceImages
     }
 
     // Validate style
@@ -294,7 +331,8 @@ export async function POST(request: NextRequest) {
       deviceId,
       avatarId,
       styleId,
-      referenceCount: referenceImages.length,
+      referenceCount: referenceImagesList.length,
+      useStoredReferences: !!useStoredReferences,
       requestedPhotos: photoCount,
     })
 
@@ -344,9 +382,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate and filter reference images
-    logger.info("Validating reference images", { count: referenceImages.length })
+    logger.info("Validating reference images", { count: referenceImagesList.length })
     const { selected: validReferenceImages, rejected } = filterAndSortReferenceImages(
-      referenceImages,
+      referenceImagesList,
       GENERATION_CONFIG.maxReferenceImages
     )
 
@@ -362,25 +400,29 @@ export async function POST(request: NextRequest) {
 
     logger.info("Reference images validated", { validCount: validReferenceImages.length })
 
-    // Save reference images to DB for reuse
-    logger.info("Saving reference images to DB", { count: validReferenceImages.length })
+    // Save reference images to DB for reuse (skip if using stored references)
     let savedCount = 0
-    try {
-      const insertPromises = validReferenceImages.map(imageUrl =>
-        sql`INSERT INTO reference_photos (avatar_id, image_url) VALUES (${dbAvatarId}, ${imageUrl})`
-      )
-      const results = await Promise.allSettled(insertPromises)
-      savedCount = results.filter(r => r.status === 'fulfilled').length
-      const failedCount = results.filter(r => r.status === 'rejected').length
-      if (failedCount > 0) {
-        logger.warn("Some reference photos failed to save", { savedCount, failedCount })
+    if (!useStoredReferences) {
+      logger.info("Saving reference images to DB", { count: validReferenceImages.length })
+      try {
+        const insertPromises = validReferenceImages.map(imageUrl =>
+          sql`INSERT INTO reference_photos (avatar_id, image_url) VALUES (${dbAvatarId}, ${imageUrl})`
+        )
+        const results = await Promise.allSettled(insertPromises)
+        savedCount = results.filter(r => r.status === 'fulfilled').length
+        const failedCount = results.filter(r => r.status === 'rejected').length
+        if (failedCount > 0) {
+          logger.warn("Some reference photos failed to save", { savedCount, failedCount })
+        }
+      } catch (err) {
+        logger.error("Failed to save reference photos", {
+          error: err instanceof Error ? err.message : "Unknown",
+        })
       }
-    } catch (err) {
-      logger.error("Failed to save reference photos", {
-        error: err instanceof Error ? err.message : "Unknown",
-      })
+      logger.info("Reference images saved", { savedCount, avatarId: dbAvatarId })
+    } else {
+      logger.info("Skipping reference save - using stored images")
     }
-    logger.info("Reference images saved", { savedCount, avatarId: dbAvatarId })
 
     // Create generation job
     const requestedPhotos = photoCount && photoCount > 0 ? photoCount : GENERATION_CONFIG.maxPhotos

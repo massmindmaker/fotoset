@@ -33,9 +33,9 @@ function PaymentCallbackContent() {
 
         if (data.paid) {
           setStatus("success")
-          // Перенаправляем обратно для начала генерации
+          // Перенаправляем обратно для начала генерации с флагом
           setTimeout(() => {
-            router.push("/")
+            router.push("/?resume_payment=true")
           }, 2000)
         } else if (isTestPayment || isDemoPayment) {
           setTimeout(checkPayment, 1000)

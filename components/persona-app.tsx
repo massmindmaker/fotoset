@@ -73,57 +73,42 @@ export default function PersonaApp() {
   // Load avatars from server
   const loadAvatarsFromServer = async (deviceIdParam: string): Promise<Persona[]> => {
     try {
+      // Use include_photos=true (default) to get all avatars with photos in ONE request
       const res = await fetch(`/api/avatars?device_id=${deviceIdParam}`)
       if (!res.ok) return []
 
       const data = await res.json()
       if (!data.avatars || data.avatars.length === 0) return []
 
-      const loadedPersonas: Persona[] = await Promise.all(
-        data.avatars.map(
-          async (avatar: { id: number; name: string; status: string; thumbnailUrl?: string }) => {
-            try {
-              const detailRes = await fetch(`/api/avatars/${avatar.id}`)
-              if (!detailRes.ok) throw new Error("Failed to fetch avatar details")
-
-              const detail = await detailRes.json()
-              const generatedAssets = (detail.photos || []).map(
-                (photo: {
-                  id: number
-                  styleId: string
-                  prompt?: string
-                  imageUrl: string
-                  createdAt: string
-                }) => ({
-                  id: String(photo.id),
-                  type: "PHOTO" as const,
-                  url: photo.imageUrl,
-                  styleId: photo.styleId,
-                  prompt: photo.prompt,
-                  createdAt: new Date(photo.createdAt).getTime(),
-                })
-              )
-
-              return {
-                id: String(avatar.id),
-                name: avatar.name,
-                status: avatar.status as "draft" | "processing" | "ready",
-                images: [],
-                generatedAssets,
-                thumbnailUrl: avatar.thumbnailUrl,
-              }
-            } catch {
-              return {
-                id: String(avatar.id),
-                name: avatar.name,
-                status: avatar.status as "draft" | "processing" | "ready",
-                images: [],
-                generatedAssets: [],
-                thumbnailUrl: avatar.thumbnailUrl,
-              }
-            }
-          }
-        )
+      // Map avatars directly - photos are already included in response
+      const loadedPersonas: Persona[] = data.avatars.map(
+        (avatar: {
+          id: number
+          name: string
+          status: string
+          thumbnailUrl?: string
+          generatedPhotos?: Array<{
+            id: number
+            styleId: string
+            prompt?: string
+            imageUrl: string
+            createdAt: string
+          }>
+        }) => ({
+          id: String(avatar.id),
+          name: avatar.name,
+          status: avatar.status as "draft" | "processing" | "ready",
+          images: [],
+          generatedAssets: (avatar.generatedPhotos || []).map((photo) => ({
+            id: String(photo.id),
+            type: "PHOTO" as const,
+            url: photo.imageUrl,
+            styleId: photo.styleId,
+            prompt: photo.prompt,
+            createdAt: new Date(photo.createdAt).getTime(),
+          })),
+          thumbnailUrl: avatar.thumbnailUrl,
+        })
       )
 
       setPersonas(loadedPersonas)
@@ -215,6 +200,76 @@ export default function PersonaApp() {
         // Check if onboarding was completed (flag OR has avatars)
         const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"
         const hasAvatars = loadedAvatars && loadedAvatars.length > 0
+
+        // Check for pending payment after redirect from T-Bank
+        const urlParams = new URLSearchParams(window.location.search)
+        const resumePayment = urlParams.get("resume_payment") === "true"
+
+        if (resumePayment) {
+          // Clean URL without reload
+          window.history.replaceState({}, "", window.location.pathname)
+
+          try {
+            const pendingPaymentStr = localStorage.getItem("pinglass_pending_payment")
+            if (pendingPaymentStr) {
+              const pendingPayment = JSON.parse(pendingPaymentStr)
+              const { personaId, tierPhotos, timestamp } = pendingPayment
+
+              // Only use if less than 1 hour old
+              if (timestamp && Date.now() - timestamp < 3600000) {
+                localStorage.removeItem("pinglass_pending_payment")
+
+                // Find the persona - must be exact match for stored references
+                const targetPersona = loadedAvatars.find(p => String(p.id) === String(personaId))
+
+                if (targetPersona) {
+                  console.log("[Resume Payment] Starting generation for persona:", targetPersona.id, "photos:", tierPhotos)
+
+                  // Set UI state for generation
+                  setPersonas(loadedAvatars)
+                  setViewState({ view: "RESULTS", personaId: targetPersona.id })
+                  setIsGenerating(true)
+                  setGenerationProgress({ completed: 0, total: tierPhotos || 23 })
+                  setIsReady(true)
+
+                  // Start generation using stored reference photos
+                  fetch("/api/generate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      deviceId: currentDeviceId,
+                      avatarId: targetPersona.id,
+                      styleId: "pinglass",
+                      photoCount: tierPhotos || 23,
+                      useStoredReferences: true,
+                    }),
+                  })
+                    .then(res => res.json())
+                    .then(data => {
+                      if (data.success) {
+                        console.log("[Resume Payment] Generation started, jobId:", data.data?.jobId)
+                      } else {
+                        console.error("[Resume Payment] Generation failed:", data.error)
+                        setIsGenerating(false)
+                      }
+                    })
+                    .catch(err => {
+                      console.error("[Resume Payment] Generation request failed:", err)
+                      setIsGenerating(false)
+                    })
+
+                  return // Skip normal flow
+                }
+              } else {
+                // Expired - clean up
+                localStorage.removeItem("pinglass_pending_payment")
+              }
+            }
+          } catch (e) {
+            console.error("[Resume Payment] Error:", e)
+            localStorage.removeItem("pinglass_pending_payment")
+          }
+        }
 
         if (!onboardingComplete && !hasAvatars) {
           // First time user - show onboarding
@@ -546,6 +601,7 @@ export default function PersonaApp() {
             onSuccess={handlePaymentSuccess}
             deviceId={deviceId}
             tier={selectedTier}
+            personaId={"personaId" in viewState ? String(viewState.personaId) : undefined}
           />
         </Suspense>
       )}

@@ -17,6 +17,7 @@ interface PaymentModalProps {
   onSuccess: () => void
   deviceId: string
   tier: PricingTier
+  personaId?: string  // For post-payment redirect to generation
 }
 
 type PaymentMethod = "card" | "sbp" | "tpay"
@@ -27,7 +28,7 @@ interface PaymentResponse {
   testMode: boolean
 }
 
-export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, deviceId, tier }) => {
+export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, deviceId, tier, personaId }) => {
   const [step, setStep] = useState<"FORM" | "PROCESSING" | "REDIRECT" | "SUCCESS" | "ERROR">("FORM")
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState("")
@@ -109,6 +110,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
       // In test mode, user enters test card data manually on T-Bank form:
       // Success: 4111 1111 1111 1111, Fail: 5555 5555 5555 5599
       if (data.confirmationUrl) {
+        // Save pending payment state for post-payment restoration
+        const pendingPayment = {
+          personaId,
+          tierId: tier.id,
+          tierPhotos: tier.photos,
+          tierPrice: tier.price,
+          timestamp: Date.now(),
+        }
+        localStorage.setItem("pinglass_pending_payment", JSON.stringify(pendingPayment))
+
         setStep("REDIRECT")
         window.location.href = data.confirmationUrl
       } else {
@@ -121,7 +132,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
     } finally {
       setLoading(false)
     }
-  }, [email, selectedMethod, deviceId, tier, onSuccess, onClose])
+  }, [email, selectedMethod, deviceId, tier, personaId, onSuccess, onClose])
 
   if (!isOpen) return null
 
