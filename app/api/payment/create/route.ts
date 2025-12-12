@@ -44,8 +44,9 @@ export async function POST(request: NextRequest) {
     // Определяем return URLs
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.headers.get("origin") || "http://localhost:3000"
 
-    // T-Bank requires clean URLs - pass params via DATA or use dedicated success/fail pages
-    const successUrl = `${baseUrl}/payment/success`
+    // FIX: Redirect to /payment/callback which polls status and triggers generation
+    // /payment/success was a dead-end that didn't trigger generation flow
+    const successUrl = `${baseUrl}/payment/callback?device_id=${encodeURIComponent(deviceId)}`
     const failUrl = `${baseUrl}/payment/fail`
     const notificationUrl = `${baseUrl}/api/payment/webhook`
 

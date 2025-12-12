@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const deviceId = searchParams.get("device_id")
-    const paymentId = searchParams.get("payment_id")
+    let paymentId = searchParams.get("payment_id")
 
     console.log("[Payment Status] Check:", {
       deviceId: deviceId?.substring(0, 8) + "...",
@@ -40,9 +40,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ paid: false, status: "pending", error: "db_unavailable" })
     }
 
-    // Если нет payment_id, просто возвращаем pending
+    // FIX: If no paymentId provided, find the latest pending payment for this user
     if (!paymentId) {
-      return NextResponse.json({ paid: false, status: "pending" })
+      try {
+        const latestPayment = await sql`
+          SELECT yookassa_payment_id, status FROM payments 
+          WHERE user_id = ${user.id} 
+          ORDER BY created_at DESC 
+          LIMIT 1
+        `.then(rows => rows[0])
+        
+        if (latestPayment) {
+          paymentId = latestPayment.yookassa_payment_id
+          // If already succeeded in DB, return immediately
+          if (latestPayment.status === 'succeeded') {
+            return NextResponse.json({ paid: true, status: "succeeded" })
+          }
+        } else {
+          return NextResponse.json({ paid: false, status: "no_payment" })
+        }
+      } catch (err) {
+        console.error("[Payment Status] Error finding latest payment:", err)
+        return NextResponse.json({ paid: false, status: "pending" })
+      }
     }
 
     // Проверяем статус платежа в T-Bank

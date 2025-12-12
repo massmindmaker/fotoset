@@ -364,6 +364,107 @@ export default function PersonaApp() {
     })
   }
 
+
+  // Sync persona to server: create avatar in DB and upload photos
+  // Returns the DB avatar ID (numeric string like "123")
+  const syncPersonaToServer = async (persona: Persona): Promise<string> => {
+    // Check if already synced (has numeric DB ID, not timestamp)
+    const parsedId = parseInt(persona.id)
+    const isDbId = !isNaN(parsedId) && parsedId > 0 && parsedId <= 2147483647
+    
+    if (isDbId) {
+      console.log("[Sync] Persona already has DB ID:", persona.id)
+      return persona.id
+    }
+
+    console.log("[Sync] Creating avatar in DB for persona:", persona.id)
+
+    try {
+      // Step 1: Create avatar in DB
+      const createRes = await fetch("/api/avatars", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceId,
+          name: persona.name || "Мой аватар",
+        }),
+      })
+
+      if (!createRes.ok) {
+        const err = await createRes.json()
+        throw new Error(err.error || "Failed to create avatar")
+      }
+
+      const avatarData = await createRes.json()
+      const dbAvatarId = String(avatarData.id)
+      console.log("[Sync] Avatar created with DB ID:", dbAvatarId)
+
+      // Step 2: Upload reference photos if any
+      if (persona.images && persona.images.length > 0) {
+        console.log("[Sync] Uploading", persona.images.length, "reference photos")
+        
+        const referenceImages = await Promise.all(
+          persona.images.slice(0, 14).map((img) => fileToBase64(img.file))
+        )
+
+        const uploadRes = await fetch(`/api/avatars/${dbAvatarId}/references`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deviceId,
+            referenceImages,
+          }),
+        })
+
+        if (!uploadRes.ok) {
+          console.warn("[Sync] Failed to upload references, but avatar created")
+        } else {
+          console.log("[Sync] Reference photos uploaded successfully")
+        }
+      }
+
+      // Step 3: Update local persona with DB ID
+      setPersonas((prev) =>
+        prev.map((p) =>
+          p.id === persona.id
+            ? { ...p, id: dbAvatarId }
+            : p
+        )
+      )
+
+      return dbAvatarId
+    } catch (error) {
+      console.error("[Sync] Error syncing persona:", error)
+      throw error
+    }
+  }
+
+
+  // Handle transition from Upload to SelectTier - sync first!
+  const handleUploadComplete = async () => {
+    const persona = getActivePersona()
+    if (!persona) {
+      console.error("[Upload] No active persona")
+      return
+    }
+
+    if (persona.images.length < 10) {
+      alert("Загрузите минимум 10 фото")
+      return
+    }
+
+    try {
+      setIsGenerating(true) // Show loading state
+      const dbId = await syncPersonaToServer(persona)
+      setViewState({ view: "SELECT_TIER", personaId: dbId })
+    } catch (error) {
+      alert("Ошибка сохранения. Попробуйте ещё раз.")
+      console.error("[Upload] Sync failed:", error)
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
   const handleGenerate = async (tier: PricingTier) => {
     const p = getActivePersona()!
     setIsGenerating(true)
@@ -549,7 +650,7 @@ export default function PersonaApp() {
                 persona={getActivePersona()!}
                 updatePersona={updatePersona}
                 onBack={() => setViewState({ view: "DASHBOARD" })}
-                onNext={() => setViewState({ view: "SELECT_TIER", personaId: viewState.personaId })}
+                onNext={handleUploadComplete}
               />
             )}
             {viewState.view === "SELECT_TIER" && getActivePersona() && (
