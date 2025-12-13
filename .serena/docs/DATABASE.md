@@ -114,7 +114,7 @@ Stores payment records.
 CREATE TABLE payments (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id),
-  yookassa_payment_id VARCHAR(255),
+  tbank_payment_id VARCHAR(255),
   amount DECIMAL(10,2),
   currency VARCHAR(3) DEFAULT 'RUB',
   status VARCHAR(20),
@@ -125,14 +125,14 @@ CREATE TABLE payments (
 -- Indexes
 CREATE INDEX idx_payments_user_id ON payments(user_id);
 CREATE INDEX idx_payments_status ON payments(status);
-CREATE INDEX idx_payments_payment_id ON payments(yookassa_payment_id);
+CREATE INDEX idx_payments_payment_id ON payments(tbank_payment_id);
 ```
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | id | SERIAL | PRIMARY KEY | Auto-increment ID |
 | user_id | INTEGER | FOREIGN KEY | Reference to users.id |
-| yookassa_payment_id | VARCHAR(255) | | External payment ID |
+| tbank_payment_id | VARCHAR(255) | | External payment ID |
 | amount | DECIMAL(10,2) | | Payment amount |
 | currency | VARCHAR(3) | DEFAULT 'RUB' | Currency code |
 | status | VARCHAR(20) | | Payment status |
@@ -246,7 +246,7 @@ export interface GeneratedPhoto {
 export interface Payment {
   id: number
   user_id: number
-  yookassa_payment_id: string
+  tbank_payment_id: string
   amount: number
   currency: string
   status: 'pending' | 'succeeded' | 'canceled'
@@ -363,7 +363,7 @@ CREATE TABLE generated_photos (
 CREATE TABLE payments (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id),
-  yookassa_payment_id VARCHAR(255),
+  tbank_payment_id VARCHAR(255),
   amount DECIMAL(10,2),
   currency VARCHAR(3) DEFAULT 'RUB',
   status VARCHAR(20),

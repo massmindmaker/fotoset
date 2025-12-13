@@ -93,7 +93,7 @@ CREATE TABLE generated_photos (
 CREATE TABLE payments (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id),
-  yookassa_payment_id VARCHAR(255),
+  tbank_payment_id VARCHAR(255),
   amount DECIMAL(10,2),
   currency VARCHAR(3) DEFAULT 'RUB',
   status VARCHAR(20),

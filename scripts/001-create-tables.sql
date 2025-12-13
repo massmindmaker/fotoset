@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS generated_photos (
 CREATE TABLE IF NOT EXISTS payments (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    yookassa_payment_id VARCHAR(255) UNIQUE,
+    tbank_payment_id VARCHAR(255) UNIQUE,
     amount DECIMAL(10, 2) NOT NULL,
     currency VARCHAR(10) DEFAULT 'RUB',
     status VARCHAR(50) DEFAULT 'pending', -- pending, succeeded, canceled

@@ -111,7 +111,7 @@ curl -X POST https://your-ngrok.ngrok.io/api/payment/webhook \
 
 ```sql
 -- Check recent payments
-SELECT id, yookassa_payment_id, status, created_at
+SELECT id, tbank_payment_id, status, created_at
 FROM payments
 ORDER BY created_at DESC
 LIMIT 10;
@@ -124,7 +124,7 @@ WHERE status = 'pending'
 -- Manual status update (dev only)
 UPDATE payments
 SET status = 'succeeded', updated_at = NOW()
-WHERE yookassa_payment_id = 'your_payment_id';
+WHERE tbank_payment_id = 'your_payment_id';
 ```
 
 ---

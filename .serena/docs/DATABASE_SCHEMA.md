@@ -80,7 +80,7 @@ CREATE TABLE generation_jobs (
 CREATE TABLE payments (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  yookassa_payment_id VARCHAR(255) NOT NULL,
+  tbank_payment_id VARCHAR(255) NOT NULL,
   amount DECIMAL(10, 2) NOT NULL,
   currency VARCHAR(3) DEFAULT 'RUB',
   status VARCHAR(20) DEFAULT 'pending', -- pending, succeeded, canceled
@@ -199,7 +199,7 @@ type GeneratedPhoto = {
 type Payment = {
   id: number
   user_id: number
-  yookassa_payment_id: string
+  tbank_payment_id: string
   amount: number
   currency: string
   status: 'pending' | 'succeeded' | 'canceled'

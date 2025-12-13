@@ -99,7 +99,7 @@ PinGlass/
     No   │   Yes
     ▼    │    │
 ┌──────────┐  │
-│ PAYMENT  │  │ ← Modal → YooKassa redirect → Callback
+│ PAYMENT  │  │ ← Modal → T-Bank redirect → Callback
 │ (500 ₽)  │  │
 └────┬─────┘  │
      │        │

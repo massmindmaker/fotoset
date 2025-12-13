@@ -445,7 +445,7 @@ console.log("Webhook received:", notification)
 await sql`
   UPDATE payments
   SET status = 'succeeded', updated_at = NOW()
-  WHERE yookassa_payment_id = ${paymentId}
+  WHERE tbank_payment_id = ${paymentId}
 `
 
 // 3. Check payment status endpoint
@@ -457,7 +457,7 @@ curl "https://your-domain.com/api/payment/status?device_id=XXX&payment_id=YYY"
 -- Update payment status manually
 UPDATE payments
 SET status = 'succeeded', updated_at = NOW()
-WHERE yookassa_payment_id = 'your_payment_id';
+WHERE tbank_payment_id = 'your_payment_id';
 ```
 
 ### Error 5: Test Mode Not Working
@@ -518,7 +518,7 @@ const existingPayment = await sql`
 
 if (existingPayment.length > 0) {
   return NextResponse.json({
-    paymentId: existingPayment[0].yookassa_payment_id,
+    paymentId: existingPayment[0].tbank_payment_id,
     confirmationUrl: existingPayment[0].confirmation_url,
     message: "Payment already in progress"
   })
@@ -619,7 +619,7 @@ if (existingPayment.length > 0) {
     ┌──────────────────────────────────────────┐
     │  Update Database                         │
     │  SET status = 'succeeded'                │
-    │  WHERE yookassa_payment_id = paymentId   │
+    │  WHERE tbank_payment_id = paymentId   │
     └────────────────┬─────────────────────────┘
                      │
                      ▼
@@ -815,7 +815,7 @@ async function testWebhook(paymentId: string) {
   await sql`
     UPDATE payments
     SET status = 'succeeded', updated_at = NOW()
-    WHERE yookassa_payment_id = ${paymentId}
+    WHERE tbank_payment_id = ${paymentId}
   `
   console.log("Payment marked as succeeded:", paymentId)
 }
@@ -1048,7 +1048,7 @@ node -e "console.log(process.env.NEXT_PUBLIC_APP_URL)"
 SELECT
   id,
   user_id,
-  yookassa_payment_id,
+  tbank_payment_id,
   amount,
   status,
   created_at
