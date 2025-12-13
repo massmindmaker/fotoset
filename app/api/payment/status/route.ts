@@ -44,14 +44,14 @@ export async function GET(request: NextRequest) {
     if (!paymentId) {
       try {
         const latestPayment = await sql`
-          SELECT yookassa_payment_id, status FROM payments 
+          SELECT tbank_payment_id, status FROM payments 
           WHERE user_id = ${user.id} 
           ORDER BY created_at DESC 
           LIMIT 1
         `.then(rows => rows[0])
         
         if (latestPayment) {
-          paymentId = latestPayment.yookassa_payment_id
+          paymentId = latestPayment.tbank_payment_id
           // If already succeeded in DB, return immediately
           if (latestPayment.status === 'succeeded') {
             return NextResponse.json({ paid: true, status: "succeeded" })
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
       if (payment.Status === "CONFIRMED" || payment.Status === "AUTHORIZED") {
         await sql`
           UPDATE payments SET status = 'succeeded', updated_at = NOW()
-          WHERE yookassa_payment_id = ${paymentId}
+          WHERE tbank_payment_id = ${paymentId}
         `
         return NextResponse.json({ paid: true, status: "succeeded" })
       }
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
     } catch {
       // Проверяем статус платежа в БД если T-Bank недоступен
       const dbPayment = await sql`
-        SELECT status FROM payments WHERE yookassa_payment_id = ${paymentId}
+        SELECT status FROM payments WHERE tbank_payment_id = ${paymentId}
       `.then(rows => rows[0])
 
       if (dbPayment?.status === 'succeeded') {

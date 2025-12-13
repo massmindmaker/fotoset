@@ -2,6 +2,13 @@ import { type NextRequest, NextResponse } from "next/server"
 import { sql, query } from "@/lib/db"
 import { initPayment, IS_TEST_MODE, HAS_CREDENTIALS, type PaymentMethod } from "@/lib/tbank"
 
+// Pricing tiers matching frontend (components/views/dashboard-view.tsx)
+const TIER_PRICES: Record<string, { price: number; photos: number }> = {
+  starter: { price: 499, photos: 7 },
+  standard: { price: 999, photos: 15 },
+  premium: { price: 1499, photos: 23 },
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { deviceId, email, paymentMethod, tierId, photoCount, referralCode } = await request.json() as {
@@ -41,6 +48,15 @@ export async function POST(request: NextRequest) {
       }, { status: 503 })
     }
 
+    // Validate and get tier pricing
+    const tier = TIER_PRICES[tierId || 'premium']
+    if (!tier) {
+      return NextResponse.json({
+        error: "Invalid tier. Use: starter, standard, or premium"
+      }, { status: 400 })
+    }
+    const amount = tier.price
+
     // Определяем return URLs
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.headers.get("origin") || "http://localhost:3000"
 
@@ -57,7 +73,9 @@ export async function POST(request: NextRequest) {
 
     console.log("[Payment] Creating T-Bank payment:", {
       orderId,
-      amount: 500,
+      amount,
+      tierId: tierId || 'premium',
+      photos: tier.photos,
       email,
       paymentMethod,
       successUrl,
@@ -68,9 +86,9 @@ export async function POST(request: NextRequest) {
 
     // Create payment via T-Bank API (real API for test terminals too)
     const payment = await initPayment(
-      500, // amount in rubles
+      amount, // dynamic amount based on tier
       orderId,
-      "PinGlass Pro - AI Photo Generation",
+      `PinGlass - ${tier.photos} AI Photos (${tierId || 'premium'})`,
       successUrl,
       failUrl,
       notificationUrl,
@@ -80,8 +98,8 @@ export async function POST(request: NextRequest) {
 
     // Save payment to DB with deviceId for callback lookup
     await sql`
-      INSERT INTO payments (user_id, yookassa_payment_id, amount, status)
-      VALUES (${user.id}, ${payment.PaymentId}, 500, 'pending')
+      INSERT INTO payments (user_id, tbank_payment_id, amount, status, tier_id, photo_count)
+      VALUES (${user.id}, ${payment.PaymentId}, ${amount}, 'pending', ${tierId || 'premium'}, ${tier.photos})
     `
 
     // Also store the mapping for success page redirect

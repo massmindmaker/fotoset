@@ -58,7 +58,7 @@ export type GeneratedPhoto = {
 export type Payment = {
   id: number
   user_id: number
-  yookassa_payment_id: string
+  tbank_payment_id: string
   amount: number
   currency: string
   status: "pending" | "succeeded" | "canceled"

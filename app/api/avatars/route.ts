@@ -55,14 +55,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Find user with isPro status
+    // Find user
     const user = await sql`
-      SELECT id, is_pro FROM users WHERE device_id = ${deviceId}
+      SELECT id FROM users WHERE device_id = ${deviceId}
     `.then((rows) => rows[0])
 
     if (!user) {
       logger.info("No user found, returning empty avatars", { deviceId })
-      return success({ avatars: [], isPro: false })
+      return success({ avatars: [] })
     }
 
     // Get pagination params
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
     if (avatars.length === 0) {
       logger.info("No avatars found for user", { userId: user.id, deviceId })
       return success(
-        { avatars: [], isPro: user.is_pro || false },
+        { avatars: [] },
         createPaginationMeta(pagination, total)
       )
     }
@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
     })
 
     return success(
-      { avatars: avatarsWithPhotos, isPro: user.is_pro || false },
+      { avatars: avatarsWithPhotos },
       createPaginationMeta(pagination, total)
     )
   } catch (err) {

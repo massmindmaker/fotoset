@@ -349,6 +349,31 @@ export async function POST(request: NextRequest) {
       logger.info("Created new user", { userId: user.id, deviceId })
     }
 
+    // ============================================================================
+    // Payment Validation
+    // ============================================================================
+
+    // Check if user has a successful payment
+    const successfulPayment = await sql`
+      SELECT id, amount, status FROM payments
+      WHERE user_id = ${user.id} AND status = 'succeeded'
+      ORDER BY created_at DESC
+      LIMIT 1
+    `.then((rows) => rows[0])
+
+    if (!successfulPayment) {
+      logger.warn("User has no successful payment", { userId: user.id, deviceId })
+      return error("PAYMENT_REQUIRED", "Please complete payment before generating photos", {
+        code: "PAYMENT_REQUIRED"
+      })
+    }
+
+    logger.info("Payment validated", {
+      userId: user.id,
+      paymentId: successfulPayment.id,
+      amount: successfulPayment.amount
+    })
+
     // Handle avatar - if timestamp string from frontend, create new in DB
     let dbAvatarId: number
 

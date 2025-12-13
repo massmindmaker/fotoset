@@ -1,0 +1,36 @@
+{
+  "scripts": {
+    "test": "jest",
+    "test:unit": "jest --config jest.config.unit.js --coverage",
+    "test:unit:watch": "jest --config jest.config.unit.js --watch",
+    "test:integration": "jest --config jest.config.integration.js --runInBand",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:chromium": "playwright test --project=chromium",
+    "test:e2e:firefox": "playwright test --project=firefox",
+    "test:e2e:webkit": "playwright test --project=webkit",
+    "test:e2e:mobile": "playwright test --project=mobile-chrome --project=mobile-safari",
+    "test:e2e:full": "playwright test --project=chromium --project=firefox --project=webkit --project=mobile-chrome --project=mobile-safari",
+    "test:pre-commit": "pnpm lint && pnpm test:unit",
+    "test:pre-push": "pnpm test:pre-commit && pnpm test:integration",
+    "test:ci": "pnpm test:pre-push && pnpm test:e2e",
+    "test:coverage": "jest --coverage --coverageReporters=html --coverageReporters=text",
+    "test:watch": "jest --watch",
+    "playwright:install": "playwright install --with-deps",
+    "playwright:report": "playwright show-report test-reports/playwright-html",
+    "playwright:codegen": "playwright codegen http://localhost:3000"
+  },
+  "devDependencies": {
+    "@jest/globals": "^29.7.0",
+    "@playwright/test": "^1.40.0",
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.5.1",
+    "@types/jest": "^29.5.11",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "ts-jest": "^29.1.1"
+  }
+}

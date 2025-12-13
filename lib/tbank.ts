@@ -198,7 +198,6 @@ export async function getPaymentState(paymentId: string): Promise<TBankPayment> 
 
 export function verifyWebhookSignature(notification: Record<string, unknown>, receivedToken: string): boolean {
   // SECURITY: Only skip verification in development AND test mode
-  // This prevents accidental bypass in production with test terminal keys
   if (IS_TEST_MODE && process.env.NODE_ENV === 'development') {
     console.warn('[T-Bank] Skipping webhook signature verification (dev + test mode)')
     return true
@@ -215,5 +214,18 @@ export function verifyWebhookSignature(notification: Record<string, unknown>, re
 
   const calculatedToken = generateToken(params)
 
-  return calculatedToken === receivedToken
+  // SECURITY: Use timing-safe comparison to prevent timing attacks
+  try {
+    const a = Buffer.from(calculatedToken, 'utf8')
+    const b = Buffer.from(receivedToken, 'utf8')
+
+    // If lengths differ, tokens don't match (but still do constant-time comparison)
+    if (a.length !== b.length) {
+      return false
+    }
+
+    return crypto.timingSafeEqual(a, b)
+  } catch {
+    return false
+  }
 }

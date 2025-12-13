@@ -120,7 +120,6 @@ export async function POST(request: NextRequest) {
         id: user.id,
         deviceId: user.device_id,
         telegramUserId: user.telegram_user_id,
-        isPro: user.is_pro || false,
       })
     }
 
@@ -151,7 +150,6 @@ export async function POST(request: NextRequest) {
       id: user.id,
       deviceId: user.device_id,
       telegramUserId: user.telegram_user_id,
-      isPro: user.is_pro || false,
     })
   } catch (error) {
     console.error("[User API] Error:", error)
@@ -237,14 +235,6 @@ async function mergeUsers(sourceUserId: number, targetUserId: number): Promise<v
 
   // Transfer shared galleries
   await sql`UPDATE shared_galleries SET user_id = ${targetUserId} WHERE user_id = ${sourceUserId}`
-
-  // Copy is_pro status
-  await sql`
-    UPDATE users
-    SET is_pro = TRUE
-    WHERE id = ${targetUserId}
-    AND EXISTS (SELECT 1 FROM users WHERE id = ${sourceUserId} AND is_pro = TRUE)
-  `
 
   // Delete source user and related data
   await sql`DELETE FROM referral_balances WHERE user_id = ${sourceUserId}`
