@@ -271,15 +271,11 @@ export default function PersonaApp() {
           }
         }
 
-        if (!onboardingComplete && !hasAvatars) {
-          // First time user - show onboarding
+        if (!onboardingComplete) {
+          // Always show onboarding until user completes it
           setViewState({ view: "ONBOARDING" })
         } else {
-          // Mark onboarding as complete if user has avatars
-          if (hasAvatars && !onboardingComplete) {
-            localStorage.setItem("pinglass_onboarding_complete", "true")
-          }
-          // Returning user - restore saved view or go to dashboard
+          // Onboarding completed - show dashboard
           const savedViewState = loadViewState()
           if (savedViewState) {
             if (savedViewState.view === "DASHBOARD" || savedViewState.view === "RESULTS") {

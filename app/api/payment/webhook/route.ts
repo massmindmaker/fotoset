@@ -38,13 +38,13 @@ export async function POST(request: NextRequest) {
       await sql`
         UPDATE payments
         SET status = 'succeeded', updated_at = NOW()
-        WHERE tbank_payment_id = ${paymentId}
+        WHERE yookassa_payment_id = ${paymentId}
       `
 
       // Get payment for referral program
       const payment = await sql`
         SELECT user_id FROM payments
-        WHERE tbank_payment_id = ${paymentId}
+        WHERE yookassa_payment_id = ${paymentId}
       `.then((rows) => rows[0])
 
       if (payment) {
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       await sql`
         UPDATE payments
         SET status = 'canceled', updated_at = NOW()
-        WHERE tbank_payment_id = ${paymentId}
+        WHERE yookassa_payment_id = ${paymentId}
       `
     } else {
       console.log("[T-Bank Webhook] Unhandled status:", status, "for payment:", paymentId)
@@ -88,7 +88,7 @@ async function processReferralEarning(userId: number, paymentId: string) {
 
     // Get payment amount
     const paymentResult = await query<{ id: number; amount: number }>(
-      "SELECT id, amount FROM payments WHERE tbank_payment_id = $1",
+      "SELECT id, amount FROM payments WHERE yookassa_payment_id = $1",
       [paymentId]
     )
 
