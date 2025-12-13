@@ -97,9 +97,9 @@ export async function POST(request: NextRequest) {
     )
 
     // Save payment to DB with deviceId for callback lookup
-    // NOTE: Using yookassa_payment_id column for backward compatibility (stores T-Bank payment ID)
+    // NOTE: Using tbank_payment_id column for backward compatibility (stores T-Bank payment ID)
     await sql`
-      INSERT INTO payments (user_id, yookassa_payment_id, amount, status)
+      INSERT INTO payments (user_id, tbank_payment_id, amount, status)
       VALUES (${user.id}, ${payment.PaymentId}, ${amount}, 'pending')
     `
 
