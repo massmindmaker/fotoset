@@ -71,6 +71,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
   const handlePayment = useCallback(async () => {
     if (!validateEmail(email)) return
 
+    // Validate deviceId before payment - required for post-payment restoration
+    if (!deviceId) {
+      console.error("[Payment] Missing deviceId - cannot proceed")
+      setErrorMessage("Ошибка идентификации устройства. Перезагрузите страницу.")
+      setStep("ERROR")
+      return
+    }
+
     setLoading(true)
     setStep("PROCESSING")
     setErrorMessage("")
@@ -113,6 +121,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         // Save pending payment state for post-payment restoration
         const pendingPayment = {
           personaId,
+          deviceId,  // Added for fallback identification
           tierId: tier.id,
           tierPhotos: tier.photos,
           tierPrice: tier.price,

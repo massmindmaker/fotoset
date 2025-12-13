@@ -18,6 +18,13 @@ export async function POST(request: NextRequest) {
       errorCode: notification.ErrorCode,
     })
 
+    // Save webhook to database for diagnostics (non-blocking)
+    // Using proper JSONB cast to prevent SQL injection
+    sql`
+      INSERT INTO webhook_logs (source, event_type, payload)
+      VALUES ('tbank', ${notification.Status || 'unknown'}, ${JSON.stringify(notification)}::jsonb)
+    `.catch(err => console.error("[Webhook Log] Failed to save:", err))
+
     // Verify webhook signature
     const receivedToken = notification.Token || ""
     const isValid = verifyWebhookSignature(notification, receivedToken)
@@ -34,18 +41,22 @@ export async function POST(request: NextRequest) {
     if (status === "CONFIRMED" || status === "AUTHORIZED") {
       console.log("[T-Bank Webhook] Payment confirmed:", paymentId)
 
-      // Update payment status
-      await sql`
+      // Idempotent update: only update if status is still pending
+      // This prevents race conditions from duplicate webhook calls
+      const updateResult = await sql`
         UPDATE payments
         SET status = 'succeeded', updated_at = NOW()
-        WHERE tbank_payment_id = ${paymentId}
+        WHERE tbank_payment_id = ${paymentId} AND status = 'pending'
+        RETURNING id, user_id
       `
 
-      // Get payment for referral program
-      const payment = await sql`
-        SELECT user_id FROM payments
-        WHERE tbank_payment_id = ${paymentId}
-      `.then((rows) => rows[0])
+      if (updateResult.length === 0) {
+        // Payment was already processed - this is a duplicate webhook
+        console.log("[T-Bank Webhook] Payment already processed (duplicate webhook):", paymentId)
+        return NextResponse.json({ success: true }, { status: 200 })
+      }
+
+      const payment = updateResult[0]
 
       if (payment) {
         // Process referral earning

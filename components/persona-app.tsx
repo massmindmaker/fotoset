@@ -215,12 +215,32 @@ export default function PersonaApp() {
               const pendingPayment = JSON.parse(pendingPaymentStr)
               const { personaId, tierPhotos, timestamp } = pendingPayment
 
-              // Only use if less than 1 hour old
-              if (timestamp && Date.now() - timestamp < 3600000) {
+              // Only use if less than 24 hours old (increased from 1 hour for slow payments)
+              if (timestamp && Date.now() - timestamp < 86400000) {
                 localStorage.removeItem("pinglass_pending_payment")
 
-                // Find the persona - must be exact match for stored references
-                const targetPersona = loadedAvatars.find(p => String(p.id) === String(personaId))
+                // Find the persona - try exact match first
+                let targetPersona = loadedAvatars.find(p => String(p.id) === String(personaId))
+
+                // Fallback: if not found by ID (timestamp vs DB ID mismatch), use most recent non-processing persona
+                if (!targetPersona && loadedAvatars.length > 0) {
+                  console.warn("[Resume Payment] Persona not found by ID, searching for suitable fallback. Searched for:", personaId, "Available:", loadedAvatars.map(p => ({ id: p.id, status: p.status })))
+
+                  // Filter out personas that are already processing
+                  const availablePersonas = loadedAvatars.filter(p => p.status !== 'processing')
+
+                  if (availablePersonas.length > 0) {
+                    // Use the most recently created (highest ID)
+                    targetPersona = availablePersonas.reduce((latest, current) =>
+                      Number(current.id) > Number(latest.id) ? current : latest
+                    )
+                    console.log("[Resume Payment] Using fallback persona:", targetPersona.id)
+                  } else {
+                    console.error("[Resume Payment] No suitable persona found (all are processing)")
+                    localStorage.removeItem("pinglass_pending_payment")
+                    return // Exit early - can't proceed
+                  }
+                }
 
                 if (targetPersona) {
                   console.log("[Resume Payment] Starting generation for persona:", targetPersona.id, "photos:", tierPhotos)
@@ -271,22 +291,9 @@ export default function PersonaApp() {
           }
         }
 
-        if (!onboardingComplete) {
-          // Always show onboarding until user completes it
-          setViewState({ view: "ONBOARDING" })
-        } else {
-          // Onboarding completed - show dashboard
-          const savedViewState = loadViewState()
-          if (savedViewState) {
-            if (savedViewState.view === "DASHBOARD" || savedViewState.view === "RESULTS") {
-              setViewState(savedViewState)
-            } else {
-              setViewState({ view: "DASHBOARD" })
-            }
-          } else {
-            setViewState({ view: "DASHBOARD" })
-          }
-        }
+        // ALWAYS show onboarding on app start (user requested)
+        // User can proceed via "Начать" button which calls completeOnboarding() or handleCreatePersona()
+        setViewState({ view: "ONBOARDING" })
       } catch (e) {
         console.error("[Init] Critical error:", e)
         // On any error, show onboarding as fallback

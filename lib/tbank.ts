@@ -77,7 +77,7 @@ export async function initPayment(
   failUrl: string,
   notificationUrl?: string,
   customerEmail?: string,
-  _paymentMethod?: PaymentMethod,
+  paymentMethod?: PaymentMethod,
 ): Promise<TBankPayment> {
   // Check if credentials are configured
   if (!HAS_CREDENTIALS) {
@@ -102,6 +102,19 @@ export async function initPayment(
     Amount: amountInKopeks,
     OrderId: orderId,
     Description: description.substring(0, 250), // Max 250 chars
+  }
+
+  // Map payment method to T-Bank PayType
+  // O = одностадийная оплата (карта), S = СБП, T = T-Pay
+  if (paymentMethod) {
+    const payTypeMap: Record<PaymentMethod, string> = {
+      'card': 'O',
+      'sbp': 'S',
+      'tpay': 'T',
+    }
+    if (payTypeMap[paymentMethod]) {
+      params.PayType = payTypeMap[paymentMethod]
+    }
   }
 
   // Добавляем URL в params ДО генерации токена
