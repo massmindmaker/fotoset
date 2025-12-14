@@ -1,13 +1,18 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useEffect, useState, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { CheckCircle2, Loader2, XCircle } from "lucide-react"
+import { CheckCircle2, Loader2, XCircle, Clock } from "lucide-react"
+
+// Max polling attempts: 60 seconds for normal, 30 seconds for test/demo
+const MAX_ATTEMPTS_NORMAL = 30 // 30 attempts * 2s = 60 seconds
+const MAX_ATTEMPTS_FAST = 30   // 30 attempts * 1s = 30 seconds
 
 function PaymentCallbackContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
+  const [status, setStatus] = useState<"loading" | "success" | "error" | "timeout">("loading")
+  const attemptsRef = useRef(0)
 
   useEffect(() => {
     const checkPayment = async () => {
@@ -15,6 +20,16 @@ function PaymentCallbackContent() {
       const paymentId = searchParams.get("payment_id")
       const isTestPayment = searchParams.get("test") === "true"
       const isDemoPayment = paymentId?.startsWith("demo_")
+      const isFastMode = isTestPayment || isDemoPayment
+
+      // Check max attempts
+      const maxAttempts = isFastMode ? MAX_ATTEMPTS_FAST : MAX_ATTEMPTS_NORMAL
+      if (attemptsRef.current >= maxAttempts) {
+        console.error("[Callback] Max polling attempts reached:", attemptsRef.current)
+        setStatus("timeout")
+        return
+      }
+      attemptsRef.current++
 
       if (!deviceId) {
         setStatus("error")
@@ -37,7 +52,7 @@ function PaymentCallbackContent() {
           setTimeout(() => {
             router.push("/?resume_payment=true")
           }, 2000)
-        } else if (isTestPayment || isDemoPayment) {
+        } else if (isFastMode) {
           setTimeout(checkPayment, 1000)
         } else {
           setTimeout(checkPayment, 2000)
@@ -75,6 +90,33 @@ function PaymentCallbackContent() {
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
             <h1 className="text-xl font-semibold mb-2">Оплата успешна!</h1>
             <p className="text-muted-foreground">Перенаправляем вас обратно...</p>
+          </>
+        )}
+
+        {status === "timeout" && (
+          <>
+            <Clock className="w-16 h-16 text-amber-500 mx-auto mb-4" />
+            <h1 className="text-xl font-semibold mb-2">Оплата обрабатывается</h1>
+            <p className="text-muted-foreground mb-4">
+              Платёж ещё не подтверждён. Это может занять несколько минут.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => {
+                  attemptsRef.current = 0
+                  setStatus("loading")
+                }}
+                className="px-6 py-3 bg-primary text-primary-foreground rounded-xl"
+              >
+                Проверить снова
+              </button>
+              <button
+                onClick={() => router.push("/")}
+                className="px-6 py-3 bg-secondary text-secondary-foreground rounded-xl"
+              >
+                На главную
+              </button>
+            </div>
           </>
         )}
 

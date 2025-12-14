@@ -195,7 +195,7 @@ export default function PersonaApp() {
           loadAvatarsFromServer(currentDeviceId),
           new Promise<Persona[]>((resolve) => setTimeout(() => resolve([]), 10000)) // 10s timeout
         ])
-        const loadedAvatars = await loadAvatarsWithTimeout
+        let loadedAvatars = await loadAvatarsWithTimeout
 
         // Check if onboarding was completed (flag OR has avatars)
         const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"
@@ -235,11 +235,23 @@ export default function PersonaApp() {
                       Number(current.id) > Number(latest.id) ? current : latest
                     )
                     console.log("[Resume Payment] Using fallback persona:", targetPersona.id)
-                  } else {
-                    console.error("[Resume Payment] No suitable persona found (all are processing)")
-                    localStorage.removeItem("pinglass_pending_payment")
-                    return // Exit early - can't proceed
                   }
+                }
+
+                // If no persona found (DB was cleared), user needs to re-upload photos
+                // because reference photos are stored with the persona in DB
+                if (!targetPersona) {
+                  console.log("[Resume Payment] No avatars found - user must re-upload photos")
+                  console.log("[Resume Payment] Payment was successful, reference photos need to be uploaded again")
+
+                  // Mark user as Pro so they don't have to pay again after upload
+                  localStorage.setItem("pinglass_is_pro", "true")
+
+                  // Show upload view - user will upload photos and proceed to generation
+                  setPersonas([])
+                  setViewState({ view: "CREATE_PERSONA_UPLOAD" })
+                  setIsReady(true)
+                  return // Exit - user will complete flow via normal upload path
                 }
 
                 if (targetPersona) {
@@ -278,19 +290,34 @@ export default function PersonaApp() {
                       setIsGenerating(false)
                     })
 
-                  return // Skip normal flow
+                  return // Skip normal flow - generation started
                 }
+                // Note: if !targetPersona, we already returned above (line 254)
               } else {
                 // Expired - clean up
                 localStorage.removeItem("pinglass_pending_payment")
               }
             }
+            
+            // If resume_payment but no valid pending payment data - go to dashboard
+            console.log("[Resume Payment] No valid pending payment, showing dashboard")
+            setPersonas(loadedAvatars)
+            setViewState({ view: hasAvatars ? "DASHBOARD" : "ONBOARDING" })
+            setIsReady(true)
+            return // Exit after handling resume_payment
+            
           } catch (e) {
             console.error("[Resume Payment] Error:", e)
             localStorage.removeItem("pinglass_pending_payment")
+            // On error, show dashboard instead of onboarding
+            setPersonas(loadedAvatars)
+            setViewState({ view: hasAvatars ? "DASHBOARD" : "ONBOARDING" })
+            setIsReady(true)
+            return
           }
         }
 
+        // Normal flow (NOT resume_payment):
         // ALWAYS show onboarding on app start (user requested)
         // User can proceed via "Начать" button which calls completeOnboarding() or handleCreatePersona()
         setViewState({ view: "ONBOARDING" })
