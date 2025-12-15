@@ -30,7 +30,7 @@ const config = {
     '^~/(.*)$': '<rootDir>/$1',
   },
 
-  setupFilesAfterEnv: ['<rootDir>/tests/setup/jest.setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup/jest.setup.tsx'],
 
   collectCoverageFrom: [
     'components/**/*.{ts,tsx}',
@@ -43,7 +43,7 @@ const config = {
     '!**/tests/**',
   ],
 
-  coverageThresholds: {
+  coverageThreshold: {
     global: {
       branches: 60,
       functions: 60,
