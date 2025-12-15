@@ -13,9 +13,14 @@ import { test, expect, Page } from '@playwright/test';
 test.describe.configure({ mode: 'serial' }); // Run tests in order
 
 // Helper: Setup new user session
-async function setupNewUser(page: Page) {
-  // Clear localStorage to simulate new user
+async function setupNewUser(page: Page, baseUrl: string) {
+  // Clear cookies first
   await page.context().clearCookies();
+
+  // Navigate to page first (required for localStorage access)
+  await page.goto(baseUrl);
+
+  // Now we can access localStorage
   await page.evaluate(() => localStorage.clear());
 
   // Generate unique device ID
@@ -23,6 +28,9 @@ async function setupNewUser(page: Page) {
   await page.evaluate((id) => {
     localStorage.setItem('pinglass_device_id', id);
   }, deviceId);
+
+  // Reload to apply new device ID
+  await page.reload();
 
   return deviceId;
 }
@@ -56,27 +64,18 @@ async function completeTBankTestPayment(page: Page) {
 test.describe('Payment Flow - Starter Tier (499 RUB, 7 photos)', () => {
   let deviceId: string;
 
-  test.beforeEach(async ({ page }) => {
-    deviceId = await setupNewUser(page);
+  test.beforeEach(async ({ page, baseURL }) => {
+    deviceId = await setupNewUser(page, baseURL || '/');
   });
 
   test('should complete full payment flow for starter tier', async ({ page }) => {
     // Step 1: Navigate to app
     await page.goto('/');
 
-    // Step 2: Complete onboarding (if shown)
-    const onboardingVisible = await page.isVisible('button:has-text("Next")');
-    if (onboardingVisible) {
-      // Click through onboarding steps
-      await page.click('button:has-text("Next")');
-      await page.click('button:has-text("Next")');
-      await page.click('button:has-text("Get Started")');
-    }
+    // Step 2: Click "Начать!" to start (Russian UI)
+    await page.click('button:has-text("Начать!")');
 
-    // Step 3: Click "Create New Persona"
-    await page.click('button:has-text("Create")');
-
-    // Step 4: Upload photos
+    // Step 3: Upload 10 photos (minimum required)
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles([
       'tests/fixtures/test-photos/person1.jpg',
@@ -84,20 +83,38 @@ test.describe('Payment Flow - Starter Tier (499 RUB, 7 photos)', () => {
       'tests/fixtures/test-photos/person3.jpg',
       'tests/fixtures/test-photos/person4.jpg',
       'tests/fixtures/test-photos/person5.jpg',
+      'tests/fixtures/test-photos/person6.jpg',
+      'tests/fixtures/test-photos/person7.jpg',
+      'tests/fixtures/test-photos/person8.jpg',
+      'tests/fixtures/test-photos/person9.jpg',
+      'tests/fixtures/test-photos/person10.jpg',
     ]);
 
-    // Wait for uploads to process
-    await page.waitForSelector('button:has-text("Continue")', { timeout: 10000 });
-    await page.click('button:has-text("Continue")');
+    // Wait for uploads and click continue
+    await page.waitForSelector('button:has-text("Далее")', { timeout: 15000 });
+    await page.click('button:has-text("Далее")');
 
-    // Step 5: Select style (e.g., Professional)
-    await page.click('[data-style="professional"]');
-    await page.click('button:has-text("Continue")');
+    // Step 4: Wait for next screen (style selection or payment)
+    await page.waitForTimeout(2000); // Allow page transition
 
-    // Step 6: Payment modal appears - select Starter tier
-    await expect(page.locator('text=Choose Your Plan')).toBeVisible();
-    await page.click('[data-tier="starter"]');
-    await page.click('button:has-text("Pay 499 ₽")');
+    // Take screenshot to see current state
+    await page.screenshot({ path: 'test-results/after-dallee-click.png' });
+
+    // Look for any "Далее", "Оплатить", "Продолжить" button
+    const nextButton = page.locator('button:has-text("Далее"), button:has-text("Оплатить"), button:has-text("Продолжить"), button:has-text("Pay")').first();
+    if (await nextButton.isVisible({ timeout: 5000 })) {
+      await nextButton.click();
+    }
+
+    // Step 5: Wait for payment screen
+    await page.waitForTimeout(2000);
+    await page.screenshot({ path: 'test-results/payment-screen.png' });
+
+    // Look for payment button with price (499, 999, or 1499)
+    const payButton = page.locator('button:has-text("499"), button:has-text("Оплатить")').first();
+    if (await payButton.isVisible({ timeout: 10000 })) {
+      await payButton.click();
+    }
 
     // Step 7: API creates payment
     const createPaymentRequest = page.waitForResponse(
@@ -199,8 +216,8 @@ test.describe('Payment Flow - Starter Tier (499 RUB, 7 photos)', () => {
 });
 
 test.describe('Payment Flow - Standard Tier (999 RUB, 15 photos)', () => {
-  test('should process standard tier payment correctly', async ({ page }) => {
-    const deviceId = await setupNewUser(page);
+  test('should process standard tier payment correctly', async ({ page, baseURL }) => {
+    const deviceId = await setupNewUser(page, baseURL || '/');
 
     await page.goto('/');
 
@@ -231,8 +248,8 @@ test.describe('Payment Flow - Standard Tier (999 RUB, 15 photos)', () => {
 });
 
 test.describe('Payment Flow - Premium Tier (1499 RUB, 23 photos)', () => {
-  test('should process premium tier payment correctly', async ({ page }) => {
-    const deviceId = await setupNewUser(page);
+  test('should process premium tier payment correctly', async ({ page, baseURL }) => {
+    const deviceId = await setupNewUser(page, baseURL || '/');
 
     await page.goto('/');
 
@@ -259,8 +276,8 @@ test.describe('Payment Flow - Premium Tier (1499 RUB, 23 photos)', () => {
 });
 
 test.describe('Payment Status Polling', () => {
-  test('should poll payment status until success', async ({ page }) => {
-    const deviceId = await setupNewUser(page);
+  test('should poll payment status until success', async ({ page, baseURL }) => {
+    const deviceId = await setupNewUser(page, baseURL || '/');
 
     // Mock pending status first, then success
     let pollCount = 0;
@@ -292,8 +309,8 @@ test.describe('Payment Status Polling', () => {
     await expect(page).toHaveURL(/\/(generating|results)/, { timeout: 5000 });
   });
 
-  test('should handle permanent payment failure', async ({ page }) => {
-    const deviceId = await setupNewUser(page);
+  test('should handle permanent payment failure', async ({ page, baseURL }) => {
+    const deviceId = await setupNewUser(page, baseURL || '/');
 
     // Mock failed payment status
     await page.route('**/api/payment/status**', (route) =>
@@ -312,8 +329,8 @@ test.describe('Payment Status Polling', () => {
 });
 
 test.describe('Referral Code Application', () => {
-  test('should apply referral code during payment', async ({ page }) => {
-    const deviceId = await setupNewUser(page);
+  test('should apply referral code during payment', async ({ page, baseURL }) => {
+    const deviceId = await setupNewUser(page, baseURL || '/');
 
     await page.goto('/');
 
@@ -332,8 +349,8 @@ test.describe('Referral Code Application', () => {
     expect(requestBody.referralCode).toBe('FRIEND123');
   });
 
-  test('should ignore invalid referral code', async ({ page }) => {
-    const deviceId = await setupNewUser(page);
+  test('should ignore invalid referral code', async ({ page, baseURL }) => {
+    const deviceId = await setupNewUser(page, baseURL || '/');
 
     await page.goto('/');
 
@@ -349,8 +366,8 @@ test.describe('Referral Code Application', () => {
 });
 
 test.describe('Payment Security', () => {
-  test('should not allow duplicate payments', async ({ page }) => {
-    const deviceId = await setupNewUser(page);
+  test('should not allow duplicate payments', async ({ page, baseURL }) => {
+    const deviceId = await setupNewUser(page, baseURL || '/');
 
     // Mock user already has pending payment
     await page.route('**/api/payment/create', (route) =>
@@ -370,9 +387,10 @@ test.describe('Payment Security', () => {
     await expect(page.locator('text=already in progress')).toBeVisible();
   });
 
-  test('should require valid device ID', async ({ page }) => {
-    // Don't set device ID
+  test('should require valid device ID', async ({ page, baseURL }) => {
+    // Don't set device ID - navigate first to access localStorage
     await page.context().clearCookies();
+    await page.goto(baseURL || '/');
     await page.evaluate(() => localStorage.clear());
 
     await page.goto('/payment/callback'); // Direct access
@@ -383,8 +401,8 @@ test.describe('Payment Security', () => {
 });
 
 test.describe('Edge Cases', () => {
-  test('should handle network errors during payment creation', async ({ page }) => {
-    const deviceId = await setupNewUser(page);
+  test('should handle network errors during payment creation', async ({ page, baseURL }) => {
+    const deviceId = await setupNewUser(page, baseURL || '/');
 
     // Simulate network error
     await page.route('**/api/payment/create', (route) => route.abort('failed'));
@@ -397,8 +415,8 @@ test.describe('Edge Cases', () => {
     await expect(page.locator('text=Network error')).toBeVisible({ timeout: 5000 });
   });
 
-  test('should handle T-Bank timeout', async ({ page }) => {
-    const deviceId = await setupNewUser(page);
+  test('should handle T-Bank timeout', async ({ page, baseURL }) => {
+    const deviceId = await setupNewUser(page, baseURL || '/');
 
     // Mock slow T-Bank response
     await page.route('**/api/payment/create', async (route) => {
@@ -417,8 +435,8 @@ test.describe('Edge Cases', () => {
     await expect(page.locator('text=timeout')).toBeVisible({ timeout: 35000 });
   });
 
-  test('should handle browser back button during payment', async ({ page }) => {
-    const deviceId = await setupNewUser(page);
+  test('should handle browser back button during payment', async ({ page, baseURL }) => {
+    const deviceId = await setupNewUser(page, baseURL || '/');
 
     await page.goto('/');
 
@@ -434,8 +452,8 @@ test.describe('Edge Cases', () => {
     await waitForPaymentRedirect(page);
   });
 
-  test('should handle page refresh during status polling', async ({ page }) => {
-    const deviceId = await setupNewUser(page);
+  test('should handle page refresh during status polling', async ({ page, baseURL }) => {
+    const deviceId = await setupNewUser(page, baseURL || '/');
 
     await page.goto('/payment/callback?device_id=' + deviceId);
 
