@@ -13,8 +13,12 @@ export async function GET(request: NextRequest) {
       paymentId,
     })
 
-    if (!deviceId) {
+    // SECURITY: Validate deviceId format
+    if (!deviceId || deviceId.trim().length === 0) {
       return NextResponse.json({ error: "Device ID required" }, { status: 400 })
+    }
+    if (deviceId.length > 255) {
+      return NextResponse.json({ error: "Device ID too long" }, { status: 400 })
     }
 
     if (!process.env.DATABASE_URL) {
@@ -70,9 +74,10 @@ export async function GET(request: NextRequest) {
       const payment = await getPaymentState(paymentId)
 
       if (payment.Status === "CONFIRMED" || payment.Status === "AUTHORIZED") {
+        // IDEMPOTENT: Only update if not already succeeded (prevents race with webhook)
         await sql`
           UPDATE payments SET status = 'succeeded', updated_at = NOW()
-          WHERE tbank_payment_id = ${paymentId}
+          WHERE tbank_payment_id = ${paymentId} AND status != 'succeeded'
         `
         return NextResponse.json({ paid: true, status: "succeeded" })
       }

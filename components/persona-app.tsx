@@ -437,19 +437,37 @@ export default function PersonaApp() {
           persona.images.slice(0, 14).map((img) => fileToBase64(img.file))
         )
 
-        const uploadRes = await fetch(`/api/avatars/${dbAvatarId}/references`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            deviceId,
-            referenceImages,
-          }),
-        })
+        // RELIABILITY: Retry upload up to 3 times
+        let uploadSuccess = false
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            const uploadRes = await fetch(`/api/avatars/${dbAvatarId}/references`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                deviceId,
+                referenceImages,
+              }),
+            })
 
-        if (!uploadRes.ok) {
-          console.warn("[Sync] Failed to upload references, but avatar created")
-        } else {
-          console.log("[Sync] Reference photos uploaded successfully")
+            if (uploadRes.ok) {
+              console.log("[Sync] Reference photos uploaded successfully")
+              uploadSuccess = true
+              break
+            }
+            console.warn(`[Sync] Upload attempt ${attempt} failed, status: ${uploadRes.status}`)
+          } catch (uploadError) {
+            console.warn(`[Sync] Upload attempt ${attempt} error:`, uploadError)
+          }
+
+          if (attempt < 3) {
+            await new Promise(r => setTimeout(r, 1000 * attempt)) // Exponential backoff
+          }
+        }
+
+        if (!uploadSuccess) {
+          console.error("[Sync] Failed to upload references after 3 attempts - photos will be sent during generation")
+          // Note: handleGenerate will re-send photos from local memory as fallback
         }
       }
 

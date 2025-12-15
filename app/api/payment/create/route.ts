@@ -20,8 +20,12 @@ export async function POST(request: NextRequest) {
       referralCode?: string
     }
 
-    if (!deviceId) {
+    // SECURITY: Validate deviceId format
+    if (!deviceId || typeof deviceId !== 'string' || deviceId.trim().length === 0) {
       return NextResponse.json({ error: "Device ID required" }, { status: 400 })
+    }
+    if (deviceId.length > 255) {
+      return NextResponse.json({ error: "Device ID too long" }, { status: 400 })
     }
 
     // Получаем или создаем пользователя

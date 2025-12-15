@@ -37,6 +37,15 @@ export async function POST(request: NextRequest) {
     const paymentId = notification.PaymentId
     const status = notification.Status
 
+    // SECURITY: Validate payment exists in our database before processing
+    const existingPayment = await sql`
+      SELECT id, user_id, status FROM payments WHERE tbank_payment_id = ${paymentId}
+    `
+    if (existingPayment.length === 0) {
+      console.error("[T-Bank Webhook] Unknown payment ID (not in our DB):", paymentId)
+      return NextResponse.json({ error: "Payment not found" }, { status: 404 })
+    }
+
     // T-Bank statuses: NEW, CONFIRMED, REJECTED, AUTHORIZED, PARTIAL_REFUNDED, REFUNDED
     if (status === "CONFIRMED" || status === "AUTHORIZED") {
       console.log("[T-Bank Webhook] Payment confirmed:", paymentId)

@@ -210,11 +210,17 @@ export async function getPaymentState(paymentId: string): Promise<TBankPayment> 
 }
 
 export function verifyWebhookSignature(notification: Record<string, unknown>, receivedToken: string): boolean {
-  // SECURITY: Only skip verification in development AND test mode
-  if (IS_TEST_MODE && process.env.NODE_ENV === 'development') {
-    console.warn('[T-Bank] Skipping webhook signature verification (dev + test mode)')
+  // SECURITY: ALWAYS verify signature in production, regardless of test mode
+  const isProduction = process.env.NODE_ENV === 'production'
+  
+  if (!isProduction && process.env.NODE_ENV === 'development' && IS_TEST_MODE) {
+    // Only skip in EXPLICIT development mode AND test mode
+    console.warn('[T-Bank] Skipping webhook signature verification (dev only + test mode)')
     return true
   }
+
+  // For production OR any non-development environment: ALWAYS verify
+  // This ensures security even if someone accidentally deploys with test key
 
   // Создаем копию уведомления без токена
   const params: Record<string, string | number> = {}
