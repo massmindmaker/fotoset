@@ -278,9 +278,65 @@ export default function PersonaApp() {
                   })
                     .then(res => res.json())
                     .then(data => {
-                      if (data.success) {
-                        console.log("[Resume Payment] Generation started, jobId:", data.data?.jobId)
-                      } else {
+                      if (data.success && data.data?.jobId) {
+                        console.log("[Resume Payment] Generation started, jobId:", data.data.jobId)
+                        const jobId = data.data.jobId
+                        const personaId = targetPersona.id
+                        const totalPhotos = tierPhotos || 23
+                        let lastPhotoCount = 0
+
+                        // Start polling for generation progress (same as handleGenerate)
+                        const pollInterval = setInterval(async () => {
+                          try {
+                            const statusRes = await fetch(`/api/generate?job_id=${jobId}`)
+                            const statusData = await statusRes.json()
+
+                            setGenerationProgress({
+                              completed: statusData.progress?.completed || 0,
+                              total: statusData.progress?.total || totalPhotos,
+                            })
+
+                            if (statusData.photos && statusData.photos.length > lastPhotoCount) {
+                              const newPhotos = statusData.photos.slice(lastPhotoCount)
+                              const newAssets = newPhotos.map((url: string, i: number) => ({
+                                id: `${jobId}-${lastPhotoCount + i}`,
+                                type: "PHOTO" as const,
+                                url,
+                                styleId: "pinglass",
+                                createdAt: Date.now(),
+                              }))
+
+                              setPersonas((prev) =>
+                                prev.map((persona) =>
+                                  persona.id === personaId
+                                    ? {
+                                        ...persona,
+                                        generatedAssets: [...newAssets, ...persona.generatedAssets],
+                                        thumbnailUrl: persona.thumbnailUrl || newAssets[0]?.url,
+                                      }
+                                    : persona
+                                )
+                              )
+                              lastPhotoCount = statusData.photos.length
+                            }
+
+                            if (statusData.status === "completed" || statusData.status === "failed") {
+                              clearInterval(pollInterval)
+                              setIsGenerating(false)
+                              setGenerationProgress({ completed: 0, total: 0 })
+                              console.log("[Resume Payment] Generation completed:", statusData.status)
+                            }
+                          } catch (pollError) {
+                            console.error("[Resume Payment] Polling error:", pollError)
+                          }
+                        }, 3000)
+
+                        // Safety timeout - stop polling after 15 minutes
+                        setTimeout(() => {
+                          clearInterval(pollInterval)
+                          setIsGenerating(false)
+                        }, 15 * 60 * 1000)
+                      } else if (!data.success) {
                         console.error("[Resume Payment] Generation failed:", data.error)
                         setIsGenerating(false)
                       }
