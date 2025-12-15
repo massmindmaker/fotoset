@@ -340,6 +340,26 @@ export default function PersonaApp() {
     }
   }, [viewState, isReady])
 
+  // Recovery: if view requires persona but it's missing, redirect to DASHBOARD
+  useEffect(() => {
+    if (!isReady) return
+    const viewsRequiringPersona = ["CREATE_PERSONA_UPLOAD", "SELECT_TIER", "RESULTS"]
+    if (viewsRequiringPersona.includes(viewState.view) && "personaId" in viewState) {
+      const persona = personas.find((p) => p.id === viewState.personaId)
+      if (!persona) {
+        // Wait a moment for state to sync, then redirect if still missing
+        const timeout = setTimeout(() => {
+          const stillMissing = !personas.find((p) => p.id === viewState.personaId)
+          if (stillMissing) {
+            console.warn("[Recovery] Persona not found, redirecting to DASHBOARD:", viewState.personaId)
+            setViewState({ view: "DASHBOARD" })
+          }
+        }, 500)
+        return () => clearTimeout(timeout)
+      }
+    }
+  }, [isReady, viewState, personas])
+
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark"
     setTheme(newTheme)
@@ -356,8 +376,9 @@ export default function PersonaApp() {
     // Mark onboarding as complete when user starts creating
     localStorage.setItem("pinglass_onboarding_complete", "true")
     const newId = Date.now().toString()
-    setPersonas([
-      ...personas,
+    // Use functional update to avoid stale closure
+    setPersonas((prev) => [
+      ...prev,
       { id: newId, name: "Мой аватар", status: "draft", images: [], generatedAssets: [] },
     ])
     setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: newId })
@@ -693,36 +714,54 @@ export default function PersonaApp() {
                 onDelete={deletePersona}
               />
             )}
-            {viewState.view === "CREATE_PERSONA_UPLOAD" && getActivePersona() && (
-              <UploadView
-                persona={getActivePersona()!}
-                updatePersona={updatePersona}
-                onBack={() => setViewState({ view: "DASHBOARD" })}
-                onNext={handleUploadComplete}
-              />
+            {viewState.view === "CREATE_PERSONA_UPLOAD" && (
+              getActivePersona() ? (
+                <UploadView
+                  persona={getActivePersona()!}
+                  updatePersona={updatePersona}
+                  onBack={() => setViewState({ view: "DASHBOARD" })}
+                  onNext={handleUploadComplete}
+                />
+              ) : (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              )
             )}
-            {viewState.view === "SELECT_TIER" && getActivePersona() && (
-              <TierSelectView
-                persona={getActivePersona()!}
-                onBack={() => setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: viewState.personaId })}
-                onGenerate={handleGenerate}
-                isGenerating={isGenerating}
-                onUpgrade={(t) => {
-                  setSelectedTier(t)
-                  setIsPaymentOpen(true)
-                }}
-                selectedTier={selectedTier}
-                onSelectTier={setSelectedTier}
-              />
+            {viewState.view === "SELECT_TIER" && (
+              getActivePersona() ? (
+                <TierSelectView
+                  persona={getActivePersona()!}
+                  onBack={() => setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: viewState.personaId })}
+                  onGenerate={handleGenerate}
+                  isGenerating={isGenerating}
+                  onUpgrade={(t) => {
+                    setSelectedTier(t)
+                    setIsPaymentOpen(true)
+                  }}
+                  selectedTier={selectedTier}
+                  onSelectTier={setSelectedTier}
+                />
+              ) : (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              )
             )}
-            {viewState.view === "RESULTS" && getActivePersona() && (
-              <ResultsView
-                persona={getActivePersona()!}
-                onBack={() => setViewState({ view: "DASHBOARD" })}
-                onGenerateMore={() => setViewState({ view: "SELECT_TIER", personaId: viewState.personaId })}
-                isGenerating={isGenerating}
-                generationProgress={generationProgress}
-              />
+            {viewState.view === "RESULTS" && (
+              getActivePersona() ? (
+                <ResultsView
+                  persona={getActivePersona()!}
+                  onBack={() => setViewState({ view: "DASHBOARD" })}
+                  onGenerateMore={() => setViewState({ view: "SELECT_TIER", personaId: viewState.personaId })}
+                  isGenerating={isGenerating}
+                  generationProgress={generationProgress}
+                />
+              ) : (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              )
             )}
           </main>
           <footer className="mt-auto py-6 px-4 border-t border-border/50">
