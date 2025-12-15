@@ -9,6 +9,7 @@ import {
   createPaginationMeta,
   createLogger,
 } from "@/lib/api-utils"
+import { findOrCreateUser, extractIdentifierFromRequest } from "@/lib/user-identity"
 
 const logger = createLogger("Avatars")
 
@@ -37,31 +38,42 @@ interface AvatarWithPhotos {
 }
 
 interface CreateAvatarRequest {
-  deviceId: string
+  deviceId?: string
+  telegramUserId?: number
   name?: string
 }
 
 // ============================================================================
-// GET /api/avatars?device_id=xxx - Get all avatars for a user with photos
+// GET /api/avatars?device_id=xxx&telegram_user_id=xxx - Get all avatars for a user with photos
 // ============================================================================
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
+  const telegramUserId = searchParams.get("telegram_user_id")
   const deviceId = searchParams.get("device_id")
   const includePhotos = searchParams.get("include_photos") !== "false" // default: true
 
-  if (!deviceId) {
-    return error("VALIDATION_ERROR", "device_id is required")
+  // Require at least one identifier
+  if (!telegramUserId && !deviceId) {
+    return error("VALIDATION_ERROR", "telegram_user_id or device_id is required")
   }
 
   try {
-    // Find user
-    const user = await sql`
-      SELECT id FROM users WHERE device_id = ${deviceId}
-    `.then((rows) => rows[0])
+    // Find user with priority: telegram_user_id > device_id
+    let user
+    if (telegramUserId) {
+      user = await sql`
+        SELECT id FROM users WHERE telegram_user_id = ${parseInt(telegramUserId)}
+      `.then((rows) => rows[0])
+    }
+    if (!user && deviceId) {
+      user = await sql`
+        SELECT id FROM users WHERE device_id = ${deviceId}
+      `.then((rows) => rows[0])
+    }
 
     if (!user) {
-      logger.info("No user found, returning empty avatars", { deviceId })
+      logger.info("No user found, returning empty avatars", { telegramUserId, deviceId })
       return success({ avatars: [] })
     }
 
@@ -190,27 +202,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    const { deviceId, telegramUserId, name = "My Avatar" } = body as CreateAvatarRequest
 
-    // Validate required fields
-    const validation = validateRequired(body, ["deviceId"])
-    if (!validation.valid) {
-      return error("VALIDATION_ERROR", `Missing required fields: ${(validation as { valid: false; missing: string[] }).missing.join(", ")}`)
+    // Require at least one identifier
+    if (!telegramUserId && !deviceId) {
+      return error("VALIDATION_ERROR", "telegramUserId or deviceId is required")
     }
 
-    const { deviceId, name = "My Avatar" } = body as CreateAvatarRequest
-
-    // Find or create user
-    let user = await sql`
-      SELECT id FROM users WHERE device_id = ${deviceId}
-    `.then((rows) => rows[0])
-
-    if (!user) {
-      user = await sql`
-        INSERT INTO users (device_id) VALUES (${deviceId})
-        RETURNING id
-      `.then((rows) => rows[0])
-      logger.info("Created new user", { userId: user.id, deviceId })
-    }
+    // Find or create user with priority: telegram_user_id > device_id
+    const user = await findOrCreateUser({ telegramUserId, deviceId })
+    logger.info("User resolved", { userId: user.id, telegramUserId, deviceId })
 
     // Create avatar
     const newAvatar = await sql`

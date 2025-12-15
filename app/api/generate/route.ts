@@ -22,6 +22,7 @@ import {
   GENERATION_CONFIG as QSTASH_CONFIG,
 } from "@/lib/qstash"
 import { uploadFromUrl, generatePromptKey, isR2Configured } from "@/lib/r2"
+import { findOrCreateUser } from "@/lib/user-identity"
 
 const logger = createLogger("Generate")
 
@@ -263,11 +264,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // Validate required fields (referenceImages optional if useStoredReferences=true)
-    const { deviceId, avatarId, styleId, referenceImages, photoCount, useStoredReferences } = body
+    const { deviceId, telegramUserId, avatarId, styleId, referenceImages, photoCount, useStoredReferences } = body
+
+    // Require at least one identifier
+    if (!telegramUserId && !deviceId) {
+      return error("VALIDATION_ERROR", "telegramUserId or deviceId is required")
+    }
 
     const requiredFields = useStoredReferences
-      ? ["deviceId", "avatarId", "styleId"]
-      : ["deviceId", "avatarId", "styleId", "referenceImages"]
+      ? ["avatarId", "styleId"]
+      : ["avatarId", "styleId", "referenceImages"]
 
     const validation = validateRequired(body, requiredFields)
     if (!validation.valid) {
@@ -276,10 +282,11 @@ export async function POST(request: NextRequest) {
       return error("VALIDATION_ERROR", `Missing required fields: ${missingFields.join(", ")}`)
     }
 
-    // Apply rate limit
-    const rateLimitError = applyRateLimit(deviceId, RATE_LIMIT_CONFIG)
+    // Apply rate limit (use deviceId or telegram user id for rate limiting)
+    const rateLimitKey = deviceId || `tg_${telegramUserId}`
+    const rateLimitError = applyRateLimit(rateLimitKey, RATE_LIMIT_CONFIG)
     if (rateLimitError) {
-      logger.warn("Rate limit exceeded", { deviceId })
+      logger.warn("Rate limit exceeded", { telegramUserId, deviceId })
       return rateLimitError
     }
 
@@ -290,12 +297,22 @@ export async function POST(request: NextRequest) {
       // Fetch stored reference photos from database
       logger.info("Using stored reference images", { avatarId })
 
-      // First verify the avatar belongs to this user
-      const avatarCheck = await sql`
-        SELECT a.id FROM avatars a
-        JOIN users u ON a.user_id = u.id
-        WHERE u.device_id = ${deviceId} AND a.id = ${parseInt(avatarId)}
-      `.then(rows => rows[0])
+      // First verify the avatar belongs to this user (support both telegram_user_id and device_id)
+      let avatarCheck
+      if (telegramUserId) {
+        avatarCheck = await sql`
+          SELECT a.id FROM avatars a
+          JOIN users u ON a.user_id = u.id
+          WHERE u.telegram_user_id = ${telegramUserId} AND a.id = ${parseInt(avatarId)}
+        `.then(rows => rows[0])
+      }
+      if (!avatarCheck && deviceId) {
+        avatarCheck = await sql`
+          SELECT a.id FROM avatars a
+          JOIN users u ON a.user_id = u.id
+          WHERE u.device_id = ${deviceId} AND a.id = ${parseInt(avatarId)}
+        `.then(rows => rows[0])
+      }
 
       if (!avatarCheck) {
         return error("AVATAR_NOT_FOUND", "Avatar not found or access denied")
@@ -328,6 +345,7 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info("Generation request received", {
+      telegramUserId,
       deviceId,
       avatarId,
       styleId,
@@ -336,18 +354,9 @@ export async function POST(request: NextRequest) {
       requestedPhotos: photoCount,
     })
 
-    // Find or create user
-    let user = await sql`
-      SELECT * FROM users WHERE device_id = ${deviceId}
-    `.then((rows) => rows[0])
-
-    if (!user) {
-      user = await sql`
-        INSERT INTO users (device_id) VALUES (${deviceId})
-        RETURNING *
-      `.then((rows) => rows[0])
-      logger.info("Created new user", { userId: user.id, deviceId })
-    }
+    // Find or create user with priority: telegram_user_id > device_id
+    const user = await findOrCreateUser({ telegramUserId, deviceId })
+    logger.info("User resolved", { userId: user.id, telegramUserId, deviceId })
 
     // ============================================================================
     // Payment Validation

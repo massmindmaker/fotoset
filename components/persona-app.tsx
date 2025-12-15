@@ -48,14 +48,40 @@ const PaymentModal = lazy(() => import("./payment-modal").then((m) => ({ default
 const ReferralPanel = lazy(() => import("./referral-panel").then((m) => ({ default: m.ReferralPanel })))
 const AnimatedLogoCompact = lazy(() => import("./animated-logo").then((m) => ({ default: m.AnimatedLogoCompact })))
 
-function getDeviceId(): string {
-  if (typeof window === "undefined") return ""
+// User identifier interface for dual identity support
+interface UserIdentifier {
+  type: "telegram" | "device"
+  telegramUserId?: number
+  deviceId: string
+}
+
+function getUserIdentifier(): UserIdentifier {
+  if (typeof window === "undefined") return { type: "device", deviceId: "" }
+
+  // Check Telegram WebApp first
+  const tg = (window as any).Telegram?.WebApp
+  const telegramUserId = tg?.initDataUnsafe?.user?.id as number | undefined
+
+  if (telegramUserId) {
+    return {
+      type: "telegram",
+      telegramUserId,
+      deviceId: `tg_${telegramUserId}`, // for backward compatibility
+    }
+  }
+
+  // Fallback to localStorage device ID
   let deviceId = localStorage.getItem("pinglass_device_id")
   if (!deviceId) {
     deviceId = crypto.randomUUID()
     localStorage.setItem("pinglass_device_id", deviceId)
   }
-  return deviceId
+  return { type: "device", deviceId }
+}
+
+// Legacy function for backward compatibility
+function getDeviceId(): string {
+  return getUserIdentifier().deviceId
 }
 
 export default function PersonaApp() {
@@ -64,17 +90,27 @@ export default function PersonaApp() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 })
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
-  const [deviceId, setDeviceId] = useState("")
+  const [userIdentifier, setUserIdentifier] = useState<UserIdentifier | null>(null)
   const [isReady, setIsReady] = useState(false)
   const [selectedTier, setSelectedTier] = useState<PricingTier>(PRICING_TIERS[1])
   const [theme, setTheme] = useState<"dark" | "light">("dark")
   const [isReferralOpen, setIsReferralOpen] = useState(false)
 
+  // Derived values for backward compatibility
+  const deviceId = userIdentifier?.deviceId || ""
+  const telegramUserId = userIdentifier?.telegramUserId
+
   // Load avatars from server
-  const loadAvatarsFromServer = async (deviceIdParam: string): Promise<Persona[]> => {
+  const loadAvatarsFromServer = async (identifier: UserIdentifier): Promise<Persona[]> => {
     try {
       // Use include_photos=true (default) to get all avatars with photos in ONE request
-      const res = await fetch(`/api/avatars?device_id=${deviceIdParam}`)
+      // Priority: telegram_user_id for cross-device sync
+      let url = "/api/avatars?include_photos=true"
+      if (identifier.telegramUserId) {
+        url += `&telegram_user_id=${identifier.telegramUserId}`
+      }
+      url += `&device_id=${identifier.deviceId}`
+      const res = await fetch(url)
       if (!res.ok) return []
 
       const data = await res.json()
@@ -139,8 +175,8 @@ export default function PersonaApp() {
     if (typeof window === "undefined") return
 
     const initApp = async () => {
-      let currentDeviceId = getDeviceId()
-      setDeviceId(currentDeviceId)
+      let currentIdentifier = getUserIdentifier()
+      setUserIdentifier(currentIdentifier)
 
       try {
         const savedTheme = localStorage.getItem("pinglass_theme") as "dark" | "light" | null
@@ -167,12 +203,16 @@ export default function PersonaApp() {
 
             if (authRes.ok) {
               const authData = await authRes.json()
-              if (authData.deviceId) {
-                // Update deviceId to Telegram-based ID for persistence across sessions
-                localStorage.setItem("pinglass_device_id", authData.deviceId)
-                currentDeviceId = authData.deviceId
-                setDeviceId(authData.deviceId)
-                console.log("[TG Auth] Using Telegram deviceId:", authData.deviceId)
+              if (authData.telegramUserId || authData.deviceId) {
+                // Update identifier to Telegram-based for cross-device sync
+                currentIdentifier = {
+                  type: "telegram",
+                  telegramUserId: authData.telegramUserId,
+                  deviceId: authData.deviceId || `tg_${authData.telegramUserId}`,
+                }
+                localStorage.setItem("pinglass_device_id", currentIdentifier.deviceId)
+                setUserIdentifier(currentIdentifier)
+                console.log("[TG Auth] Using Telegram identity:", currentIdentifier)
               }
             }
 
@@ -189,10 +229,10 @@ export default function PersonaApp() {
           console.error("Failed to process Telegram auth:", e)
         }
 
-        // Use the current deviceId (may have been updated by Telegram auth)
+        // Use the current identifier (may have been updated by Telegram auth)
         // Add timeout to prevent blank screen if API hangs
         const loadAvatarsWithTimeout = Promise.race([
-          loadAvatarsFromServer(currentDeviceId),
+          loadAvatarsFromServer(currentIdentifier),
           new Promise<Persona[]>((resolve) => setTimeout(() => resolve([]), 10000)) // 10s timeout
         ])
         let loadedAvatars = await loadAvatarsWithTimeout
@@ -247,9 +287,11 @@ export default function PersonaApp() {
                   // Mark user as Pro so they don't have to pay again after upload
                   localStorage.setItem("pinglass_is_pro", "true")
 
-                  // Show upload view - user will upload photos and proceed to generation
-                  setPersonas([])
-                  setViewState({ view: "CREATE_PERSONA_UPLOAD" })
+                  // Create a new persona and show upload view
+                  const newId = Date.now().toString()
+                  const newPersona = { id: newId, name: "Мой аватар", status: "draft" as const, images: [], generatedAssets: [] }
+                  setPersonas([newPersona])
+                  setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: newId })
                   setIsReady(true)
                   return // Exit - user will complete flow via normal upload path
                 }
@@ -269,7 +311,8 @@ export default function PersonaApp() {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                      deviceId: currentDeviceId,
+                      telegramUserId: currentIdentifier.telegramUserId,
+                      deviceId: currentIdentifier.deviceId,
                       avatarId: targetPersona.id,
                       styleId: "pinglass",
                       photoCount: tierPhotos || 23,
@@ -492,6 +535,7 @@ export default function PersonaApp() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          telegramUserId,
           deviceId,
           name: persona.name || "Мой аватар",
         }),
@@ -522,6 +566,7 @@ export default function PersonaApp() {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
+                telegramUserId,
                 deviceId,
                 referenceImages,
               }),
@@ -605,6 +650,7 @@ export default function PersonaApp() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          telegramUserId,
           deviceId,
           avatarId: p.id,
           styleId: "pinglass",
@@ -843,6 +889,7 @@ export default function PersonaApp() {
             isOpen={isPaymentOpen}
             onClose={() => setIsPaymentOpen(false)}
             onSuccess={handlePaymentSuccess}
+            telegramUserId={telegramUserId}
             deviceId={deviceId}
             tier={selectedTier}
             personaId={"personaId" in viewState ? String(viewState.personaId) : undefined}

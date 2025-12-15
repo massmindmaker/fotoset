@@ -1,23 +1,26 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { getPaymentState } from "@/lib/tbank"
+import { findOrCreateUser } from "@/lib/user-identity"
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const telegramUserId = searchParams.get("telegram_user_id")
     const deviceId = searchParams.get("device_id")
     let paymentId = searchParams.get("payment_id")
 
     console.log("[Payment Status] Check:", {
+      telegramUserId,
       deviceId: deviceId?.substring(0, 8) + "...",
       paymentId,
     })
 
-    // SECURITY: Validate deviceId format
-    if (!deviceId || deviceId.trim().length === 0) {
-      return NextResponse.json({ error: "Device ID required" }, { status: 400 })
+    // SECURITY: Require at least one identifier
+    if (!telegramUserId && (!deviceId || deviceId.trim().length === 0)) {
+      return NextResponse.json({ error: "telegram_user_id or device_id required" }, { status: 400 })
     }
-    if (deviceId.length > 255) {
+    if (deviceId && deviceId.length > 255) {
       return NextResponse.json({ error: "Device ID too long" }, { status: 400 })
     }
 
@@ -26,19 +29,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ paid: false, status: "pending", testMode: true })
     }
 
-    // Проверяем пользователя
+    // Find or create user with priority: telegram_user_id > device_id
     let user
     try {
-      user = await sql`
-        SELECT * FROM users WHERE device_id = ${deviceId}
-      `.then((rows) => rows[0])
-
-      if (!user) {
-        user = await sql`
-          INSERT INTO users (device_id) VALUES (${deviceId})
-          RETURNING *
-        `.then((rows) => rows[0])
-      }
+      user = await findOrCreateUser({
+        telegramUserId: telegramUserId ? parseInt(telegramUserId) : undefined,
+        deviceId: deviceId || undefined,
+      })
     } catch (dbError) {
       console.error("[Payment Status] Database error:", dbError)
       return NextResponse.json({ paid: false, status: "pending", error: "db_unavailable" })

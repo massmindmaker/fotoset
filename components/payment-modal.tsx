@@ -15,7 +15,8 @@ interface PaymentModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
-  deviceId: string
+  telegramUserId?: number  // Primary identifier for Telegram users
+  deviceId: string         // Fallback identifier for web users
   tier: PricingTier
   personaId?: string  // For post-payment redirect to generation
 }
@@ -28,7 +29,7 @@ interface PaymentResponse {
   testMode: boolean
 }
 
-export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, deviceId, tier, personaId }) => {
+export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, telegramUserId, deviceId, tier, personaId }) => {
   const [step, setStep] = useState<"FORM" | "PROCESSING" | "REDIRECT" | "SUCCESS" | "ERROR">("FORM")
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState("")
@@ -71,10 +72,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
   const handlePayment = useCallback(async () => {
     if (!validateEmail(email)) return
 
-    // Validate deviceId before payment - required for post-payment restoration
-    if (!deviceId) {
-      console.error("[Payment] Missing deviceId - cannot proceed")
-      setErrorMessage("Ошибка идентификации устройства. Перезагрузите страницу.")
+    // Validate that we have at least one identifier for post-payment restoration
+    if (!telegramUserId && !deviceId) {
+      console.error("[Payment] Missing identifiers - cannot proceed")
+      setErrorMessage("Ошибка идентификации пользователя. Перезагрузите страницу.")
       setStep("ERROR")
       return
     }
@@ -93,7 +94,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          deviceId,
+          telegramUserId,  // Primary identifier for Telegram users
+          deviceId,        // Fallback for web users
           email: email.trim(),
           paymentMethod: selectedMethod,
           tierId: tier.id,
@@ -121,7 +123,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         // Save pending payment state for post-payment restoration
         const pendingPayment = {
           personaId,
-          deviceId,  // Added for fallback identification
+          telegramUserId,  // Primary identifier for cross-device sync
+          deviceId,        // Fallback identification
           tierId: tier.id,
           tierPhotos: tier.photos,
           tierPrice: tier.price,
@@ -141,7 +144,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
     } finally {
       setLoading(false)
     }
-  }, [email, selectedMethod, deviceId, tier, personaId, onSuccess, onClose])
+  }, [email, selectedMethod, telegramUserId, deviceId, tier, personaId, onSuccess, onClose])
 
   if (!isOpen) return null
 

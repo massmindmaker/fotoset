@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql, query } from "@/lib/db"
 import { initPayment, IS_TEST_MODE, HAS_CREDENTIALS, type PaymentMethod, type Receipt } from "@/lib/tbank"
+import { findOrCreateUser } from "@/lib/user-identity"
 
 // Pricing tiers matching frontend (components/views/dashboard-view.tsx)
 const TIER_PRICES: Record<string, { price: number; photos: number }> = {
@@ -11,8 +12,9 @@ const TIER_PRICES: Record<string, { price: number; photos: number }> = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { deviceId, email, paymentMethod, tierId, photoCount, referralCode } = await request.json() as {
-      deviceId: string
+    const { deviceId, telegramUserId, email, paymentMethod, tierId, photoCount, referralCode } = await request.json() as {
+      deviceId?: string
+      telegramUserId?: number
       email?: string
       paymentMethod?: PaymentMethod
       tierId?: string
@@ -20,25 +22,16 @@ export async function POST(request: NextRequest) {
       referralCode?: string
     }
 
-    // SECURITY: Validate deviceId format
-    if (!deviceId || typeof deviceId !== 'string' || deviceId.trim().length === 0) {
-      return NextResponse.json({ error: "Device ID required" }, { status: 400 })
+    // SECURITY: Require at least one identifier
+    if (!telegramUserId && (!deviceId || typeof deviceId !== 'string' || deviceId.trim().length === 0)) {
+      return NextResponse.json({ error: "telegramUserId or deviceId required" }, { status: 400 })
     }
-    if (deviceId.length > 255) {
+    if (deviceId && deviceId.length > 255) {
       return NextResponse.json({ error: "Device ID too long" }, { status: 400 })
     }
 
-    // Получаем или создаем пользователя
-    let user = await sql`
-      SELECT * FROM users WHERE device_id = ${deviceId}
-    `.then((rows) => rows[0])
-
-    if (!user) {
-      user = await sql`
-        INSERT INTO users (device_id) VALUES (${deviceId})
-        RETURNING *
-      `.then((rows) => rows[0])
-    }
+    // Find or create user with priority: telegram_user_id > device_id
+    const user = await findOrCreateUser({ telegramUserId, deviceId })
 
     // Apply referral code if provided and not already applied
     if (referralCode) {
@@ -66,7 +59,10 @@ export async function POST(request: NextRequest) {
 
     // FIX: Redirect to /payment/callback which polls status and triggers generation
     // /payment/success was a dead-end that didn't trigger generation flow
-    const successUrl = `${baseUrl}/payment/callback?device_id=${encodeURIComponent(deviceId)}`
+    // Priority: telegram_user_id for cross-device sync, device_id as fallback
+    const successUrl = telegramUserId
+      ? `${baseUrl}/payment/callback?telegram_user_id=${telegramUserId}`
+      : `${baseUrl}/payment/callback?device_id=${encodeURIComponent(deviceId || '')}`
     const failUrl = `${baseUrl}/payment/fail`
     const notificationUrl = `${baseUrl}/api/payment/webhook`
 
@@ -140,7 +136,8 @@ export async function POST(request: NextRequest) {
       paymentId: payment.PaymentId,
       confirmationUrl: payment.PaymentURL,
       testMode: IS_TEST_MODE,
-      deviceId, // Return for client-side storage
+      telegramUserId, // Return for client-side usage
+      deviceId: deviceId || user.device_id, // Return for client-side storage
     })
   } catch (error) {
     console.error("Payment creation error:", error)

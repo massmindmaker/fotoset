@@ -16,6 +16,8 @@ function PaymentCallbackContent() {
 
   useEffect(() => {
     const checkPayment = async () => {
+      // Support both telegram_user_id (primary) and device_id (fallback)
+      const telegramUserId = searchParams.get("telegram_user_id")
       const deviceId = searchParams.get("device_id")
       const paymentId = searchParams.get("payment_id")
       const isTestPayment = searchParams.get("test") === "true"
@@ -31,14 +33,17 @@ function PaymentCallbackContent() {
       }
       attemptsRef.current++
 
-      if (!deviceId) {
+      // Require at least one identifier
+      if (!telegramUserId && !deviceId) {
         setStatus("error")
         return
       }
 
       try {
-        // Для демо-платежей добавляем флаг подтверждения
-        let url = `/api/payment/status?device_id=${deviceId}`
+        // Build URL with available identifiers (telegram_user_id takes priority)
+        let url = "/api/payment/status?"
+        if (telegramUserId) url += `telegram_user_id=${telegramUserId}`
+        else if (deviceId) url += `device_id=${deviceId}`
         if (paymentId) url += `&payment_id=${paymentId}`
         if (isTestPayment) url += "&test=true"
         if (isDemoPayment) url += "&demo_confirmed=true"
