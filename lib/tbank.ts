@@ -28,11 +28,23 @@ export interface TBankPayment {
   ErrorCode?: string
   Message?: string
   TerminalKey?: string
-  Status?: "NEW" | "CONFIRMED" | "REJECTED" | "AUTHORIZED" | "PARTIAL_REFUNDED" | "REFUNDED"
+  Status?: "NEW" | "CONFIRMED" | "REJECTED" | "AUTHORIZED" | "PARTIAL_REFUNDED" | "REFUNDED" | "CANCELED"
   PaymentId?: string
   OrderId?: string
   Amount?: number
   PaymentURL?: string
+}
+
+export interface TBankCancelResponse {
+  Success: boolean
+  ErrorCode?: string
+  Message?: string
+  TerminalKey?: string
+  Status?: string
+  PaymentId?: string
+  OrderId?: string
+  OriginalAmount?: number
+  NewAmount?: number
 }
 
 export interface ReceiptItem {
@@ -78,6 +90,7 @@ export async function initPayment(
   notificationUrl?: string,
   customerEmail?: string,
   paymentMethod?: PaymentMethod,
+  receipt?: Receipt,
 ): Promise<TBankPayment> {
   // Check if credentials are configured
   if (!HAS_CREDENTIALS) {
@@ -134,6 +147,11 @@ export async function initPayment(
   // DATA добавляется ПОСЛЕ генерации токена (не участвует в подписи)
   if (customerEmail) {
     requestBody.DATA = { Email: customerEmail }
+  }
+
+  // Receipt добавляется ПОСЛЕ генерации токена (не участвует в подписи)
+  if (receipt) {
+    requestBody.Receipt = receipt
   }
 
   // Log request
@@ -212,7 +230,7 @@ export async function getPaymentState(paymentId: string): Promise<TBankPayment> 
 export function verifyWebhookSignature(notification: Record<string, unknown>, receivedToken: string): boolean {
   // SECURITY: ALWAYS verify signature in production, regardless of test mode
   const isProduction = process.env.NODE_ENV === 'production'
-  
+
   if (!isProduction && process.env.NODE_ENV === 'development' && IS_TEST_MODE) {
     // Only skip in EXPLICIT development mode AND test mode
     console.warn('[T-Bank] Skipping webhook signature verification (dev only + test mode)')
@@ -246,5 +264,79 @@ export function verifyWebhookSignature(notification: Record<string, unknown>, re
     return crypto.timingSafeEqual(a, b)
   } catch {
     return false
+  }
+}
+
+/**
+ * Cancel or refund a payment
+ * @param paymentId - Payment ID from T-Bank
+ * @param amount - Optional amount in rubles for partial refund. If omitted, full refund.
+ * @param receipt - Optional receipt for fiscal check
+ */
+export async function cancelPayment(
+  paymentId: string,
+  amount?: number,
+  receipt?: Receipt,
+): Promise<TBankCancelResponse> {
+  if (!HAS_CREDENTIALS) {
+    throw new Error("T-Bank credentials not configured")
+  }
+
+  const params: Record<string, string | number> = {
+    TerminalKey: TBANK_TERMINAL_KEY,
+    PaymentId: paymentId,
+  }
+
+  // Amount in kopeks for partial refund
+  if (amount !== undefined) {
+    params.Amount = Math.round(amount * 100)
+  }
+
+  const token = generateToken(params)
+
+  const requestBody: Record<string, unknown> = {
+    ...params,
+    Token: token,
+  }
+
+  // Receipt for fiscal check (optional)
+  if (receipt) {
+    requestBody.Receipt = receipt
+  }
+
+  console.log("[T-Bank] Cancel request:", {
+    paymentId,
+    amount: amount ? Math.round(amount * 100) : "full",
+    hasReceipt: !!receipt,
+  })
+
+  try {
+    const response = await fetch(`${TBANK_API_URL}/Cancel`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    })
+
+    const data: TBankCancelResponse = await response.json()
+
+    console.log("[T-Bank] Cancel response:", {
+      success: data.Success,
+      errorCode: data.ErrorCode,
+      message: data.Message,
+      status: data.Status,
+      originalAmount: data.OriginalAmount,
+      newAmount: data.NewAmount,
+    })
+
+    if (!data.Success) {
+      throw new Error(`T-Bank cancel error ${data.ErrorCode}: ${data.Message || "Unknown error"}`)
+    }
+
+    return data
+  } catch (error) {
+    console.error("[T-Bank] Cancel error:", error)
+    throw error
   }
 }

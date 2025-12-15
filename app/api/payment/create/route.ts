@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql, query } from "@/lib/db"
-import { initPayment, IS_TEST_MODE, HAS_CREDENTIALS, type PaymentMethod } from "@/lib/tbank"
+import { initPayment, IS_TEST_MODE, HAS_CREDENTIALS, type PaymentMethod, type Receipt } from "@/lib/tbank"
 
 // Pricing tiers matching frontend (components/views/dashboard-view.tsx)
 const TIER_PRICES: Record<string, { price: number; photos: number }> = {
@@ -75,6 +75,21 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now().toString(36) // 8 chars in base36
     const orderId = `u${user.id}t${timestamp}`.slice(0, 20)
 
+    // Create Receipt for fiscal check (54-ФЗ)
+    const receipt: Receipt = {
+      Email: email || "noreply@pinglass.ru",
+      Taxation: "usn_income_outcome", // УСН Доходы-Расходы
+      Items: [{
+        Name: `PinGlass - ${tier.photos} AI фото`,
+        Price: amount * 100, // в копейках
+        Quantity: 1,
+        Amount: amount * 100, // в копейках
+        Tax: "none", // без НДС для УСН
+        PaymentMethod: "full_payment",
+        PaymentObject: "service",
+      }],
+    }
+
     console.log("[Payment] Creating T-Bank payment:", {
       orderId,
       amount,
@@ -86,6 +101,7 @@ export async function POST(request: NextRequest) {
       failUrl,
       notificationUrl,
       testMode: IS_TEST_MODE,
+      hasReceipt: true,
     })
 
     // Create payment via T-Bank API (real API for test terminals too)
@@ -98,6 +114,7 @@ export async function POST(request: NextRequest) {
       notificationUrl,
       email,
       paymentMethod,
+      receipt, // Receipt for fiscal check
     )
 
     // Save payment to DB with deviceId for callback lookup
