@@ -45,6 +45,13 @@ export async function POST(request: NextRequest) {
       }, { status: 503 })
     }
 
+    // CRITICAL: Email is required for 54-ФЗ fiscal receipts
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      return NextResponse.json({
+        error: "Email обязателен для получения электронного чека (54-ФЗ)"
+      }, { status: 400 })
+    }
+
     // Validate and get tier pricing
     const tier = TIER_PRICES[tierId || 'premium']
     if (!tier) {
@@ -73,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     // Create Receipt for fiscal check (54-ФЗ)
     const receipt: Receipt = {
-      Email: email || "noreply@pinglass.ru",
+      Email: email.trim(),
       Taxation: "usn_income_outcome", // УСН Доходы-Расходы
       Items: [{
         Name: `PinGlass - ${tier.photos} AI фото`,

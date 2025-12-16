@@ -251,19 +251,21 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                 </div>
               </div>
 
-              {/* Email Input */}
+              {/* Email Input - ОБЯЗАТЕЛЬНОЕ ПОЛЕ (54-ФЗ) */}
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium text-foreground flex items-center gap-2">
                   <Mail className="w-4 h-4" />
-                  Email для чека
+                  Email для чека <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="email"
                   type="email"
                   value={email}
                   onChange={handleEmailChange}
-                  onBlur={() => email && validateEmail(email)}
+                  onBlur={() => validateEmail(email)}
                   placeholder="your@email.com"
+                  required
+                  aria-required="true"
                   className={`w-full px-4 py-3 rounded-xl border-2 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all ${
                     emailError
                       ? "border-red-500 focus:border-red-500"
@@ -274,7 +276,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                   <p className="text-red-500 text-xs mt-1">{emailError}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  На этот адрес придёт электронный чек
+                  Обязательно — на этот адрес придёт электронный чек (54-ФЗ)
                 </p>
               </div>
 
