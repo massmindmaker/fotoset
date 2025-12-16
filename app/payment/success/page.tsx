@@ -37,6 +37,7 @@ function PaymentSuccessContent() {
 
   const deviceId = searchParams.get("device_id")
   const paymentId = searchParams.get("payment_id")
+  const telegramUserId = searchParams.get("telegram_user_id")
 
   // Trigger haptic feedback on Telegram
   const triggerHaptic = useCallback(() => {
@@ -77,20 +78,28 @@ function PaymentSuccessContent() {
     }, 1000)
 
     // Auto redirect after 3 seconds
-    // FIX: Redirect with resume_payment=true to trigger generation flow
+    // FIX: Redirect with resume_payment=true and telegram_user_id to trigger generation flow
     const redirectTimeout = setTimeout(() => {
-      router.push("/?resume_payment=true")
+      let redirectUrl = "/?resume_payment=true"
+      if (telegramUserId) {
+        redirectUrl += `&telegram_user_id=${telegramUserId}`
+      }
+      router.push(redirectUrl)
     }, 3000)
 
     return () => {
       clearInterval(countdownInterval)
       clearTimeout(redirectTimeout)
     }
-  }, [router, triggerHaptic])
+  }, [router, triggerHaptic, telegramUserId])
 
   const handleContinue = () => {
     triggerHaptic()
-    router.push("/?resume_payment=true")
+    let redirectUrl = "/?resume_payment=true"
+    if (telegramUserId) {
+      redirectUrl += `&telegram_user_id=${telegramUserId}`
+    }
+    router.push(redirectUrl)
   }
 
   return (

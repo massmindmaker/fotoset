@@ -56,26 +56,10 @@ interface UserIdentifier {
 }
 
 /**
- * Get user identifier from localStorage (previously validated by server)
- * SECURITY: Does NOT use initDataUnsafe - only uses server-validated data
+ * Initial empty identifier - will be populated by server auth in initApp()
+ * User data is stored in Neon DB, NOT localStorage
  */
-function getUserIdentifier(): UserIdentifier {
-  if (typeof window === "undefined") return { type: "telegram" }
-
-  // Check localStorage for previously validated Telegram identity
-  const savedDeviceId = localStorage.getItem("pinglass_device_id")
-  if (savedDeviceId?.startsWith("tg_")) {
-    const telegramUserId = parseInt(savedDeviceId.replace("tg_", ""))
-    if (!isNaN(telegramUserId)) {
-      return {
-        type: "telegram",
-        telegramUserId,
-        deviceId: savedDeviceId,
-      }
-    }
-  }
-
-  // No valid Telegram identity yet - will be set after server validation in initApp()
+function getInitialIdentifier(): UserIdentifier {
   return { type: "telegram" }
 }
 
@@ -183,7 +167,7 @@ export default function PersonaApp() {
     if (typeof window === "undefined") return
 
     const initApp = async () => {
-      let currentIdentifier = getUserIdentifier()
+      let currentIdentifier = getInitialIdentifier()
       setUserIdentifier(currentIdentifier)
 
       try {
@@ -193,35 +177,46 @@ export default function PersonaApp() {
           document.documentElement.classList.toggle("light", savedTheme === "light")
         }
 
-        // SIMPLIFIED: Get Telegram User ID directly from WebApp (no server auth needed)
+        // Server-side Telegram auth validation (HMAC signature)
+        // User data is stored in Neon DB, not localStorage
         try {
           const tg = window.Telegram?.WebApp
-          if (tg) {
-            // Get user data directly from Telegram WebApp (instant, no server call)
-            const tgUser = tg.initDataUnsafe?.user
-            if (tgUser?.id) {
+          if (tg?.initData) {
+            // Call server to validate initData and get/create user in DB
+            const authRes = await fetch("/api/telegram/auth", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ initData: tg.initData }),
+            })
+
+            if (authRes.ok) {
+              const authData = await authRes.json()
               currentIdentifier = {
                 type: "telegram",
-                telegramUserId: tgUser.id,
-                deviceId: `tg_${tgUser.id}`,
+                telegramUserId: authData.telegramUserId,
+                deviceId: authData.deviceId,
               }
-              localStorage.setItem("pinglass_device_id", currentIdentifier.deviceId)
               setUserIdentifier(currentIdentifier)
-              console.log("[TG] User ID from WebApp:", tgUser.id, tgUser.username || tgUser.first_name)
+              console.log("[TG] Auth success:", authData.telegramUserId, authData.username)
+            } else {
+              console.error("[TG] Auth failed:", await authRes.text())
             }
 
-            // Handle referral code from start_param
+            // Handle referral code from start_param (will be applied during payment creation)
             const telegramRefCode = tg.initDataUnsafe?.start_param
-            if (telegramRefCode && !localStorage.getItem("pinglass_referral_applied")) {
-              localStorage.setItem("pinglass_pending_referral", telegramRefCode)
+            if (telegramRefCode) {
               console.log("[TG] Referral code:", telegramRefCode)
+              // Store temporarily for payment flow
+              sessionStorage.setItem("pinglass_referral_code", telegramRefCode)
             }
 
             tg.ready()
             tg.expand()
+          } else if (!tg) {
+            console.log("[TG] Not in Telegram WebApp context")
           }
         } catch (e) {
-          console.error("[TG] Failed to get user data:", e)
+          console.error("[TG] Auth error:", e)
         }
 
         // Use the current identifier (may have been updated by Telegram auth)
@@ -239,226 +234,160 @@ export default function PersonaApp() {
         // Check for pending payment after redirect from T-Bank
         const urlParams = new URLSearchParams(window.location.search)
         const resumePayment = urlParams.get("resume_payment") === "true"
+        const urlTelegramUserId = urlParams.get("telegram_user_id")
 
         if (resumePayment) {
           // Clean URL without reload
           window.history.replaceState({}, "", window.location.pathname)
 
           try {
-            const pendingPaymentStr = localStorage.getItem("pinglass_pending_payment")
-            if (pendingPaymentStr) {
-              const pendingPayment = JSON.parse(pendingPaymentStr)
-              const { personaId, tierPhotos, timestamp } = pendingPayment
+            // FIX: Use telegram_user_id from URL (passed by callback after payment verification)
+            // This works after external redirect when Telegram WebApp context is unavailable
+            const tgId = currentIdentifier.telegramUserId || (urlTelegramUserId ? parseInt(urlTelegramUserId) : null)
 
-              // Only use if less than 24 hours old (increased from 1 hour for slow payments)
-              if (timestamp && Date.now() - timestamp < 86400000) {
-                localStorage.removeItem("pinglass_pending_payment")
-
-                // Find the persona - try exact match first
-                let targetPersona = loadedAvatars.find(p => String(p.id) === String(personaId))
-
-                // Fallback: if not found by ID (timestamp vs DB ID mismatch), use most recent non-processing persona
-                if (!targetPersona && loadedAvatars.length > 0) {
-                  console.warn("[Resume Payment] Persona not found by ID, searching for suitable fallback. Searched for:", personaId, "Available:", loadedAvatars.map(p => ({ id: p.id, status: p.status })))
-
-                  // Filter out personas that are already processing
-                  const availablePersonas = loadedAvatars.filter(p => p.status !== 'processing')
-
-                  if (availablePersonas.length > 0) {
-                    // Use the most recently created (highest ID)
-                    targetPersona = availablePersonas.reduce((latest, current) =>
-                      Number(current.id) > Number(latest.id) ? current : latest
-                    )
-                    console.log("[Resume Payment] Using fallback persona:", targetPersona.id)
-                  }
-                }
-
-                // If no persona found (DB was cleared), user needs to re-upload photos
-                // because reference photos are stored with the persona in DB
-                if (!targetPersona) {
-                  console.log("[Resume Payment] No avatars found - user must re-upload photos")
-                  console.log("[Resume Payment] Payment was successful, reference photos need to be uploaded again")
-
-                  // Payment was successful - user can proceed with generation
-
-                  // FIX: Create avatar in DB first to get real ID
-                  const tgId = pendingPayment.telegramUserId || currentIdentifier.telegramUserId
-
-                  // SECURITY: Require valid Telegram user ID
-                  if (!tgId) {
-                    console.error("[Resume Payment] No valid Telegram user ID - cannot proceed")
-                    alert("Ошибка аутентификации. Пожалуйста, перезапустите приложение в Telegram.")
-                    setViewState({ view: "DASHBOARD" })
-                    setIsReady(true)
-                    return
-                  }
-
-                  let dbAvatarId: string | null = null
-                  try {
-                    const res = await fetch("/api/avatars", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        telegramUserId: tgId,
-                        name: "Мой аватар",
-                      }),
-                    })
-                    const data = await res.json()
-                    if (data.success && data.data?.id) {
-                      dbAvatarId = String(data.data.id)
-                      console.log("[Resume Payment] Created avatar in DB:", dbAvatarId)
-                    }
-                  } catch (err) {
-                    console.error("[Resume Payment] Failed to create avatar in DB:", err)
-                  }
-
-                  // FIX: Don't fallback to timestamp ID - show error instead
-                  if (!dbAvatarId) {
-                    console.error("[Resume Payment] Avatar creation failed - cannot proceed")
-                    alert("Не удалось создать аватар. Пожалуйста, попробуйте еще раз или обратитесь в поддержку.")
-                    setViewState({ view: "DASHBOARD" })
-                    setIsReady(true)
-                    return
-                  }
-
-                  const newPersona = { id: dbAvatarId, name: "Мой аватар", status: "draft" as const, images: [], generatedAssets: [] }
-                  setPersonas([newPersona])
-                  setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: dbAvatarId })
-                  setIsReady(true)
-                  return // Exit - user will complete flow via normal upload path
-                }
-
-                if (targetPersona) {
-                  console.log("[Resume Payment] Starting generation for persona:", targetPersona.id, "photos:", tierPhotos)
-
-                  // SECURITY: Validate telegramUserId before generation
-                  const generationTgId = pendingPayment.telegramUserId || currentIdentifier.telegramUserId
-                  if (!generationTgId) {
-                    console.error("[Resume Payment] No valid Telegram user ID for generation")
-                    alert("Ошибка аутентификации. Пожалуйста, перезапустите приложение в Telegram.")
-                    setViewState({ view: "DASHBOARD" })
-                    setIsReady(true)
-                    return
-                  }
-
-                  // Set UI state for generation
-                  setPersonas(loadedAvatars)
-                  setViewState({ view: "RESULTS", personaId: targetPersona.id })
-                  setIsGenerating(true)
-                  setGenerationProgress({ completed: 0, total: tierPhotos || 23 })
-                  setIsReady(true)
-
-                  // Start generation using stored reference photos
-                  // FIX: Use telegramUserId from pendingPayment (saved before T-Bank redirect)
-                  // because window.Telegram.WebApp is unavailable after external redirect
-                  fetch("/api/generate", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      telegramUserId: generationTgId,
-                      deviceId: pendingPayment.deviceId || currentIdentifier.deviceId,
-                      avatarId: targetPersona.id,
-                      styleId: "pinglass",
-                      photoCount: tierPhotos || 23,
-                      useStoredReferences: true,
-                    }),
-                  })
-                    .then(res => res.json())
-                    .then(data => {
-                      if (data.success && data.data?.jobId) {
-                        console.log("[Resume Payment] Generation started, jobId:", data.data.jobId)
-                        const jobId = data.data.jobId
-                        const personaId = targetPersona.id
-                        const totalPhotos = tierPhotos || 23
-                        let lastPhotoCount = 0
-
-                        // Start polling for generation progress (using ref for cleanup)
-                        pollIntervalRef.current = setInterval(async () => {
-                          try {
-                            const statusRes = await fetch(`/api/generate?job_id=${jobId}`)
-                            const statusData = await statusRes.json()
-
-                            setGenerationProgress({
-                              completed: statusData.progress?.completed || 0,
-                              total: statusData.progress?.total || totalPhotos,
-                            })
-
-                            if (statusData.photos && statusData.photos.length > lastPhotoCount) {
-                              const newPhotos = statusData.photos.slice(lastPhotoCount)
-                              const newAssets = newPhotos.map((url: string, i: number) => ({
-                                id: `${jobId}-${lastPhotoCount + i}`,
-                                type: "PHOTO" as const,
-                                url,
-                                styleId: "pinglass",
-                                createdAt: Date.now(),
-                              }))
-
-                              setPersonas((prev) =>
-                                prev.map((persona) =>
-                                  persona.id === personaId
-                                    ? {
-                                        ...persona,
-                                        generatedAssets: [...newAssets, ...persona.generatedAssets],
-                                        thumbnailUrl: persona.thumbnailUrl || newAssets[0]?.url,
-                                      }
-                                    : persona
-                                )
-                              )
-                              lastPhotoCount = statusData.photos.length
-                            }
-
-                            if (statusData.status === "completed" || statusData.status === "failed") {
-                              if (pollIntervalRef.current) {
-                                clearInterval(pollIntervalRef.current)
-                                pollIntervalRef.current = null
-                              }
-                              setIsGenerating(false)
-                              setGenerationProgress({ completed: 0, total: 0 })
-                              console.log("[Resume Payment] Generation completed:", statusData.status)
-                            }
-                          } catch (pollError) {
-                            console.error("[Resume Payment] Polling error:", pollError)
-                          }
-                        }, 3000)
-
-                        // Safety timeout - stop polling after 15 minutes
-                        setTimeout(() => {
-                          if (pollIntervalRef.current) {
-                            clearInterval(pollIntervalRef.current)
-                            pollIntervalRef.current = null
-                          }
-                          setIsGenerating(false)
-                        }, 15 * 60 * 1000)
-                      } else if (!data.success) {
-                        console.error("[Resume Payment] Generation failed:", data.error)
-                        setIsGenerating(false)
-                      }
-                    })
-                    .catch(err => {
-                      console.error("[Resume Payment] Generation request failed:", err)
-                      setIsGenerating(false)
-                    })
-
-                  return // Skip normal flow - generation started
-                }
-                // Note: if !targetPersona, we already returned above (line 254)
-              } else {
-                // Expired - clean up
-                localStorage.removeItem("pinglass_pending_payment")
-              }
+            if (!tgId) {
+              console.error("[Resume Payment] No valid Telegram user ID")
+              alert("Ошибка аутентификации. Пожалуйста, перезапустите приложение в Telegram.")
+              setViewState({ view: "DASHBOARD" })
+              setIsReady(true)
+              return
             }
-            
-            // If resume_payment but no valid pending payment data - go to dashboard
-            console.log("[Resume Payment] No valid pending payment, showing dashboard")
+
+            // Update identifier if we got it from URL
+            if (!currentIdentifier.telegramUserId && urlTelegramUserId) {
+              currentIdentifier = {
+                type: "telegram",
+                telegramUserId: tgId,
+                deviceId: `tg_${tgId}`,
+              }
+              setUserIdentifier(currentIdentifier)
+              // Reload avatars with correct user ID
+              loadedAvatars = await loadAvatarsFromServer(currentIdentifier)
+            }
+
+            console.log("[Resume Payment] telegramUserId:", tgId, "avatars:", loadedAvatars.length)
+
+            // Find avatar that needs generation (most recent draft with reference photos)
+            const availablePersonas = loadedAvatars.filter(p => p.status === 'draft')
+            let targetPersona = availablePersonas.length > 0
+              ? availablePersonas.reduce((latest, current) =>
+                  Number(current.id) > Number(latest.id) ? current : latest
+                )
+              : null
+
+            // If no draft avatar, user needs to upload photos first
+            if (!targetPersona) {
+              console.log("[Resume Payment] No draft avatars - user must upload photos")
+              setPersonas(loadedAvatars)
+              setViewState({ view: loadedAvatars.length > 0 ? "DASHBOARD" : "ONBOARDING" })
+              setIsReady(true)
+              return
+            }
+
+            console.log("[Resume Payment] Starting generation for persona:", targetPersona.id)
+
+            const tierPhotos = 23 // Default premium tier
+
+            // Set UI state for generation
             setPersonas(loadedAvatars)
-            setViewState({ view: hasAvatars ? "DASHBOARD" : "ONBOARDING" })
+            setViewState({ view: "RESULTS", personaId: targetPersona.id })
+            setIsGenerating(true)
+            setGenerationProgress({ completed: 0, total: tierPhotos })
             setIsReady(true)
-            return // Exit after handling resume_payment
-            
+
+            // Start generation using stored reference photos
+            fetch("/api/generate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                telegramUserId: tgId,
+                deviceId: currentIdentifier.deviceId,
+                avatarId: targetPersona.id,
+                styleId: "pinglass",
+                photoCount: tierPhotos,
+                useStoredReferences: true,
+              }),
+            })
+              .then(res => res.json())
+              .then(data => {
+                if (data.success && data.data?.jobId) {
+                  console.log("[Resume Payment] Generation started, jobId:", data.data.jobId)
+                  const jobId = data.data.jobId
+                  const personaId = targetPersona.id
+                  let lastPhotoCount = 0
+
+                  // Start polling for generation progress
+                  pollIntervalRef.current = setInterval(async () => {
+                    try {
+                      const statusRes = await fetch(`/api/generate?job_id=${jobId}`)
+                      const statusData = await statusRes.json()
+
+                      setGenerationProgress({
+                        completed: statusData.progress?.completed || 0,
+                        total: statusData.progress?.total || tierPhotos,
+                      })
+
+                      if (statusData.photos && statusData.photos.length > lastPhotoCount) {
+                        const newPhotos = statusData.photos.slice(lastPhotoCount)
+                        const newAssets = newPhotos.map((url: string, i: number) => ({
+                          id: `${jobId}-${lastPhotoCount + i}`,
+                          type: "PHOTO" as const,
+                          url,
+                          styleId: "pinglass",
+                          createdAt: Date.now(),
+                        }))
+
+                        setPersonas((prev) =>
+                          prev.map((persona) =>
+                            persona.id === personaId
+                              ? {
+                                  ...persona,
+                                  generatedAssets: [...newAssets, ...persona.generatedAssets],
+                                  thumbnailUrl: persona.thumbnailUrl || newAssets[0]?.url,
+                                }
+                              : persona
+                          )
+                        )
+                        lastPhotoCount = statusData.photos.length
+                      }
+
+                      if (statusData.status === "completed" || statusData.status === "failed") {
+                        if (pollIntervalRef.current) {
+                          clearInterval(pollIntervalRef.current)
+                          pollIntervalRef.current = null
+                        }
+                        setIsGenerating(false)
+                        setGenerationProgress({ completed: 0, total: 0 })
+                        console.log("[Resume Payment] Generation completed:", statusData.status)
+                      }
+                    } catch (pollError) {
+                      console.error("[Resume Payment] Polling error:", pollError)
+                    }
+                  }, 3000)
+
+                  // Safety timeout - stop polling after 15 minutes
+                  setTimeout(() => {
+                    if (pollIntervalRef.current) {
+                      clearInterval(pollIntervalRef.current)
+                      pollIntervalRef.current = null
+                    }
+                    setIsGenerating(false)
+                  }, 15 * 60 * 1000)
+                } else if (!data.success) {
+                  console.error("[Resume Payment] Generation failed:", data.error)
+                  setIsGenerating(false)
+                }
+              })
+              .catch(err => {
+                console.error("[Resume Payment] Generation request failed:", err)
+                setIsGenerating(false)
+              })
+
+            return // Skip normal flow - generation started
+
           } catch (e) {
             console.error("[Resume Payment] Error:", e)
-            localStorage.removeItem("pinglass_pending_payment")
-            // On error, show dashboard instead of onboarding
+            // On error, show dashboard
             setPersonas(loadedAvatars)
             setViewState({ view: hasAvatars ? "DASHBOARD" : "ONBOARDING" })
             setIsReady(true)
@@ -522,32 +451,15 @@ export default function PersonaApp() {
   }
 
   const handleCreatePersona = async () => {
-    // Mark onboarding as complete when user starts creating
-    localStorage.setItem("pinglass_onboarding_complete", "true")
-
-    // Get telegramUserId from state OR localStorage OR Telegram WebApp directly
-    let tgUserId = telegramUserId
-    if (!tgUserId) {
-      // Try localStorage
-      const savedDeviceId = localStorage.getItem("pinglass_device_id")
-      if (savedDeviceId?.startsWith("tg_")) {
-        tgUserId = parseInt(savedDeviceId.replace("tg_", ""))
-      }
-    }
-    if (!tgUserId) {
-      // Try Telegram WebApp directly
-      const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user
-      if (tgUser?.id) {
-        tgUserId = tgUser.id
-        localStorage.setItem("pinglass_device_id", `tg_${tgUserId}`)
-      }
-    }
-
-    if (!tgUserId) {
-      console.error("[CreatePersona] No Telegram user ID")
-      alert("Пожалуйста, откройте приложение через Telegram.")
+    // SIMPLIFIED: Use telegramUserId from state (set by server auth)
+    // No localStorage fallbacks - if auth failed, user must restart app
+    if (!telegramUserId) {
+      console.error("[CreatePersona] No Telegram user ID - auth failed")
+      alert("Ошибка авторизации. Пожалуйста, перезапустите приложение через @Pinglass_bot")
       return
     }
+
+    const tgUserId = telegramUserId
 
     // FIX: Create avatar in DB first to get real ID (not timestamp)
     // This ensures avatar persists and can be found after payment redirect

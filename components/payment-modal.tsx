@@ -120,18 +120,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
       // In test mode, user enters test card data manually on T-Bank form:
       // Success: 4111 1111 1111 1111, Fail: 5555 5555 5555 5599
       if (data.confirmationUrl) {
-        // Save pending payment state for post-payment restoration
-        const pendingPayment = {
-          personaId,
-          telegramUserId,  // Primary identifier for cross-device sync
-          deviceId,        // Fallback identification
-          tierId: tier.id,
-          tierPhotos: tier.photos,
-          tierPrice: tier.price,
-          timestamp: Date.now(),
-        }
-        localStorage.setItem("pinglass_pending_payment", JSON.stringify(pendingPayment))
-
+        // NOTE: No localStorage needed - telegram_user_id is passed via URL after payment
+        // and avatar info is stored in Neon DB
         setStep("REDIRECT")
         window.location.href = data.confirmationUrl
       } else {
