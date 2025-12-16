@@ -294,8 +294,32 @@ export default function PersonaApp() {
 
                   // Payment was successful - user can proceed with generation
 
-                  // Create a new persona and show upload view
-                  const newId = Date.now().toString()
+                  // FIX: Create avatar in DB first to get real ID
+                  let dbAvatarId: string | null = null
+                  const tgId = pendingPayment.telegramUserId || currentIdentifier.telegramUserId
+
+                  if (tgId) {
+                    try {
+                      const res = await fetch("/api/avatars", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          telegramUserId: tgId,
+                          name: "Мой аватар",
+                        }),
+                      })
+                      const data = await res.json()
+                      if (data.success && data.data?.id) {
+                        dbAvatarId = String(data.data.id)
+                        console.log("[Resume Payment] Created avatar in DB:", dbAvatarId)
+                      }
+                    } catch (err) {
+                      console.error("[Resume Payment] Failed to create avatar in DB:", err)
+                    }
+                  }
+
+                  // Fallback to timestamp ID if DB creation failed
+                  const newId = dbAvatarId || Date.now().toString()
                   const newPersona = { id: newId, name: "Мой аватар", status: "draft" as const, images: [], generatedAssets: [] }
                   setPersonas([newPersona])
                   setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: newId })
@@ -314,12 +338,14 @@ export default function PersonaApp() {
                   setIsReady(true)
 
                   // Start generation using stored reference photos
+                  // FIX: Use telegramUserId from pendingPayment (saved before T-Bank redirect)
+                  // because window.Telegram.WebApp is unavailable after external redirect
                   fetch("/api/generate", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                      telegramUserId: currentIdentifier.telegramUserId,
-                      deviceId: currentIdentifier.deviceId,
+                      telegramUserId: pendingPayment.telegramUserId || currentIdentifier.telegramUserId,
+                      deviceId: pendingPayment.deviceId || currentIdentifier.deviceId,
                       avatarId: targetPersona.id,
                       styleId: "pinglass",
                       photoCount: tierPhotos || 23,
@@ -484,10 +510,37 @@ export default function PersonaApp() {
     setViewState({ view: "DASHBOARD" })
   }
 
-  const handleCreatePersona = () => {
+  const handleCreatePersona = async () => {
     // Mark onboarding as complete when user starts creating
     localStorage.setItem("pinglass_onboarding_complete", "true")
-    const newId = Date.now().toString()
+
+    // FIX: Create avatar in DB first to get real ID (not timestamp)
+    // This ensures avatar persists and can be found after payment redirect
+    let dbAvatarId: string | null = null
+
+    if (telegramUserId) {
+      try {
+        const res = await fetch("/api/avatars", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            telegramUserId,
+            name: "Мой аватар",
+          }),
+        })
+        const data = await res.json()
+        if (data.success && data.data?.id) {
+          dbAvatarId = String(data.data.id)
+          console.log("[CreatePersona] Created avatar in DB:", dbAvatarId)
+        }
+      } catch (err) {
+        console.error("[CreatePersona] Failed to create avatar in DB:", err)
+      }
+    }
+
+    // Fallback to timestamp ID if DB creation failed
+    const newId = dbAvatarId || Date.now().toString()
+
     // Use functional update to avoid stale closure
     setPersonas((prev) => [
       ...prev,

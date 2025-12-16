@@ -27,6 +27,14 @@ function PaymentSuccessContent() {
   const [countdown, setCountdown] = useState(3)
   const [showConfetti, setShowConfetti] = useState(false)
 
+  // Pre-generate confetti positions (lazy initializer runs once on mount)
+  const [confettiPositions] = useState(() =>
+    Array.from({ length: 12 }, () => ({
+      left: 10 + Math.random() * 80,
+      top: 20 + Math.random() * 40,
+    }))
+  )
+
   const deviceId = searchParams.get("device_id")
   const paymentId = searchParams.get("payment_id")
 
@@ -69,8 +77,9 @@ function PaymentSuccessContent() {
     }, 1000)
 
     // Auto redirect after 3 seconds
+    // FIX: Redirect with resume_payment=true to trigger generation flow
     const redirectTimeout = setTimeout(() => {
-      router.push("/")
+      router.push("/?resume_payment=true")
     }, 3000)
 
     return () => {
@@ -81,7 +90,7 @@ function PaymentSuccessContent() {
 
   const handleContinue = () => {
     triggerHaptic()
-    router.push("/")
+    router.push("/?resume_payment=true")
   }
 
   return (
@@ -92,13 +101,13 @@ function PaymentSuccessContent() {
       {/* Success confetti effect */}
       {showConfetti && (
         <div className="fixed inset-0 pointer-events-none overflow-hidden">
-          {[...Array(12)].map((_, i) => (
+          {confettiPositions.map((pos, i) => (
             <div
               key={i}
               className="absolute w-3 h-3 rounded-full animate-fade-in-up"
               style={{
-                left: `${10 + Math.random() * 80}%`,
-                top: `${20 + Math.random() * 40}%`,
+                left: `${pos.left}%`,
+                top: `${pos.top}%`,
                 backgroundColor: i % 3 === 0
                   ? "oklch(0.70 0.16 350)"
                   : i % 3 === 1
