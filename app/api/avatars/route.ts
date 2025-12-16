@@ -38,8 +38,7 @@ interface AvatarWithPhotos {
 }
 
 interface CreateAvatarRequest {
-  deviceId?: string
-  telegramUserId?: number
+  telegramUserId: number
   name?: string
 }
 
@@ -49,31 +48,28 @@ interface CreateAvatarRequest {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
-  const telegramUserId = searchParams.get("telegram_user_id")
-  const deviceId = searchParams.get("device_id")
+  const telegramUserIdParam = searchParams.get("telegram_user_id")
   const includePhotos = searchParams.get("include_photos") !== "false" // default: true
 
-  // Require at least one identifier
-  if (!telegramUserId && !deviceId) {
-    return error("VALIDATION_ERROR", "telegram_user_id or device_id is required")
+  // Require Telegram user ID (no deviceId fallback)
+  if (!telegramUserIdParam) {
+    return error("UNAUTHORIZED", "telegram_user_id is required")
+  }
+
+  // NaN validation
+  const telegramUserId = parseInt(telegramUserIdParam)
+  if (isNaN(telegramUserId)) {
+    return error("VALIDATION_ERROR", "Invalid telegram_user_id format")
   }
 
   try {
-    // Find user with priority: telegram_user_id > device_id
-    let user
-    if (telegramUserId) {
-      user = await sql`
-        SELECT id FROM users WHERE telegram_user_id = ${parseInt(telegramUserId)}
-      `.then((rows) => rows[0])
-    }
-    if (!user && deviceId) {
-      user = await sql`
-        SELECT id FROM users WHERE device_id = ${deviceId}
-      `.then((rows) => rows[0])
-    }
+    // Find user by telegram_user_id only
+    const user = await sql`
+      SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
+    `.then((rows) => rows[0])
 
     if (!user) {
-      logger.info("No user found, returning empty avatars", { telegramUserId, deviceId })
+      logger.info("No user found, returning empty avatars", { telegramUserId })
       return success({ avatars: [] })
     }
 
@@ -105,7 +101,7 @@ export async function GET(request: NextRequest) {
     ` as (Avatar & { photo_count: number })[]
 
     if (avatars.length === 0) {
-      logger.info("No avatars found for user", { userId: user.id, deviceId })
+      logger.info("No avatars found for user", { userId: user.id, telegramUserId })
       return success(
         { avatars: [] },
         createPaginationMeta(pagination, total)
@@ -189,7 +185,7 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     logger.error("Failed to fetch avatars", {
       error: err instanceof Error ? err.message : "Unknown error",
-      deviceId,
+      telegramUserId,
     })
     return error("DATABASE_ERROR", "Failed to fetch avatars")
   }
@@ -202,16 +198,22 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { deviceId, telegramUserId, name = "My Avatar" } = body as CreateAvatarRequest
+    const { telegramUserId, name = "My Avatar" } = body as CreateAvatarRequest
 
-    // Require at least one identifier
-    if (!telegramUserId && !deviceId) {
-      return error("VALIDATION_ERROR", "telegramUserId or deviceId is required")
+    // Require Telegram user ID (no deviceId fallback)
+    if (!telegramUserId) {
+      return error("UNAUTHORIZED", "telegramUserId is required")
     }
 
-    // Find or create user with priority: telegram_user_id > device_id
-    const user = await findOrCreateUser({ telegramUserId, deviceId })
-    logger.info("User resolved", { userId: user.id, telegramUserId, deviceId })
+    // NaN validation
+    const tgId = typeof telegramUserId === 'number' ? telegramUserId : parseInt(String(telegramUserId))
+    if (isNaN(tgId)) {
+      return error("VALIDATION_ERROR", "Invalid telegramUserId format")
+    }
+
+    // Find or create user with telegram_user_id only
+    const user = await findOrCreateUser({ telegramUserId: tgId })
+    logger.info("User resolved", { userId: user.id, telegramUserId: tgId })
 
     // Create avatar
     const newAvatar = await sql`

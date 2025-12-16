@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, lazy, Suspense } from "react"
+import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import { Loader2, Sun, Moon, Gift, Plus } from "lucide-react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
@@ -48,40 +48,35 @@ const PaymentModal = lazy(() => import("./payment-modal").then((m) => ({ default
 const ReferralPanel = lazy(() => import("./referral-panel").then((m) => ({ default: m.ReferralPanel })))
 const AnimatedLogoCompact = lazy(() => import("./animated-logo").then((m) => ({ default: m.AnimatedLogoCompact })))
 
-// User identifier interface for dual identity support
+// User identifier interface - Telegram only (no device fallback)
 interface UserIdentifier {
-  type: "telegram" | "device"
+  type: "telegram"
   telegramUserId?: number
-  deviceId: string
+  deviceId?: string // Legacy field, derived from telegramUserId
 }
 
+/**
+ * Get user identifier from localStorage (previously validated by server)
+ * SECURITY: Does NOT use initDataUnsafe - only uses server-validated data
+ */
 function getUserIdentifier(): UserIdentifier {
-  if (typeof window === "undefined") return { type: "device", deviceId: "" }
+  if (typeof window === "undefined") return { type: "telegram" }
 
-  // Check Telegram WebApp first
-  const tg = (window as any).Telegram?.WebApp
-  const telegramUserId = tg?.initDataUnsafe?.user?.id as number | undefined
-
-  if (telegramUserId) {
-    return {
-      type: "telegram",
-      telegramUserId,
-      deviceId: `tg_${telegramUserId}`, // for backward compatibility
+  // Check localStorage for previously validated Telegram identity
+  const savedDeviceId = localStorage.getItem("pinglass_device_id")
+  if (savedDeviceId?.startsWith("tg_")) {
+    const telegramUserId = parseInt(savedDeviceId.replace("tg_", ""))
+    if (!isNaN(telegramUserId)) {
+      return {
+        type: "telegram",
+        telegramUserId,
+        deviceId: savedDeviceId,
+      }
     }
   }
 
-  // Fallback to localStorage device ID
-  let deviceId = localStorage.getItem("pinglass_device_id")
-  if (!deviceId) {
-    deviceId = crypto.randomUUID()
-    localStorage.setItem("pinglass_device_id", deviceId)
-  }
-  return { type: "device", deviceId }
-}
-
-// Legacy function for backward compatibility
-function getDeviceId(): string {
-  return getUserIdentifier().deviceId
+  // No valid Telegram identity yet - will be set after server validation in initApp()
+  return { type: "telegram" }
 }
 
 export default function PersonaApp() {
@@ -96,9 +91,22 @@ export default function PersonaApp() {
   const [theme, setTheme] = useState<"dark" | "light">("dark")
   const [isReferralOpen, setIsReferralOpen] = useState(false)
 
-  // Derived values for backward compatibility
+  // Ref for polling interval cleanup on unmount
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Derived values
   const deviceId = userIdentifier?.deviceId || ""
   const telegramUserId = userIdentifier?.telegramUserId
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+    }
+  }, [])
 
   // Load avatars from server
   const loadAvatarsFromServer = async (identifier: UserIdentifier): Promise<Persona[]> => {
@@ -284,8 +292,7 @@ export default function PersonaApp() {
                   console.log("[Resume Payment] No avatars found - user must re-upload photos")
                   console.log("[Resume Payment] Payment was successful, reference photos need to be uploaded again")
 
-                  // Mark user as Pro so they don't have to pay again after upload
-                  localStorage.setItem("pinglass_is_pro", "true")
+                  // Payment was successful - user can proceed with generation
 
                   // Create a new persona and show upload view
                   const newId = Date.now().toString()
@@ -328,8 +335,8 @@ export default function PersonaApp() {
                         const totalPhotos = tierPhotos || 23
                         let lastPhotoCount = 0
 
-                        // Start polling for generation progress (same as handleGenerate)
-                        const pollInterval = setInterval(async () => {
+                        // Start polling for generation progress (using ref for cleanup)
+                        pollIntervalRef.current = setInterval(async () => {
                           try {
                             const statusRes = await fetch(`/api/generate?job_id=${jobId}`)
                             const statusData = await statusRes.json()
@@ -364,7 +371,10 @@ export default function PersonaApp() {
                             }
 
                             if (statusData.status === "completed" || statusData.status === "failed") {
-                              clearInterval(pollInterval)
+                              if (pollIntervalRef.current) {
+                                clearInterval(pollIntervalRef.current)
+                                pollIntervalRef.current = null
+                              }
                               setIsGenerating(false)
                               setGenerationProgress({ completed: 0, total: 0 })
                               console.log("[Resume Payment] Generation completed:", statusData.status)
@@ -376,7 +386,10 @@ export default function PersonaApp() {
 
                         // Safety timeout - stop polling after 15 minutes
                         setTimeout(() => {
-                          clearInterval(pollInterval)
+                          if (pollIntervalRef.current) {
+                            clearInterval(pollIntervalRef.current)
+                            pollIntervalRef.current = null
+                          }
                           setIsGenerating(false)
                         }, 15 * 60 * 1000)
                       } else if (!data.success) {
@@ -682,7 +695,8 @@ export default function PersonaApp() {
 
       if (data.jobId) {
         let lastPhotoCount = 0
-        const pollInterval = setInterval(async () => {
+        // Use ref for proper cleanup on unmount
+        pollIntervalRef.current = setInterval(async () => {
           try {
             const statusRes = await fetch(`/api/generate?job_id=${data.jobId}`)
             const statusData = await statusRes.json()
@@ -717,7 +731,10 @@ export default function PersonaApp() {
             }
 
             if (statusData.status === "completed" || statusData.status === "failed") {
-              clearInterval(pollInterval)
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current)
+                pollIntervalRef.current = null
+              }
               updatePersona(p.id, { status: statusData.status === "completed" ? "ready" : "draft" })
               setIsGenerating(false)
               setGenerationProgress({ completed: 0, total: 0 })
@@ -732,7 +749,10 @@ export default function PersonaApp() {
         }, 3000)
 
         setTimeout(() => {
-          clearInterval(pollInterval)
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current)
+            pollIntervalRef.current = null
+          }
           setIsGenerating(false)
         }, 15 * 60 * 1000)
       }

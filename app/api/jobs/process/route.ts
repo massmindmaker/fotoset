@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 })
   }
 
-  const { jobId, avatarId, deviceId, styleId, photoCount, referenceImages, startIndex, chunkSize } = payload
+  const { jobId, avatarId, telegramUserId, styleId, photoCount, referenceImages, startIndex, chunkSize } = payload
 
   console.log("[Jobs/Process] Processing chunk:", {
     jobId,
@@ -171,7 +171,7 @@ export async function POST(request: Request) {
         {
           jobId,
           avatarId,
-          deviceId,
+          telegramUserId,
           styleId,
           photoCount,
           referenceImages,

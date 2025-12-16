@@ -5,6 +5,18 @@ import { sql } from "@/lib/db"
 // Types
 // ============================================================================
 
+// Re-export strict auth from telegram-validation for convenience
+export {
+  validateStrictAuth,
+  validateTelegramInitData,
+  type StrictAuthResult,
+  type TelegramValidationResult
+} from "@/lib/telegram-validation"
+
+// ============================================================================
+// Types
+// ============================================================================
+
 export type ResourceType = "avatar" | "job" | "reference"
 
 export interface OwnershipResult {
@@ -13,27 +25,56 @@ export interface OwnershipResult {
   resourceExists: boolean
 }
 
+/**
+ * User identifier - Telegram only
+ */
+export interface UserIdentifier {
+  telegramUserId?: number
+}
+
 // ============================================================================
-// Device ID Extraction
+// User Identifier Extraction
 // ============================================================================
 
 /**
- * Extract device ID from request headers, query params, or body
- * Priority: x-device-id header > device_id query param > body.deviceId
+ * Extract user identifier from request (Telegram only)
+ * Includes NaN validation for telegram_user_id
  */
-export function getDeviceId(request: NextRequest, body?: any): string | null {
+export function getUserIdentifier(request: NextRequest, body?: any): UserIdentifier {
   // Check header first (most secure)
-  const headerDeviceId = request.headers.get("x-device-id")
-  if (headerDeviceId) return headerDeviceId
+  const headerTelegramId = request.headers.get("x-telegram-user-id")
 
-  // Check query parameter
-  const queryDeviceId = request.nextUrl.searchParams.get("device_id")
-  if (queryDeviceId) return queryDeviceId
+  // Check query parameters
+  const queryTelegramId = request.nextUrl.searchParams.get("telegram_user_id")
 
   // Check request body
-  if (body?.deviceId) return body.deviceId
+  const bodyTelegramId = body?.telegramUserId
 
-  return null
+  let telegramUserId: number | undefined = undefined
+
+  // Parse with NaN validation
+  if (headerTelegramId) {
+    const tgId = parseInt(headerTelegramId)
+    if (!isNaN(tgId)) {
+      telegramUserId = tgId
+    }
+  } else if (queryTelegramId) {
+    const tgId = parseInt(queryTelegramId)
+    if (!isNaN(tgId)) {
+      telegramUserId = tgId
+    }
+  } else if (bodyTelegramId) {
+    const tgId = typeof bodyTelegramId === 'number'
+      ? bodyTelegramId
+      : parseInt(String(bodyTelegramId))
+    if (!isNaN(tgId)) {
+      telegramUserId = tgId
+    }
+  }
+
+  return {
+    telegramUserId,
+  }
 }
 
 // ============================================================================
@@ -41,42 +82,49 @@ export function getDeviceId(request: NextRequest, body?: any): string | null {
 // ============================================================================
 
 /**
- * Verify that a device ID owns a specific resource
+ * Verify that a user identifier owns a specific resource
+ * Telegram-only authentication
  *
- * @param deviceId - User's device identifier
+ * @param identifier - User's identifier (telegram_user_id)
  * @param resourceType - Type of resource (avatar, job, reference)
  * @param resourceId - ID of the resource to check
  * @returns Ownership verification result
  *
  * @example
- * const result = await verifyResourceOwnership(deviceId, 'avatar', avatarId)
+ * const identifier = getUserIdentifier(request)
+ * const result = await verifyResourceOwnershipWithIdentifier(identifier, 'avatar', avatarId)
  * if (!result.authorized) {
  *   return error("FORBIDDEN", "Access denied")
  * }
  */
-export async function verifyResourceOwnership(
-  deviceId: string | null,
+export async function verifyResourceOwnershipWithIdentifier(
+  identifier: UserIdentifier,
   resourceType: ResourceType,
   resourceId: number
 ): Promise<OwnershipResult> {
-  if (!deviceId) {
+  if (!identifier.telegramUserId) {
+    return { authorized: false, resourceExists: false }
+  }
+
+  // NaN validation
+  if (isNaN(identifier.telegramUserId)) {
     return { authorized: false, resourceExists: false }
   }
 
   try {
-    let result: any
+    let result: OwnershipResult
 
     switch (resourceType) {
       case "avatar":
-        result = await verifyAvatarOwnership(deviceId, resourceId)
+        result = await verifyAvatarOwnershipWithIdentifier(identifier, resourceId)
         break
 
       case "job":
-        result = await verifyJobOwnership(deviceId, resourceId)
+        result = await verifyJobOwnershipWithIdentifier(identifier, resourceId)
         break
 
       case "reference":
-        result = await verifyReferenceOwnership(deviceId, resourceId)
+        result = await verifyReferenceOwnershipWithIdentifier(identifier, resourceId)
         break
 
       default:
@@ -91,18 +139,18 @@ export async function verifyResourceOwnership(
 }
 
 // ============================================================================
-// Resource-Specific Verification
+// Resource-Specific Verification with Telegram Support
 // ============================================================================
 
 /**
- * Verify avatar ownership
+ * Verify avatar ownership with Telegram
  */
-async function verifyAvatarOwnership(
-  deviceId: string,
+async function verifyAvatarOwnershipWithIdentifier(
+  identifier: UserIdentifier,
   avatarId: number
 ): Promise<OwnershipResult> {
   const rows = await sql`
-    SELECT a.id, a.user_id, u.device_id
+    SELECT a.id, a.user_id, u.telegram_user_id
     FROM avatars a
     JOIN users u ON u.id = a.user_id
     WHERE a.id = ${avatarId}
@@ -113,7 +161,9 @@ async function verifyAvatarOwnership(
   }
 
   const avatar = rows[0]
-  const authorized = avatar.device_id === deviceId
+  const authorized = identifier.telegramUserId
+    ? avatar.telegram_user_id === identifier.telegramUserId
+    : false
 
   return {
     authorized,
@@ -123,14 +173,14 @@ async function verifyAvatarOwnership(
 }
 
 /**
- * Verify generation job ownership (through avatar)
+ * Verify generation job ownership with Telegram
  */
-async function verifyJobOwnership(
-  deviceId: string,
+async function verifyJobOwnershipWithIdentifier(
+  identifier: UserIdentifier,
   jobId: number
 ): Promise<OwnershipResult> {
   const rows = await sql`
-    SELECT j.id, j.avatar_id, a.user_id, u.device_id
+    SELECT j.id, j.avatar_id, a.user_id, u.telegram_user_id
     FROM generation_jobs j
     JOIN avatars a ON a.id = j.avatar_id
     JOIN users u ON u.id = a.user_id
@@ -142,7 +192,9 @@ async function verifyJobOwnership(
   }
 
   const job = rows[0]
-  const authorized = job.device_id === deviceId
+  const authorized = identifier.telegramUserId
+    ? job.telegram_user_id === identifier.telegramUserId
+    : false
 
   return {
     authorized,
@@ -152,14 +204,14 @@ async function verifyJobOwnership(
 }
 
 /**
- * Verify reference photo ownership (through avatar)
+ * Verify reference photo ownership with Telegram
  */
-async function verifyReferenceOwnership(
-  deviceId: string,
+async function verifyReferenceOwnershipWithIdentifier(
+  identifier: UserIdentifier,
   referenceId: number
 ): Promise<OwnershipResult> {
   const rows = await sql`
-    SELECT r.id, r.avatar_id, a.user_id, u.device_id
+    SELECT r.id, r.avatar_id, a.user_id, u.telegram_user_id
     FROM reference_photos r
     JOIN avatars a ON a.id = r.avatar_id
     JOIN users u ON u.id = a.user_id
@@ -171,40 +223,13 @@ async function verifyReferenceOwnership(
   }
 
   const reference = rows[0]
-  const authorized = reference.device_id === deviceId
+  const authorized = identifier.telegramUserId
+    ? reference.telegram_user_id === identifier.telegramUserId
+    : false
 
   return {
     authorized,
     userId: reference.user_id,
     resourceExists: true,
   }
-}
-
-// ============================================================================
-// Avatar Ownership (legacy compatibility)
-// ============================================================================
-
-/**
- * Legacy function for backward compatibility with existing code
- * Verify avatar ownership and return avatar data
- */
-export async function verifyAvatarOwnershipWithData(
-  avatarId: number,
-  deviceId: string
-): Promise<{ avatar: any; authorized: boolean }> {
-  const rows = await sql`
-    SELECT a.*, u.device_id as owner_device_id
-    FROM avatars a
-    JOIN users u ON u.id = a.user_id
-    WHERE a.id = ${avatarId}
-  `
-
-  if (rows.length === 0) {
-    return { avatar: null, authorized: false }
-  }
-
-  const avatar = rows[0]
-  const authorized = avatar.owner_device_id === deviceId
-
-  return { avatar, authorized }
 }

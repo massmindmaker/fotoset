@@ -23,6 +23,10 @@ import {
 } from "@/lib/qstash"
 import { uploadFromUrl, generatePromptKey, isR2Configured } from "@/lib/r2"
 import { findOrCreateUser } from "@/lib/user-identity"
+import {
+  getUserIdentifier,
+  verifyResourceOwnershipWithIdentifier,
+} from "@/lib/auth-utils"
 
 const logger = createLogger("Generate")
 
@@ -264,11 +268,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // Validate required fields (referenceImages optional if useStoredReferences=true)
-    const { deviceId, telegramUserId, avatarId, styleId, referenceImages, photoCount, useStoredReferences } = body
+    const { telegramUserId, avatarId, styleId, referenceImages, photoCount, useStoredReferences } = body
 
-    // Require at least one identifier
-    if (!telegramUserId && !deviceId) {
-      return error("VALIDATION_ERROR", "telegramUserId or deviceId is required")
+    // Require Telegram user ID (no deviceId fallback)
+    if (!telegramUserId) {
+      return error("UNAUTHORIZED", "telegramUserId is required")
+    }
+
+    // NaN validation for telegramUserId
+    const tgId = typeof telegramUserId === 'number' ? telegramUserId : parseInt(String(telegramUserId))
+    if (isNaN(tgId)) {
+      return error("VALIDATION_ERROR", "Invalid telegramUserId format")
     }
 
     const requiredFields = useStoredReferences
@@ -282,11 +292,11 @@ export async function POST(request: NextRequest) {
       return error("VALIDATION_ERROR", `Missing required fields: ${missingFields.join(", ")}`)
     }
 
-    // Apply rate limit (use deviceId or telegram user id for rate limiting)
-    const rateLimitKey = deviceId || `tg_${telegramUserId}`
+    // Apply rate limit using telegram user id
+    const rateLimitKey = `tg_${tgId}`
     const rateLimitError = applyRateLimit(rateLimitKey, RATE_LIMIT_CONFIG)
     if (rateLimitError) {
-      logger.warn("Rate limit exceeded", { telegramUserId, deviceId })
+      logger.warn("Rate limit exceeded", { telegramUserId: tgId })
       return rateLimitError
     }
 
@@ -297,22 +307,12 @@ export async function POST(request: NextRequest) {
       // Fetch stored reference photos from database
       logger.info("Using stored reference images", { avatarId })
 
-      // First verify the avatar belongs to this user (support both telegram_user_id and device_id)
-      let avatarCheck
-      if (telegramUserId) {
-        avatarCheck = await sql`
-          SELECT a.id FROM avatars a
-          JOIN users u ON a.user_id = u.id
-          WHERE u.telegram_user_id = ${telegramUserId} AND a.id = ${parseInt(avatarId)}
-        `.then(rows => rows[0])
-      }
-      if (!avatarCheck && deviceId) {
-        avatarCheck = await sql`
-          SELECT a.id FROM avatars a
-          JOIN users u ON a.user_id = u.id
-          WHERE u.device_id = ${deviceId} AND a.id = ${parseInt(avatarId)}
-        `.then(rows => rows[0])
-      }
+      // Verify the avatar belongs to this user (telegram_user_id only)
+      const avatarCheck = await sql`
+        SELECT a.id FROM avatars a
+        JOIN users u ON a.user_id = u.id
+        WHERE u.telegram_user_id = ${tgId} AND a.id = ${parseInt(avatarId)}
+      `.then(rows => rows[0])
 
       if (!avatarCheck) {
         return error("AVATAR_NOT_FOUND", "Avatar not found or access denied")
@@ -345,8 +345,7 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info("Generation request received", {
-      telegramUserId,
-      deviceId,
+      telegramUserId: tgId,
       avatarId,
       styleId,
       referenceCount: referenceImagesList.length,
@@ -354,9 +353,9 @@ export async function POST(request: NextRequest) {
       requestedPhotos: photoCount,
     })
 
-    // Find or create user with priority: telegram_user_id > device_id
-    const user = await findOrCreateUser({ telegramUserId, deviceId })
-    logger.info("User resolved", { userId: user.id, telegramUserId, deviceId })
+    // Find or create user with telegram_user_id only
+    const user = await findOrCreateUser({ telegramUserId: tgId })
+    logger.info("User resolved", { userId: user.id, telegramUserId: tgId })
 
     // ============================================================================
     // Payment Validation
@@ -371,7 +370,7 @@ export async function POST(request: NextRequest) {
     `.then((rows) => rows[0])
 
     if (!successfulPayment) {
-      logger.warn("User has no successful payment", { userId: user.id, deviceId })
+      logger.warn("User has no successful payment", { userId: user.id, telegramUserId: tgId })
       return error("PAYMENT_REQUIRED", "Please complete payment before generating photos", {
         code: "PAYMENT_REQUIRED"
       })
@@ -501,7 +500,7 @@ export async function POST(request: NextRequest) {
         {
           jobId: job.id,
           avatarId: dbAvatarId,
-          deviceId,
+          telegramUserId: tgId,
           styleId,
           photoCount: totalPhotos,
           referenceImages: validReferenceImages,
@@ -582,6 +581,13 @@ export async function GET(request: NextRequest) {
     return error("VALIDATION_ERROR", "Either job_id or avatar_id is required")
   }
 
+  // SECURITY: Get user identifier for ownership verification
+  const identifier = getUserIdentifier(request)
+
+  if (!identifier.telegramUserId) {
+    return error("UNAUTHORIZED", "Authentication required")
+  }
+
   try {
     let job
 
@@ -590,6 +596,20 @@ export async function GET(request: NextRequest) {
       if (isNaN(parsedJobId)) {
         return error("VALIDATION_ERROR", "Invalid job_id")
       }
+
+      // SECURITY: Verify job ownership before returning data
+      const ownership = await verifyResourceOwnershipWithIdentifier(
+        identifier,
+        "job",
+        parsedJobId
+      )
+      if (!ownership.resourceExists) {
+        return error("NOT_FOUND", "Generation job not found")
+      }
+      if (!ownership.authorized) {
+        return error("FORBIDDEN", "Access denied to this generation job")
+      }
+
       job = await sql`
         SELECT * FROM generation_jobs WHERE id = ${parsedJobId}
       `.then(rows => rows[0])
@@ -598,6 +618,20 @@ export async function GET(request: NextRequest) {
       if (isNaN(parsedAvatarId)) {
         return error("VALIDATION_ERROR", "Invalid avatar_id")
       }
+
+      // SECURITY: Verify avatar ownership before returning job data
+      const ownership = await verifyResourceOwnershipWithIdentifier(
+        identifier,
+        "avatar",
+        parsedAvatarId
+      )
+      if (!ownership.resourceExists) {
+        return error("NOT_FOUND", "Avatar not found")
+      }
+      if (!ownership.authorized) {
+        return error("FORBIDDEN", "Access denied to this avatar")
+      }
+
       job = await sql`
         SELECT * FROM generation_jobs
         WHERE avatar_id = ${parsedAvatarId}

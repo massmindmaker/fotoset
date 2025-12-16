@@ -6,6 +6,11 @@ import {
   validateRequired,
   createLogger,
 } from "@/lib/api-utils"
+import {
+  getUserIdentifier,
+  verifyResourceOwnershipWithIdentifier,
+  type UserIdentifier,
+} from "@/lib/auth-utils"
 
 const logger = createLogger("Avatars/[id]")
 
@@ -47,33 +52,16 @@ interface UpdateAvatarRequest {
 }
 
 // ============================================================================
-// GET /api/avatars/:id - Get single avatar with photos
+// Helper: Verify avatar ownership (Telegram-only authentication)
 // ============================================================================
 
-
-// ============================================================================
-// Helper: Get device ID from request
-// ============================================================================
-
-function getDeviceId(request: NextRequest, body?: any): string | null {
-  const headerDeviceId = request.headers.get("x-device-id")
-  if (headerDeviceId) return headerDeviceId
-  const queryDeviceId = request.nextUrl.searchParams.get("device_id")
-  if (queryDeviceId) return queryDeviceId
-  if (body?.deviceId) return body.deviceId
-  return null
-}
-
-// ============================================================================
-// Helper: Verify avatar ownership
-// ============================================================================
-
-async function verifyAvatarOwnership(
-  avatarId: number,
-  deviceId: string
+async function verifyAvatarOwnershipWithData(
+  identifier: UserIdentifier,
+  avatarId: number
 ): Promise<{ avatar: any; authorized: boolean }> {
+  // Get avatar with owner info
   const avatar = await sql`
-    SELECT a.*, u.device_id as owner_device_id
+    SELECT a.*, u.telegram_user_id as owner_telegram_id
     FROM avatars a
     JOIN users u ON u.id = a.user_id
     WHERE a.id = ${avatarId}
@@ -83,7 +71,12 @@ async function verifyAvatarOwnership(
     return { avatar: null, authorized: false }
   }
 
-  return { avatar, authorized: avatar.owner_device_id === deviceId }
+  // Telegram-only authentication
+  const authorized = identifier.telegramUserId
+    ? avatar.owner_telegram_id === identifier.telegramUserId
+    : false
+
+  return { avatar, authorized }
 }
 
 // ============================================================================
@@ -98,22 +91,22 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return error("VALIDATION_ERROR", "Invalid avatar ID")
   }
 
-  // IDOR Protection: Get device ID for authorization
-  const deviceId = getDeviceId(request)
-  if (!deviceId) {
-    return error("UNAUTHORIZED", "Device ID required (header x-device-id or query device_id)")
+  // IDOR Protection: Get identifier for authorization (Telegram-only authentication)
+  const identifier = getUserIdentifier(request)
+  if (!identifier.telegramUserId) {
+    return error("UNAUTHORIZED", "telegram_user_id is required")
   }
 
   try {
     // Verify ownership
-    const { avatar, authorized } = await verifyAvatarOwnership(avatarId, deviceId)
+    const { avatar, authorized } = await verifyAvatarOwnershipWithData(identifier, avatarId)
 
     if (!avatar) {
       return error("AVATAR_NOT_FOUND", `Avatar with ID ${avatarId} not found`)
     }
 
     if (!authorized) {
-      logger.warn("Unauthorized avatar access attempt", { avatarId, deviceId })
+      logger.warn("Unauthorized avatar access attempt", { avatarId, identifier })
       return error("FORBIDDEN", "You don't have access to this avatar")
     }
 
@@ -187,21 +180,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const body = await request.json()
     const { name, status, thumbnailUrl } = body as UpdateAvatarRequest
 
-    // IDOR Protection: Get device ID for authorization
-    const deviceId = getDeviceId(request, body)
-    if (!deviceId) {
-      return error("UNAUTHORIZED", "Device ID required")
+    // IDOR Protection: Get identifier for authorization (Telegram-only authentication)
+    const identifier = getUserIdentifier(request, body)
+    if (!identifier.telegramUserId) {
+      return error("UNAUTHORIZED", "telegram_user_id is required")
     }
 
     // Verify ownership
-    const { avatar: existing, authorized } = await verifyAvatarOwnership(avatarId, deviceId)
+    const { avatar: existing, authorized } = await verifyAvatarOwnershipWithData(identifier, avatarId)
 
     if (!existing) {
       return error("AVATAR_NOT_FOUND", `Avatar with ID ${avatarId} not found`)
     }
 
     if (!authorized) {
-      logger.warn("Unauthorized avatar update attempt", { avatarId, deviceId })
+      logger.warn("Unauthorized avatar update attempt", { avatarId, identifier })
       return error("FORBIDDEN", "You don't have access to this avatar")
     }
 
@@ -299,22 +292,22 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return error("VALIDATION_ERROR", "Invalid avatar ID")
   }
 
-  // IDOR Protection: Get device ID for authorization
-  const deviceId = getDeviceId(request)
-  if (!deviceId) {
-    return error("UNAUTHORIZED", "Device ID required (header x-device-id or query device_id)")
+  // IDOR Protection: Get identifier for authorization (Telegram-only authentication)
+  const identifier = getUserIdentifier(request)
+  if (!identifier.telegramUserId) {
+    return error("UNAUTHORIZED", "telegram_user_id is required")
   }
 
   try {
     // Verify ownership
-    const { avatar: existing, authorized } = await verifyAvatarOwnership(avatarId, deviceId)
+    const { avatar: existing, authorized } = await verifyAvatarOwnershipWithData(identifier, avatarId)
 
     if (!existing) {
       return error("AVATAR_NOT_FOUND", `Avatar with ID ${avatarId} not found`)
     }
 
     if (!authorized) {
-      logger.warn("Unauthorized avatar delete attempt", { avatarId, deviceId })
+      logger.warn("Unauthorized avatar delete attempt", { avatarId, identifier })
       return error("FORBIDDEN", "You don't have access to this avatar")
     }
 

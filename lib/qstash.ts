@@ -31,7 +31,7 @@ export const qstashReceiver =
 export interface GenerationJobPayload {
   jobId: number
   avatarId: number
-  deviceId: string
+  telegramUserId: number
   styleId: string
   photoCount: number
   referenceImages: string[] // base64 encoded

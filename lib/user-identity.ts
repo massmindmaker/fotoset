@@ -1,98 +1,57 @@
-// User Identity Helper - Dual identity support (Telegram + Device)
+// User Identity Helper - Telegram-only authentication
 import { sql, type User } from "./db"
 
 export interface UserIdentifier {
-  type: "telegram" | "device"
-  telegramUserId?: number
-  deviceId: string
+  type: "telegram"
+  telegramUserId: number
 }
 
 /**
- * Find or create user with priority: telegram_user_id > device_id
+ * Find or create user by telegram_user_id (primary identifier)
  *
  * For Telegram users:
  * - Primary lookup by telegram_user_id (enables cross-device sync)
  * - Updates device_id if changed (user on new device)
- *
- * For Web users:
- * - Fallback to device_id (localStorage UUID)
  */
 export async function findOrCreateUser(params: {
   telegramUserId?: number
   deviceId?: string
+  email?: string  // for 54-FZ compliance
 }): Promise<User> {
-  const { telegramUserId, deviceId } = params
+  const { telegramUserId, deviceId, email } = params
 
-  // Priority 1: Telegram user ID (permanent identifier)
-  if (telegramUserId) {
-    const existingUsers = await sql`
-      SELECT * FROM users WHERE telegram_user_id = ${telegramUserId}
-    `
-
-    if (existingUsers.length > 0) {
-      const user = existingUsers[0] as User
-
-      // Update device_id if changed (new device)
-      if (deviceId && user.device_id !== deviceId) {
-        await sql`
-          UPDATE users SET device_id = ${deviceId}, updated_at = NOW()
-          WHERE telegram_user_id = ${telegramUserId}
-        `
-        user.device_id = deviceId
-      }
-      return user
-    }
-
-    // Check if there's an existing user with tg_ device_id (migration case)
-    const legacyDeviceId = `tg_${telegramUserId}`
-    const legacyUsers = await sql`
-      SELECT * FROM users WHERE device_id = ${legacyDeviceId}
-    `
-
-    if (legacyUsers.length > 0) {
-      // Migrate: add telegram_user_id to existing user
-      await sql`
-        UPDATE users
-        SET telegram_user_id = ${telegramUserId}, updated_at = NOW()
-        WHERE device_id = ${legacyDeviceId}
-      `
-      const migratedUser = legacyUsers[0] as User
-      migratedUser.telegram_user_id = telegramUserId
-      console.log(`[UserIdentity] Migrated legacy user ${legacyDeviceId} to telegram_user_id ${telegramUserId}`)
-      return migratedUser
-    }
-
-    // Create new user with telegram_user_id
-    const newUsers = await sql`
-      INSERT INTO users (telegram_user_id, device_id)
-      VALUES (${telegramUserId}, ${deviceId || legacyDeviceId})
-      RETURNING *
-    `
-    console.log(`[UserIdentity] Created new Telegram user: telegram_user_id=${telegramUserId}`)
-    return newUsers[0] as User
+  // Require Telegram user ID
+  if (!telegramUserId) {
+    throw new Error("telegramUserId is required")
   }
 
-  // Priority 2: Device ID (fallback for web users)
-  if (deviceId) {
-    const existingUsers = await sql`
-      SELECT * FROM users WHERE device_id = ${deviceId}
-    `
-
-    if (existingUsers.length > 0) {
-      return existingUsers[0] as User
-    }
-
-    // Create new web user
-    const newUsers = await sql`
-      INSERT INTO users (device_id)
-      VALUES (${deviceId})
-      RETURNING *
-    `
-    console.log(`[UserIdentity] Created new web user: device_id=${deviceId}`)
-    return newUsers[0] as User
+  // NaN validation for telegram_user_id
+  const tgId = typeof telegramUserId === 'number' ? telegramUserId : parseInt(String(telegramUserId))
+  if (isNaN(tgId)) {
+    throw new Error("Invalid telegram_user_id format: must be a valid number")
   }
 
-  throw new Error("Either telegramUserId or deviceId is required")
+  // Uses ATOMIC INSERT ON CONFLICT to prevent race conditions
+  const result = await sql`
+    INSERT INTO users (telegram_user_id, device_id, email)
+    VALUES (
+      ${tgId},
+      ${deviceId || `tg_${tgId}`},
+      ${email || null}
+    )
+    ON CONFLICT (telegram_user_id) DO UPDATE SET
+      device_id = COALESCE(EXCLUDED.device_id, users.device_id),
+      email = COALESCE(EXCLUDED.email, users.email),
+      updated_at = NOW()
+    RETURNING *
+  `
+
+  if (result.length > 0) {
+    console.log(`[UserIdentity] Telegram user upserted: telegram_user_id=${tgId}`)
+    return result[0] as User
+  }
+
+  throw new Error(`Failed to upsert Telegram user: ${tgId}`)
 }
 
 /**
@@ -100,19 +59,13 @@ export async function findOrCreateUser(params: {
  */
 export function buildIdentifierParams(identifier: UserIdentifier): URLSearchParams {
   const params = new URLSearchParams()
-
-  if (identifier.telegramUserId) {
-    params.set("telegram_user_id", String(identifier.telegramUserId))
-  }
-  if (identifier.deviceId) {
-    params.set("device_id", identifier.deviceId)
-  }
-
+  params.set("telegram_user_id", String(identifier.telegramUserId))
   return params
 }
 
 /**
  * Extract user identifier from request (query params or body)
+ * Returns validated telegramUserId with NaN check
  */
 export function extractIdentifierFromRequest(data: {
   telegram_user_id?: string | number | null
@@ -120,14 +73,29 @@ export function extractIdentifierFromRequest(data: {
   device_id?: string | null
   deviceId?: string | null
 }): { telegramUserId?: number; deviceId?: string } {
-  const telegramUserId = data.telegram_user_id
-    ? (typeof data.telegram_user_id === 'string' ? parseInt(data.telegram_user_id) : data.telegram_user_id)
-    : data.telegramUserId || undefined
+  let telegramUserId: number | undefined = undefined
+
+  // Parse and validate telegram_user_id with NaN check
+  if (data.telegram_user_id) {
+    const tgId = typeof data.telegram_user_id === 'string'
+      ? parseInt(data.telegram_user_id)
+      : data.telegram_user_id
+    if (!isNaN(tgId)) {
+      telegramUserId = tgId
+    }
+  } else if (data.telegramUserId) {
+    const tgId = typeof data.telegramUserId === 'number'
+      ? data.telegramUserId
+      : parseInt(String(data.telegramUserId))
+    if (!isNaN(tgId)) {
+      telegramUserId = tgId
+    }
+  }
 
   const deviceId = data.device_id || data.deviceId || undefined
 
   return {
-    telegramUserId: telegramUserId || undefined,
+    telegramUserId,
     deviceId: deviceId || undefined,
   }
 }
