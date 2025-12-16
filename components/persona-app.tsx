@@ -193,48 +193,35 @@ export default function PersonaApp() {
           document.documentElement.classList.toggle("light", savedTheme === "light")
         }
 
-        // Telegram auth with timeout to prevent blank screen
+        // SIMPLIFIED: Get Telegram User ID directly from WebApp (no server auth needed)
         try {
           const tg = window.Telegram?.WebApp
-          if (tg?.initData) {
-            // Add 5s timeout for Telegram auth to prevent hanging
-            const authPromise = fetch("/api/telegram/auth", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ initData: tg.initData }),
-            })
-            const timeoutPromise = new Promise<Response>((_, reject) =>
-              setTimeout(() => reject(new Error("Telegram auth timeout")), 5000)
-            )
-
-            const authRes = await Promise.race([authPromise, timeoutPromise])
-
-            if (authRes.ok) {
-              const authData = await authRes.json()
-              if (authData.telegramUserId || authData.deviceId) {
-                // Update identifier to Telegram-based for cross-device sync
-                currentIdentifier = {
-                  type: "telegram",
-                  telegramUserId: authData.telegramUserId,
-                  deviceId: authData.deviceId || `tg_${authData.telegramUserId}`,
-                }
-                localStorage.setItem("pinglass_device_id", currentIdentifier.deviceId)
-                setUserIdentifier(currentIdentifier)
-                console.log("[TG Auth] Using Telegram identity:", currentIdentifier)
+          if (tg) {
+            // Get user data directly from Telegram WebApp (instant, no server call)
+            const tgUser = tg.initDataUnsafe?.user
+            if (tgUser?.id) {
+              currentIdentifier = {
+                type: "telegram",
+                telegramUserId: tgUser.id,
+                deviceId: `tg_${tgUser.id}`,
               }
+              localStorage.setItem("pinglass_device_id", currentIdentifier.deviceId)
+              setUserIdentifier(currentIdentifier)
+              console.log("[TG] User ID from WebApp:", tgUser.id, tgUser.username || tgUser.first_name)
             }
 
+            // Handle referral code from start_param
             const telegramRefCode = tg.initDataUnsafe?.start_param
             if (telegramRefCode && !localStorage.getItem("pinglass_referral_applied")) {
               localStorage.setItem("pinglass_pending_referral", telegramRefCode)
-              console.log("Telegram referral code detected:", telegramRefCode)
+              console.log("[TG] Referral code:", telegramRefCode)
             }
 
             tg.ready()
             tg.expand()
           }
         } catch (e) {
-          console.error("Failed to process Telegram auth:", e)
+          console.error("[TG] Failed to get user data:", e)
         }
 
         // Use the current identifier (may have been updated by Telegram auth)
@@ -538,27 +525,27 @@ export default function PersonaApp() {
     // Mark onboarding as complete when user starts creating
     localStorage.setItem("pinglass_onboarding_complete", "true")
 
-    // Get telegramUserId from state OR extract from localStorage (for timing issues)
+    // Get telegramUserId from state OR localStorage OR Telegram WebApp directly
     let tgUserId = telegramUserId
     if (!tgUserId) {
+      // Try localStorage
       const savedDeviceId = localStorage.getItem("pinglass_device_id")
       if (savedDeviceId?.startsWith("tg_")) {
         tgUserId = parseInt(savedDeviceId.replace("tg_", ""))
-        console.log("[CreatePersona] Extracted telegramUserId from localStorage:", tgUserId)
+      }
+    }
+    if (!tgUserId) {
+      // Try Telegram WebApp directly
+      const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user
+      if (tgUser?.id) {
+        tgUserId = tgUser.id
+        localStorage.setItem("pinglass_device_id", `tg_${tgUserId}`)
       }
     }
 
-    // SECURITY: Require valid Telegram user ID (but be lenient during auth timing)
     if (!tgUserId) {
-      // Check if we're in Telegram WebApp context - might just be timing issue
-      const isInTelegram = typeof window !== "undefined" && window.Telegram?.WebApp?.initData
-      if (isInTelegram) {
-        console.warn("[CreatePersona] In Telegram but telegramUserId not ready - waiting...")
-        alert("Подождите, идёт авторизация... Попробуйте ещё раз через секунду.")
-        return
-      }
-      console.error("[CreatePersona] No Telegram user ID - cannot create avatar")
-      alert("Ошибка аутентификации. Пожалуйста, откройте приложение через Telegram.")
+      console.error("[CreatePersona] No Telegram user ID")
+      alert("Пожалуйста, откройте приложение через Telegram.")
       return
     }
 
