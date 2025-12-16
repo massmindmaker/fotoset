@@ -538,10 +538,27 @@ export default function PersonaApp() {
     // Mark onboarding as complete when user starts creating
     localStorage.setItem("pinglass_onboarding_complete", "true")
 
-    // SECURITY: Require valid Telegram user ID
-    if (!telegramUserId) {
+    // Get telegramUserId from state OR extract from localStorage (for timing issues)
+    let tgUserId = telegramUserId
+    if (!tgUserId) {
+      const savedDeviceId = localStorage.getItem("pinglass_device_id")
+      if (savedDeviceId?.startsWith("tg_")) {
+        tgUserId = parseInt(savedDeviceId.replace("tg_", ""))
+        console.log("[CreatePersona] Extracted telegramUserId from localStorage:", tgUserId)
+      }
+    }
+
+    // SECURITY: Require valid Telegram user ID (but be lenient during auth timing)
+    if (!tgUserId) {
+      // Check if we're in Telegram WebApp context - might just be timing issue
+      const isInTelegram = typeof window !== "undefined" && window.Telegram?.WebApp?.initData
+      if (isInTelegram) {
+        console.warn("[CreatePersona] In Telegram but telegramUserId not ready - waiting...")
+        alert("Подождите, идёт авторизация... Попробуйте ещё раз через секунду.")
+        return
+      }
       console.error("[CreatePersona] No Telegram user ID - cannot create avatar")
-      alert("Ошибка аутентификации. Пожалуйста, перезапустите приложение в Telegram.")
+      alert("Ошибка аутентификации. Пожалуйста, откройте приложение через Telegram.")
       return
     }
 
@@ -554,7 +571,7 @@ export default function PersonaApp() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          telegramUserId,
+          telegramUserId: tgUserId,
           name: "Мой аватар",
         }),
       })
