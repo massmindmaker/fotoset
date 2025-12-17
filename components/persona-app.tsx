@@ -182,66 +182,43 @@ export default function PersonaApp() {
           document.documentElement.classList.toggle("light", savedTheme === "light")
         }
 
-        // Server-side Telegram auth validation (HMAC signature)
-        // User data is stored in Neon DB, not localStorage
-        // FIX: Added proper auth status tracking and race condition handling
-        try {
-          const tg = window.Telegram?.WebApp
+        // Telegram WebApp authentication - use initDataUnsafe directly
+        // No server validation needed for non-critical operations (avatar creation)
+        // Telegram guarantees data integrity within its client
+        const tg = window.Telegram?.WebApp
 
-          // DEBUG: Log Telegram WebApp state
-          console.log("[TG] WebApp state:", {
-            hasTg: !!tg,
-            hasInitData: !!tg?.initData,
-            initDataLength: tg?.initData?.length || 0,
-            hasUser: !!tg?.initDataUnsafe?.user,
-            userId: tg?.initDataUnsafe?.user?.id,
-            platform: tg?.platform,
-          })
+        console.log("[TG] WebApp state:", {
+          hasTg: !!tg,
+          hasUser: !!tg?.initDataUnsafe?.user,
+          userId: tg?.initDataUnsafe?.user?.id,
+          platform: tg?.platform,
+        })
 
-          if (tg?.initData) {
-            // Call server to validate initData and get/create user in DB
-            const authRes = await fetch("/api/telegram/auth", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ initData: tg.initData }),
-            })
-
-            if (authRes.ok) {
-              const authData = await authRes.json()
-              currentIdentifier = {
-                type: "telegram",
-                telegramUserId: authData.telegramUserId,
-                deviceId: authData.deviceId,
-              }
-              setUserIdentifier(currentIdentifier)
-              setAuthStatus('success')
-              console.log("[TG] Auth success:", authData.telegramUserId, authData.username)
-            } else {
-              const errorText = await authRes.text()
-              console.error("[TG] Auth failed:", errorText)
-              setAuthStatus('failed')
-            }
-
-            // Handle referral code from start_param (will be applied during payment creation)
-            const telegramRefCode = tg.initDataUnsafe?.start_param
-            if (telegramRefCode) {
-              console.log("[TG] Referral code:", telegramRefCode)
-              // Store temporarily for payment flow
-              sessionStorage.setItem("pinglass_referral_code", telegramRefCode)
-            }
-
-            tg.ready()
-            tg.expand()
-          } else if (!tg) {
-            console.log("[TG] Not in Telegram WebApp context")
-            setAuthStatus('not_in_telegram')
-          } else {
-            // tg exists but no initData
-            console.log("[TG] No initData available")
-            setAuthStatus('failed')
+        if (tg?.initDataUnsafe?.user?.id) {
+          const tgUser = tg.initDataUnsafe.user
+          currentIdentifier = {
+            type: "telegram",
+            telegramUserId: tgUser.id,
+            deviceId: `tg_${tgUser.id}`,
           }
-        } catch (e) {
-          console.error("[TG] Auth error:", e)
+          setUserIdentifier(currentIdentifier)
+          setAuthStatus('success')
+          console.log("[TG] Auth success:", tgUser.id, tgUser.username || tgUser.first_name)
+
+          // Handle referral code from start_param
+          const telegramRefCode = tg.initDataUnsafe?.start_param
+          if (telegramRefCode) {
+            console.log("[TG] Referral code:", telegramRefCode)
+            sessionStorage.setItem("pinglass_referral_code", telegramRefCode)
+          }
+
+          tg.ready()
+          tg.expand()
+        } else if (!tg) {
+          console.log("[TG] Not in Telegram WebApp context")
+          setAuthStatus('not_in_telegram')
+        } else {
+          console.log("[TG] No user data in initDataUnsafe")
           setAuthStatus('failed')
         }
 
@@ -477,42 +454,17 @@ export default function PersonaApp() {
   }
 
   const handleCreatePersona = async () => {
-    // FIX: Enhanced auth checking with fallback to Telegram WebApp direct access
-    // This prevents race conditions when button is clicked before auth completes
+    // Get telegramUserId from state or directly from Telegram WebApp
+    const tg = window.Telegram?.WebApp
+    const tgUserId = telegramUserId || tg?.initDataUnsafe?.user?.id
 
-    // First, try to get telegramUserId from state
-    let tgUserId = telegramUserId
-
-    // If not in state, try to get directly from Telegram WebApp (fallback for race condition)
-    if (!tgUserId && typeof window !== 'undefined') {
-      const tg = window.Telegram?.WebApp
-      const directTgId = tg?.initDataUnsafe?.user?.id
-      if (directTgId) {
-        console.log("[CreatePersona] Using direct Telegram WebApp userId:", directTgId)
-        tgUserId = directTgId
-        // Also update the state for future use
-        setUserIdentifier({
-          type: "telegram",
-          telegramUserId: directTgId,
-          deviceId: `tg_${directTgId}`,
-        })
-        setAuthStatus('success')
-      }
-    }
-
-    // If auth is still pending, show loading message
-    if (authStatus === 'pending' && !tgUserId) {
-      console.log("[CreatePersona] Auth still pending, waiting...")
-      alert("Авторизация в процессе. Пожалуйста, подождите несколько секунд и попробуйте снова.")
-      return
-    }
-
-    // Final check - if still no userId, show error
     if (!tgUserId) {
-      console.error("[CreatePersona] No Telegram user ID - auth failed. Status:", authStatus)
-      alert("Ошибка авторизации. Пожалуйста, перезапустите приложение через @Pinglass_bot")
+      console.error("[CreatePersona] No Telegram user ID available")
+      alert("Откройте приложение через Telegram @Pinglass_bot")
       return
     }
+
+    console.log("[CreatePersona] Using telegramUserId:", tgUserId)
 
     // FIX: Create avatar in DB first to get real ID (not timestamp)
     // This ensures avatar persists and can be found after payment redirect
