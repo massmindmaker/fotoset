@@ -186,7 +186,32 @@ export default function PersonaApp() {
         // Telegram WebApp authentication - use initDataUnsafe directly
         // No server validation needed for non-critical operations (avatar creation)
         // Telegram guarantees data integrity within its client
-        const tg = window.Telegram?.WebApp
+        let tg = window.Telegram?.WebApp
+
+        // FIX: Wait for Telegram SDK to initialize (max 2 seconds)
+        // SDK loads asynchronously and may not be ready on first render
+        if (!tg?.initDataUnsafe?.user?.id) {
+          console.log("[TG] SDK not ready, waiting...")
+          await new Promise<void>((resolve) => {
+            let attempts = 0
+            const maxAttempts = 20  // 2 seconds total
+            const checkInterval = setInterval(() => {
+              attempts++
+              const tgCheck = window.Telegram?.WebApp
+              if (tgCheck?.initDataUnsafe?.user?.id) {
+                console.log("[TG] SDK ready after", attempts * 100, "ms")
+                clearInterval(checkInterval)
+                resolve()
+              } else if (attempts >= maxAttempts) {
+                console.log("[TG] SDK timeout after 2s")
+                clearInterval(checkInterval)
+                resolve()
+              }
+            }, 100)
+          })
+          // Re-check after waiting
+          tg = window.Telegram?.WebApp
+        }
 
         console.log("[TG] WebApp state:", {
           hasTg: !!tg,
@@ -264,15 +289,16 @@ export default function PersonaApp() {
               return
             }
 
-            // Update identifier if we got it from URL
-            if (!currentIdentifier.telegramUserId && urlTelegramUserId) {
+            // FIX: ALWAYS reload avatars with URL telegram_user_id after payment redirect
+            // This ensures we get the correct user's avatars even if SDK auth returned different/no ID
+            if (urlTelegramUserId) {
               currentIdentifier = {
                 type: "telegram",
                 telegramUserId: tgId,
                 deviceId: `tg_${tgId}`,
               }
               setUserIdentifier(currentIdentifier)
-              // Reload avatars with correct user ID
+              console.log("[Resume Payment] Reloading avatars with URL tgId:", tgId)
               loadedAvatars = await loadAvatarsFromServer(currentIdentifier)
             }
 
@@ -309,9 +335,12 @@ export default function PersonaApp() {
                 return
               }
 
-              // Fallback 3: No avatars at all - show onboarding
-              console.log("[Resume Payment] No avatars at all, showing onboarding")
-              setViewState({ view: "ONBOARDING" })
+              // Fallback 3: No avatars at all - show DASHBOARD (NOT onboarding!)
+              // After payment, user should never see onboarding again
+              console.log("[Resume Payment] No avatars found after payment, showing dashboard")
+              alert("Оплата прошла успешно! Создайте аватар и загрузите фото.")
+              localStorage.setItem("pinglass_onboarding_complete", "true")
+              setViewState({ view: "DASHBOARD" })
               setIsReady(true)
               return
             }
