@@ -633,10 +633,14 @@ export default function PersonaApp() {
               }
             } else {
               const errText = await uploadRes.text()
-              console.warn(`[Sync] Failed to upload photo ${i + 1}:`, errText)
+              console.error(`[Sync] Photo ${i + 1} FAILED:`, {
+                status: uploadRes.status,
+                statusText: uploadRes.statusText,
+                error: errText,
+              })
             }
           } catch (err) {
-            console.warn(`[Sync] Error uploading photo ${i + 1}:`, err)
+            console.error(`[Sync] Error uploading photo ${i + 1}:`, err)
           }
         }
 
@@ -666,9 +670,55 @@ export default function PersonaApp() {
           }
         }
 
+        // FALLBACK: If R2 upload failed, try saving base64 directly to DB
         if (uploadedUrls.length === 0) {
-          console.error("[Sync] No photos were uploaded to R2!")
-          throw new Error("Не удалось загрузить фото. Попробуйте ещё раз.")
+          console.warn("[Sync] R2 upload failed for all photos, trying direct DB fallback...")
+
+          // Конвертировать первые 5 фото в base64 и сохранить напрямую
+          const fallbackImages = imagesToUpload.slice(0, 5)
+          const base64Images: string[] = []
+
+          for (const img of fallbackImages) {
+            try {
+              const b64 = await fileToBase64(img.file)
+              base64Images.push(b64)
+            } catch (err) {
+              console.error("[Sync] Fallback: failed to convert image:", err)
+            }
+          }
+
+          if (base64Images.length > 0) {
+            try {
+              const fallbackRes = await fetch(`/api/avatars/${dbAvatarId}/references`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  telegramUserId: tgId,
+                  deviceId,
+                  referenceImages: base64Images,
+                }),
+              })
+
+              if (fallbackRes.ok) {
+                const result = await fallbackRes.json()
+                if (result.uploadedCount > 0) {
+                  console.log("[Sync] Fallback succeeded:", result.uploadedCount, "photos saved to DB")
+                  // Успех через fallback - продолжаем
+                } else {
+                  throw new Error("Не удалось сохранить фото в БД")
+                }
+              } else {
+                const errText = await fallbackRes.text()
+                console.error("[Sync] Fallback failed:", errText)
+                throw new Error("Ошибка сохранения фото в БД")
+              }
+            } catch (err) {
+              console.error("[Sync] Fallback error:", err)
+              throw new Error("Не удалось загрузить фото ни в R2, ни в БД")
+            }
+          } else {
+            throw new Error("Не удалось обработать фото для сохранения")
+          }
         }
       }
 
@@ -707,8 +757,9 @@ export default function PersonaApp() {
       const dbId = await syncPersonaToServer(persona)
       setViewState({ view: "SELECT_TIER", personaId: dbId })
     } catch (error) {
-      alert("Ошибка сохранения. Попробуйте ещё раз.")
-      console.error("[Upload] Sync failed:", error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error("[Upload] Sync failed with error:", errorMessage, error)
+      alert(`Ошибка сохранения: ${errorMessage}`)
     } finally {
       setIsGenerating(false)
     }
