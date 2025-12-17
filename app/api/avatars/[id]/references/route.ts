@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/db"
-import { getDeviceId, verifyResourceOwnership } from "@/lib/auth-utils"
+import { getUserIdentifier, verifyResourceOwnershipWithIdentifier } from "@/lib/auth-utils"
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -15,9 +15,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid avatar ID" }, { status: 400 })
   }
 
-  // SECURITY: Verify ownership before returning data
-  const deviceId = getDeviceId(request)
-  const ownership = await verifyResourceOwnership(deviceId, "avatar", avatarId)
+  // SECURITY: Verify ownership before returning data (supports Telegram + device ID)
+  const identifier = getUserIdentifier(request)
+  const ownership = await verifyResourceOwnershipWithIdentifier(identifier, "avatar", avatarId)
 
   if (!ownership.resourceExists) {
     return NextResponse.json({ error: "Avatar not found" }, { status: 404 })
@@ -66,9 +66,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid avatar ID" }, { status: 400 })
   }
 
-  // SECURITY: Verify ownership before uploading
-  const deviceId = getDeviceId(request)
-  const ownership = await verifyResourceOwnership(deviceId, "avatar", avatarId)
+  // SECURITY: Verify ownership before uploading (supports Telegram + device ID)
+  const identifier = getUserIdentifier(request)
+  const ownership = await verifyResourceOwnershipWithIdentifier(identifier, "avatar", avatarId)
 
   if (!ownership.resourceExists) {
     return NextResponse.json({ error: "Avatar not found" }, { status: 404 })
@@ -136,9 +136,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid avatar ID" }, { status: 400 })
   }
 
-  // SECURITY: Verify ownership before deleting
-  const deviceId = getDeviceId(request)
-  const ownership = await verifyResourceOwnership(deviceId, "avatar", avatarId)
+  // SECURITY: Verify ownership before deleting (supports Telegram + device ID)
+  const identifier = getUserIdentifier(request)
+  const ownership = await verifyResourceOwnershipWithIdentifier(identifier, "avatar", avatarId)
 
   if (!ownership.resourceExists) {
     return NextResponse.json({ error: "Avatar not found" }, { status: 404 })

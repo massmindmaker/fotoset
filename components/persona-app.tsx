@@ -187,6 +187,17 @@ export default function PersonaApp() {
         // FIX: Added proper auth status tracking and race condition handling
         try {
           const tg = window.Telegram?.WebApp
+
+          // DEBUG: Log Telegram WebApp state
+          console.log("[TG] WebApp state:", {
+            hasTg: !!tg,
+            hasInitData: !!tg?.initData,
+            initDataLength: tg?.initData?.length || 0,
+            hasUser: !!tg?.initDataUnsafe?.user,
+            userId: tg?.initDataUnsafe?.user?.id,
+            platform: tg?.platform,
+          })
+
           if (tg?.initData) {
             // Call server to validate initData and get/create user in DB
             const authRes = await fetch("/api/telegram/auth", {

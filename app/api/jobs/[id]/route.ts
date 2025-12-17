@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/db"
-import { getDeviceId, verifyResourceOwnership } from "@/lib/auth-utils"
+import { getUserIdentifier, verifyResourceOwnershipWithIdentifier } from "@/lib/auth-utils"
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -15,9 +15,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid job ID" }, { status: 400 })
   }
 
-  // SECURITY: Verify ownership before returning job data
-  const deviceId = getDeviceId(request)
-  const ownership = await verifyResourceOwnership(deviceId, "job", jobId)
+  // SECURITY: Verify ownership before returning job data (supports Telegram + device ID)
+  const identifier = getUserIdentifier(request)
+  const ownership = await verifyResourceOwnershipWithIdentifier(identifier, "job", jobId)
 
   if (!ownership.resourceExists) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 })

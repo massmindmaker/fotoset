@@ -32,6 +32,7 @@ export type User = {
   id: number
   device_id: string
   telegram_user_id?: number
+  email?: string  // Added for 54-ФЗ fiscal receipt compliance
   created_at: string
   updated_at: string
 }
@@ -42,6 +43,7 @@ export type Avatar = {
   name: string
   status: "draft" | "processing" | "ready"
   thumbnail_url: string | null
+  idempotency_key?: string  // For atomic creation (race condition prevention)
   created_at: string
   updated_at: string
 }

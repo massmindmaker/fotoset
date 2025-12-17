@@ -16,7 +16,7 @@ concurrency:
 
 env:
   NODE_VERSION: '18'
-  PNPM_VERSION: '8'
+  PNPM_VERSION: '9'
 
 jobs:
   # Job 1: Lint and Type Check (Fast feedback)

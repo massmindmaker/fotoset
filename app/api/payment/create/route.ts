@@ -66,10 +66,14 @@ export async function POST(request: NextRequest) {
 
     // FIX: Redirect to /payment/callback which polls status and triggers generation
     // /payment/success was a dead-end that didn't trigger generation flow
-    // Priority: telegram_user_id for cross-device sync, device_id as fallback
-    const successUrl = telegramUserId
-      ? `${baseUrl}/payment/callback?telegram_user_id=${telegramUserId}`
-      : `${baseUrl}/payment/callback?device_id=${encodeURIComponent(deviceId || '')}`
+    // Use URL API for proper encoding of query parameters
+    const successUrlObj = new URL(`${baseUrl}/payment/callback`)
+    if (telegramUserId) {
+      successUrlObj.searchParams.set('telegram_user_id', String(telegramUserId))
+    } else if (deviceId) {
+      successUrlObj.searchParams.set('device_id', deviceId)
+    }
+    const successUrl = successUrlObj.toString()
     const failUrl = `${baseUrl}/payment/fail`
     const notificationUrl = `${baseUrl}/api/payment/webhook`
 
