@@ -241,9 +241,8 @@ export async function POST(request: NextRequest) {
 
     return created(response)
   } catch (err) {
-    logger.error("Failed to create avatar", {
-      error: err instanceof Error ? err.message : "Unknown error",
-    })
-    return error("DATABASE_ERROR", "Failed to create avatar")
+    const message = err instanceof Error ? err.message : "Unknown error"
+    logger.error("Failed to create avatar", { error: message })
+    return error("DATABASE_ERROR", message)  // Return actual error for debugging
   }
 }
