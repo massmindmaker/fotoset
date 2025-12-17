@@ -14,9 +14,17 @@ const DEMO_PHOTOS = [
 export interface OnboardingViewProps {
   onComplete: () => void
   onStart: () => void
+  // FIX: Added auth status props to prevent race conditions
+  isAuthPending?: boolean
+  authError?: boolean
 }
 
-export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onStart }) => {
+export const OnboardingView: React.FC<OnboardingViewProps> = ({
+  onComplete,
+  onStart,
+  isAuthPending = false,
+  authError = false
+}) => {
   const [stage, setStage] = useState(0)
 
   useEffect(() => {
@@ -153,17 +161,36 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSt
         </div>
         <button
           onClick={handleStart}
+          disabled={isAuthPending}
           className={
-            "w-full max-w-xs py-4 px-8 bg-gradient-to-r from-primary to-accent text-white font-semibold text-lg rounded-3xl hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-primary/25 " +
-            (stage >= 4 ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0")
+            "w-full max-w-xs py-4 px-8 bg-gradient-to-r from-primary to-accent text-white font-semibold text-lg rounded-3xl transition-all shadow-xl shadow-primary/25 " +
+            (stage >= 4 ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0") +
+            (isAuthPending ? " opacity-70 cursor-wait" : " hover:opacity-90 active:scale-95")
           }
           style={{ transitionDelay: "200ms" }}
         >
           <span className="flex items-center justify-center gap-2">
-            <Sparkles className="w-5 h-5" />
-            Начать!
+            {isAuthPending ? (
+              <>
+                <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                Авторизация...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-5 h-5" />
+                Начать!
+              </>
+            )}
           </span>
         </button>
+        {authError && (
+          <p className="text-red-400 text-sm mt-3 text-center">
+            Ошибка авторизации. Откройте приложение через @Pinglass_bot
+          </p>
+        )}
       </div>
     </div>
   )

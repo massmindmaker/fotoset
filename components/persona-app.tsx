@@ -63,6 +63,9 @@ function getInitialIdentifier(): UserIdentifier {
   return { type: "telegram" }
 }
 
+// Auth status type for tracking Telegram authentication state
+type AuthStatus = 'pending' | 'success' | 'failed' | 'not_in_telegram'
+
 export default function PersonaApp() {
   const [viewState, setViewState] = useState<ViewState>({ view: "ONBOARDING" })
   const [personas, setPersonas] = useState<Persona[]>([])
@@ -74,6 +77,8 @@ export default function PersonaApp() {
   const [selectedTier, setSelectedTier] = useState<PricingTier>(PRICING_TIERS[1])
   const [theme, setTheme] = useState<"dark" | "light">("dark")
   const [isReferralOpen, setIsReferralOpen] = useState(false)
+  // FIX: Track auth status to prevent race conditions
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('pending')
 
   // Ref for polling interval cleanup on unmount
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -179,6 +184,7 @@ export default function PersonaApp() {
 
         // Server-side Telegram auth validation (HMAC signature)
         // User data is stored in Neon DB, not localStorage
+        // FIX: Added proper auth status tracking and race condition handling
         try {
           const tg = window.Telegram?.WebApp
           if (tg?.initData) {
@@ -197,9 +203,12 @@ export default function PersonaApp() {
                 deviceId: authData.deviceId,
               }
               setUserIdentifier(currentIdentifier)
+              setAuthStatus('success')
               console.log("[TG] Auth success:", authData.telegramUserId, authData.username)
             } else {
-              console.error("[TG] Auth failed:", await authRes.text())
+              const errorText = await authRes.text()
+              console.error("[TG] Auth failed:", errorText)
+              setAuthStatus('failed')
             }
 
             // Handle referral code from start_param (will be applied during payment creation)
@@ -214,9 +223,15 @@ export default function PersonaApp() {
             tg.expand()
           } else if (!tg) {
             console.log("[TG] Not in Telegram WebApp context")
+            setAuthStatus('not_in_telegram')
+          } else {
+            // tg exists but no initData
+            console.log("[TG] No initData available")
+            setAuthStatus('failed')
           }
         } catch (e) {
           console.error("[TG] Auth error:", e)
+          setAuthStatus('failed')
         }
 
         // Use the current identifier (may have been updated by Telegram auth)
@@ -451,15 +466,42 @@ export default function PersonaApp() {
   }
 
   const handleCreatePersona = async () => {
-    // SIMPLIFIED: Use telegramUserId from state (set by server auth)
-    // No localStorage fallbacks - if auth failed, user must restart app
-    if (!telegramUserId) {
-      console.error("[CreatePersona] No Telegram user ID - auth failed")
-      alert("Ошибка авторизации. Пожалуйста, перезапустите приложение через @Pinglass_bot")
+    // FIX: Enhanced auth checking with fallback to Telegram WebApp direct access
+    // This prevents race conditions when button is clicked before auth completes
+
+    // First, try to get telegramUserId from state
+    let tgUserId = telegramUserId
+
+    // If not in state, try to get directly from Telegram WebApp (fallback for race condition)
+    if (!tgUserId && typeof window !== 'undefined') {
+      const tg = window.Telegram?.WebApp
+      const directTgId = tg?.initDataUnsafe?.user?.id
+      if (directTgId) {
+        console.log("[CreatePersona] Using direct Telegram WebApp userId:", directTgId)
+        tgUserId = directTgId
+        // Also update the state for future use
+        setUserIdentifier({
+          type: "telegram",
+          telegramUserId: directTgId,
+          deviceId: `tg_${directTgId}`,
+        })
+        setAuthStatus('success')
+      }
+    }
+
+    // If auth is still pending, show loading message
+    if (authStatus === 'pending' && !tgUserId) {
+      console.log("[CreatePersona] Auth still pending, waiting...")
+      alert("Авторизация в процессе. Пожалуйста, подождите несколько секунд и попробуйте снова.")
       return
     }
 
-    const tgUserId = telegramUserId
+    // Final check - if still no userId, show error
+    if (!tgUserId) {
+      console.error("[CreatePersona] No Telegram user ID - auth failed. Status:", authStatus)
+      alert("Ошибка авторизации. Пожалуйста, перезапустите приложение через @Pinglass_bot")
+      return
+    }
 
     // FIX: Create avatar in DB first to get real ID (not timestamp)
     // This ensures avatar persists and can be found after payment redirect
@@ -782,7 +824,12 @@ export default function PersonaApp() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {viewState.view === "ONBOARDING" ? (
-        <OnboardingView onComplete={completeOnboarding} onStart={handleCreatePersona} />
+        <OnboardingView
+          onComplete={completeOnboarding}
+          onStart={handleCreatePersona}
+          isAuthPending={authStatus === 'pending'}
+          authError={authStatus === 'failed'}
+        />
       ) : (
         <>
           <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-black/5">
