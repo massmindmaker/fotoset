@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useRef, lazy, Suspense } from "react"
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react"
 import { Loader2, Sun, Moon, Gift, Plus } from "lucide-react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
@@ -87,6 +87,16 @@ export default function PersonaApp() {
   // Derived values
   const deviceId = userIdentifier?.deviceId || ""
   const telegramUserId = userIdentifier?.telegramUserId
+
+  // Helper: показ сообщений через Telegram API (window.alert не работает в Mini Apps)
+  const showMessage = useCallback((message: string) => {
+    const tg = window.Telegram?.WebApp
+    if (tg?.showAlert) {
+      tg.showAlert(message)
+    } else {
+      alert(message)
+    }
+  }, [])
 
   // Cleanup polling interval on unmount
   useEffect(() => {
@@ -283,7 +293,7 @@ export default function PersonaApp() {
 
             if (!tgId) {
               console.error("[Resume Payment] No valid Telegram user ID")
-              alert("Ошибка аутентификации. Пожалуйста, перезапустите приложение в Telegram.")
+              showMessage("Ошибка аутентификации. Пожалуйста, перезапустите приложение в Telegram.")
               setViewState({ view: "DASHBOARD" })
               setIsReady(true)
               return
@@ -338,7 +348,7 @@ export default function PersonaApp() {
               // Fallback 3: No avatars at all - show DASHBOARD (NOT onboarding!)
               // After payment, user should never see onboarding again
               console.log("[Resume Payment] No avatars found after payment, showing dashboard")
-              alert("Оплата прошла успешно! Создайте аватар и загрузите фото.")
+              showMessage("Оплата прошла успешно! Создайте аватар и загрузите фото.")
               localStorage.setItem("pinglass_onboarding_complete", "true")
               setViewState({ view: "DASHBOARD" })
               setIsReady(true)
@@ -528,7 +538,7 @@ export default function PersonaApp() {
 
     if (!initData) {
       console.error("[Onboarding] No Telegram initData available")
-      alert("Откройте приложение через Telegram @Pinglass_bot")
+      showMessage("Откройте приложение через Telegram @Pinglass_bot")
       return
     }
 
@@ -543,7 +553,7 @@ export default function PersonaApp() {
       console.log("[Onboarding] Set userIdentifier from initDataUnsafe:", tgUser.id)
     } else {
       console.error("[Onboarding] No telegram user in initDataUnsafe!")
-      alert("Не удалось получить данные Telegram. Перезапустите приложение.")
+      showMessage("Не удалось получить данные Telegram. Перезапустите приложение.")
       return
     }
 
@@ -629,8 +639,28 @@ export default function PersonaApp() {
     console.log("[Sync] Creating avatar in DB for persona:", persona.id)
 
     // ROBUST: Try multiple sources for telegram user ID
-    const tg = window.Telegram?.WebApp
-    const tgUserFromWebApp = tg?.initDataUnsafe?.user?.id
+    let tg = window.Telegram?.WebApp
+    let tgUserFromWebApp = tg?.initDataUnsafe?.user?.id
+
+    // Fallback: если SDK ещё не готов, подождать (на случай медленной загрузки)
+    if (!tgUserFromWebApp && !telegramUserId) {
+      console.log("[Sync] Waiting for Telegram SDK...")
+      await new Promise<void>((resolve) => {
+        let attempts = 0
+        const interval = setInterval(() => {
+          attempts++
+          const check = window.Telegram?.WebApp?.initDataUnsafe?.user?.id
+          if (check || attempts >= 30) {  // 3 секунды макс
+            clearInterval(interval)
+            resolve()
+          }
+        }, 100)
+      })
+      tg = window.Telegram?.WebApp
+      tgUserFromWebApp = tg?.initDataUnsafe?.user?.id
+      console.log("[Sync] After wait - SDK ready:", !!tgUserFromWebApp)
+    }
+
     const tgId = tgUserFromWebApp || telegramUserId
 
     console.log("[Sync] Telegram ID sources:", {
@@ -644,7 +674,13 @@ export default function PersonaApp() {
 
     if (!tgId) {
       console.error("[Sync] No telegram user ID available from any source!")
-      alert("Ошибка: не удалось получить Telegram ID. Закройте и откройте приложение заново через @Pinglass_bot")
+      // Использовать Telegram showAlert вместо window.alert (работает в Mini Apps)
+      const errorMsg = "Ошибка: не удалось получить Telegram ID. Закройте и откройте приложение заново через @Pinglass_bot"
+      if (tg?.showAlert) {
+        tg.showAlert(errorMsg)
+      } else {
+        alert(errorMsg)
+      }
       throw new Error("Telegram user ID not available")
     }
 
@@ -816,7 +852,7 @@ export default function PersonaApp() {
     }
 
     if (persona.images.length < 10) {
-      alert("Загрузите минимум 10 фото")
+      showMessage("Загрузите минимум 10 фото")
       return
     }
 
@@ -827,7 +863,7 @@ export default function PersonaApp() {
     } catch (error) {
       const errorMessage = getErrorMessage(error, "Ошибка сохранения")
       console.error("[Upload] Sync failed with error:", errorMessage, error)
-      alert(`Ошибка сохранения: ${errorMessage}`)
+      showMessage(`Ошибка сохранения: ${errorMessage}`)
     } finally {
       setIsGenerating(false)
     }
@@ -925,7 +961,7 @@ export default function PersonaApp() {
               setGenerationProgress({ completed: 0, total: 0 })
 
               if (statusData.status === "failed") {
-                alert(statusData.error || "Генерация не удалась")
+                showMessage(statusData.error || "Генерация не удалась")
               }
             }
           } catch (pollError) {
@@ -942,7 +978,7 @@ export default function PersonaApp() {
         }, 15 * 60 * 1000)
       }
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Ошибка генерации")
+      showMessage(e instanceof Error ? e.message : "Ошибка генерации")
       updatePersona(p.id, { status: "draft" })
       setViewState({ view: "SELECT_TIER", personaId: p.id })
       setIsGenerating(false)
