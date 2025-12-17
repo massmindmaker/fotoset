@@ -16,9 +16,8 @@ export interface UserIdentifier {
 export async function findOrCreateUser(params: {
   telegramUserId?: number
   deviceId?: string
-  email?: string  // for 54-FZ compliance
 }): Promise<User> {
-  const { telegramUserId, deviceId, email } = params
+  const { telegramUserId, deviceId } = params
 
   // Require Telegram user ID
   if (!telegramUserId) {
@@ -32,16 +31,15 @@ export async function findOrCreateUser(params: {
   }
 
   // Uses ATOMIC INSERT ON CONFLICT to prevent race conditions
+  // Note: email column removed - doesn't exist in DB schema
   const result = await sql`
-    INSERT INTO users (telegram_user_id, device_id, email)
+    INSERT INTO users (telegram_user_id, device_id)
     VALUES (
       ${tgId},
-      ${deviceId || `tg_${tgId}`},
-      ${email || null}
+      ${deviceId || `tg_${tgId}`}
     )
     ON CONFLICT (telegram_user_id) DO UPDATE SET
       device_id = COALESCE(EXCLUDED.device_id, users.device_id),
-      email = COALESCE(EXCLUDED.email, users.email),
       updated_at = NOW()
     RETURNING *
   `

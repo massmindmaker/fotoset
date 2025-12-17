@@ -32,7 +32,7 @@ export type User = {
   id: number
   device_id: string
   telegram_user_id?: number
-  email?: string  // Added for 54-ФЗ fiscal receipt compliance
+  is_pro?: boolean
   created_at: string
   updated_at: string
 }
