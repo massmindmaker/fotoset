@@ -18,7 +18,15 @@ function validateInitData(initData: string): { valid: boolean; data?: Record<str
     const hash = params.get("hash")
     params.delete("hash")
 
+    // DEBUG: Log hash presence
+    console.log("[Telegram Auth] validateInitData:", {
+      hasHash: !!hash,
+      hashLength: hash?.length || 0,
+      paramKeys: Array.from(params.keys()),
+    })
+
     if (!hash) {
+      console.error("[Telegram Auth] No hash in initData")
       return { valid: false }
     }
 
@@ -40,7 +48,12 @@ function validateInitData(initData: string): { valid: boolean; data?: Record<str
       .update(sortedParams)
       .digest("hex")
 
-    if (calculatedHash !== hash) {
+    // SECURITY FIX: Use constant-time comparison to prevent timing attacks
+    const hashBuffer = Buffer.from(hash, 'hex')
+    const calculatedBuffer = Buffer.from(calculatedHash, 'hex')
+
+    if (hashBuffer.length !== calculatedBuffer.length ||
+        !crypto.timingSafeEqual(hashBuffer, calculatedBuffer)) {
       console.warn("[Telegram Auth] Hash mismatch")
       return { valid: false }
     }
@@ -72,13 +85,30 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { initData } = body
 
+    // DEBUG: Log initData presence and length
+    console.log("[Telegram Auth] Request received:", {
+      hasInitData: !!initData,
+      initDataLength: initData?.length || 0,
+      hasBotToken: !!TELEGRAM_BOT_TOKEN,
+    })
+
     if (!initData) {
+      console.error("[Telegram Auth] No initData in request body")
       return NextResponse.json({ error: "initData is required" }, { status: 400 })
     }
 
     // Validate initData
     const validation = validateInitData(initData)
+
+    // DEBUG: Log validation result
+    console.log("[Telegram Auth] Validation result:", {
+      valid: validation.valid,
+      hasData: !!validation.data,
+      dataKeys: validation.data ? Object.keys(validation.data) : [],
+    })
+
     if (!validation.valid || !validation.data) {
+      console.error("[Telegram Auth] Validation failed - initData invalid")
       return NextResponse.json({ error: "Invalid initData" }, { status: 401 })
     }
 
