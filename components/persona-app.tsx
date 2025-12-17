@@ -453,54 +453,64 @@ export default function PersonaApp() {
     setViewState({ view: "DASHBOARD" })
   }
 
-  const handleCreatePersona = async () => {
-    // Get telegramUserId from state or directly from Telegram WebApp
+  // Create user only (no avatar) when onboarding completes
+  const handleStartOnboarding = async () => {
     const tg = window.Telegram?.WebApp
-    const tgUserId = telegramUserId || tg?.initDataUnsafe?.user?.id
+    const initData = tg?.initData
 
-    if (!tgUserId) {
-      console.error("[CreatePersona] No Telegram user ID available")
+    if (!initData) {
+      console.error("[Onboarding] No Telegram initData available")
       alert("Откройте приложение через Telegram @Pinglass_bot")
       return
     }
 
-    console.log("[CreatePersona] Using telegramUserId:", tgUserId)
-
-    // FIX: Create avatar in DB first to get real ID (not timestamp)
-    // This ensures avatar persists and can be found after payment redirect
-    let dbAvatarId: string | null = null
-
-    try {
-      const res = await fetch("/api/avatars", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          telegramUserId: tgUserId,
-          name: "Мой аватар",
-        }),
+    // CRITICAL: Extract and set telegram user ID to state
+    const tgUser = tg?.initDataUnsafe?.user
+    if (tgUser?.id) {
+      setUserIdentifier({
+        type: "telegram",
+        telegramUserId: tgUser.id,
+        deviceId: `tg_${tgUser.id}`,
       })
-      const data = await res.json()
-      if (data.success && data.data?.id) {
-        dbAvatarId = String(data.data.id)
-        console.log("[CreatePersona] Created avatar in DB:", dbAvatarId)
-      }
-    } catch (err) {
-      console.error("[CreatePersona] Failed to create avatar in DB:", err)
-    }
-
-    // FIX: Don't fallback to timestamp ID - show error instead
-    if (!dbAvatarId) {
-      console.error("[CreatePersona] Avatar creation failed - cannot proceed")
-      alert("Не удалось создать аватар. Пожалуйста, попробуйте еще раз или обратитесь в поддержку.")
+      console.log("[Onboarding] Set userIdentifier from initDataUnsafe:", tgUser.id)
+    } else {
+      console.error("[Onboarding] No telegram user in initDataUnsafe!")
+      alert("Не удалось получить данные Telegram. Перезапустите приложение.")
       return
     }
 
-    // Use functional update to avoid stale closure
+    try {
+      // Create user only using validated Telegram auth
+      const res = await fetch("/api/user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telegramInitData: initData }),
+      })
+
+      if (!res.ok) {
+        console.error("[Onboarding] Failed to create user, status:", res.status)
+      } else {
+        console.log("[Onboarding] User created successfully")
+      }
+    } catch (err) {
+      console.error("[Onboarding] User creation error:", err)
+    }
+
+    localStorage.setItem("pinglass_onboarding_complete", "true")
+    setViewState({ view: "DASHBOARD" })
+  }
+
+  // Navigate to upload view with temp local ID (avatar created later on photo confirm)
+  const handleCreatePersona = () => {
+    // Generate temporary local ID (will be replaced with DB ID after photo upload)
+    const tempId = `temp_${Date.now()}`
+
     setPersonas((prev) => [
       ...prev,
-      { id: dbAvatarId, name: "Мой аватар", status: "draft", images: [], generatedAssets: [] },
+      { id: tempId, name: "Мой аватар", status: "draft", images: [], generatedAssets: [] },
     ])
-    setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: dbAvatarId })
+
+    setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: tempId })
   }
 
   const updatePersona = (id: string, updates: Partial<Persona>) => {
@@ -524,7 +534,8 @@ export default function PersonaApp() {
       reader.onload = (ev) => {
         const result = ev.target?.result as string
         if (result) {
-          resolve(result.split(",")[1])
+          // Keep full data URL with prefix (e.g., "data:image/jpeg;base64,...")
+          resolve(result)
         } else {
           reject(new Error("Empty file"))
         }
@@ -549,14 +560,34 @@ export default function PersonaApp() {
 
     console.log("[Sync] Creating avatar in DB for persona:", persona.id)
 
+    // ROBUST: Try multiple sources for telegram user ID
+    const tg = window.Telegram?.WebApp
+    const tgUserFromWebApp = tg?.initDataUnsafe?.user?.id
+    const tgId = tgUserFromWebApp || telegramUserId
+
+    console.log("[Sync] Telegram ID sources:", {
+      fromWebApp: tgUserFromWebApp,
+      fromState: telegramUserId,
+      hasTg: !!tg,
+      hasInitDataUnsafe: !!tg?.initDataUnsafe,
+      hasUser: !!tg?.initDataUnsafe?.user,
+      final: tgId,
+    })
+
+    if (!tgId) {
+      console.error("[Sync] No telegram user ID available from any source!")
+      alert("Ошибка: не удалось получить Telegram ID. Закройте и откройте приложение заново через @Pinglass_bot")
+      throw new Error("Telegram user ID not available")
+    }
+
     try {
       // Step 1: Create avatar in DB
       const createRes = await fetch("/api/avatars", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          telegramUserId,
-          deviceId,
+          telegramUserId: tgId,
+          deviceId: deviceId || `tg_${tgId}`,
           name: persona.name || "Мой аватар",
         }),
       })
@@ -567,7 +598,7 @@ export default function PersonaApp() {
       }
 
       const avatarData = await createRes.json()
-      const dbAvatarId = String(avatarData.id)
+      const dbAvatarId = String(avatarData.data.id)
       console.log("[Sync] Avatar created with DB ID:", dbAvatarId)
 
       // Step 2: Upload reference photos if any
@@ -593,7 +624,16 @@ export default function PersonaApp() {
             })
 
             if (uploadRes.ok) {
-              console.log("[Sync] Reference photos uploaded successfully")
+              const uploadResult = await uploadRes.json()
+              console.log("[Sync] Upload response:", uploadResult)
+
+              // FIX 3: Check that photos were actually saved
+              if (uploadResult.uploadedCount === 0 && referenceImages.length > 0) {
+                console.error("[Sync] Server returned 0 uploaded photos!")
+                throw new Error("Сервер не сохранил ни одного фото. Попробуйте ещё раз.")
+              }
+
+              console.log("[Sync] Reference photos uploaded successfully:", uploadResult.uploadedCount)
               uploadSuccess = true
               break
             }
@@ -789,7 +829,7 @@ export default function PersonaApp() {
       {viewState.view === "ONBOARDING" ? (
         <OnboardingView
           onComplete={completeOnboarding}
-          onStart={handleCreatePersona}
+          onStart={handleStartOnboarding}
           isAuthPending={authStatus === 'pending'}
           authError={authStatus === 'failed'}
         />

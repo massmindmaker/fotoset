@@ -66,8 +66,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid avatar ID" }, { status: 400 })
   }
 
-  // SECURITY: Verify ownership before uploading (supports Telegram + device ID)
-  const identifier = getUserIdentifier(request)
+  // Parse body first to extract user identifier (FIX 4)
+  let body: { referenceImages?: string[]; telegramUserId?: number; deviceId?: string }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+  }
+
+  // SECURITY: Verify ownership (pass body for telegramUserId extraction)
+  const identifier = getUserIdentifier(request, body)
   const ownership = await verifyResourceOwnershipWithIdentifier(identifier, "avatar", avatarId)
 
   if (!ownership.resourceExists) {
@@ -79,8 +87,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 
   try {
-    const body = await request.json()
-    const { referenceImages } = body as { referenceImages: string[] }
+    const { referenceImages } = body
 
     if (!referenceImages || !Array.isArray(referenceImages) || referenceImages.length === 0) {
       return NextResponse.json({ error: "No reference images provided" }, { status: 400 })
@@ -92,9 +99,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Insert reference photos into database
     const insertedIds: number[] = []
-    for (const imageUrl of referenceImages) {
-      // Validate base64 format
-      if (!imageUrl.startsWith("data:image/")) {
+    let skippedCount = 0
+
+    for (const imageData of referenceImages) {
+      // FIX 2: Accept both formats - full data URL or raw base64
+      let imageUrl = imageData
+
+      if (!imageData.startsWith("data:image/")) {
+        // Raw base64 without prefix - add default JPEG prefix
+        imageUrl = `data:image/jpeg;base64,${imageData}`
+      }
+
+      // Validate it's a proper base64 image
+      if (!imageUrl.match(/^data:image\/(jpeg|png|webp|gif|heic);base64,/i)) {
+        console.warn(`[API] Skipping invalid image format`)
+        skippedCount++
         continue
       }
 
@@ -110,12 +129,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    console.log(`[API] Uploaded ${insertedIds.length} reference photos for avatar ${avatarId}`)
+    console.log(`[API] Uploaded ${insertedIds.length}/${referenceImages.length} photos for avatar ${avatarId} (skipped: ${skippedCount})`)
+
+    // FIX 2: Return error if ALL images were skipped
+    if (insertedIds.length === 0 && referenceImages.length > 0) {
+      return NextResponse.json(
+        { error: "No valid images could be uploaded", skippedCount },
+        { status: 400 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
       avatarId,
       uploadedCount: insertedIds.length,
+      skippedCount,
       referenceIds: insertedIds,
     })
   } catch (error) {
