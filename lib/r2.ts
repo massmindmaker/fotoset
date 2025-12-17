@@ -11,11 +11,12 @@ import { getSignedUrl as awsGetSignedUrl } from "@aws-sdk/s3-request-presigner"
 // Configuration
 // ============================================================================
 
-const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID
-const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID
-const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY
-const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || "pinglass"
-const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL
+// IMPORTANT: Trim env vars to remove accidental newlines/whitespace
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID?.trim()
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID?.trim()
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY?.trim()
+const R2_BUCKET_NAME = (process.env.R2_BUCKET_NAME || "pinglass").trim()
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL?.trim()
 
 /**
  * Check if R2 is properly configured
