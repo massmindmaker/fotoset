@@ -3,6 +3,7 @@
 import type React from "react"
 import { useState, useEffect, useCallback } from "react"
 import { X, Check, Loader2, CreditCard, Smartphone, Mail, ShieldCheck } from "lucide-react"
+import { extractErrorMessage, getErrorMessage } from "@/lib/error-utils"
 
 interface PricingTier {
   id: string
@@ -113,7 +114,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
       const data: PaymentResponse = await response.json()
 
       if (!response.ok) {
-        throw new Error((data as unknown as { error: string }).error || "Ошибка создания платежа")
+        throw new Error(extractErrorMessage(data, "Ошибка создания платежа"))
       }
 
       // Always redirect to T-Bank payment page (works for both test and production)
@@ -129,7 +130,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
       }
     } catch (error) {
       console.error("Payment error:", error)
-      setErrorMessage(error instanceof Error ? error.message : "Произошла ошибка")
+      setErrorMessage(getErrorMessage(error, "Произошла ошибка"))
       setStep("ERROR")
     } finally {
       setLoading(false)

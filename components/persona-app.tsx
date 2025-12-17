@@ -8,6 +8,7 @@ import dynamic from "next/dynamic"
 
 // Import types and constants
 import type { Persona, ViewState, PricingTier } from "./views/types"
+import { extractErrorMessage, getErrorMessage } from "@/lib/error-utils"
 import { PRICING_TIERS } from "./views/dashboard-view"
 
 // Export for other components
@@ -594,7 +595,7 @@ export default function PersonaApp() {
 
       if (!createRes.ok) {
         const err = await createRes.json()
-        throw new Error(err.error || "Failed to create avatar")
+        throw new Error(extractErrorMessage(err, "Failed to create avatar"))
       }
 
       const avatarData = await createRes.json()
@@ -757,7 +758,7 @@ export default function PersonaApp() {
       const dbId = await syncPersonaToServer(persona)
       setViewState({ view: "SELECT_TIER", personaId: dbId })
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorMessage = getErrorMessage(error, "Ошибка сохранения")
       console.error("[Upload] Sync failed with error:", errorMessage, error)
       alert(`Ошибка сохранения: ${errorMessage}`)
     } finally {
