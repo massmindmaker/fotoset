@@ -231,6 +231,13 @@ export default function PersonaApp() {
         ])
         let loadedAvatars = await loadAvatarsWithTimeout
 
+        // Log loaded avatars for diagnostics
+        console.log("[Init] Loaded avatars:", {
+          count: loadedAvatars?.length || 0,
+          statuses: loadedAvatars?.map(a => ({ id: a.id, status: a.status, photosCount: a.generatedAssets?.length || 0 })) || [],
+          telegramUserId: currentIdentifier?.telegramUserId
+        })
+
         // Check if onboarding was completed (flag OR has avatars)
         const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"
         const hasAvatars = loadedAvatars && loadedAvatars.length > 0
@@ -273,17 +280,38 @@ export default function PersonaApp() {
 
             // Find avatar that needs generation (most recent draft with reference photos)
             const availablePersonas = loadedAvatars.filter(p => p.status === 'draft')
+            console.log("[Resume Payment] Available draft personas:", availablePersonas.map(p => ({ id: p.id, status: p.status })))
+
             let targetPersona = availablePersonas.length > 0
               ? availablePersonas.reduce((latest, current) =>
                   Number(current.id) > Number(latest.id) ? current : latest
                 )
               : null
 
-            // If no draft avatar, user needs to upload photos first
+            // If no draft avatar, try fallback options
             if (!targetPersona) {
-              console.log("[Resume Payment] No draft avatars - user must upload photos")
-              setPersonas(loadedAvatars)
-              setViewState({ view: loadedAvatars.length > 0 ? "DASHBOARD" : "ONBOARDING" })
+              // Fallback 1: Find any avatar with generated photos (already ready)
+              const anyAvatarWithPhotos = loadedAvatars.find(p => p.generatedAssets && p.generatedAssets.length > 0)
+              if (anyAvatarWithPhotos) {
+                console.log("[Resume Payment] No draft, but found avatar with photos:", anyAvatarWithPhotos.id)
+                setPersonas(loadedAvatars)
+                setViewState({ view: "RESULTS", personaId: anyAvatarWithPhotos.id })
+                setIsReady(true)
+                return
+              }
+
+              // Fallback 2: Has avatars but no photos - show dashboard
+              if (loadedAvatars.length > 0) {
+                console.log("[Resume Payment] No avatars with photos, showing dashboard")
+                setPersonas(loadedAvatars)
+                setViewState({ view: "DASHBOARD" })
+                setIsReady(true)
+                return
+              }
+
+              // Fallback 3: No avatars at all - show onboarding
+              console.log("[Resume Payment] No avatars at all, showing onboarding")
+              setViewState({ view: "ONBOARDING" })
               setIsReady(true)
               return
             }
@@ -400,9 +428,19 @@ export default function PersonaApp() {
         }
 
         // Normal flow (NOT resume_payment):
-        // ALWAYS show onboarding on app start (user requested)
-        // User can proceed via "Начать" button which calls completeOnboarding() or handleCreatePersona()
-        setViewState({ view: "ONBOARDING" })
+        // Show DASHBOARD if user has avatars or completed onboarding, otherwise ONBOARDING
+        // Note: onboardingComplete and hasAvatars are already defined above (lines 242-243)
+        if (hasAvatars || onboardingComplete) {
+          console.log("[Init] User has avatars or completed onboarding, showing DASHBOARD", {
+            avatarsCount: loadedAvatars?.length || 0,
+            onboardingComplete
+          })
+          setPersonas(loadedAvatars)
+          setViewState({ view: "DASHBOARD" })
+        } else {
+          console.log("[Init] New user, showing ONBOARDING")
+          setViewState({ view: "ONBOARDING" })
+        }
       } catch (e) {
         console.error("[Init] Critical error:", e)
         // On any error, show onboarding as fallback
