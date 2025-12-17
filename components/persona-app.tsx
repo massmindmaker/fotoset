@@ -601,55 +601,74 @@ export default function PersonaApp() {
       const dbAvatarId = String(avatarData.data.id)
       console.log("[Sync] Avatar created with DB ID:", dbAvatarId)
 
-      // Step 2: Upload reference photos if any
+      // Step 2: Upload reference photos to R2 (one by one to avoid Vercel 4.5MB limit)
       if (persona.images && persona.images.length > 0) {
-        console.log("[Sync] Uploading", persona.images.length, "reference photos")
-        
-        const referenceImages = await Promise.all(
-          persona.images.slice(0, 14).map((img) => fileToBase64(img.file))
-        )
+        console.log("[Sync] Uploading", persona.images.length, "reference photos to R2")
 
-        // RELIABILITY: Retry upload up to 3 times
-        let uploadSuccess = false
-        for (let attempt = 1; attempt <= 3; attempt++) {
+        const imagesToUpload = persona.images.slice(0, 14)
+        const uploadedUrls: string[] = []
+
+        // Upload each photo individually to R2
+        for (let i = 0; i < imagesToUpload.length; i++) {
+          const img = imagesToUpload[i]
           try {
-            const uploadRes = await fetch(`/api/avatars/${dbAvatarId}/references`, {
+            console.log(`[Sync] Uploading photo ${i + 1}/${imagesToUpload.length}`)
+            const base64Data = await fileToBase64(img.file)
+
+            const uploadRes = await fetch("/api/upload", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                telegramUserId,
-                deviceId,
-                referenceImages,
+                avatarId: dbAvatarId,
+                type: "reference",
+                image: base64Data,
               }),
             })
 
             if (uploadRes.ok) {
-              const uploadResult = await uploadRes.json()
-              console.log("[Sync] Upload response:", uploadResult)
-
-              // FIX 3: Check that photos were actually saved
-              if (uploadResult.uploadedCount === 0 && referenceImages.length > 0) {
-                console.error("[Sync] Server returned 0 uploaded photos!")
-                throw new Error("Сервер не сохранил ни одного фото. Попробуйте ещё раз.")
+              const result = await uploadRes.json()
+              if (result.data?.url) {
+                uploadedUrls.push(result.data.url)
+                console.log(`[Sync] Photo ${i + 1} uploaded to R2:`, result.data.key)
               }
-
-              console.log("[Sync] Reference photos uploaded successfully:", uploadResult.uploadedCount)
-              uploadSuccess = true
-              break
+            } else {
+              const errText = await uploadRes.text()
+              console.warn(`[Sync] Failed to upload photo ${i + 1}:`, errText)
             }
-            console.warn(`[Sync] Upload attempt ${attempt} failed, status: ${uploadRes.status}`)
-          } catch (uploadError) {
-            console.warn(`[Sync] Upload attempt ${attempt} error:`, uploadError)
-          }
-
-          if (attempt < 3) {
-            await new Promise(r => setTimeout(r, 1000 * attempt)) // Exponential backoff
+          } catch (err) {
+            console.warn(`[Sync] Error uploading photo ${i + 1}:`, err)
           }
         }
 
-        if (!uploadSuccess) {
-          console.error("[Sync] Failed to upload references after 3 attempts - photos will be sent during generation")
-          // Note: handleGenerate will re-send photos from local memory as fallback
+        console.log(`[Sync] Uploaded ${uploadedUrls.length}/${imagesToUpload.length} photos to R2`)
+
+        // Save R2 URLs to database
+        if (uploadedUrls.length > 0) {
+          try {
+            const saveRes = await fetch(`/api/avatars/${dbAvatarId}/references`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                telegramUserId: tgId,
+                deviceId,
+                referenceImages: uploadedUrls,  // Now these are R2 URLs, not base64!
+              }),
+            })
+
+            if (saveRes.ok) {
+              const saveResult = await saveRes.json()
+              console.log("[Sync] Reference URLs saved to DB:", saveResult.uploadedCount)
+            } else {
+              console.error("[Sync] Failed to save reference URLs to DB")
+            }
+          } catch (err) {
+            console.error("[Sync] Error saving reference URLs:", err)
+          }
+        }
+
+        if (uploadedUrls.length === 0) {
+          console.error("[Sync] No photos were uploaded to R2!")
+          throw new Error("Не удалось загрузить фото. Попробуйте ещё раз.")
         }
       }
 

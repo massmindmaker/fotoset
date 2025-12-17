@@ -5,18 +5,6 @@ import { sql } from "@/lib/db"
 // Types
 // ============================================================================
 
-// Re-export strict auth from telegram-validation for convenience
-export {
-  validateStrictAuth,
-  validateTelegramInitData,
-  type StrictAuthResult,
-  type TelegramValidationResult
-} from "@/lib/telegram-validation"
-
-// ============================================================================
-// Types
-// ============================================================================
-
 export type ResourceType = "avatar" | "job" | "reference"
 
 export interface OwnershipResult {

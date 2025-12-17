@@ -98,20 +98,28 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Insert reference photos into database
+    // Now accepts R2 URLs (https://...) or data URLs (data:image/...)
     const insertedIds: number[] = []
     let skippedCount = 0
 
     for (const imageData of referenceImages) {
-      // FIX 2: Accept both formats - full data URL or raw base64
       let imageUrl = imageData
 
-      if (!imageData.startsWith("data:image/")) {
-        // Raw base64 without prefix - add default JPEG prefix
+      // Accept multiple formats:
+      // 1. R2 URL: https://cdn.pinglass.ru/... or https://pinglass.xxx.r2.dev/...
+      // 2. Data URL: data:image/jpeg;base64,...
+      // 3. Raw base64: /9j/4AAQ... (add prefix)
+
+      const isHttpUrl = imageData.startsWith("https://") || imageData.startsWith("http://")
+      const isDataUrl = imageData.startsWith("data:image/")
+
+      if (!isHttpUrl && !isDataUrl) {
+        // Assume raw base64, add prefix
         imageUrl = `data:image/jpeg;base64,${imageData}`
       }
 
-      // Validate it's a proper base64 image
-      if (!imageUrl.match(/^data:image\/(jpeg|png|webp|gif|heic);base64,/i)) {
+      // Validate format
+      if (!isHttpUrl && !imageUrl.match(/^data:image\/(jpeg|png|webp|gif|heic);base64,/i)) {
         console.warn(`[API] Skipping invalid image format`)
         skippedCount++
         continue
@@ -129,7 +137,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    console.log(`[API] Uploaded ${insertedIds.length}/${referenceImages.length} photos for avatar ${avatarId} (skipped: ${skippedCount})`)
+    console.log(`[API] Saved ${insertedIds.length}/${referenceImages.length} reference URLs for avatar ${avatarId} (skipped: ${skippedCount})`)
 
     // FIX 2: Return error if ALL images were skipped
     if (insertedIds.length === 0 && referenceImages.length > 0) {
