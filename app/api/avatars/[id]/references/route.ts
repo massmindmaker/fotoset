@@ -15,8 +15,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid avatar ID" }, { status: 400 })
   }
 
-  // SECURITY: Verify ownership before returning data (supports Telegram + device ID)
+  // SECURITY: Check auth first - return 403 if no identifier provided
   const identifier = getUserIdentifier(request)
+  if (!identifier.telegramUserId) {
+    return NextResponse.json({ error: "Access denied" }, { status: 403 })
+  }
+
+  // Verify ownership
   const ownership = await verifyResourceOwnershipWithIdentifier(identifier, "avatar", avatarId)
 
   if (!ownership.resourceExists) {

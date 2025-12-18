@@ -7,6 +7,9 @@ let AVATAR_ID = null;
 let PAYMENT_ID = null;
 let JOB_ID = null;
 
+// Helper to avoid rate limits
+const delay = (ms) => new Promise(r => setTimeout(r, ms));
+
 function log(emoji, name, status, data) {
   const passed = emoji === '✅';
   results.tests.push({ name, status, passed, data });
@@ -43,7 +46,9 @@ async function runTests() {
   try {
     const res = await fetch(`${BASE_URL}/api/avatars?telegram_user_id=${TG_USER_ID}`);
     const data = await res.json();
-    const hasAvatars = data.avatars?.length > 0;
+    // API returns { success: true, data: { avatars: [...] } }
+    const avatars = data.data?.avatars || data.avatars || [];
+    const hasAvatars = avatars.length > 0;
     log(res.status === 200 && hasAvatars ? '✅' : '❌', '1.2 Get Avatars List', res.status, data);
   } catch (e) { log('❌', '1.2 Get Avatars List', 'error', e.message); }
 
@@ -115,8 +120,9 @@ async function runTests() {
     } catch (e) { log('❌', '5.2 Avatar Details', 'error', e.message); }
   }
 
-  // 5.3 References
+  // 5.3 References (with delay to avoid rate limit)
   if (AVATAR_ID) {
+    await delay(2000); // Wait 2s to avoid Neon rate limit
     try {
       const res = await fetch(`${BASE_URL}/api/avatars/${AVATAR_ID}/references?telegram_user_id=${TG_USER_ID}`);
       const data = await res.json();
