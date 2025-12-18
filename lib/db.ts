@@ -32,7 +32,6 @@ export type User = {
   id: number
   device_id: string
   telegram_user_id?: number
-  is_pro?: boolean
   created_at: string
   updated_at: string
 }
