@@ -92,7 +92,12 @@ export default function PersonaApp() {
   const showMessage = useCallback((message: string) => {
     const tg = window.Telegram?.WebApp
     if (tg?.showAlert) {
-      tg.showAlert(message)
+      try {
+        tg.showAlert(message)
+      } catch {
+        // Fallback if WebApp method not supported (e.g., outside Telegram)
+        alert(message)
+      }
     } else {
       alert(message)
     }
@@ -677,7 +682,11 @@ export default function PersonaApp() {
       // Использовать Telegram showAlert вместо window.alert (работает в Mini Apps)
       const errorMsg = "Ошибка: не удалось получить Telegram ID. Закройте и откройте приложение заново через @Pinglass_bot"
       if (tg?.showAlert) {
-        tg.showAlert(errorMsg)
+        try {
+          tg.showAlert(errorMsg)
+        } catch {
+          alert(errorMsg)
+        }
       } else {
         alert(errorMsg)
       }

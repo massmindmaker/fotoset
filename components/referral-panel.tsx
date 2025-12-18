@@ -144,7 +144,11 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
         setCopiedTelegram(true)
         setTimeout(() => setCopiedTelegram(false), 2000)
       } else if (tg?.showAlert) {
-        tg.showAlert('Скопируйте ссылку вручную: ' + telegramDeeplink)
+        try {
+          tg.showAlert('Скопируйте ссылку вручную: ' + telegramDeeplink)
+        } catch {
+          alert('Не удалось скопировать. Ссылка: ' + telegramDeeplink)
+        }
       } else {
         alert('Не удалось скопировать. Ссылка: ' + telegramDeeplink)
       }
