@@ -10,10 +10,10 @@
 
 | Metric | Value |
 |--------|-------|
-| **Tests Passed** | 6/9 (67%) |
-| **Critical Bugs Fixed** | 2 |
+| **Tests Passed** | 9/9 (100%) ✅ |
+| **Critical Bugs Fixed** | 3 |
 | **Security Issues Found** | 1 |
-| **Score (108 scale)** | 72/108 |
+| **Score (108 scale)** | 108/108 |
 
 ---
 
@@ -23,18 +23,16 @@
 
 | # | Test | Status | Response |
 |---|------|--------|----------|
-| 1.1 | Avatar Creation | ✅ PASS | 201, avatar.id=74 |
-| 1.2 | Get Avatars List | ❌ FAIL* | 200, but assertion error |
+| 1.1 | Avatar Creation | ✅ PASS | 201, avatar created |
+| 1.2 | Get Avatars List | ✅ PASS | 200, avatars array |
 | 1.5 | Payment Creation | ✅ PASS | 200, paymentId returned |
 | 1.6 | Payment Status | ✅ PASS | 200, status="new" |
-
-*Note: 1.2 actually works (200 + avatars array), test assertion was too strict.
 
 ### Scenario 3: Authorization Checks
 
 | # | Test | Expected | Actual | Status |
 |---|------|----------|--------|--------|
-| 3.1 | Access without auth | 403 | 404 | ❌ FAIL |
+| 3.1 | Access without auth | 403 | 403 | ✅ PASS |
 | 3.2 | Access wrong user | 403 | 403 | ✅ PASS |
 | 3.3 | Non-existent resource | 404 | 404 | ✅ PASS |
 
@@ -43,13 +41,27 @@
 | # | Test | Status | Notes |
 |---|------|--------|-------|
 | 5.2 | Avatar Details | ✅ PASS | 200 |
-| 5.3 | Avatar References | ❌ FAIL | 429 Rate Limit |
+| 5.3 | Avatar References | ✅ PASS | 200, with 2s delay |
 
 ---
 
 ## Critical Bugs Fixed
 
-### 1. HMAC Order Bug (webapp-send)
+### 1. Auth Check Order (references route)
+
+**File:** `app/api/avatars/[id]/references/route.ts:18-22`
+
+**Problem:** When no `telegram_user_id` provided, returned 404 instead of 403.
+
+**Fix:** Check for identifier presence before ownership verification:
+```typescript
+// Added explicit auth check first
+if (!identifier.telegramUserId) {
+  return NextResponse.json({ error: "Access denied" }, { status: 403 })
+}
+```
+
+### 2. HMAC Order Bug (webapp-send)
 
 **File:** `app/api/telegram/webapp-send/route.ts:37-45`
 
@@ -73,7 +85,7 @@ const secretKey = crypto
 
 **Impact:** Telegram WebApp photo sending now works correctly.
 
-### 2. Payment Requires Email (54-FZ)
+### 3. Payment Requires Email (54-FZ)
 
 **File:** `app/api/payment/create/route.ts`
 
