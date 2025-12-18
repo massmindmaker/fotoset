@@ -71,9 +71,9 @@ async function verifyAvatarOwnershipWithData(
     return { avatar: null, authorized: false }
   }
 
-  // Telegram-only authentication
+  // Telegram-only authentication (convert bigint to Number for comparison)
   const authorized = identifier.telegramUserId
-    ? avatar.owner_telegram_id === identifier.telegramUserId
+    ? Number(avatar.owner_telegram_id) === identifier.telegramUserId
     : false
 
   return { avatar, authorized }
