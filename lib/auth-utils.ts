@@ -150,7 +150,7 @@ async function verifyAvatarOwnershipWithIdentifier(
 
   const avatar = rows[0]
   const authorized = identifier.telegramUserId
-    ? avatar.telegram_user_id === identifier.telegramUserId
+    ? Number(avatar.telegram_user_id) === identifier.telegramUserId
     : false
 
   return {
@@ -181,7 +181,7 @@ async function verifyJobOwnershipWithIdentifier(
 
   const job = rows[0]
   const authorized = identifier.telegramUserId
-    ? job.telegram_user_id === identifier.telegramUserId
+    ? Number(job.telegram_user_id) === identifier.telegramUserId
     : false
 
   return {
@@ -212,7 +212,7 @@ async function verifyReferenceOwnershipWithIdentifier(
 
   const reference = rows[0]
   const authorized = identifier.telegramUserId
-    ? reference.telegram_user_id === identifier.telegramUserId
+    ? Number(reference.telegram_user_id) === identifier.telegramUserId
     : false
 
   return {
