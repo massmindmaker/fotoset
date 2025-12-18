@@ -172,8 +172,13 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
       if (tg?.openTelegramLink) {
         // Use Telegram's native share via openTelegramLink
         const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(telegramDeeplink)}&text=${encodeURIComponent(shareText)}`
-        tg.openTelegramLink(shareUrl)
-        return
+        try {
+          tg.openTelegramLink(shareUrl)
+          return
+        } catch {
+          // Fall through to window.open fallback
+          console.warn('[TG] openTelegramLink() not available, using fallback')
+        }
       }
 
       // Fallback: regular window.open

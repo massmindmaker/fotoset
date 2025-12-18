@@ -253,8 +253,17 @@ export default function PersonaApp() {
             sessionStorage.setItem("pinglass_referral_code", telegramRefCode)
           }
 
-          tg.ready()
-          tg.expand()
+          // Wrap in try-catch - these methods throw WebAppMethodUnsupported outside Telegram
+          try {
+            tg.ready()
+          } catch {
+            console.warn('[TG] ready() not available outside Telegram')
+          }
+          try {
+            tg.expand()
+          } catch {
+            console.warn('[TG] expand() not available outside Telegram')
+          }
         } else if (!tg) {
           console.log("[TG] Not in Telegram WebApp context")
           setAuthStatus('not_in_telegram')
