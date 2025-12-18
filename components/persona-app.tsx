@@ -863,20 +863,27 @@ export default function PersonaApp() {
 
   // Handle transition from Upload to SelectTier - sync first!
   const handleUploadComplete = async () => {
+    console.log("[Upload] handleUploadComplete called")
     const persona = getActivePersona()
+    console.log("[Upload] Active persona:", persona?.id, "images:", persona?.images?.length)
+
     if (!persona) {
-      console.error("[Upload] No active persona")
+      console.error("[Upload] No active persona - showing error")
+      showMessage("Ошибка: персона не найдена. Попробуйте создать заново.")
       return
     }
 
-    if (persona.images.length < 10) {
-      showMessage("Загрузите минимум 10 фото")
+    if (persona.images.length < 5) {
+      console.log("[Upload] Not enough photos:", persona.images.length)
+      showMessage(`Загрузите минимум 5 фото (сейчас: ${persona.images.length})`)
       return
     }
 
+    console.log("[Upload] Starting sync with", persona.images.length, "photos")
     try {
       setIsGenerating(true) // Show loading state
       const dbId = await syncPersonaToServer(persona)
+      console.log("[Upload] Sync complete, DB ID:", dbId)
       setViewState({ view: "SELECT_TIER", personaId: dbId })
     } catch (error) {
       const errorMessage = getErrorMessage(error, "Ошибка сохранения")

@@ -53,8 +53,9 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
     updatePersona(persona.id, { images: persona.images.filter((i) => i.id !== imgId) })
   }
 
+  const MIN_PHOTOS = 5  // Minimum photos required to proceed
   const progress = Math.min(100, (persona.images.length / 20) * 100)
-  const isReady = persona.images.length >= 10
+  const isReady = persona.images.length >= MIN_PHOTOS
 
   return (
     <div className="space-y-6 pb-24 sm:pb-6">
@@ -148,7 +149,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
         </button>
         {!isReady && (
           <p className="text-xs text-center text-muted-foreground mt-2 sm:hidden">
-            Нужно ещё {10 - persona.images.length} фото
+            Нужно ещё {MIN_PHOTOS - persona.images.length} фото
           </p>
         )}
       </div>
