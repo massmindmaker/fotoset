@@ -328,39 +328,45 @@ export default function PersonaApp() {
 
             console.log("[Resume Payment] telegramUserId:", tgId, "avatars:", loadedAvatars.length)
 
-            // Find avatar that needs generation (most recent draft with reference photos)
-            const availablePersonas = loadedAvatars.filter(p => p.status === 'draft')
-            console.log("[Resume Payment] Available draft personas:", availablePersonas.map(p => ({ id: p.id, status: p.status })))
+            // Find avatar for generation - prioritize most recent avatar (any status)
+            // Generation uses stored references, so we need to check if avatar has them
+            let targetPersona: Persona | null = null
 
-            let targetPersona = availablePersonas.length > 0
-              ? availablePersonas.reduce((latest, current) =>
-                  Number(current.id) > Number(latest.id) ? current : latest
-                )
-              : null
+            if (loadedAvatars.length > 0) {
+              // Get the most recent avatar (highest ID = most recent)
+              targetPersona = loadedAvatars.reduce((latest, current) =>
+                Number(current.id) > Number(latest.id) ? current : latest
+              )
+              console.log("[Resume Payment] Found most recent avatar:", targetPersona.id, "status:", targetPersona.status)
 
-            // If no draft avatar, try fallback options
+              // Check if this avatar has reference photos via API
+              try {
+                const refRes = await fetch(`/api/avatars/${targetPersona.id}/references?telegram_user_id=${tgId}`)
+                if (refRes.ok) {
+                  const refData = await refRes.json()
+                  const refCount = refData.data?.count || refData.count || 0
+                  console.log("[Resume Payment] Avatar", targetPersona.id, "has", refCount, "reference photos")
+
+                  if (refCount === 0) {
+                    // Avatar exists but no reference photos - can't generate
+                    console.log("[Resume Payment] No reference photos, showing dashboard")
+                    showMessage("Оплата прошла успешно! Загрузите фото для генерации.")
+                    setPersonas(loadedAvatars)
+                    setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: targetPersona.id })
+                    setIsReady(true)
+                    return
+                  }
+                  // Has references - continue to generation
+                } else {
+                  console.error("[Resume Payment] Failed to check references:", refRes.status)
+                }
+              } catch (err) {
+                console.error("[Resume Payment] Error checking references:", err)
+              }
+            }
+
+            // No avatars at all - show dashboard with message
             if (!targetPersona) {
-              // Fallback 1: Find any avatar with generated photos (already ready)
-              const anyAvatarWithPhotos = loadedAvatars.find(p => p.generatedAssets && p.generatedAssets.length > 0)
-              if (anyAvatarWithPhotos) {
-                console.log("[Resume Payment] No draft, but found avatar with photos:", anyAvatarWithPhotos.id)
-                setPersonas(loadedAvatars)
-                setViewState({ view: "RESULTS", personaId: anyAvatarWithPhotos.id })
-                setIsReady(true)
-                return
-              }
-
-              // Fallback 2: Has avatars but no photos - show dashboard
-              if (loadedAvatars.length > 0) {
-                console.log("[Resume Payment] No avatars with photos, showing dashboard")
-                setPersonas(loadedAvatars)
-                setViewState({ view: "DASHBOARD" })
-                setIsReady(true)
-                return
-              }
-
-              // Fallback 3: No avatars at all - show DASHBOARD (NOT onboarding!)
-              // After payment, user should never see onboarding again
               console.log("[Resume Payment] No avatars found after payment, showing dashboard")
               showMessage("Оплата прошла успешно! Создайте аватар и загрузите фото.")
               localStorage.setItem("pinglass_onboarding_complete", "true")
@@ -481,19 +487,13 @@ export default function PersonaApp() {
         }
 
         // Normal flow (NOT resume_payment):
-        // Show DASHBOARD if user has avatars or completed onboarding, otherwise ONBOARDING
-        // Note: onboardingComplete and hasAvatars are already defined above (lines 242-243)
-        if (hasAvatars || onboardingComplete) {
-          console.log("[Init] User has avatars or completed onboarding, showing DASHBOARD", {
-            avatarsCount: loadedAvatars?.length || 0,
-            onboardingComplete
-          })
-          setPersonas(loadedAvatars)
-          setViewState({ view: "DASHBOARD" })
-        } else {
-          console.log("[Init] New user, showing ONBOARDING")
-          setViewState({ view: "ONBOARDING" })
-        }
+        // ALWAYS show ONBOARDING on app start (per user request)
+        // After completing onboarding, user navigates to DASHBOARD via handleOnboardingComplete
+        console.log("[Init] Showing ONBOARDING (always shown on app start)", {
+          avatarsCount: loadedAvatars?.length || 0
+        })
+        setPersonas(loadedAvatars) // Keep loaded avatars for dashboard after onboarding
+        setViewState({ view: "ONBOARDING" })
       } catch (e) {
         console.error("[Init] Critical error:", e)
         // On any error, show onboarding as fallback
@@ -863,12 +863,21 @@ export default function PersonaApp() {
 
   // Handle transition from Upload to SelectTier - sync first!
   const handleUploadComplete = async () => {
-    console.log("[Upload] handleUploadComplete called")
-    const persona = getActivePersona()
+    console.log("[Upload] handleUploadComplete called, viewState:", JSON.stringify(viewState))
+    
+    // Try getActivePersona first
+    let persona = getActivePersona()
+    
+    // Fallback: if null but viewState has personaId, search personas directly
+    if (!persona && "personaId" in viewState) {
+      console.log("[Upload] Fallback: searching personas for ID:", viewState.personaId)
+      persona = personas.find((p) => p.id === viewState.personaId) || null
+    }
+    
     console.log("[Upload] Active persona:", persona?.id, "images:", persona?.images?.length)
 
     if (!persona) {
-      console.error("[Upload] No active persona - showing error")
+      console.error("[Upload] No active persona found in viewState or personas array")
       showMessage("Ошибка: персона не найдена. Попробуйте создать заново.")
       return
     }

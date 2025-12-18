@@ -5,10 +5,11 @@ import { Plus, X, User, ChevronRight, Zap, Shield, Star } from "lucide-react"
 import Link from "next/link"
 import type { Persona, PricingTier } from "./types"
 
+// TODO: Restore original values after testing (7, 15, 23)
 export const PRICING_TIERS: PricingTier[] = [
-  { id: "starter", photos: 7, price: 499 },
-  { id: "standard", photos: 15, price: 999, popular: true },
-  { id: "premium", photos: 23, price: 1499 },
+  { id: "starter", photos: 2, price: 499 },    // Original: 7
+  { id: "standard", photos: 5, price: 999, popular: true },  // Original: 15
+  { id: "premium", photos: 8, price: 1499 },   // Original: 23
 ]
 
 export interface DashboardViewProps {
