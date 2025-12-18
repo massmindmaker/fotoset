@@ -32,9 +32,11 @@ function validateInitData(initData: string): TelegramWebAppUser | null {
       .join("\n")
 
     // Create HMAC-SHA256 signature
+    // FIXED: Correct order - key first, then message
+    // Telegram docs: secret_key = HMAC_SHA256(bot_token, "WebAppData")
     const secretKey = crypto
-      .createHmac("sha256", "WebAppData")
-      .update(TELEGRAM_BOT_TOKEN)
+      .createHmac("sha256", TELEGRAM_BOT_TOKEN)
+      .update("WebAppData")
       .digest()
 
     const calculatedHash = crypto
