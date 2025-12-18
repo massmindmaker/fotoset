@@ -55,13 +55,14 @@ function PaymentCallbackContent() {
           setStatus("success")
           // Перенаправляем обратно для начала генерации с флагом
           // FIX: Pass telegram_user_id so auth can work after external redirect
+          // FIX: Increased delay 2s→4s for DB replication
           setTimeout(() => {
             let redirectUrl = "/?resume_payment=true"
             if (telegramUserId) {
               redirectUrl += `&telegram_user_id=${telegramUserId}`
             }
             router.push(redirectUrl)
-          }, 2000)
+          }, 4000)
         } else if (isFastMode) {
           setTimeout(checkPayment, 1000)
         } else {

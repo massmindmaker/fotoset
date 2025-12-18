@@ -71,6 +71,7 @@ export default function PersonaApp() {
   const [viewState, setViewState] = useState<ViewState>({ view: "ONBOARDING" })
   const [personas, setPersonas] = useState<Persona[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false) // Track upload/sync progress
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 })
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
   const [userIdentifier, setUserIdentifier] = useState<UserIdentifier | null>(null)
@@ -387,19 +388,54 @@ export default function PersonaApp() {
             setIsReady(true)
 
             // Start generation using stored reference photos
-            fetch("/api/generate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                telegramUserId: tgId,
-                deviceId: currentIdentifier.deviceId,
-                avatarId: targetPersona.id,
-                styleId: "pinglass",
-                photoCount: tierPhotos,
-                useStoredReferences: true,
-              }),
-            })
-              .then(res => res.json())
+            // FIX: Add retry logic for PAYMENT_REQUIRED (DB may not be updated yet)
+            const startGeneration = async () => {
+              const MAX_RETRIES = 3
+              const RETRY_DELAY = 2000
+
+              for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                try {
+                  console.log(`[Resume Payment] Generation attempt ${attempt}/${MAX_RETRIES}`)
+                  const res = await fetch("/api/generate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      telegramUserId: tgId,
+                      deviceId: currentIdentifier.deviceId,
+                      avatarId: targetPersona.id,
+                      styleId: "pinglass",
+                      photoCount: tierPhotos,
+                      useStoredReferences: true,
+                    }),
+                  })
+                  const data = await res.json()
+
+                  // Success - start polling
+                  if (data.success && data.data?.jobId) {
+                    return data
+                  }
+
+                  // PAYMENT_REQUIRED - retry after delay (DB may not be updated yet)
+                  if (data.error === "PAYMENT_REQUIRED" && attempt < MAX_RETRIES) {
+                    console.log(`[Resume Payment] PAYMENT_REQUIRED, retrying in ${RETRY_DELAY}ms...`)
+                    await new Promise(r => setTimeout(r, RETRY_DELAY))
+                    continue
+                  }
+
+                  // Other error or final PAYMENT_REQUIRED - return error
+                  return data
+                } catch (err) {
+                  console.error(`[Resume Payment] Attempt ${attempt} failed:`, err)
+                  if (attempt === MAX_RETRIES) {
+                    return { success: false, error: String(err) }
+                  }
+                  await new Promise(r => setTimeout(r, RETRY_DELAY))
+                }
+              }
+              return { success: false, error: "Max retries exceeded" }
+            }
+
+            startGeneration()
               .then(data => {
                 if (data.success && data.data?.jobId) {
                   console.log("[Resume Payment] Generation started, jobId:", data.data.jobId)
@@ -467,6 +503,18 @@ export default function PersonaApp() {
                 } else if (!data.success) {
                   console.error("[Resume Payment] Generation failed:", data.error)
                   setIsGenerating(false)
+
+                  // FIX: Show error to user instead of silent failure
+                  if (data.error === "PAYMENT_REQUIRED") {
+                    showMessage("Оплата не подтверждена. Попробуйте ещё раз.")
+                  } else {
+                    showMessage("Ошибка генерации: " + (data.error || "Попробуйте позже"))
+                  }
+
+                  // Redirect to dashboard after delay
+                  setTimeout(() => {
+                    setViewState({ view: "DASHBOARD" })
+                  }, 2000)
                 }
               })
               .catch(err => {
@@ -514,8 +562,9 @@ export default function PersonaApp() {
   }, [viewState, isReady])
 
   // Recovery: if view requires persona but it's missing, redirect to DASHBOARD
+  // FIX: Skip recovery during sync/generation to prevent premature redirect
   useEffect(() => {
-    if (!isReady) return
+    if (!isReady || isGenerating || isSyncing) return
     const viewsRequiringPersona = ["CREATE_PERSONA_UPLOAD", "SELECT_TIER", "RESULTS"]
     if (viewsRequiringPersona.includes(viewState.view) && "personaId" in viewState) {
       const persona = personas.find((p) => p.id === viewState.personaId)
@@ -523,7 +572,7 @@ export default function PersonaApp() {
         // Wait a moment for state to sync, then redirect if still missing
         const timeout = setTimeout(() => {
           const stillMissing = !personas.find((p) => p.id === viewState.personaId)
-          if (stillMissing) {
+          if (stillMissing && !isSyncing && !isGenerating) {
             console.warn("[Recovery] Persona not found, redirecting to DASHBOARD:", viewState.personaId)
             setViewState({ view: "DASHBOARD" })
           }
@@ -531,7 +580,7 @@ export default function PersonaApp() {
         return () => clearTimeout(timeout)
       }
     }
-  }, [isReady, viewState, personas])
+  }, [isReady, viewState, personas, isGenerating, isSyncing])
 
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark"
@@ -723,18 +772,16 @@ export default function PersonaApp() {
       const dbAvatarId = String(avatarData.data.id)
       console.log("[Sync] Avatar created with DB ID:", dbAvatarId)
 
-      // Step 2: Upload reference photos to R2 (one by one to avoid Vercel 4.5MB limit)
+      // Step 2: Upload reference photos to R2 (PARALLEL for speed)
       if (persona.images && persona.images.length > 0) {
-        console.log("[Sync] Uploading", persona.images.length, "reference photos to R2")
+        console.log("[Sync] Uploading", persona.images.length, "reference photos to R2 (parallel)")
 
         const imagesToUpload = persona.images.slice(0, 14)
-        const uploadedUrls: string[] = []
 
-        // Upload each photo individually to R2
-        for (let i = 0; i < imagesToUpload.length; i++) {
-          const img = imagesToUpload[i]
+        // FIX: Parallel upload with Promise.allSettled (36s → 5s)
+        const uploadPromises = imagesToUpload.map(async (img, i) => {
           try {
-            console.log(`[Sync] Uploading photo ${i + 1}/${imagesToUpload.length}`)
+            console.log(`[Sync] Starting upload ${i + 1}/${imagesToUpload.length}`)
             const base64Data = await fileToBase64(img.file)
 
             const uploadRes = await fetch("/api/upload", {
@@ -750,19 +797,25 @@ export default function PersonaApp() {
             if (uploadRes.ok) {
               const result = await uploadRes.json()
               if (result.data?.url) {
-                uploadedUrls.push(result.data.url)
                 console.log(`[Sync] Photo ${i + 1} uploaded to R2:`, result.data.key)
+                return { success: true, index: i, url: result.data.url }
               }
-            } else {
-              const errText = await uploadRes.text()
-              console.error(`[Sync] Photo ${i + 1} FAILED:`, {
-                status: uploadRes.status,
-                statusText: uploadRes.statusText,
-                error: errText,
-              })
             }
+            const errText = await uploadRes.text()
+            console.error(`[Sync] Photo ${i + 1} FAILED:`, uploadRes.status, errText)
+            return { success: false, index: i, error: errText }
           } catch (err) {
             console.error(`[Sync] Error uploading photo ${i + 1}:`, err)
+            return { success: false, index: i, error: String(err) }
+          }
+        })
+
+        const results = await Promise.allSettled(uploadPromises)
+        const uploadedUrls: string[] = []
+
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value.success && result.value.url) {
+            uploadedUrls.push(result.value.url)
           }
         }
 
@@ -890,6 +943,7 @@ export default function PersonaApp() {
 
     console.log("[Upload] Starting sync with", persona.images.length, "photos")
     try {
+      setIsSyncing(true)  // FIX: Track sync state to prevent recovery redirect
       setIsGenerating(true) // Show loading state
       const dbId = await syncPersonaToServer(persona)
       console.log("[Upload] Sync complete, DB ID:", dbId)
@@ -899,6 +953,7 @@ export default function PersonaApp() {
       console.error("[Upload] Sync failed with error:", errorMessage, error)
       showMessage(`Ошибка сохранения: ${errorMessage}`)
     } finally {
+      setIsSyncing(false)
       setIsGenerating(false)
     }
   }
