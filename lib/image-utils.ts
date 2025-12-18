@@ -54,11 +54,22 @@ const CASUAL_MOOD_KEYWORDS = [
  * Базовая валидация изображения (размер, формат)
  * Для полной face detection нужен отдельный ML сервис
  */
-export function validateImage(base64Image: string): ImageValidationResult {
+export function validateImage(imageData: string): ImageValidationResult {
   const issues: string[] = []
 
+  // HTTP URLs (from R2 storage) are pre-validated on upload - trust them
+  if (imageData.startsWith("http://") || imageData.startsWith("https://")) {
+    return {
+      isValid: true,
+      hasFace: true,
+      quality: "medium",
+      issues: [],
+      metadata: { width: 0, height: 0, aspectRatio: 1, sizeKb: 100 },
+    }
+  }
+
   // Проверяем размер (base64 примерно на 33% больше оригинала)
-  const sizeBytes = base64Image.length * 0.75
+  const sizeBytes = imageData.length * 0.75
   const sizeKb = Math.round(sizeBytes / 1024)
 
   if (sizeKb < 10) {
@@ -75,11 +86,11 @@ export function validateImage(base64Image: string): ImageValidationResult {
 
   // Базовая проверка формата
   const isValidFormat =
-    base64Image.startsWith("data:image/jpeg") ||
-    base64Image.startsWith("data:image/png") ||
-    base64Image.startsWith("data:image/webp") ||
-    base64Image.startsWith("/9j/") || // JPEG magic bytes
-    base64Image.startsWith("iVBOR") // PNG magic bytes
+    imageData.startsWith("data:image/jpeg") ||
+    imageData.startsWith("data:image/png") ||
+    imageData.startsWith("data:image/webp") ||
+    imageData.startsWith("/9j/") || // JPEG magic bytes
+    imageData.startsWith("iVBOR") // PNG magic bytes
 
   if (!isValidFormat) {
     issues.push("Invalid image format")
