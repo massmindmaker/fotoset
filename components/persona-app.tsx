@@ -721,16 +721,9 @@ export default function PersonaApp() {
   // Sync persona to server: create avatar in DB and upload photos
   // Returns the DB avatar ID (numeric string like "123")
   const syncPersonaToServer = async (persona: Persona): Promise<string> => {
-    // Check if already synced (has numeric DB ID, not timestamp)
+    // Check if already has DB ID (not a temp ID like "temp_123456")
     const parsedId = parseInt(persona.id)
     const isDbId = !isNaN(parsedId) && parsedId > 0 && parsedId <= 2147483647
-    
-    if (isDbId) {
-      console.log("[Sync] Persona already has DB ID:", persona.id)
-      return persona.id
-    }
-
-    console.log("[Sync] Creating avatar in DB for persona:", persona.id)
 
     // ROBUST: Try multiple sources for telegram user ID
     let tg = window.Telegram?.WebApp
@@ -783,25 +776,34 @@ export default function PersonaApp() {
     }
 
     try {
-      // Step 1: Create avatar in DB
-      const createRes = await fetch("/api/avatars", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          telegramUserId: tgId,
-          deviceId: deviceId || `tg_${tgId}`,
-          name: persona.name || "Мой аватар",
-        }),
-      })
+      let dbAvatarId: string
 
-      if (!createRes.ok) {
-        const err = await createRes.json()
-        throw new Error(extractErrorMessage(err, "Failed to create avatar"))
+      // Step 1: Create avatar in DB OR use existing ID
+      if (isDbId) {
+        // Avatar already exists in DB - use existing ID for photo upload
+        dbAvatarId = persona.id
+        console.log("[Sync] Using existing DB avatar ID:", dbAvatarId)
+      } else {
+        // New avatar - create in DB first
+        const createRes = await fetch("/api/avatars", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            telegramUserId: tgId,
+            deviceId: deviceId || `tg_${tgId}`,
+            name: persona.name || "Мой аватар",
+          }),
+        })
+
+        if (!createRes.ok) {
+          const err = await createRes.json()
+          throw new Error(extractErrorMessage(err, "Failed to create avatar"))
+        }
+
+        const avatarData = await createRes.json()
+        dbAvatarId = String(avatarData.data.id)
+        console.log("[Sync] Avatar created with DB ID:", dbAvatarId)
       }
-
-      const avatarData = await createRes.json()
-      const dbAvatarId = String(avatarData.data.id)
-      console.log("[Sync] Avatar created with DB ID:", dbAvatarId)
 
       // Step 2: Upload reference photos to R2 (PARALLEL for speed)
       if (persona.images && persona.images.length > 0) {
