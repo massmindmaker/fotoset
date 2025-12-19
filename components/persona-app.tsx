@@ -589,8 +589,21 @@ export default function PersonaApp() {
     document.documentElement.classList.toggle("light", newTheme === "light")
   }
 
-  const completeOnboarding = () => {
+  const completeOnboarding = async () => {
     localStorage.setItem("pinglass_onboarding_complete", "true")
+
+    // FIX: Reload avatars when transitioning to dashboard
+    // They may not have loaded correctly during initial auth
+    if (telegramUserId && userIdentifier) {
+      console.log("[Onboarding] Reloading avatars for user:", telegramUserId)
+      try {
+        const avatars = await loadAvatarsFromServer(userIdentifier)
+        console.log("[Onboarding] Loaded", avatars.length, "avatars")
+      } catch (err) {
+        console.error("[Onboarding] Failed to reload avatars:", err)
+      }
+    }
+
     setViewState({ view: "DASHBOARD" })
   }
 
@@ -635,6 +648,20 @@ export default function PersonaApp() {
       }
     } catch (err) {
       console.error("[Onboarding] User creation error:", err)
+    }
+
+    // FIX: Reload avatars after user creation
+    console.log("[Onboarding] Reloading avatars after user creation...")
+    try {
+      const newIdentifier = {
+        type: "telegram" as const,
+        telegramUserId: tgUser.id,
+        deviceId: `tg_${tgUser.id}`,
+      }
+      const avatars = await loadAvatarsFromServer(newIdentifier)
+      console.log("[Onboarding] Loaded", avatars.length, "avatars")
+    } catch (err) {
+      console.error("[Onboarding] Failed to reload avatars:", err)
     }
 
     localStorage.setItem("pinglass_onboarding_complete", "true")
@@ -916,22 +943,28 @@ export default function PersonaApp() {
 
   // Handle transition from Upload to SelectTier - sync first!
   const handleUploadComplete = async () => {
-    console.log("[Upload] handleUploadComplete called, viewState:", JSON.stringify(viewState))
-    
+    // DEBUG: Immediate feedback
+    console.log("[Upload] ===== BUTTON CLICKED =====")
+    console.log("[Upload] viewState:", JSON.stringify(viewState))
+    console.log("[Upload] personas count:", personas.length)
+
     // Try getActivePersona first
     let persona = getActivePersona()
-    
+    console.log("[Upload] getActivePersona result:", persona?.id || "NULL")
+
     // Fallback: if null but viewState has personaId, search personas directly
     if (!persona && "personaId" in viewState) {
       console.log("[Upload] Fallback: searching personas for ID:", viewState.personaId)
       persona = personas.find((p) => p.id === viewState.personaId) || null
+      console.log("[Upload] Fallback result:", persona?.id || "NULL")
     }
-    
-    console.log("[Upload] Active persona:", persona?.id, "images:", persona?.images?.length)
+
+    console.log("[Upload] Final persona:", persona?.id, "images:", persona?.images?.length)
 
     if (!persona) {
-      console.error("[Upload] No active persona found in viewState or personas array")
+      console.error("[Upload] No active persona found!")
       showMessage("Ошибка: персона не найдена. Попробуйте создать заново.")
+      setViewState({ view: "DASHBOARD" })
       return
     }
 
@@ -942,16 +975,18 @@ export default function PersonaApp() {
     }
 
     console.log("[Upload] Starting sync with", persona.images.length, "photos")
+    showMessage("Загружаю фото...") // Immediate feedback
+
     try {
-      setIsSyncing(true)  // FIX: Track sync state to prevent recovery redirect
-      setIsGenerating(true) // Show loading state
+      setIsSyncing(true)
+      setIsGenerating(true)
       const dbId = await syncPersonaToServer(persona)
       console.log("[Upload] Sync complete, DB ID:", dbId)
       setViewState({ view: "SELECT_TIER", personaId: dbId })
     } catch (error) {
       const errorMessage = getErrorMessage(error, "Ошибка сохранения")
-      console.error("[Upload] Sync failed with error:", errorMessage, error)
-      showMessage(`Ошибка сохранения: ${errorMessage}`)
+      console.error("[Upload] Sync failed:", errorMessage, error)
+      showMessage(`Ошибка: ${errorMessage}`)
     } finally {
       setIsSyncing(false)
       setIsGenerating(false)
