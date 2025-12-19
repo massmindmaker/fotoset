@@ -4,11 +4,23 @@ import { isR2Configured, uploadBase64Image } from "@/lib/r2"
 // Minimal 1x1 red PNG as base64
 const TEST_IMAGE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=="
 
+// SECURITY: Disable debug endpoints in production
+function checkDebugAccess() {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+  return null
+}
+
+
 /**
  * GET /api/debug/r2
  * Check R2 configuration status
  */
 export async function GET() {
+  const accessCheck = checkDebugAccess()
+  if (accessCheck) return accessCheck
+
   return NextResponse.json({
     r2Configured: isR2Configured(),
     envVars: {
@@ -27,6 +39,9 @@ export async function GET() {
  * Test R2 upload functionality
  */
 export async function POST() {
+  const accessCheck = checkDebugAccess()
+  if (accessCheck) return accessCheck
+
   if (!isR2Configured()) {
     return NextResponse.json(
       {

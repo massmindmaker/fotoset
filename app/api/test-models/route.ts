@@ -2,6 +2,13 @@
 import { NextResponse } from "next/server"
 import { testConnections, getProviderInfo } from "@/lib/imagen"
 
+// SECURITY: Disable debug endpoints in production
+if (process.env.NODE_ENV === "production") {
+  return NextResponse.json({ error: "Not found" }, { status: 404 })
+}
+
+import { testConnections, getProviderInfo } from "@/lib/imagen"
+
 export async function GET() {
   try {
     const providerInfo = getProviderInfo()

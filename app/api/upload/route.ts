@@ -62,6 +62,12 @@ const ALLOWED_TYPES = [
  * }
  */
 export async function POST(request: NextRequest) {
+  // SECURITY: Require Telegram authentication
+  const telegramUserId = request.headers.get("x-telegram-user-id")
+  if (!telegramUserId) {
+    return error("UNAUTHORIZED", "Telegram authentication required")
+  }
+
   // Check R2 configuration
   if (!isR2Configured()) {
     logger.error("R2 not configured")

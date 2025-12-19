@@ -4,11 +4,11 @@ import { query } from "@/lib/db"
 // POST: Apply referral code to new user
 export async function POST(request: NextRequest) {
   try {
-    const { deviceId, referralCode } = await request.json()
+    const { telegramUserId, referralCode } = await request.json()
 
-    if (!deviceId || !referralCode) {
+    if (!telegramUserId || !referralCode) {
       return NextResponse.json(
-        { error: "device_id and referralCode required" },
+        { error: "telegram_user_id and referralCode required" },
         { status: 400 }
       )
     }
@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
 
     // Get referred user
     const userResult = await query<{ id: number }>(
-      "SELECT id FROM users WHERE device_id = $1",
-      [deviceId]
+      "SELECT id FROM users WHERE telegram_user_id = $1",
+      [telegramUserId]
     )
 
     if (userResult.rows.length === 0) {

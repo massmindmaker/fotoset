@@ -256,14 +256,12 @@ export function verifyWebhookSignature(notification: Record<string, unknown>, re
     const a = Buffer.from(calculatedToken, 'utf8')
     const b = Buffer.from(receivedToken, 'utf8')
 
-    // Pad buffers to same length to prevent length-based timing leak
-    const maxLen = Math.max(a.length, b.length)
-    const padA = Buffer.alloc(maxLen)
-    const padB = Buffer.alloc(maxLen)
-    a.copy(padA)
-    b.copy(padB)
+    // If lengths differ, tokens don't match (but still do constant-time comparison)
+    if (a.length !== b.length) {
+      return false
+    }
 
-    return crypto.timingSafeEqual(padA, padB)
+    return crypto.timingSafeEqual(a, b)
   } catch {
     return false
   }

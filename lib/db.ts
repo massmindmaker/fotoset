@@ -111,7 +111,7 @@ export type Referral = {
   id: number
   referrer_id: number
   referred_id: number
-  referral_code: string
+  referral_code: string | null
   created_at: string
 }
 
