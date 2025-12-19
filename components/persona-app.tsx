@@ -55,14 +55,6 @@ interface UserIdentifier {
   telegramUserId: number  // Required (NOT NULL)
 }
 
-/**
- * Initial empty identifier - will be populated by server auth in initApp()
- * User data is stored in Neon DB, NOT localStorage
- */
-function getInitialIdentifier(): UserIdentifier {
-  return { type: "telegram" }
-}
-
 // Auth status type for tracking Telegram authentication state
 type AuthStatus = 'pending' | 'success' | 'failed' | 'not_in_telegram'
 
@@ -185,8 +177,8 @@ export default function PersonaApp() {
     if (typeof window === "undefined") return
 
     const initApp = async () => {
-      let currentIdentifier = getInitialIdentifier()
-      setUserIdentifier(currentIdentifier)
+      // Initialize as null - will be set by Telegram WebApp auth
+      let currentIdentifier: UserIdentifier | null = null
 
       try {
         const savedTheme = localStorage.getItem("pinglass_theme") as "dark" | "light" | null
@@ -237,7 +229,6 @@ export default function PersonaApp() {
           currentIdentifier = {
             type: "telegram",
             telegramUserId: tgUser.id,
-            deviceId: `tg_${tgUser.id}`,
           }
           setUserIdentifier(currentIdentifier)
           setAuthStatus('success')
@@ -1119,6 +1110,32 @@ export default function PersonaApp() {
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
+
+  // Block access if not in Telegram Mini App
+  if (authStatus === 'not_in_telegram') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center bg-gradient-to-br from-background via-background to-muted/20">
+        <div className="max-w-md space-y-6">
+          <div className="text-6xl mb-4">📱</div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+            Откройте в Telegram
+          </h1>
+          <p className="text-muted-foreground text-lg leading-relaxed">
+            PinGlass работает только внутри Telegram Mini App.<br />
+            Откройте приложение через бота в Telegram.
+          </p>
+          <div className="pt-4">
+            <a
+              href="https://t.me/your_bot_name"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105"
+            >
+              Открыть в Telegram →
+            </a>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
