@@ -45,13 +45,10 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
           : null
       const telegramUserId = tg?.initDataUnsafe?.user?.id
 
-      const deviceId = localStorage.getItem("pinglass_device_id")
-
       const response = await fetch("/api/telegram/send-photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          deviceId,
           telegramUserId,
           photoUrls: assets.map((a) => a.url),
         }),

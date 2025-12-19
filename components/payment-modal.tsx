@@ -133,7 +133,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
     } finally {
       setLoading(false)
     }
-  }, [email, selectedMethod, telegramUserId, deviceId, tier, personaId, onSuccess, onClose])
+  }, [email, selectedMethod, telegramUserId, tier, personaId, onSuccess, onClose])
 
   if (!isOpen) return null
 

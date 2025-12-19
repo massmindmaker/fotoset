@@ -773,7 +773,6 @@ export default function PersonaApp() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             telegramUserId: tgId,
-            deviceId: deviceId || `tg_${tgId}`,
             name: persona.name || "Мой аватар",
           }),
         })
@@ -845,7 +844,6 @@ export default function PersonaApp() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 telegramUserId: tgId,
-                deviceId,
                 referenceImages: uploadedUrls,  // Now these are R2 URLs, not base64!
               }),
             })
@@ -998,7 +996,6 @@ export default function PersonaApp() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           telegramUserId,
-          deviceId,
           avatarId: p.id,
           styleId: "pinglass",
           photoCount: tier.photos,
@@ -1275,14 +1272,13 @@ export default function PersonaApp() {
             onClose={() => setIsPaymentOpen(false)}
             onSuccess={handlePaymentSuccess}
             telegramUserId={telegramUserId}
-            deviceId={deviceId}
             tier={selectedTier}
             personaId={"personaId" in viewState ? String(viewState.personaId) : undefined}
           />
         </Suspense>
       )}
       <Suspense fallback={null}>
-        <ReferralPanel deviceId={deviceId} isOpen={isReferralOpen} onClose={() => setIsReferralOpen(false)} />
+        <ReferralPanel telegramUserId={telegramUserId} isOpen={isReferralOpen} onClose={() => setIsReferralOpen(false)} />
       </Suspense>
     </div>
   )

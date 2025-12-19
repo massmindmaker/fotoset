@@ -38,12 +38,12 @@ interface WithdrawalPreview {
 }
 
 interface ReferralPanelProps {
-  deviceId: string
+  telegramUserId: number
   isOpen: boolean
   onClose: () => void
 }
 
-export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps) {
+export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanelProps) {
   const [stats, setStats] = useState<ReferralStats | null>(null)
   const [earnings, setEarnings] = useState<ReferralEarning[]>([])
   const [loading, setLoading] = useState(true)
@@ -53,20 +53,20 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
   const [copiedTelegram, setCopiedTelegram] = useState(false)
 
   useEffect(() => {
-    if (isOpen && deviceId) {
+    if (isOpen && telegramUserId) {
       fetchStats()
     }
-  }, [isOpen, deviceId])
+  }, [isOpen, telegramUserId])
 
   const fetchStats = async () => {
     setLoading(true)
     setError(null)
     try {
-      if (!deviceId) {
-        setError("Device ID отсутствует")
+      if (!telegramUserId) {
+        setError("Telegram ID отсутствует")
         return
       }
-      const res = await fetch(`/api/referral/stats?device_id=${deviceId}`)
+      const res = await fetch(`/api/referral/stats?telegram_user_id=${telegramUserId}`)
       const data = await res.json()
 
       if (!res.ok) {
@@ -100,7 +100,7 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
 
   const fetchEarnings = async () => {
     try {
-      const res = await fetch(`/api/referral/earnings?device_id=${deviceId}`)
+      const res = await fetch(`/api/referral/earnings?telegram_user_id=${telegramUserId}`)
       const data = await res.json()
       if (data.success && Array.isArray(data.earnings)) {
         setEarnings(data.earnings)
@@ -395,7 +395,7 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
       {/* Withdraw Modal */}
       {showWithdrawModal && stats && (
         <WithdrawModal
-          deviceId={deviceId}
+          telegramUserId={telegramUserId}
           balance={stats.balance}
           onClose={() => setShowWithdrawModal(false)}
           onSuccess={() => {
@@ -409,12 +409,12 @@ export function ReferralPanel({ deviceId, isOpen, onClose }: ReferralPanelProps)
 }
 
 function WithdrawModal({
-  deviceId,
+  telegramUserId,
   balance,
   onClose,
   onSuccess
 }: {
-  deviceId: string
+  telegramUserId: number
   balance: number
   onClose: () => void
   onSuccess: () => void
@@ -468,7 +468,7 @@ function WithdrawModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          deviceId,
+          telegramUserId,
           amount: balance,
           payoutMethod: method,
           cardNumber: method === "card" ? cardNumber.replace(/\s/g, "") : undefined,
