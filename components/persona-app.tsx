@@ -52,8 +52,7 @@ const AnimatedLogoCompact = lazy(() => import("./animated-logo").then((m) => ({ 
 // User identifier interface - Telegram only (no device fallback)
 interface UserIdentifier {
   type: "telegram"
-  telegramUserId?: number
-  deviceId?: string // Legacy field, derived from telegramUserId
+  telegramUserId: number  // Required (NOT NULL)
 }
 
 /**
@@ -84,9 +83,6 @@ export default function PersonaApp() {
 
   // Ref for polling interval cleanup on unmount
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // Derived values
-  const deviceId = userIdentifier?.deviceId || ""
   const telegramUserId = userIdentifier?.telegramUserId
 
   // Helper: показ сообщений через Telegram API (window.alert не работает в Mini Apps)
@@ -118,12 +114,8 @@ export default function PersonaApp() {
   const loadAvatarsFromServer = async (identifier: UserIdentifier): Promise<Persona[]> => {
     try {
       // Use include_photos=true (default) to get all avatars with photos in ONE request
-      // Priority: telegram_user_id for cross-device sync
-      let url = "/api/avatars?include_photos=true"
-      if (identifier.telegramUserId) {
-        url += `&telegram_user_id=${identifier.telegramUserId}`
-      }
-      url += `&device_id=${identifier.deviceId}`
+      // Telegram-only authentication
+      const url = `/api/avatars?include_photos=true&telegram_user_id=${identifier.telegramUserId}`
       const res = await fetch(url)
       if (!res.ok) return []
 

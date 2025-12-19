@@ -43,7 +43,7 @@ interface CreateAvatarRequest {
 }
 
 // ============================================================================
-// GET /api/avatars?device_id=xxx&telegram_user_id=xxx - Get all avatars for a user with photos
+// GET /api/avatars?telegram_user_id=xxx - Get all avatars for a user with photos
 // ============================================================================
 
 export async function GET(request: NextRequest) {

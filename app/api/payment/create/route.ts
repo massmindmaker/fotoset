@@ -13,9 +13,8 @@ const TIER_PRICES: Record<string, { price: number; photos: number }> = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { deviceId, telegramUserId, email, paymentMethod, tierId, photoCount, referralCode } = await request.json() as {
-      deviceId?: string
-      telegramUserId?: number
+    const { telegramUserId, email, paymentMethod, tierId, photoCount, referralCode } = await request.json() as {
+      telegramUserId: number
       email?: string
       paymentMethod?: PaymentMethod
       tierId?: string
@@ -23,16 +22,13 @@ export async function POST(request: NextRequest) {
       referralCode?: string
     }
 
-    // SECURITY: Require at least one identifier
-    if (!telegramUserId && (!deviceId || typeof deviceId !== 'string' || deviceId.trim().length === 0)) {
-      return NextResponse.json({ error: "telegramUserId or deviceId required" }, { status: 400 })
-    }
-    if (deviceId && deviceId.length > 255) {
-      return NextResponse.json({ error: "Device ID too long" }, { status: 400 })
+    // SECURITY: Require telegramUserId (Telegram-only authentication)
+    if (!telegramUserId || typeof telegramUserId !== 'number') {
+      return NextResponse.json({ error: "telegramUserId is required" }, { status: 400 })
     }
 
-    // Find or create user with priority: telegram_user_id > device_id
-    const user = await findOrCreateUser({ telegramUserId, deviceId })
+    // Find or create user (Telegram-only)
+    const user = await findOrCreateUser({ telegramUserId })
 
     // Apply referral code if provided and not already applied
     if (referralCode) {
@@ -69,11 +65,7 @@ export async function POST(request: NextRequest) {
     // /payment/success was a dead-end that didn't trigger generation flow
     // Use URL API for proper encoding of query parameters
     const successUrlObj = new URL(`${baseUrl}/payment/callback`)
-    if (telegramUserId) {
-      successUrlObj.searchParams.set('telegram_user_id', String(telegramUserId))
-    } else if (deviceId) {
-      successUrlObj.searchParams.set('device_id', deviceId)
-    }
+    successUrlObj.searchParams.set('telegram_user_id', String(telegramUserId))
     const successUrl = successUrlObj.toString()
     const failUrl = `${baseUrl}/payment/fail`
     const notificationUrl = `${baseUrl}/api/payment/webhook`
@@ -149,7 +141,6 @@ export async function POST(request: NextRequest) {
       confirmationUrl: payment.PaymentURL,
       testMode: IS_TEST_MODE,
       telegramUserId, // Return for client-side usage
-      deviceId: deviceId || user.device_id, // Return for client-side storage
     })
   } catch (error) {
     console.error("Payment creation error:", error)

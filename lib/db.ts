@@ -30,8 +30,8 @@ export async function query<T = any>(
 
 export type User = {
   id: number
-  device_id: string
-  telegram_user_id?: number
+  telegram_user_id: number  // PRIMARY identifier (NOT NULL, UNIQUE)
+  is_pro: boolean
   created_at: string
   updated_at: string
 }

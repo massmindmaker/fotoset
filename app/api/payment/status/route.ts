@@ -7,21 +7,16 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const telegramUserId = searchParams.get("telegram_user_id")
-    const deviceId = searchParams.get("device_id")
     let paymentId = searchParams.get("payment_id")
 
     console.log("[Payment Status] Check:", {
       telegramUserId,
-      deviceId: deviceId?.substring(0, 8) + "...",
       paymentId,
     })
 
-    // SECURITY: Require at least one identifier
-    if (!telegramUserId && (!deviceId || deviceId.trim().length === 0)) {
-      return NextResponse.json({ error: "telegram_user_id or device_id required" }, { status: 400 })
-    }
-    if (deviceId && deviceId.length > 255) {
-      return NextResponse.json({ error: "Device ID too long" }, { status: 400 })
+    // SECURITY: Require telegramUserId (Telegram-only authentication)
+    if (!telegramUserId || telegramUserId.trim().length === 0) {
+      return NextResponse.json({ error: "telegram_user_id is required" }, { status: 400 })
     }
 
     if (!process.env.DATABASE_URL) {
@@ -29,12 +24,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ paid: false, status: "pending", testMode: true })
     }
 
-    // Find or create user with priority: telegram_user_id > device_id
+    // Find or create user (Telegram-only)
     let user
     try {
       user = await findOrCreateUser({
-        telegramUserId: telegramUserId ? parseInt(telegramUserId) : undefined,
-        deviceId: deviceId || undefined,
+        telegramUserId: parseInt(telegramUserId)
       })
     } catch (dbError) {
       console.error("[Payment Status] Database error:", dbError)

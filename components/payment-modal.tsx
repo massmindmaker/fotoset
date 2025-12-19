@@ -16,8 +16,7 @@ interface PaymentModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
-  telegramUserId?: number  // Primary identifier for Telegram users
-  deviceId: string         // Fallback identifier for web users
+  telegramUserId: number  // Required (Telegram-only authentication)
   tier: PricingTier
   personaId?: string  // For post-payment redirect to generation
 }
@@ -30,7 +29,7 @@ interface PaymentResponse {
   testMode: boolean
 }
 
-export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, telegramUserId, deviceId, tier, personaId }) => {
+export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, telegramUserId, tier, personaId }) => {
   const [step, setStep] = useState<"FORM" | "PROCESSING" | "REDIRECT" | "SUCCESS" | "ERROR">("FORM")
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState("")
@@ -73,10 +72,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
   const handlePayment = useCallback(async () => {
     if (!validateEmail(email)) return
 
-    // Validate that we have at least one identifier for post-payment restoration
-    if (!telegramUserId && !deviceId) {
-      console.error("[Payment] Missing identifiers - cannot proceed")
-      setErrorMessage("Ошибка идентификации пользователя. Перезагрузите страницу.")
+    // Validate telegramUserId (Telegram-only authentication)
+    if (!telegramUserId) {
+      console.error("[Payment] Missing telegramUserId")
+      setErrorMessage("Требуется авторизация через Telegram")
       setStep("ERROR")
       return
     }
@@ -95,8 +94,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          telegramUserId,  // Primary identifier for Telegram users
-          deviceId,        // Fallback for web users
+          telegramUserId,  // Telegram-only authentication
           email: email.trim(),
           paymentMethod: selectedMethod,
           tierId: tier.id,

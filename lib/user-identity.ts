@@ -7,45 +7,38 @@ export interface UserIdentifier {
 }
 
 /**
- * Find or create user by telegram_user_id (primary identifier)
+ * Find or create user by telegram_user_id (ONLY identifier)
  *
- * For Telegram users:
- * - Primary lookup by telegram_user_id (enables cross-device sync)
- * - Updates device_id if changed (user on new device)
+ * Telegram Mini App authentication:
+ * - Primary and ONLY lookup by telegram_user_id
+ * - Cross-device sync automatically works
+ * - No fallback to device_id (removed)
  */
 export async function findOrCreateUser(params: {
-  telegramUserId?: number
-  deviceId?: string
+  telegramUserId: number
 }): Promise<User> {
-  const { telegramUserId, deviceId } = params
+  const { telegramUserId } = params
 
-  // Require Telegram user ID
-  if (!telegramUserId) {
-    throw new Error("telegramUserId is required")
-  }
+  // Validate telegram_user_id
+  const tgId = typeof telegramUserId === 'number'
+    ? telegramUserId
+    : parseInt(String(telegramUserId))
 
-  // NaN validation for telegram_user_id
-  const tgId = typeof telegramUserId === 'number' ? telegramUserId : parseInt(String(telegramUserId))
   if (isNaN(tgId)) {
     throw new Error("Invalid telegram_user_id format: must be a valid number")
   }
 
-  // Uses ATOMIC INSERT ON CONFLICT to prevent race conditions
-  // Note: email column removed - doesn't exist in DB schema
+  // Find or create user (atomic)
   const result = await sql`
-    INSERT INTO users (telegram_user_id, device_id)
-    VALUES (
-      ${tgId},
-      ${deviceId || `tg_${tgId}`}
-    )
+    INSERT INTO users (telegram_user_id)
+    VALUES (${tgId})
     ON CONFLICT (telegram_user_id) DO UPDATE SET
-      device_id = COALESCE(EXCLUDED.device_id, users.device_id),
       updated_at = NOW()
     RETURNING *
   `
 
   if (result.length > 0) {
-    console.log(`[UserIdentity] Telegram user upserted: telegram_user_id=${tgId}`)
+    console.log(`[UserIdentity] Telegram user upserted: ${tgId}`)
     return result[0] as User
   }
 
@@ -53,7 +46,7 @@ export async function findOrCreateUser(params: {
 }
 
 /**
- * Build query params for API calls based on user identifier
+ * Build query params for API calls
  */
 export function buildIdentifierParams(identifier: UserIdentifier): URLSearchParams {
   const params = new URLSearchParams()
@@ -63,17 +56,15 @@ export function buildIdentifierParams(identifier: UserIdentifier): URLSearchPara
 
 /**
  * Extract user identifier from request (query params or body)
- * Returns validated telegramUserId with NaN check
+ * Returns validated telegramUserId
  */
 export function extractIdentifierFromRequest(data: {
   telegram_user_id?: string | number | null
   telegramUserId?: number | null
-  device_id?: string | null
-  deviceId?: string | null
-}): { telegramUserId?: number; deviceId?: string } {
-  let telegramUserId: number | undefined = undefined
+}): { telegramUserId: number } {
+  // Parse telegram_user_id
+  let telegramUserId: number | undefined
 
-  // Parse and validate telegram_user_id with NaN check
   if (data.telegram_user_id) {
     const tgId = typeof data.telegram_user_id === 'string'
       ? parseInt(data.telegram_user_id)
@@ -90,10 +81,9 @@ export function extractIdentifierFromRequest(data: {
     }
   }
 
-  const deviceId = data.device_id || data.deviceId || undefined
-
-  return {
-    telegramUserId,
-    deviceId: deviceId || undefined,
+  if (!telegramUserId) {
+    throw new Error("telegram_user_id is required")
   }
+
+  return { telegramUserId }
 }
