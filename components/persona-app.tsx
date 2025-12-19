@@ -128,10 +128,14 @@ export default function PersonaApp() {
       if (!res.ok) return []
 
       const data = await res.json()
-      if (!data.avatars || data.avatars.length === 0) return []
+      // FIX: API returns { success: true, data: { avatars: [...] } }
+      // Support both formats: data.avatars (old) and data.data.avatars (new)
+      const avatars = data.data?.avatars || data.avatars || []
+      console.log("[Avatars] API response:", { success: data.success, avatarsCount: avatars.length })
+      if (avatars.length === 0) return []
 
       // Map avatars directly - photos are already included in response
-      const loadedPersonas: Persona[] = data.avatars.map(
+      const loadedPersonas: Persona[] = avatars.map(
         (avatar: {
           id: number
           name: string
