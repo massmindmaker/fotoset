@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/db"
+import { sql } from "@/lib/db"
 
 // Generate unique referral code
 function generateCode(): string {
@@ -14,34 +14,37 @@ function generateCode(): string {
 // GET: Get user's referral code (create if not exists)
 export async function GET(request: NextRequest) {
   try {
-    const deviceId = request.nextUrl.searchParams.get("device_id")
+    const telegramUserIdParam = request.nextUrl.searchParams.get("telegram_user_id")
 
-    if (!deviceId) {
-      return NextResponse.json({ error: "device_id required" }, { status: 400 })
+    if (!telegramUserIdParam) {
+      return NextResponse.json({ error: "telegram_user_id required" }, { status: 400 })
     }
 
-    // Get user
-    const userResult = await query<{ id: number }>(
-      "SELECT id FROM users WHERE device_id = $1",
-      [deviceId]
-    )
+    const telegramUserId = parseInt(telegramUserIdParam)
+    if (isNaN(telegramUserId)) {
+      return NextResponse.json({ error: "Invalid telegram_user_id" }, { status: 400 })
+    }
 
-    if (userResult.rows.length === 0) {
+    // Get user by telegram_user_id
+    const user = await sql`
+      SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
+    `.then(rows => rows[0])
+
+    if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const userId = userResult.rows[0].id
+    const userId = user.id
 
     // Check existing code
-    const existingCode = await query<{ code: string; is_active: boolean }>(
-      "SELECT code, is_active FROM referral_codes WHERE user_id = $1",
-      [userId]
-    )
+    const existingCode = await sql`
+      SELECT code, is_active FROM referral_codes WHERE user_id = ${userId}
+    `.then(rows => rows[0])
 
-    if (existingCode.rows.length > 0) {
+    if (existingCode) {
       return NextResponse.json({
-        code: existingCode.rows[0].code,
-        isActive: existingCode.rows[0].is_active,
+        code: existingCode.code,
+        isActive: existingCode.is_active,
       })
     }
 
@@ -51,11 +54,10 @@ export async function GET(request: NextRequest) {
     const maxAttempts = 10
 
     while (attempts < maxAttempts) {
-      const duplicate = await query(
-        "SELECT id FROM referral_codes WHERE code = $1",
-        [code]
-      )
-      if (duplicate.rows.length === 0) break
+      const duplicate = await sql`
+        SELECT id FROM referral_codes WHERE code = ${code}
+      `.then(rows => rows[0])
+      if (!duplicate) break
       code = generateCode()
       attempts++
     }
@@ -68,22 +70,20 @@ export async function GET(request: NextRequest) {
     }
 
     // Insert new code
-    await query(
-      "INSERT INTO referral_codes (user_id, code) VALUES ($1, $2)",
-      [userId, code]
-    )
+    await sql`
+      INSERT INTO referral_codes (user_id, code) VALUES (${userId}, ${code})
+    `
 
     // Initialize balance record
-    await query(
-      `INSERT INTO referral_balances (user_id, balance, total_earned, total_withdrawn, referrals_count)
-       VALUES ($1, 0, 0, 0, 0)
-       ON CONFLICT (user_id) DO NOTHING`,
-      [userId]
-    )
+    await sql`
+      INSERT INTO referral_balances (user_id, balance, total_earned, total_withdrawn, referrals_count)
+      VALUES (${userId}, 0, 0, 0, 0)
+      ON CONFLICT (user_id) DO NOTHING
+    `
 
     return NextResponse.json({ code, isActive: true })
   } catch (error) {
-    console.error("Referral code error:", error)
+    console.error("[Referral] Code error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

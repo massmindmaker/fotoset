@@ -500,11 +500,13 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
 
     // Load referral code for sharing
     const loadReferralCode = async () => {
-      const deviceId = localStorage.getItem("pinglass_device_id")
-      if (!deviceId) return
+      // Get telegram user ID from Telegram WebApp
+      const tg = (window as any).Telegram?.WebApp
+      const telegramUserId = tg?.initDataUnsafe?.user?.id
+      if (!telegramUserId) return
 
       try {
-        const res = await fetch(`/api/referral/code?device_id=${deviceId}`)
+        const res = await fetch(`/api/referral/code?telegram_user_id=${telegramUserId}`)
         if (res.ok) {
           const data = await res.json()
           if (data.code) {

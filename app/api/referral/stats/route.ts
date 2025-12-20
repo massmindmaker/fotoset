@@ -17,37 +17,34 @@ function generateCode(): string {
 // GET: Get partner statistics
 export async function GET(request: NextRequest) {
   try {
-    const deviceId = request.nextUrl.searchParams.get("device_id")
+    const telegramUserIdParam = request.nextUrl.searchParams.get("telegram_user_id")
 
-    if (!deviceId) {
-      return NextResponse.json({ error: "device_id required" }, { status: 400 })
+    if (!telegramUserIdParam) {
+      return NextResponse.json({ error: "telegram_user_id required" }, { status: 400 })
     }
 
-    // Get or create user
-    let userResult = await sql`
-      SELECT id FROM users WHERE device_id = ${deviceId}
-    `
-
-    let userId: number
-
-    if (userResult.length === 0) {
-      // Create new user
-      const newUser = await sql`
-        INSERT INTO users (device_id) VALUES (${deviceId})
-        RETURNING id
-      `
-      userId = newUser[0].id
-      console.log(`[Referral] Created new user ${userId} for device ${deviceId}`)
-    } else {
-      userId = userResult[0].id
+    const telegramUserId = parseInt(telegramUserIdParam)
+    if (isNaN(telegramUserId)) {
+      return NextResponse.json({ error: "Invalid telegram_user_id" }, { status: 400 })
     }
+
+    // Get user by telegram_user_id (don't create - require existing user)
+    const user = await sql`
+      SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
+    `.then(rows => rows[0])
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    const userId = user.id
 
     // Get or create referral code
     let codeResult = await sql`
       SELECT code FROM referral_codes WHERE user_id = ${userId} AND is_active = true
-    `
+    `.then(rows => rows[0])
 
-    let referralCode: string | null = codeResult[0]?.code || null
+    let referralCode: string | null = codeResult?.code || null
 
     // Create referral code if doesn't exist
     if (!referralCode) {
@@ -57,8 +54,8 @@ export async function GET(request: NextRequest) {
 
       // Ensure unique code
       while (attempts < maxAttempts) {
-        const duplicate = await sql`SELECT id FROM referral_codes WHERE code = ${code}`
-        if (duplicate.length === 0) break
+        const duplicate = await sql`SELECT id FROM referral_codes WHERE code = ${code}`.then(rows => rows[0])
+        if (!duplicate) break
         code = generateCode()
         attempts++
       }
@@ -66,24 +63,23 @@ export async function GET(request: NextRequest) {
       if (attempts < maxAttempts) {
         await sql`INSERT INTO referral_codes (user_id, code, is_active) VALUES (${userId}, ${code}, true)`
         referralCode = code
-        console.log(`[Referral] Created code ${code} for user ${userId}`)
       }
     }
 
     // Get or create balance record
     let balanceResult = await sql`
       SELECT * FROM referral_balances WHERE user_id = ${userId}
-    `
+    `.then(rows => rows[0])
 
-    if (balanceResult.length === 0) {
+    if (!balanceResult) {
       await sql`
         INSERT INTO referral_balances (user_id, balance, total_earned, total_withdrawn, referrals_count)
         VALUES (${userId}, 0, 0, 0, 0)
       `
-      balanceResult = [{ balance: 0, total_earned: 0, total_withdrawn: 0, referrals_count: 0 }]
+      balanceResult = { balance: 0, total_earned: 0, total_withdrawn: 0, referrals_count: 0 }
     }
 
-    const balance = balanceResult[0]
+    const balance = balanceResult
 
     // Get recent referrals (last 10)
     const referralsResult = await sql`
@@ -102,9 +98,9 @@ export async function GET(request: NextRequest) {
       SELECT COALESCE(SUM(amount), 0) as total
       FROM referral_withdrawals
       WHERE user_id = ${userId} AND status IN ('pending', 'processing')
-    `
+    `.then(rows => rows[0])
 
-    const pendingWithdrawal = Number(pendingResult[0]?.total || 0)
+    const pendingWithdrawal = Number(pendingResult?.total || 0)
     const availableBalance = Number(balance.balance) - pendingWithdrawal
     const canWithdraw = availableBalance >= MIN_WITHDRAWAL
 
@@ -137,7 +133,7 @@ export async function GET(request: NextRequest) {
       })),
     })
   } catch (error) {
-    console.error("Referral stats error:", error)
+    console.error("[Referral] Stats error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

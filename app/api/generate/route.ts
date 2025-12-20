@@ -12,9 +12,7 @@ import {
   success,
   error,
   validateRequired,
-  applyRateLimit,
   createLogger,
-  type RateLimitConfig,
 } from "@/lib/api-utils"
 import {
   HAS_QSTASH,
@@ -42,12 +40,9 @@ const GENERATION_CONFIG = {
   maxRetries: 2,               // Max retries for failed generations
 }
 
-// Rate limit: 3 generations per hour per device
-const RATE_LIMIT_CONFIG: RateLimitConfig = {
-  windowMs: 60 * 60 * 1000, // 1 hour
-  maxRequests: 3,
-  keyPrefix: "gen",
-}
+// NOTE: Rate limiting removed (2025-12-20)
+// In-memory rate limiting doesn't work on Vercel serverless
+// Protection: Telegram auth + payment barrier + Google API quotas
 
 // ============================================================================
 // Background Generation
@@ -290,14 +285,6 @@ export async function POST(request: NextRequest) {
       const missingFields = (validation as { valid: false; missing: string[] }).missing
       logger.warn("Validation failed", { missing: missingFields })
       return error("VALIDATION_ERROR", `Missing required fields: ${missingFields.join(", ")}`)
-    }
-
-    // Apply rate limit using telegram user id
-    const rateLimitKey = `tg_${tgId}`
-    const rateLimitError = applyRateLimit(rateLimitKey, RATE_LIMIT_CONFIG)
-    if (rateLimitError) {
-      logger.warn("Rate limit exceeded", { telegramUserId: tgId })
-      return rateLimitError
     }
 
     // Get reference images - either from request or from stored DB records

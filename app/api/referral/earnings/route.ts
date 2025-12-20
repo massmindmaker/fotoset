@@ -4,24 +4,29 @@ import { sql } from "@/lib/db"
 // GET: Get earnings history
 export async function GET(request: NextRequest) {
   try {
-    const deviceId = request.nextUrl.searchParams.get("device_id")
+    const telegramUserIdParam = request.nextUrl.searchParams.get("telegram_user_id")
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "20")
     const offset = parseInt(request.nextUrl.searchParams.get("offset") || "0")
 
-    if (!deviceId) {
-      return NextResponse.json({ error: "device_id required" }, { status: 400 })
+    if (!telegramUserIdParam) {
+      return NextResponse.json({ error: "telegram_user_id required" }, { status: 400 })
     }
 
-    // Get user
-    const userResult = await sql`
-      SELECT id FROM users WHERE device_id = ${deviceId}
-    `
+    const telegramUserId = parseInt(telegramUserIdParam)
+    if (isNaN(telegramUserId)) {
+      return NextResponse.json({ error: "Invalid telegram_user_id" }, { status: 400 })
+    }
 
-    if (userResult.length === 0) {
+    // Get user by telegram_user_id
+    const user = await sql`
+      SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
+    `.then(rows => rows[0])
+
+    if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const userId = userResult[0].id
+    const userId = user.id
 
     // Get earnings with pagination
     const earningsResult = await sql`
@@ -34,7 +39,7 @@ export async function GET(request: NextRequest) {
     // Get total count
     const countResult = await sql`
       SELECT COUNT(*) as count FROM referral_earnings WHERE referrer_id = ${userId}
-    `
+    `.then(rows => rows[0])
 
     return NextResponse.json({
       success: true,
@@ -44,12 +49,12 @@ export async function GET(request: NextRequest) {
         originalAmount: Number(e.original_amount),
         date: e.created_at,
       })),
-      total: Number(countResult[0]?.count || 0),
+      total: Number(countResult?.count || 0),
       limit,
       offset,
     })
   } catch (error) {
-    console.error("Earnings history error:", error)
+    console.error("[Referral] Earnings error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -1,22 +1,18 @@
 /**
  * Next.js Edge Middleware
  *
- * SECURITY: Implements global security headers and rate limiting
+ * SECURITY: Implements global security headers
  * - Runs on Edge Runtime (before API routes execute)
  * - Adds security headers to all responses
- * - Rate limits API endpoints by client identifier
  * - Prevents common web vulnerabilities (XSS, clickjacking, MIME sniffing)
+ *
+ * NOTE: Rate limiting removed (2025-12-20)
+ * - In-memory rate limiting doesn't work on Vercel serverless
+ * - Protection provided by: Telegram auth, payment barrier, API quotas
  */
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import {
-  checkRateLimitByType,
-  createRateLimitResponse,
-  addRateLimitHeaders,
-  getClientIdentifier,
-  RATE_LIMITS,
-} from './lib/rate-limiter';
 
 /**
  * Security headers configuration
@@ -60,54 +56,6 @@ const SECURITY_HEADERS = {
 } as const;
 
 /**
- * Rate limit configuration per route pattern
- */
-const RATE_LIMIT_CONFIG: Record<string, keyof typeof RATE_LIMITS> = {
-  '/api/generate': 'GENERATION',
-  '/api/payment/create': 'PAYMENT',
-  '/api/payment/status': 'STATUS',
-  '/api/user': 'USER',
-} as const;
-
-/**
- * Get rate limit type for route
- */
-function getRateLimitType(pathname: string): keyof typeof RATE_LIMITS {
-  // Exact match first
-  if (pathname in RATE_LIMIT_CONFIG) {
-    return RATE_LIMIT_CONFIG[pathname];
-  }
-
-  // Prefix match for payment routes
-  if (pathname.startsWith('/api/payment/')) {
-    return 'PAYMENT';
-  }
-
-  // Default rate limit for all other API routes
-  return 'DEFAULT';
-}
-
-/**
- * Check if route should be rate limited
- */
-function shouldRateLimit(pathname: string): boolean {
-  // Rate limit all API routes except webhook (webhooks have their own security)
-  return pathname.startsWith('/api/') && !pathname.includes('/webhook');
-}
-
-/**
- * Check if route is public (no auth required)
- */
-function isPublicRoute(pathname: string): boolean {
-  const publicRoutes = [
-    '/api/payment/webhook',
-    '/api/payment/status',
-    '/api/test-models',
-  ];
-  return publicRoutes.some((route) => pathname.startsWith(route));
-}
-
-/**
  * Middleware function
  */
 export async function middleware(request: NextRequest) {
@@ -120,35 +68,6 @@ export async function middleware(request: NextRequest) {
   Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
     response.headers.set(key, value);
   });
-
-  // Rate limiting for API routes
-  if (shouldRateLimit(pathname)) {
-    try {
-      // Get client identifier (device ID or IP)
-      const clientId = getClientIdentifier(request);
-      const rateLimitType = getRateLimitType(pathname);
-
-      // Check rate limit
-      const rateLimitResult = checkRateLimitByType(
-        `${rateLimitType}:${clientId}`,
-        rateLimitType
-      );
-
-      // Return 429 if rate limit exceeded
-      if (!rateLimitResult.allowed) {
-        console.warn(
-          `[Rate Limit] ${clientId} exceeded ${rateLimitType} limit on ${pathname}`
-        );
-        return createRateLimitResponse(rateLimitResult);
-      }
-
-      // Add rate limit headers to successful responses
-      response = addRateLimitHeaders(response, rateLimitResult);
-    } catch (error) {
-      // Log error but don't block request if rate limiter fails
-      console.error('[Middleware] Rate limit check failed:', error);
-    }
-  }
 
   // Additional security checks for specific routes
   if (pathname.startsWith('/api/generate')) {

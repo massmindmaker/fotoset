@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { query, ReferralBalance } from "@/lib/db"
+import { sql } from "@/lib/db"
 
 const MIN_WITHDRAWAL = 5000
 const NDFL_RATE = 0.13
@@ -7,12 +7,12 @@ const NDFL_RATE = 0.13
 // POST: Create withdrawal request
 export async function POST(request: NextRequest) {
   try {
-    const { deviceId, payoutMethod, cardNumber, phone, recipientName } =
+    const { telegramUserId, payoutMethod, cardNumber, phone, recipientName } =
       await request.json()
 
-    if (!deviceId || !payoutMethod || !recipientName) {
+    if (!telegramUserId || !payoutMethod || !recipientName) {
       return NextResponse.json(
-        { error: "device_id, payoutMethod, and recipientName required" },
+        { error: "telegramUserId, payoutMethod, and recipientName required" },
         { status: 400 }
       )
     }
@@ -42,42 +42,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get user
-    const userResult = await query<{ id: number }>(
-      "SELECT id FROM users WHERE device_id = $1",
-      [deviceId]
-    )
+    // Get user by telegram_user_id
+    const user = await sql`
+      SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
+    `.then(rows => rows[0])
 
-    if (userResult.rows.length === 0) {
+    if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const userId = userResult.rows[0].id
+    const userId = user.id
 
     // Get balance
-    const balanceResult = await query<ReferralBalance>(
-      "SELECT * FROM referral_balances WHERE user_id = $1",
-      [userId]
-    )
+    const balanceResult = await sql`
+      SELECT * FROM referral_balances WHERE user_id = ${userId}
+    `.then(rows => rows[0])
 
-    if (balanceResult.rows.length === 0) {
+    if (!balanceResult) {
       return NextResponse.json(
         { error: "No referral balance found" },
         { status: 400 }
       )
     }
 
-    const balance = Number(balanceResult.rows[0].balance)
+    const balance = Number(balanceResult.balance)
 
     // Check pending withdrawals
-    const pendingResult = await query<{ total: number }>(
-      `SELECT COALESCE(SUM(amount), 0) as total
-       FROM referral_withdrawals
-       WHERE user_id = $1 AND status IN ('pending', 'processing')`,
-      [userId]
-    )
+    const pendingResult = await sql`
+      SELECT COALESCE(SUM(amount), 0) as total
+      FROM referral_withdrawals
+      WHERE user_id = ${userId} AND status IN ('pending', 'processing')
+    `.then(rows => rows[0])
 
-    const pendingAmount = Number(pendingResult.rows[0]?.total || 0)
+    const pendingAmount = Number(pendingResult?.total || 0)
     const availableBalance = balance - pendingAmount
 
     if (availableBalance < MIN_WITHDRAWAL) {
@@ -101,33 +98,23 @@ export async function POST(request: NextRequest) {
       : null
 
     // Create withdrawal request
-    const insertResult = await query<{ id: number }>(
-      `INSERT INTO referral_withdrawals
-       (user_id, amount, ndfl_amount, payout_amount, status, payout_method, card_number, phone, recipient_name)
-       VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8)
-       RETURNING id`,
-      [
-        userId,
-        amount,
-        ndflAmount,
-        payoutAmount,
-        payoutMethod,
-        maskedCard,
-        payoutMethod === "sbp" ? phone : null,
-        recipientName.trim(),
-      ]
-    )
+    const insertResult = await sql`
+      INSERT INTO referral_withdrawals
+      (user_id, amount, ndfl_amount, payout_amount, status, payout_method, card_number, phone, recipient_name)
+      VALUES (${userId}, ${amount}, ${ndflAmount}, ${payoutAmount}, 'pending', ${payoutMethod}, ${maskedCard}, ${payoutMethod === "sbp" ? phone : null}, ${recipientName.trim()})
+      RETURNING id
+    `.then(rows => rows[0])
 
     return NextResponse.json({
       success: true,
-      withdrawalId: insertResult.rows[0].id,
+      withdrawalId: insertResult.id,
       amount,
       ndflAmount,
       payoutAmount,
       message: "Withdrawal request created. Processing within 3 business days.",
     })
   } catch (error) {
-    console.error("Withdrawal error:", error)
+    console.error("[Referral] Withdrawal error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -138,37 +125,40 @@ export async function POST(request: NextRequest) {
 // GET: Get withdrawal history
 export async function GET(request: NextRequest) {
   try {
-    const deviceId = request.nextUrl.searchParams.get("device_id")
+    const telegramUserIdParam = request.nextUrl.searchParams.get("telegram_user_id")
 
-    if (!deviceId) {
-      return NextResponse.json({ error: "device_id required" }, { status: 400 })
+    if (!telegramUserIdParam) {
+      return NextResponse.json({ error: "telegram_user_id required" }, { status: 400 })
     }
 
-    // Get user
-    const userResult = await query<{ id: number }>(
-      "SELECT id FROM users WHERE device_id = $1",
-      [deviceId]
-    )
+    const telegramUserId = parseInt(telegramUserIdParam)
+    if (isNaN(telegramUserId)) {
+      return NextResponse.json({ error: "Invalid telegram_user_id" }, { status: 400 })
+    }
 
-    if (userResult.rows.length === 0) {
+    // Get user by telegram_user_id
+    const user = await sql`
+      SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
+    `.then(rows => rows[0])
+
+    if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const userId = userResult.rows[0].id
+    const userId = user.id
 
     // Get withdrawals
-    const withdrawalsResult = await query(
-      `SELECT id, amount, ndfl_amount, payout_amount, status, payout_method,
-              card_number, phone, recipient_name, rejection_reason, created_at, processed_at
-       FROM referral_withdrawals
-       WHERE user_id = $1
-       ORDER BY created_at DESC
-       LIMIT 20`,
-      [userId]
-    )
+    const withdrawalsResult = await sql`
+      SELECT id, amount, ndfl_amount, payout_amount, status, payout_method,
+             card_number, phone, recipient_name, rejection_reason, created_at, processed_at
+      FROM referral_withdrawals
+      WHERE user_id = ${userId}
+      ORDER BY created_at DESC
+      LIMIT 20
+    `
 
     return NextResponse.json({
-      withdrawals: withdrawalsResult.rows.map((w: any) => ({
+      withdrawals: withdrawalsResult.map((w: any) => ({
         id: w.id,
         amount: Number(w.amount),
         ndflAmount: Number(w.ndfl_amount),
@@ -184,7 +174,7 @@ export async function GET(request: NextRequest) {
       })),
     })
   } catch (error) {
-    console.error("Withdrawal history error:", error)
+    console.error("[Referral] Withdrawal history error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -235,104 +235,12 @@ export function createPaginationMeta(
 }
 
 // ============================================================================
-// Rate Limiting
+// Rate Limiting (REMOVED 2025-12-20)
 // ============================================================================
-
-// In-memory rate limit store (for serverless, consider using Redis)
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>()
-
-export interface RateLimitConfig {
-  windowMs: number // Time window in milliseconds
-  maxRequests: number // Max requests per window
-  keyPrefix?: string // Prefix for rate limit key
-}
-
-export interface RateLimitResult {
-  allowed: boolean
-  remaining: number
-  resetAt: number
-  retryAfter?: number // Seconds until reset (only if not allowed)
-}
-
-/**
- * Check rate limit for a given key
- */
-export function checkRateLimit(
-  key: string,
-  config: RateLimitConfig
-): RateLimitResult {
-  const { windowMs, maxRequests, keyPrefix = "rl" } = config
-  const fullKey = `${keyPrefix}:${key}`
-  const now = Date.now()
-
-  // Clean up expired entries periodically
-  if (Math.random() < 0.01) {
-    cleanupRateLimitStore()
-  }
-
-  const entry = rateLimitStore.get(fullKey)
-
-  if (!entry || entry.resetAt <= now) {
-    // New window
-    const resetAt = now + windowMs
-    rateLimitStore.set(fullKey, { count: 1, resetAt })
-    return {
-      allowed: true,
-      remaining: maxRequests - 1,
-      resetAt,
-    }
-  }
-
-  if (entry.count >= maxRequests) {
-    // Rate limit exceeded
-    const retryAfter = Math.ceil((entry.resetAt - now) / 1000)
-    return {
-      allowed: false,
-      remaining: 0,
-      resetAt: entry.resetAt,
-      retryAfter,
-    }
-  }
-
-  // Increment count
-  entry.count++
-  return {
-    allowed: true,
-    remaining: maxRequests - entry.count,
-    resetAt: entry.resetAt,
-  }
-}
-
-/**
- * Clean up expired rate limit entries
- */
-function cleanupRateLimitStore(): void {
-  const now = Date.now()
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (entry.resetAt <= now) {
-      rateLimitStore.delete(key)
-    }
-  }
-}
-
-/**
- * Apply rate limit and return error response if exceeded
- */
-export function applyRateLimit(
-  key: string,
-  config: RateLimitConfig
-): NextResponse<ApiErrorResponse> | null {
-  const result = checkRateLimit(key, config)
-
-  if (!result.allowed) {
-    return error("RATE_LIMIT_EXCEEDED", "Too many requests. Please try again later.", {
-      retryAfter: result.retryAfter,
-      resetAt: new Date(result.resetAt).toISOString(),
-    })
-  }
-
-  return null
-}
+// NOTE: In-memory rate limiting doesn't work on Vercel serverless
+// Each cold start creates a new Map, making it ineffective.
+// Protection is now provided by: Telegram auth + payment barrier + API quotas
+// If needed in future, use Upstash Redis for distributed rate limiting.
 
 // ============================================================================
 // Logging Helpers
