@@ -6,6 +6,7 @@ import {
   HeadObjectCommand,
 } from "@aws-sdk/client-s3"
 import { getSignedUrl as awsGetSignedUrl } from "@aws-sdk/s3-request-presigner"
+import { apiLogger as log } from "./logger"
 
 // ============================================================================
 // Configuration
@@ -154,7 +155,7 @@ export async function uploadImage(
 
   const url = getPublicUrl(key)
 
-  console.log(`[R2] Uploaded: ${key} (${buffer.length} bytes)`)
+  log.debug(`Uploaded: ${key} (${buffer.length} bytes)`)
 
   return {
     key,
@@ -293,7 +294,7 @@ export async function deleteImage(key: string): Promise<void> {
 
   await client.send(command)
 
-  console.log(`[R2] Deleted: ${key}`)
+  log.debug(`Deleted: ${key}`)
 }
 
 /**
@@ -317,9 +318,7 @@ export async function deleteAvatarImages(
 ): Promise<void> {
   // For safety, we don't implement wildcard delete here
   // Instead, track keys in database and delete explicitly
-  console.warn(
-    `[R2] deleteAvatarImages: Track keys in DB and use deleteImages() instead`
-  )
+  log.warn("deleteAvatarImages: Track keys in DB and use deleteImages() instead")
 }
 
 // ============================================================================

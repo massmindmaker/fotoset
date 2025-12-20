@@ -1,5 +1,6 @@
 // T-Bank (Tinkoff) Payment Integration
 import crypto from "crypto"
+import { paymentLogger as log } from "./logger"
 
 const TBANK_TERMINAL_KEY = process.env.TBANK_TERMINAL_KEY || ""
 const TBANK_PASSWORD = process.env.TBANK_PASSWORD || ""
@@ -12,14 +13,7 @@ export const HAS_CREDENTIALS = !!(TBANK_TERMINAL_KEY && TBANK_PASSWORD)
 export const IS_TEST_MODE = TBANK_TERMINAL_KEY.includes("DEMO") ||
   TBANK_TERMINAL_KEY.toLowerCase().includes("test")
 
-// Log config (without secrets)
-if (typeof window === 'undefined') {
-  console.log("[T-Bank] Config:", {
-    mode: !HAS_CREDENTIALS ? "NO CREDENTIALS" : IS_TEST_MODE ? "TEST" : "PRODUCTION",
-    terminalKeySet: !!TBANK_TERMINAL_KEY,
-    passwordSet: !!TBANK_PASSWORD,
-  })
-}
+// Config logged via conditional logger (suppressed in production)
 
 export type PaymentMethod = "card" | "sbp" | "tpay"
 
@@ -99,15 +93,7 @@ export async function initPayment(
 
   const amountInKopeks = Math.round(amount * 100)
 
-  // Log API call
-  console.log("[T-Bank] Calling API", {
-    testMode: IS_TEST_MODE,
-    orderId,
-    amount,
-    amountInKopeks,
-    terminalKeyLength: TBANK_TERMINAL_KEY.length,
-    terminalKeyPrefix: TBANK_TERMINAL_KEY.substring(0, 6),
-  })
+  log.debug("Calling API", { testMode: IS_TEST_MODE, orderId, amount })
 
   // Все параметры для Token (кроме Receipt, DATA, Token)
   const params: Record<string, string | number> = {
@@ -154,8 +140,7 @@ export async function initPayment(
     requestBody.Receipt = receipt
   }
 
-  // Log request
-  console.log("[T-Bank] Request body:", JSON.stringify(requestBody, null, 2))
+  log.debug("Request body", requestBody)
 
   try {
     const response = await fetch(`${TBANK_API_URL}/Init`, {
@@ -168,28 +153,16 @@ export async function initPayment(
 
     const data: TBankPayment = await response.json()
 
-    console.log("[T-Bank] Response:", {
-      success: data.Success,
-      errorCode: data.ErrorCode,
-      message: data.Message,
-      paymentId: data.PaymentId,
-      status: data.Status,
-      hasPaymentUrl: !!data.PaymentURL,
-    })
+    log.debug("Response", { success: data.Success, paymentId: data.PaymentId, status: data.Status })
 
     if (!data.Success) {
-      console.error("[T-Bank] Payment init failed:", {
-        errorCode: data.ErrorCode,
-        message: data.Message,
-        orderId,
-        amount: amountInKopeks,
-      })
+      log.error("Payment init failed", { errorCode: data.ErrorCode, message: data.Message })
       throw new Error(`T-Bank error ${data.ErrorCode}: ${data.Message || "Unknown error"}`)
     }
 
     return data
   } catch (error) {
-    console.error("[T-Bank] API error:", error)
+    log.error("API error", error)
     throw error
   }
 }
@@ -233,7 +206,7 @@ export function verifyWebhookSignature(notification: Record<string, unknown>, re
 
   if (!isProduction && process.env.NODE_ENV === 'development' && IS_TEST_MODE) {
     // Only skip in EXPLICIT development mode AND test mode
-    console.warn('[T-Bank] Skipping webhook signature verification (dev only + test mode)')
+    log.warn("Skipping webhook signature verification (dev only + test mode)")
     return true
   }
 
@@ -306,11 +279,7 @@ export async function cancelPayment(
     requestBody.Receipt = receipt
   }
 
-  console.log("[T-Bank] Cancel request:", {
-    paymentId,
-    amount: amount ? Math.round(amount * 100) : "full",
-    hasReceipt: !!receipt,
-  })
+  log.debug("Cancel request", { paymentId, amount: amount ? Math.round(amount * 100) : "full" })
 
   try {
     const response = await fetch(`${TBANK_API_URL}/Cancel`, {
@@ -323,14 +292,7 @@ export async function cancelPayment(
 
     const data: TBankCancelResponse = await response.json()
 
-    console.log("[T-Bank] Cancel response:", {
-      success: data.Success,
-      errorCode: data.ErrorCode,
-      message: data.Message,
-      status: data.Status,
-      originalAmount: data.OriginalAmount,
-      newAmount: data.NewAmount,
-    })
+    log.debug("Cancel response", { success: data.Success, status: data.Status })
 
     if (!data.Success) {
       throw new Error(`T-Bank cancel error ${data.ErrorCode}: ${data.Message || "Unknown error"}`)
@@ -338,7 +300,7 @@ export async function cancelPayment(
 
     return data
   } catch (error) {
-    console.error("[T-Bank] Cancel error:", error)
+    log.error("Cancel error", error)
     throw error
   }
 }

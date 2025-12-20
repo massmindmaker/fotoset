@@ -8,8 +8,11 @@ import dynamic from "next/dynamic"
 
 // Import types and constants
 import type { Persona, ViewState, PricingTier } from "./views/types"
-import { extractErrorMessage, getErrorMessage } from "@/lib/error-utils"
+import { getErrorMessage } from "@/lib/error-utils"
 import { PRICING_TIERS } from "./views/dashboard-view"
+
+// Import custom hooks
+import { useAuth, useAvatars, useGeneration, usePayment, usePolling, useSync } from "./hooks"
 
 // Export for other components
 export { PRICING_TIERS } from "./views/dashboard-view"
@@ -49,124 +52,24 @@ const PaymentModal = lazy(() => import("./payment-modal").then((m) => ({ default
 const ReferralPanel = lazy(() => import("./referral-panel").then((m) => ({ default: m.ReferralPanel })))
 const AnimatedLogoCompact = lazy(() => import("./animated-logo").then((m) => ({ default: m.AnimatedLogoCompact })))
 
-// User identifier interface - Telegram only (no device fallback)
-interface UserIdentifier {
-  type: "telegram"
-  telegramUserId: number  // Required (NOT NULL)
-}
-
-// Auth status type for tracking Telegram authentication state
-type AuthStatus = 'pending' | 'success' | 'failed' | 'not_in_telegram'
-
 export default function PersonaApp() {
+  // Custom hooks
+  const { userIdentifier, authStatus, telegramUserId, theme, toggleTheme, showMessage } = useAuth()
+  const { personas, setPersonas, loadAvatarsFromServer, createPersona, updatePersona, deletePersona, getPersona } = useAvatars()
+  const { isGenerating, setIsGenerating, generationProgress, setGenerationProgress, fileToBase64 } = useGeneration()
+  const { isPaymentOpen, setIsPaymentOpen, selectedTier, setSelectedTier } = usePayment()
+  const { startPolling, stopPolling } = usePolling()
+  const { isSyncing, setIsSyncing, syncPersonaToServer } = useSync()
+
+  // Local state
   const [viewState, setViewState] = useState<ViewState>({ view: "ONBOARDING" })
-  const [personas, setPersonas] = useState<Persona[]>([])
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [isSyncing, setIsSyncing] = useState(false) // Track upload/sync progress
-  const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 })
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false)
-  const [userIdentifier, setUserIdentifier] = useState<UserIdentifier | null>(null)
   const [isReady, setIsReady] = useState(false)
-  const [selectedTier, setSelectedTier] = useState<PricingTier>(PRICING_TIERS[1])
-  const [theme, setTheme] = useState<"dark" | "light">("dark")
   const [isReferralOpen, setIsReferralOpen] = useState(false)
-  // FIX: Track auth status to prevent race conditions
-  const [authStatus, setAuthStatus] = useState<AuthStatus>('pending')
 
-  // Refs for proper cleanup of multiple polling intervals and timeouts
-  const pollIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
-  const timeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
+  // Refs
   const abortControllerRef = useRef<AbortController | null>(null)
-  const telegramUserId = userIdentifier?.telegramUserId
 
-  // Helper: показ сообщений через Telegram API (window.alert не работает в Mini Apps)
-  const showMessage = useCallback((message: string) => {
-    const tg = window.Telegram?.WebApp
-    if (tg?.showAlert) {
-      try {
-        tg.showAlert(message)
-      } catch {
-        // Fallback if WebApp method not supported (e.g., outside Telegram)
-        alert(message)
-      }
-    } else {
-      alert(message)
-    }
-  }, [])
-
-  // Cleanup all polling intervals and timeouts on unmount
-  useEffect(() => {
-    return () => {
-      // Clear all polling intervals
-      pollIntervalsRef.current.forEach((interval) => clearInterval(interval))
-      pollIntervalsRef.current.clear()
-
-      // Clear all timeouts
-      timeoutsRef.current.forEach((timeout) => clearTimeout(timeout))
-      timeoutsRef.current.clear()
-
-      // Abort any pending async operations
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
-    }
-  }, [])
-
-  // Load avatars from server
-  const loadAvatarsFromServer = async (identifier: UserIdentifier): Promise<Persona[]> => {
-    try {
-      // Use include_photos=true (default) to get all avatars with photos in ONE request
-      // Telegram-only authentication
-      const url = `/api/avatars?include_photos=true&telegram_user_id=${identifier.telegramUserId}`
-      const res = await fetch(url)
-      if (!res.ok) return []
-
-      const data = await res.json()
-      // FIX: API returns { success: true, data: { avatars: [...] } }
-      // Support both formats: data.avatars (old) and data.data.avatars (new)
-      const avatars = data.data?.avatars || data.avatars || []
-      console.log("[Avatars] API response:", { success: data.success, avatarsCount: avatars.length })
-      if (avatars.length === 0) return []
-
-      // Map avatars directly - photos are already included in response
-      const loadedPersonas: Persona[] = avatars.map(
-        (avatar: {
-          id: number
-          name: string
-          status: string
-          thumbnailUrl?: string
-          generatedPhotos?: Array<{
-            id: number
-            styleId: string
-            prompt?: string
-            imageUrl: string
-            createdAt: string
-          }>
-        }) => ({
-          id: String(avatar.id),
-          name: avatar.name,
-          status: avatar.status as "draft" | "processing" | "ready",
-          images: [],
-          generatedAssets: (avatar.generatedPhotos || []).map((photo) => ({
-            id: String(photo.id),
-            type: "PHOTO" as const,
-            url: photo.imageUrl,
-            styleId: photo.styleId,
-            prompt: photo.prompt,
-            createdAt: new Date(photo.createdAt).getTime(),
-          })),
-          thumbnailUrl: avatar.thumbnailUrl,
-        })
-      )
-
-      setPersonas(loadedPersonas)
-      return loadedPersonas
-    } catch (err) {
-      console.error("[Init] Failed to load avatars:", err)
-      return []
-    }
-  }
-
+  // View state persistence
   const saveViewState = (state: ViewState) => {
     if (typeof window === "undefined") return
     localStorage.setItem("pinglass_view_state", JSON.stringify(state))
@@ -183,18 +86,19 @@ export default function PersonaApp() {
     }
   }
 
+  // Get active persona helper
+  const getActivePersona = useCallback(() => {
+    return "personaId" in viewState ? getPersona(viewState.personaId) : null
+  }, [viewState, getPersona])
+
+  // Initialize app
   useEffect(() => {
     if (typeof window === "undefined") return
 
-    // Create AbortController for this mount cycle
     const abortController = new AbortController()
     abortControllerRef.current = abortController
 
     const initApp = async () => {
-      // Initialize as null - will be set by Telegram WebApp auth
-      let currentIdentifier: UserIdentifier | null = null
-
-      // Helper to check if component is still mounted
       const checkMounted = () => {
         if (abortController.signal.aborted) {
           console.log("[Init] Component unmounted, aborting async operations")
@@ -204,106 +108,29 @@ export default function PersonaApp() {
       }
 
       try {
-        const savedTheme = localStorage.getItem("pinglass_theme") as "dark" | "light" | null
-        if (savedTheme && checkMounted()) {
-          setTheme(savedTheme)
-          document.documentElement.classList.toggle("light", savedTheme === "light")
+        // Wait for auth to complete
+        if (authStatus === 'pending') {
+          console.log("[Init] Waiting for auth...")
+          return
         }
 
-        // Telegram WebApp authentication - use initDataUnsafe directly
-        // No server validation needed for non-critical operations (avatar creation)
-        // Telegram guarantees data integrity within its client
-        let tg = window.Telegram?.WebApp
-
-        // FIX: Wait for Telegram SDK to initialize (max 2 seconds)
-        // SDK loads asynchronously and may not be ready on first render
-        if (!tg?.initDataUnsafe?.user?.id) {
-          console.log("[TG] SDK not ready, waiting...")
-          await new Promise<void>((resolve) => {
-            let attempts = 0
-            const maxAttempts = 20  // 2 seconds total
-            const checkInterval = setInterval(() => {
-              attempts++
-              const tgCheck = window.Telegram?.WebApp
-              if (tgCheck?.initDataUnsafe?.user?.id) {
-                console.log("[TG] SDK ready after", attempts * 100, "ms")
-                clearInterval(checkInterval)
-                resolve()
-              } else if (attempts >= maxAttempts) {
-                console.log("[TG] SDK timeout after 2s")
-                clearInterval(checkInterval)
-                resolve()
-              }
-            }, 100)
-          })
-          // Re-check after waiting
-          tg = window.Telegram?.WebApp
+        if (!userIdentifier) {
+          console.log("[Init] No user identifier yet")
+          return
         }
 
-        console.log("[TG] WebApp state:", {
-          hasTg: !!tg,
-          hasUser: !!tg?.initDataUnsafe?.user,
-          userId: tg?.initDataUnsafe?.user?.id,
-          platform: tg?.platform,
-        })
-
-        if (tg?.initDataUnsafe?.user?.id) {
-          const tgUser = tg.initDataUnsafe.user
-          currentIdentifier = {
-            type: "telegram",
-            telegramUserId: tgUser.id,
-          }
-          if (!checkMounted()) return
-          setUserIdentifier(currentIdentifier)
-          setAuthStatus('success')
-          console.log("[TG] Auth success:", tgUser.id, tgUser.username || tgUser.first_name)
-
-          // Handle referral code from start_param
-          const telegramRefCode = tg.initDataUnsafe?.start_param
-          if (telegramRefCode) {
-            console.log("[TG] Referral code:", telegramRefCode)
-            sessionStorage.setItem("pinglass_referral_code", telegramRefCode)
-          }
-
-          // Wrap in try-catch - these methods throw WebAppMethodUnsupported outside Telegram
-          try {
-            tg.ready()
-          } catch {
-            console.warn('[TG] ready() not available outside Telegram')
-          }
-          try {
-            tg.expand()
-          } catch {
-            console.warn('[TG] expand() not available outside Telegram')
-          }
-        } else if (!tg) {
-          console.log("[TG] Not in Telegram WebApp context")
-          if (!checkMounted()) return
-          setAuthStatus('not_in_telegram')
-        } else {
-          console.log("[TG] No user data in initDataUnsafe")
-          if (!checkMounted()) return
-          setAuthStatus('failed')
-        }
-
-        // Use the current identifier (may have been updated by Telegram auth)
-        // Add timeout to prevent blank screen if API hangs
+        // Load avatars with timeout
         const loadAvatarsWithTimeout = Promise.race([
-          loadAvatarsFromServer(currentIdentifier),
-          new Promise<Persona[]>((resolve) => setTimeout(() => resolve([]), 10000)) // 10s timeout
+          loadAvatarsFromServer(userIdentifier),
+          new Promise<Persona[]>((resolve) => setTimeout(() => resolve([]), 10000))
         ])
         let loadedAvatars = await loadAvatarsWithTimeout
 
-        // Log loaded avatars for diagnostics
         console.log("[Init] Loaded avatars:", {
           count: loadedAvatars?.length || 0,
           statuses: loadedAvatars?.map(a => ({ id: a.id, status: a.status, photosCount: a.generatedAssets?.length || 0 })) || [],
-          telegramUserId: currentIdentifier?.telegramUserId
+          telegramUserId: userIdentifier?.telegramUserId
         })
-
-        // Check if onboarding was completed (flag OR has avatars)
-        const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"
-        const hasAvatars = loadedAvatars && loadedAvatars.length > 0
 
         // Check for pending payment after redirect from T-Bank
         const urlParams = new URLSearchParams(window.location.search)
@@ -311,13 +138,10 @@ export default function PersonaApp() {
         const urlTelegramUserId = urlParams.get("telegram_user_id")
 
         if (resumePayment) {
-          // Clean URL without reload
           window.history.replaceState({}, "", window.location.pathname)
 
           try {
-            // FIX: Use telegram_user_id from URL (passed by callback after payment verification)
-            // This works after external redirect when Telegram WebApp context is unavailable
-            const tgId = currentIdentifier.telegramUserId || (urlTelegramUserId ? parseInt(urlTelegramUserId) : null)
+            const tgId = userIdentifier.telegramUserId || (urlTelegramUserId ? parseInt(urlTelegramUserId) : null)
 
             if (!tgId) {
               console.error("[Resume Payment] No valid Telegram user ID")
@@ -328,35 +152,25 @@ export default function PersonaApp() {
               return
             }
 
-            // FIX: ALWAYS reload avatars with URL telegram_user_id after payment redirect
-            // This ensures we get the correct user's avatars even if SDK auth returned different/no ID
+            // Reload avatars if URL has telegram_user_id
             if (urlTelegramUserId) {
-              currentIdentifier = {
-                type: "telegram",
-                telegramUserId: tgId,
-                deviceId: `tg_${tgId}`,
-              }
-              if (!checkMounted()) return
-              setUserIdentifier(currentIdentifier)
               console.log("[Resume Payment] Reloading avatars with URL tgId:", tgId)
-              loadedAvatars = await loadAvatarsFromServer(currentIdentifier)
+              loadedAvatars = await loadAvatarsFromServer(userIdentifier)
               if (!checkMounted()) return
             }
 
             console.log("[Resume Payment] telegramUserId:", tgId, "avatars:", loadedAvatars.length)
 
-            // Find avatar for generation - prioritize most recent avatar (any status)
-            // Generation uses stored references, so we need to check if avatar has them
+            // Find target persona for generation
             let targetPersona: Persona | null = null
 
             if (loadedAvatars.length > 0) {
-              // Get the most recent avatar (highest ID = most recent)
               targetPersona = loadedAvatars.reduce((latest, current) =>
                 Number(current.id) > Number(latest.id) ? current : latest
               )
               console.log("[Resume Payment] Found most recent avatar:", targetPersona.id, "status:", targetPersona.status)
 
-              // Check if this avatar has reference photos via API
+              // Check if avatar has reference photos
               try {
                 const refRes = await fetch(`/api/avatars/${targetPersona.id}/references?telegram_user_id=${tgId}`)
                 if (refRes.ok) {
@@ -365,8 +179,6 @@ export default function PersonaApp() {
                   console.log("[Resume Payment] Avatar", targetPersona.id, "has", refCount, "reference photos")
 
                   if (refCount === 0) {
-                    // Avatar exists but no reference photos - can't generate
-                    console.log("[Resume Payment] No reference photos, showing dashboard")
                     showMessage("Оплата прошла успешно! Загрузите фото для генерации.")
                     if (!checkMounted()) return
                     setPersonas(loadedAvatars)
@@ -374,16 +186,12 @@ export default function PersonaApp() {
                     setIsReady(true)
                     return
                   }
-                  // Has references - continue to generation
-                } else {
-                  console.error("[Resume Payment] Failed to check references:", refRes.status)
                 }
               } catch (err) {
                 console.error("[Resume Payment] Error checking references:", err)
               }
             }
 
-            // No avatars at all - show dashboard with message
             if (!targetPersona) {
               console.log("[Resume Payment] No avatars found after payment, showing dashboard")
               showMessage("Оплата прошла успешно! Создайте аватар и загрузите фото.")
@@ -396,9 +204,8 @@ export default function PersonaApp() {
 
             console.log("[Resume Payment] Starting generation for persona:", targetPersona.id)
 
-            const tierPhotos = 23 // Default premium tier
+            const tierPhotos = 23
 
-            // Set UI state for generation
             if (!checkMounted()) return
             setPersonas(loadedAvatars)
             setViewState({ view: "RESULTS", personaId: targetPersona.id })
@@ -406,8 +213,7 @@ export default function PersonaApp() {
             setGenerationProgress({ completed: 0, total: tierPhotos })
             setIsReady(true)
 
-            // Start generation using stored reference photos
-            // FIX: Add retry logic for PAYMENT_REQUIRED (DB may not be updated yet)
+            // Start generation with retry logic
             const startGeneration = async () => {
               const MAX_RETRIES = 3
               const RETRY_DELAY = 2000
@@ -420,7 +226,6 @@ export default function PersonaApp() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                       telegramUserId: tgId,
-                      deviceId: currentIdentifier.deviceId,
                       avatarId: targetPersona.id,
                       styleId: "pinglass",
                       photoCount: tierPhotos,
@@ -429,19 +234,16 @@ export default function PersonaApp() {
                   })
                   const data = await res.json()
 
-                  // Success - start polling
                   if (data.success && data.data?.jobId) {
                     return data
                   }
 
-                  // PAYMENT_REQUIRED - retry after delay (DB may not be updated yet)
                   if (data.error === "PAYMENT_REQUIRED" && attempt < MAX_RETRIES) {
                     console.log(`[Resume Payment] PAYMENT_REQUIRED, retrying in ${RETRY_DELAY}ms...`)
                     await new Promise(r => setTimeout(r, RETRY_DELAY))
                     continue
                   }
 
-                  // Other error or final PAYMENT_REQUIRED - return error
                   return data
                 } catch (err) {
                   console.error(`[Resume Payment] Attempt ${attempt} failed:`, err)
@@ -461,11 +263,10 @@ export default function PersonaApp() {
                   const jobId = data.data.jobId
                   const personaId = targetPersona.id
                   let lastPhotoCount = 0
-                  const pollingKey = `resume-payment-${jobId}`
 
-                  // Start polling for generation progress
-                  const interval = setInterval(async () => {
-                    try {
+                  startPolling(
+                    `resume-payment-${jobId}`,
+                    async () => {
                       const statusRes = await fetch(`/api/generate?job_id=${jobId}`)
                       const statusData = await statusRes.json()
 
@@ -499,50 +300,26 @@ export default function PersonaApp() {
                       }
 
                       if (statusData.status === "completed" || statusData.status === "failed") {
-                        const intervalToClean = pollIntervalsRef.current.get(pollingKey)
-                        if (intervalToClean) {
-                          clearInterval(intervalToClean)
-                          pollIntervalsRef.current.delete(pollingKey)
-                        }
-                        const timeoutToClean = timeoutsRef.current.get(pollingKey)
-                        if (timeoutToClean) {
-                          clearTimeout(timeoutToClean)
-                          timeoutsRef.current.delete(pollingKey)
-                        }
+                        stopPolling(`resume-payment-${jobId}`)
                         setIsGenerating(false)
                         setGenerationProgress({ completed: 0, total: 0 })
                         console.log("[Resume Payment] Generation completed:", statusData.status)
                       }
-                    } catch (pollError) {
-                      console.error("[Resume Payment] Polling error:", pollError)
-                    }
-                  }, 3000)
-                  pollIntervalsRef.current.set(pollingKey, interval)
-
-                  // Safety timeout - stop polling after 15 minutes
-                  const timeout = setTimeout(() => {
-                    const intervalToClean = pollIntervalsRef.current.get(pollingKey)
-                    if (intervalToClean) {
-                      clearInterval(intervalToClean)
-                      pollIntervalsRef.current.delete(pollingKey)
-                    }
-                    timeoutsRef.current.delete(pollingKey)
-                    setIsGenerating(false)
-                  }, 15 * 60 * 1000)
-                  timeoutsRef.current.set(pollingKey, timeout)
+                    },
+                    3000,
+                    15 * 60 * 1000
+                  )
                 } else if (!data.success) {
                   console.error("[Resume Payment] Generation failed:", data.error)
                   if (!checkMounted()) return
                   setIsGenerating(false)
 
-                  // FIX: Show error to user instead of silent failure
                   if (data.error === "PAYMENT_REQUIRED") {
                     showMessage("Оплата не подтверждена. Попробуйте ещё раз.")
                   } else {
                     showMessage("Ошибка генерации: " + (data.error || "Попробуйте позже"))
                   }
 
-                  // Redirect to dashboard after delay
                   setTimeout(() => {
                     if (!checkMounted()) return
                     setViewState({ view: "DASHBOARD" })
@@ -555,43 +332,42 @@ export default function PersonaApp() {
                 setIsGenerating(false)
               })
 
-            return // Skip normal flow - generation started
-
+            return
           } catch (e) {
             console.error("[Resume Payment] Error:", e)
             if (!checkMounted()) return
-            // On error, show dashboard
             setPersonas(loadedAvatars)
-            setViewState({ view: hasAvatars ? "DASHBOARD" : "ONBOARDING" })
+            setViewState({ view: loadedAvatars.length > 0 ? "DASHBOARD" : "ONBOARDING" })
             setIsReady(true)
             return
           }
         }
 
-        // Normal flow (NOT resume_payment):
-        // ALWAYS show ONBOARDING on app start (per user request)
-        // After completing onboarding, user navigates to DASHBOARD via handleOnboardingComplete
+        // Normal flow: always show onboarding on app start
         console.log("[Init] Showing ONBOARDING (always shown on app start)", {
           avatarsCount: loadedAvatars?.length || 0
         })
         if (!checkMounted()) return
-        setPersonas(loadedAvatars) // Keep loaded avatars for dashboard after onboarding
+        setPersonas(loadedAvatars)
         setViewState({ view: "ONBOARDING" })
       } catch (e) {
         console.error("[Init] Critical error:", e)
         if (!checkMounted()) return
-        // On any error, show onboarding as fallback
         setViewState({ view: "ONBOARDING" })
       } finally {
-        // ALWAYS show UI - never leave user on blank screen
         if (!checkMounted()) return
         setIsReady(true)
       }
     }
 
     initApp()
-  }, [])
 
+    return () => {
+      abortController.abort()
+    }
+  }, [authStatus, userIdentifier, loadAvatarsFromServer, setPersonas, setIsGenerating, setGenerationProgress, showMessage, startPolling, stopPolling])
+
+  // Save view state when it changes
   useEffect(() => {
     if (isReady) {
       saveViewState(viewState)
@@ -599,16 +375,14 @@ export default function PersonaApp() {
   }, [viewState, isReady])
 
   // Recovery: if view requires persona but it's missing, redirect to DASHBOARD
-  // FIX: Skip recovery during sync/generation to prevent premature redirect
   useEffect(() => {
     if (!isReady || isGenerating || isSyncing) return
     const viewsRequiringPersona = ["CREATE_PERSONA_UPLOAD", "SELECT_TIER", "RESULTS"]
     if (viewsRequiringPersona.includes(viewState.view) && "personaId" in viewState) {
-      const persona = personas.find((p) => p.id === viewState.personaId)
+      const persona = getPersona(viewState.personaId)
       if (!persona) {
-        // Wait a moment for state to sync, then redirect if still missing
         const timeout = setTimeout(() => {
-          const stillMissing = !personas.find((p) => p.id === viewState.personaId)
+          const stillMissing = !getPersona(viewState.personaId)
           if (stillMissing && !isSyncing && !isGenerating) {
             console.warn("[Recovery] Persona not found, redirecting to DASHBOARD:", viewState.personaId)
             setViewState({ view: "DASHBOARD" })
@@ -617,20 +391,12 @@ export default function PersonaApp() {
         return () => clearTimeout(timeout)
       }
     }
-  }, [isReady, viewState, personas, isGenerating, isSyncing])
+  }, [isReady, viewState, getPersona, isGenerating, isSyncing])
 
-  const toggleTheme = () => {
-    const newTheme = theme === "dark" ? "light" : "dark"
-    setTheme(newTheme)
-    localStorage.setItem("pinglass_theme", newTheme)
-    document.documentElement.classList.toggle("light", newTheme === "light")
-  }
-
-  const completeOnboarding = async () => {
+  // Complete onboarding
+  const completeOnboarding = useCallback(async () => {
     localStorage.setItem("pinglass_onboarding_complete", "true")
 
-    // FIX: Reload avatars when transitioning to dashboard
-    // They may not have loaded correctly during initial auth
     if (telegramUserId && userIdentifier) {
       console.log("[Onboarding] Reloading avatars for user:", telegramUserId)
       try {
@@ -642,10 +408,10 @@ export default function PersonaApp() {
     }
 
     setViewState({ view: "DASHBOARD" })
-  }
+  }, [telegramUserId, userIdentifier, loadAvatarsFromServer])
 
-  // Create user only (no avatar) when onboarding completes
-  const handleStartOnboarding = async () => {
+  // Create user on onboarding start
+  const handleStartOnboarding = useCallback(async () => {
     const tg = window.Telegram?.WebApp
     const initData = tg?.initData
 
@@ -655,23 +421,14 @@ export default function PersonaApp() {
       return
     }
 
-    // CRITICAL: Extract and set telegram user ID to state
     const tgUser = tg?.initDataUnsafe?.user
-    if (tgUser?.id) {
-      setUserIdentifier({
-        type: "telegram",
-        telegramUserId: tgUser.id,
-        deviceId: `tg_${tgUser.id}`,
-      })
-      console.log("[Onboarding] Set userIdentifier from initDataUnsafe:", tgUser.id)
-    } else {
+    if (!tgUser?.id) {
       console.error("[Onboarding] No telegram user in initDataUnsafe!")
       showMessage("Не удалось получить данные Telegram. Перезапустите приложение.")
       return
     }
 
     try {
-      // Create user only using validated Telegram auth
       const res = await fetch("/api/user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -687,7 +444,6 @@ export default function PersonaApp() {
       console.error("[Onboarding] User creation error:", err)
     }
 
-    // FIX: Reload avatars after user creation
     console.log("[Onboarding] Reloading avatars after user creation...")
     try {
       const newIdentifier = {
@@ -703,296 +459,36 @@ export default function PersonaApp() {
 
     localStorage.setItem("pinglass_onboarding_complete", "true")
     setViewState({ view: "DASHBOARD" })
-  }
+  }, [loadAvatarsFromServer, showMessage])
 
-  // Navigate to upload view with temp local ID (avatar created later on photo confirm)
-  const handleCreatePersona = () => {
-    // Generate temporary local ID (will be replaced with DB ID after photo upload)
-    const tempId = `temp_${Date.now()}`
-
-    setPersonas((prev) => [
-      ...prev,
-      { id: tempId, name: "Мой аватар", status: "draft", images: [], generatedAssets: [] },
-    ])
-
+  // Create persona handler
+  const handleCreatePersona = useCallback(() => {
+    const tempId = createPersona()
     setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: tempId })
-  }
+  }, [createPersona])
 
-  const updatePersona = (id: string, updates: Partial<Persona>) => {
-    setPersonas((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)))
-  }
-
-  const deletePersona = (id: string, e: React.MouseEvent) => {
+  // Delete persona handler
+  const handleDeletePersona = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     if (confirm("Удалить?")) {
-      setPersonas((prev) => prev.filter((p) => p.id !== id))
-      if ("personaId" in viewState && viewState.personaId === id) setViewState({ view: "DASHBOARD" })
-    }
-  }
-
-  const getActivePersona = () =>
-    "personaId" in viewState ? personas.find((p) => p.id === viewState.personaId) : null
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        const result = ev.target?.result as string
-        if (result) {
-          // Keep full data URL with prefix (e.g., "data:image/jpeg;base64,...")
-          resolve(result)
-        } else {
-          reject(new Error("Empty file"))
-        }
+      deletePersona(id)
+      if ("personaId" in viewState && viewState.personaId === id) {
+        setViewState({ view: "DASHBOARD" })
       }
-      reader.onerror = () => reject(reader.error || new Error("Read failed"))
-      reader.readAsDataURL(file)
-    })
-  }
-
-
-  // Sync persona to server: create avatar in DB and upload photos
-  // Returns the DB avatar ID (numeric string like "123")
-  const syncPersonaToServer = async (persona: Persona): Promise<string> => {
-    // Check if already has DB ID (not a temp ID like "temp_123456")
-    const parsedId = parseInt(persona.id)
-    const isDbId = !isNaN(parsedId) && parsedId > 0 && parsedId <= 2147483647
-
-    // ROBUST: Try multiple sources for telegram user ID
-    let tg = window.Telegram?.WebApp
-    let tgUserFromWebApp = tg?.initDataUnsafe?.user?.id
-
-    // Fallback: если SDK ещё не готов, подождать (на случай медленной загрузки)
-    if (!tgUserFromWebApp && !telegramUserId) {
-      console.log("[Sync] Waiting for Telegram SDK...")
-      await new Promise<void>((resolve) => {
-        let attempts = 0
-        const interval = setInterval(() => {
-          attempts++
-          const check = window.Telegram?.WebApp?.initDataUnsafe?.user?.id
-          if (check || attempts >= 30) {  // 3 секунды макс
-            clearInterval(interval)
-            resolve()
-          }
-        }, 100)
-      })
-      tg = window.Telegram?.WebApp
-      tgUserFromWebApp = tg?.initDataUnsafe?.user?.id
-      console.log("[Sync] After wait - SDK ready:", !!tgUserFromWebApp)
     }
+  }, [deletePersona, viewState])
 
-    const tgId = tgUserFromWebApp || telegramUserId
-
-    console.log("[Sync] Telegram ID sources:", {
-      fromWebApp: tgUserFromWebApp,
-      fromState: telegramUserId,
-      hasTg: !!tg,
-      hasInitDataUnsafe: !!tg?.initDataUnsafe,
-      hasUser: !!tg?.initDataUnsafe?.user,
-      final: tgId,
-    })
-
-    if (!tgId) {
-      console.error("[Sync] No telegram user ID available from any source!")
-      // Использовать Telegram showAlert вместо window.alert (работает в Mini Apps)
-      const errorMsg = "Ошибка: не удалось получить Telegram ID. Закройте и откройте приложение заново через @Pinglass_bot"
-      if (tg?.showAlert) {
-        try {
-          tg.showAlert(errorMsg)
-        } catch {
-          alert(errorMsg)
-        }
-      } else {
-        alert(errorMsg)
-      }
-      throw new Error("Telegram user ID not available")
-    }
-
-    try {
-      let dbAvatarId: string
-
-      // Step 1: Create avatar in DB OR use existing ID
-      if (isDbId) {
-        // Avatar already exists in DB - use existing ID for photo upload
-        dbAvatarId = persona.id
-        console.log("[Sync] Using existing DB avatar ID:", dbAvatarId)
-      } else {
-        // New avatar - create in DB first
-        const createRes = await fetch("/api/avatars", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            telegramUserId: tgId,
-            name: persona.name || "Мой аватар",
-          }),
-        })
-
-        if (!createRes.ok) {
-          const err = await createRes.json()
-          throw new Error(extractErrorMessage(err, "Failed to create avatar"))
-        }
-
-        const avatarData = await createRes.json()
-        dbAvatarId = String(avatarData.data.id)
-        console.log("[Sync] Avatar created with DB ID:", dbAvatarId)
-      }
-
-      // Step 2: Upload reference photos to R2 (PARALLEL for speed)
-      if (persona.images && persona.images.length > 0) {
-        console.log("[Sync] Uploading", persona.images.length, "reference photos to R2 (parallel)")
-
-        const imagesToUpload = persona.images.slice(0, 14)
-
-        // FIX: Parallel upload with Promise.allSettled (36s → 5s)
-        const uploadPromises = imagesToUpload.map(async (img, i) => {
-          try {
-            console.log(`[Sync] Starting upload ${i + 1}/${imagesToUpload.length}`)
-            const base64Data = await fileToBase64(img.file)
-
-            const uploadRes = await fetch("/api/upload", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                avatarId: dbAvatarId,
-                type: "reference",
-                image: base64Data,
-              }),
-            })
-
-            if (uploadRes.ok) {
-              const result = await uploadRes.json()
-              if (result.data?.url) {
-                console.log(`[Sync] Photo ${i + 1} uploaded to R2:`, result.data.key)
-                return { success: true, index: i, url: result.data.url }
-              }
-            }
-            const errText = await uploadRes.text()
-            console.error(`[Sync] Photo ${i + 1} FAILED:`, uploadRes.status, errText)
-            return { success: false, index: i, error: errText }
-          } catch (err) {
-            console.error(`[Sync] Error uploading photo ${i + 1}:`, err)
-            return { success: false, index: i, error: String(err) }
-          }
-        })
-
-        const results = await Promise.allSettled(uploadPromises)
-        const uploadedUrls: string[] = []
-
-        for (const result of results) {
-          if (result.status === 'fulfilled' && result.value.success && result.value.url) {
-            uploadedUrls.push(result.value.url)
-          }
-        }
-
-        console.log(`[Sync] Uploaded ${uploadedUrls.length}/${imagesToUpload.length} photos to R2`)
-
-        // Save R2 URLs to database
-        if (uploadedUrls.length > 0) {
-          try {
-            const saveRes = await fetch(`/api/avatars/${dbAvatarId}/references`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                telegramUserId: tgId,
-                referenceImages: uploadedUrls,  // Now these are R2 URLs, not base64!
-              }),
-            })
-
-            if (saveRes.ok) {
-              const saveResult = await saveRes.json()
-              console.log("[Sync] Reference URLs saved to DB:", saveResult.uploadedCount)
-            } else {
-              console.error("[Sync] Failed to save reference URLs to DB")
-            }
-          } catch (err) {
-            console.error("[Sync] Error saving reference URLs:", err)
-          }
-        }
-
-        // FALLBACK: If R2 upload failed, try saving base64 directly to DB
-        if (uploadedUrls.length === 0) {
-          console.warn("[Sync] R2 upload failed for all photos, trying direct DB fallback...")
-
-          // Конвертировать первые 5 фото в base64 и сохранить напрямую
-          const fallbackImages = imagesToUpload.slice(0, 5)
-          const base64Images: string[] = []
-
-          for (const img of fallbackImages) {
-            try {
-              const b64 = await fileToBase64(img.file)
-              base64Images.push(b64)
-            } catch (err) {
-              console.error("[Sync] Fallback: failed to convert image:", err)
-            }
-          }
-
-          if (base64Images.length > 0) {
-            try {
-              const fallbackRes = await fetch(`/api/avatars/${dbAvatarId}/references`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  telegramUserId: tgId,
-                  deviceId,
-                  referenceImages: base64Images,
-                }),
-              })
-
-              if (fallbackRes.ok) {
-                const result = await fallbackRes.json()
-                if (result.uploadedCount > 0) {
-                  console.log("[Sync] Fallback succeeded:", result.uploadedCount, "photos saved to DB")
-                  // Успех через fallback - продолжаем
-                } else {
-                  throw new Error("Не удалось сохранить фото в БД")
-                }
-              } else {
-                const errText = await fallbackRes.text()
-                console.error("[Sync] Fallback failed:", errText)
-                throw new Error("Ошибка сохранения фото в БД")
-              }
-            } catch (err) {
-              console.error("[Sync] Fallback error:", err)
-              throw new Error("Не удалось загрузить фото ни в R2, ни в БД")
-            }
-          } else {
-            throw new Error("Не удалось обработать фото для сохранения")
-          }
-        }
-      }
-
-      // Step 3: Update local persona with DB ID
-      setPersonas((prev) =>
-        prev.map((p) =>
-          p.id === persona.id
-            ? { ...p, id: dbAvatarId }
-            : p
-        )
-      )
-
-      return dbAvatarId
-    } catch (error) {
-      console.error("[Sync] Error syncing persona:", error)
-      throw error
-    }
-  }
-
-
-  // Handle transition from Upload to SelectTier - sync first!
-  const handleUploadComplete = async () => {
-    // DEBUG: Immediate feedback
+  // Upload complete handler
+  const handleUploadComplete = useCallback(async () => {
     console.log("[Upload] ===== BUTTON CLICKED =====")
     console.log("[Upload] viewState:", JSON.stringify(viewState))
-    console.log("[Upload] personas count:", personas.length)
 
-    // Try getActivePersona first
     let persona = getActivePersona()
     console.log("[Upload] getActivePersona result:", persona?.id || "NULL")
 
-    // Fallback: if null but viewState has personaId, search personas directly
     if (!persona && "personaId" in viewState) {
       console.log("[Upload] Fallback: searching personas for ID:", viewState.personaId)
-      persona = personas.find((p) => p.id === viewState.personaId) || null
+      persona = getPersona(viewState.personaId)
       console.log("[Upload] Fallback result:", persona?.id || "NULL")
     }
 
@@ -1012,13 +508,17 @@ export default function PersonaApp() {
     }
 
     console.log("[Upload] Starting sync with", persona.images.length, "photos")
-    showMessage("Загружаю фото...") // Immediate feedback
+    showMessage("Загружаю фото...")
 
     try {
       setIsSyncing(true)
       setIsGenerating(true)
-      const dbId = await syncPersonaToServer(persona)
+      const dbId = await syncPersonaToServer(persona, telegramUserId)
       console.log("[Upload] Sync complete, DB ID:", dbId)
+
+      // Update persona with DB ID
+      updatePersona(persona.id, { id: dbId })
+
       setViewState({ view: "SELECT_TIER", personaId: dbId })
     } catch (error) {
       const errorMessage = getErrorMessage(error, "Ошибка сохранения")
@@ -1028,13 +528,15 @@ export default function PersonaApp() {
       setIsSyncing(false)
       setIsGenerating(false)
     }
-  }
+  }, [viewState, getActivePersona, getPersona, syncPersonaToServer, telegramUserId, showMessage, setIsSyncing, setIsGenerating, updatePersona])
 
-  const handleGenerate = async (tier: PricingTier) => {
-    const p = getActivePersona()!
+  // Generate photos handler
+  const handleGenerate = useCallback(async (tier: PricingTier) => {
+    const p = getActivePersona()
+    if (!p) return
+
     setIsGenerating(true)
     setGenerationProgress({ completed: 0, total: tier.photos })
-
     setViewState({ view: "RESULTS", personaId: p.id })
     updatePersona(p.id, { status: "processing" })
 
@@ -1076,11 +578,10 @@ export default function PersonaApp() {
 
       if (data.jobId) {
         let lastPhotoCount = 0
-        const pollingKey = `generate-${data.jobId}`
 
-        // Start polling for generation progress
-        const interval = setInterval(async () => {
-          try {
+        startPolling(
+          `generate-${data.jobId}`,
+          async () => {
             const statusRes = await fetch(`/api/generate?job_id=${data.jobId}`)
             const statusData = await statusRes.json()
 
@@ -1114,16 +615,7 @@ export default function PersonaApp() {
             }
 
             if (statusData.status === "completed" || statusData.status === "failed") {
-              const intervalToClean = pollIntervalsRef.current.get(pollingKey)
-              if (intervalToClean) {
-                clearInterval(intervalToClean)
-                pollIntervalsRef.current.delete(pollingKey)
-              }
-              const timeoutToClean = timeoutsRef.current.get(pollingKey)
-              if (timeoutToClean) {
-                clearTimeout(timeoutToClean)
-                timeoutsRef.current.delete(pollingKey)
-              }
+              stopPolling(`generate-${data.jobId}`)
               updatePersona(p.id, { status: statusData.status === "completed" ? "ready" : "draft" })
               setIsGenerating(false)
               setGenerationProgress({ completed: 0, total: 0 })
@@ -1132,23 +624,10 @@ export default function PersonaApp() {
                 showMessage(statusData.error || "Генерация не удалась")
               }
             }
-          } catch (pollError) {
-            console.error("Polling error:", pollError)
-          }
-        }, 3000)
-        pollIntervalsRef.current.set(pollingKey, interval)
-
-        // Safety timeout - stop polling after 15 minutes
-        const timeout = setTimeout(() => {
-          const intervalToClean = pollIntervalsRef.current.get(pollingKey)
-          if (intervalToClean) {
-            clearInterval(intervalToClean)
-            pollIntervalsRef.current.delete(pollingKey)
-          }
-          timeoutsRef.current.delete(pollingKey)
-          setIsGenerating(false)
-        }, 15 * 60 * 1000)
-        timeoutsRef.current.set(pollingKey, timeout)
+          },
+          3000,
+          15 * 60 * 1000
+        )
       }
     } catch (e) {
       showMessage(e instanceof Error ? e.message : "Ошибка генерации")
@@ -1157,19 +636,24 @@ export default function PersonaApp() {
       setIsGenerating(false)
       setGenerationProgress({ completed: 0, total: 0 })
     }
-  }
+  }, [getActivePersona, telegramUserId, fileToBase64, updatePersona, setIsGenerating, setGenerationProgress, setPersonas, startPolling, stopPolling, showMessage])
 
-  const handlePaymentSuccess = () => {
+  // Payment success handler
+  const handlePaymentSuccess = useCallback(() => {
     setIsPaymentOpen(false)
-    if (viewState.view === "SELECT_TIER") handleGenerate(selectedTier)
-  }
+    if (viewState.view === "SELECT_TIER" && selectedTier) {
+      handleGenerate(selectedTier)
+    }
+  }, [viewState, selectedTier, handleGenerate])
 
-  if (!isReady)
+  // Loading state
+  if (!isReady) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
+  }
 
   // Block access if not in Telegram Mini App
   if (authStatus === 'not_in_telegram') {
@@ -1251,14 +735,14 @@ export default function PersonaApp() {
                 personas={personas}
                 onCreate={handleCreatePersona}
                 onSelect={(id) => {
-                  const p = personas.find((x) => x.id === id)
+                  const p = getPersona(id)
                   setViewState(
                     p?.status === "draft"
                       ? { view: "CREATE_PERSONA_UPLOAD", personaId: id }
                       : { view: "RESULTS", personaId: id }
                   )
                 }}
-                onDelete={deletePersona}
+                onDelete={handleDeletePersona}
               />
             )}
             {viewState.view === "CREATE_PERSONA_UPLOAD" && (
@@ -1286,7 +770,7 @@ export default function PersonaApp() {
                     setSelectedTier(t)
                     setIsPaymentOpen(true)
                   }}
-                  selectedTier={selectedTier}
+                  selectedTier={selectedTier || PRICING_TIERS[1]}
                   onSelectTier={setSelectedTier}
                 />
               ) : (
@@ -1335,7 +819,7 @@ export default function PersonaApp() {
             onClose={() => setIsPaymentOpen(false)}
             onSuccess={handlePaymentSuccess}
             telegramUserId={telegramUserId}
-            tier={selectedTier}
+            tier={selectedTier || PRICING_TIERS[1]}
             personaId={"personaId" in viewState ? String(viewState.personaId) : undefined}
           />
         </Suspense>

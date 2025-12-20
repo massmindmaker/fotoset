@@ -91,7 +91,6 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
         setError(data.error || "Не удалось загрузить данные")
       }
     } catch (e) {
-      console.error("Failed to fetch referral stats:", e)
       setError(e instanceof Error ? e.message : "Ошибка сети")
     } finally {
       setLoading(false)
@@ -105,8 +104,8 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
       if (data.success && Array.isArray(data.earnings)) {
         setEarnings(data.earnings)
       }
-    } catch (e) {
-      console.error("Failed to fetch earnings:", e)
+    } catch {
+      // Earnings fetch failed silently
     }
   }
 
@@ -152,8 +151,7 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
       } else {
         alert('Не удалось скопировать. Ссылка: ' + telegramDeeplink)
       }
-    } catch (err) {
-      console.error('Copy failed:', err)
+    } catch {
       // Last resort - show the link
       alert('Ссылка для копирования:\n' + telegramDeeplink)
     }
@@ -177,7 +175,6 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
           return
         } catch {
           // Fall through to window.open fallback
-          console.warn('[TG] openTelegramLink() not available, using fallback')
         }
       }
 
@@ -189,8 +186,7 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
       if (!popup || popup.closed) {
         window.location.href = shareUrl
       }
-    } catch (err) {
-      console.error('Share failed:', err)
+    } catch {
       // Fallback to direct navigation
       const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(telegramDeeplink)}&text=${encodeURIComponent(shareText)}`
       window.location.href = shareUrl

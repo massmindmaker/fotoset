@@ -1,5 +1,6 @@
 // Upstash QStash Integration for Background Jobs
 import { Client, Receiver } from "@upstash/qstash"
+import { genLogger as log } from "./logger"
 
 // Initialize QStash client
 const QSTASH_TOKEN = process.env.QSTASH_TOKEN || ""
@@ -8,10 +9,7 @@ const QSTASH_NEXT_SIGNING_KEY = process.env.QSTASH_NEXT_SIGNING_KEY || ""
 
 export const HAS_QSTASH = !!(QSTASH_TOKEN && QSTASH_CURRENT_SIGNING_KEY)
 
-// Log config (without secrets)
-if (typeof window === "undefined" && HAS_QSTASH) {
-  console.log("[QStash] Configured and ready")
-}
+// Config logged via conditional logger (suppressed in production)
 
 // QStash Client for publishing jobs
 export const qstashClient = QSTASH_TOKEN
@@ -52,7 +50,7 @@ export async function publishGenerationJob(
   baseUrl: string
 ): Promise<{ messageId: string } | null> {
   if (!qstashClient) {
-    console.error("[QStash] Client not configured")
+    log.error("QStash client not configured")
     return null
   }
 
@@ -65,16 +63,11 @@ export async function publishGenerationJob(
       timeout: "5m",
     })
 
-    console.log("[QStash] Job published:", {
-      messageId: result.messageId,
-      jobId: payload.jobId,
-      startIndex: payload.startIndex,
-      chunkSize: payload.chunkSize,
-    })
+    log.debug("Job published", { messageId: result.messageId, jobId: payload.jobId })
 
     return { messageId: result.messageId }
   } catch (error) {
-    console.error("[QStash] Failed to publish job:", error)
+    log.error("Failed to publish job", error)
     return null
   }
 }
@@ -88,7 +81,7 @@ export async function verifyQStashSignature(
   // Skip verification in development without keys
   if (!qstashReceiver) {
     if (process.env.NODE_ENV === "development") {
-      console.warn("[QStash] Skipping signature verification (dev mode)")
+      log.warn("Skipping signature verification (dev mode)")
       return { valid: true, body }
     }
     return { valid: false, body }
@@ -102,7 +95,7 @@ export async function verifyQStashSignature(
     })
     return { valid: isValid, body }
   } catch (error) {
-    console.error("[QStash] Signature verification failed:", error)
+    log.error("Signature verification failed", error)
     return { valid: false, body }
   }
 }

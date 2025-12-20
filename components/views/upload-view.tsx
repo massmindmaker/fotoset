@@ -25,13 +25,11 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
       const file = e.target.files[i]
 
       if (!VALID_TYPES.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i)) {
-        console.warn(`[Upload] Skipped invalid file type: ${file.name} (${file.type})`)
-        continue
+        continue // Skip invalid file type
       }
 
       if (file.size > MAX_FILE_SIZE) {
-        console.warn(`[Upload] Skipped large file: ${file.name} (${Math.round(file.size / 1024 / 1024)}MB)`)
-        continue
+        continue // Skip large file (>10MB)
       }
 
       newImages.push({

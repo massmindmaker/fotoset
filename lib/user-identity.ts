@@ -38,7 +38,6 @@ export async function findOrCreateUser(params: {
   `
 
   if (result.length > 0) {
-    console.log(`[UserIdentity] Telegram user upserted: ${tgId}`)
     return result[0] as User
   }
 

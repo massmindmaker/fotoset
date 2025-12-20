@@ -2,9 +2,7 @@ import { neon } from "@neondatabase/serverless"
 
 const databaseUrl = process.env.DATABASE_URL
 
-if (!databaseUrl) {
-  console.warn("[v0] DATABASE_URL is not set. Database operations will fail.")
-}
+// NOTE: DATABASE_URL checked at runtime in sql/query functions
 
 export const sql = databaseUrl
   ? neon(databaseUrl)
