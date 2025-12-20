@@ -93,7 +93,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
             <button
               onClick={sendToTelegram}
               disabled={isSendingToTelegram || assets.length === 0}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#0088cc] hover:bg-[#0077b5] text-white rounded-xl text-sm font-medium transition-all active:scale-95 shadow-lg shadow-[#0088cc]/25 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#0088cc] hover:bg-[#0077b5] text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-[#0088cc]/25 disabled:opacity-50 hover-lift active-press"
               aria-label="Отправить в Telegram"
             >
               {isSendingToTelegram ? (
@@ -107,7 +107,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
             </button>
             <button
               onClick={onGenerateMore}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary to-accent text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity active:scale-95 shadow-lg shadow-primary/25"
+              className="flex items-center gap-2 btn-premium text-sm"
             >
               <Sparkles className="w-4 h-4" />
               <span>Ещё</span>
@@ -117,14 +117,14 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
       </div>
 
       {isGenerating && generationProgress.total > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2 glass rounded-2xl p-4">
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500 ease-out"
+              className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500 ease-out shimmer"
               style={{ width: (assets.length / generationProgress.total) * 100 + "%" }}
             />
           </div>
-          <p className="text-xs text-muted-foreground text-center">Генерируем ваши фото...</p>
+          <p className="text-xs text-muted-foreground text-center animate-pulse">Генерируем ваши фото...</p>
         </div>
       )}
 
@@ -142,7 +142,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
               {Array.from({ length: pendingCount }).map((_, i) => (
                 <div
                   key={"skeleton-" + i}
-                  className="aspect-[3/4] rounded-2xl bg-gradient-to-br from-muted to-muted/50 animate-pulse flex items-center justify-center"
+                  className="aspect-[3/4] rounded-2xl bg-gradient-to-br from-muted to-muted/50 shimmer flex items-center justify-center border border-border/50"
                   role="status"
                   aria-label="Загрузка фото"
                 >

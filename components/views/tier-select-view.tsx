@@ -43,19 +43,19 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
           key={tier.id}
           onClick={() => onSelectTier(tier)}
           className={
-            "w-full p-4 sm:p-5 rounded-3xl transition-all border-2 text-left active:scale-[0.99] " +
+            "w-full p-4 sm:p-5 rounded-3xl transition-all border-2 text-left hover-lift active-press " +
             (selectedTier?.id === tier.id
-              ? "border-primary bg-gradient-to-br from-primary/10 to-accent/5 shadow-2xl shadow-primary/20 ring-2 ring-primary/10"
-              : "border-transparent bg-card shadow-lg shadow-black/5 hover:shadow-xl hover:bg-muted/50")
+              ? "border-primary bg-gradient-to-br from-primary/10 to-accent/5 shadow-2xl shadow-primary/20 ring-2 ring-primary/10 hover-glow"
+              : "border-transparent card-premium hover:bg-muted/50")
           }
           aria-pressed={selectedTier?.id === tier.id}
         >
           <div className="flex items-center gap-4">
             <div
               className={
-                "w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-lg transition-all " +
+                "w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-lg transition-all hover-scale " +
                 (selectedTier?.id === tier.id
-                  ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-primary/30"
+                  ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-primary/30 hover-glow"
                   : "bg-muted text-muted-foreground shadow-black/10")
               }
             >
@@ -96,7 +96,7 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
       <button
         onClick={() => selectedTier && onUpgrade(selectedTier)}
         disabled={!selectedTier || isGenerating}
-        className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-primary to-accent text-white font-medium rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg shadow-primary/25"
+        className="w-full sm:w-auto btn-premium disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {isGenerating ? (
           <>

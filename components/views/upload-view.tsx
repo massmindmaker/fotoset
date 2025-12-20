@@ -60,7 +60,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}
-          className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95"
+          className="w-11 h-11 flex items-center justify-center hover:bg-muted active:bg-muted/80 rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95 touch-manipulation"
           aria-label="Назад"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -92,9 +92,11 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
           </div>
         </div>
       </div>
-      <div className="p-4 bg-primary/5 border border-primary/10 rounded-2xl">
+      <div className="p-4 glass rounded-2xl hover-lift">
         <div className="flex gap-3">
-          <Camera className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 hover-glow transition-all">
+            <Camera className="w-5 h-5 text-primary" aria-hidden="true" />
+          </div>
           <div>
             <p className="text-sm font-medium text-foreground mb-1">Советы для лучшего результата</p>
             <ul className="text-xs text-muted-foreground space-y-1">
@@ -105,14 +107,14 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 sm:gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/50 transition-all flex flex-col items-center justify-center gap-1 group active:scale-95"
+          className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 active:border-primary/60 hover:bg-muted/50 active:bg-muted/70 transition-all flex flex-col items-center justify-center gap-1.5 group touch-manipulation min-h-[80px] hover-lift active-press"
           aria-label="Добавить фото"
         >
-          <Plus className="w-6 h-6 text-muted-foreground group-hover:text-primary" />
-          <span className="text-[10px] text-muted-foreground">Добавить</span>
+          <Plus className="w-7 h-7 sm:w-6 sm:h-6 text-muted-foreground group-hover:text-primary" />
+          <span className="text-[11px] sm:text-[10px] text-muted-foreground font-medium">Добавить</span>
         </button>
         <input
           type="file"
@@ -124,23 +126,23 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
           aria-label="Выбрать файлы"
         />
         {persona.images.map((img) => (
-          <div key={img.id} className="aspect-square rounded-xl bg-muted overflow-hidden relative group">
-            <img src={img.previewUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+          <div key={img.id} className="aspect-square rounded-xl bg-muted overflow-hidden relative group min-h-[80px] hover-scale transition-all">
+            <img src={img.previewUrl} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-110" loading="lazy" />
             <button
               onClick={() => removeImage(img.id)}
-              className="absolute top-1 right-1 p-1.5 bg-black/50 hover:bg-red-500 rounded-lg text-white opacity-0 group-hover:opacity-100 transition-all"
+              className="absolute top-1.5 right-1.5 w-8 h-8 flex items-center justify-center bg-black/60 hover:bg-red-500 active:bg-red-600 rounded-lg text-white opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all touch-manipulation"
               aria-label="Удалить фото"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         ))}
       </div>
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
+      <div className="fixed bottom-0 left-0 right-0 p-4 glass-strong border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
         <button
           onClick={onNext}
           disabled={!isReady}
-          className="w-full sm:w-auto px-6 py-3.5 bg-primary text-primary-foreground font-medium rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+          className="w-full sm:w-auto btn-premium disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           Далее
           <ArrowRight className="w-4 h-4" />

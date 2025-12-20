@@ -151,7 +151,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
           }
         >
           <h1 className="text-3xl sm:text-4xl font-bold mb-2">
-            <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent drop-shadow-lg">
+            <span className="text-gradient-pink-yellow drop-shadow-lg text-shadow-glow">
               PINGLASS
             </span>
           </h1>
@@ -163,9 +163,9 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
           onClick={handleStart}
           disabled={isAuthPending}
           className={
-            "w-full max-w-xs py-4 px-8 bg-gradient-to-r from-primary to-accent text-white font-semibold text-lg rounded-3xl transition-all shadow-xl shadow-primary/25 " +
+            "w-full max-w-xs btn-premium text-lg " +
             (stage >= 4 ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0") +
-            (isAuthPending ? " opacity-70 cursor-wait" : " hover:opacity-90 active:scale-95")
+            (isAuthPending ? " opacity-70 cursor-wait" : "")
           }
           style={{ transitionDelay: "200ms" }}
         >

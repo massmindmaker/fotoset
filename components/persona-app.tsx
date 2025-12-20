@@ -728,8 +728,8 @@ export default function PersonaApp() {
         />
       ) : (
         <>
-          <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-black/5">
-            <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+          <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-black/5 safe-area-inset-top">
+            <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between safe-area-inset-x">
               <div className="flex items-center gap-2">
                 <Suspense fallback={<div className="w-10 h-10" />}>
                   <AnimatedLogoCompact
@@ -765,7 +765,7 @@ export default function PersonaApp() {
               </div>
             </div>
           </header>
-          <main className="max-w-5xl mx-auto px-4 py-6">
+          <main className="max-w-5xl mx-auto px-4 py-6 safe-area-inset-x">
             {viewState.view === "DASHBOARD" && (
               <DashboardView
                 personas={personas}
