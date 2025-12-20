@@ -461,11 +461,47 @@ export default function PersonaApp() {
     setViewState({ view: "DASHBOARD" })
   }, [loadAvatarsFromServer, showMessage])
 
-  // Create persona handler
-  const handleCreatePersona = useCallback(() => {
-    const tempId = createPersona()
-    setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: tempId })
-  }, [createPersona])
+  // Create persona handler - immediately creates avatar on server
+  const handleCreatePersona = useCallback(async () => {
+    if (!telegramUserId) {
+      showMessage("Ошибка: не удалось получить Telegram ID")
+      return
+    }
+
+    try {
+      // Create avatar on server immediately
+      const res = await fetch("/api/avatars", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          telegramUserId,
+          name: "Мой аватар",
+        }),
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || "Failed to create avatar")
+      }
+
+      const data = await res.json()
+      const dbId = String(data.data?.id || data.id)
+
+      // Create local persona with DB ID
+      const newPersona: Persona = {
+        id: dbId,
+        name: "Мой аватар",
+        status: "draft",
+        images: [],
+        generatedAssets: [],
+      }
+
+      setPersonas((prev) => [...prev, newPersona])
+      setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: dbId })
+    } catch (error) {
+      showMessage(`Ошибка: ${error instanceof Error ? error.message : "Не удалось создать аватар"}`)
+    }
+  }, [telegramUserId, setPersonas, showMessage])
 
   // Delete persona handler
   const handleDeletePersona = useCallback((id: string, e: React.MouseEvent) => {
