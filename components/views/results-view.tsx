@@ -71,7 +71,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   }
 
   return (
-    <div className="space-y-4 pb-6">
+    <div className="space-y-4 pb-6" aria-busy={isGenerating} aria-live="polite">
       <div className="flex items-center justify-between">
         <button
           onClick={onBack}

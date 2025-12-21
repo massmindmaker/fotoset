@@ -13,6 +13,11 @@ import { PRICING_TIERS } from "./views/dashboard-view"
 
 // Import custom hooks
 import { useAuth, useAvatars, useGeneration, usePayment, usePolling, useSync } from "./hooks"
+import { useNetworkStatus } from "@/lib/network-status"
+
+// Import error handling components
+import { ErrorModal, OfflineBanner } from "./error-modal"
+import { PaymentSuccess } from "./payment-success"
 
 // Export for other components
 export { PRICING_TIERS } from "./views/dashboard-view"
@@ -60,11 +65,23 @@ export default function PersonaApp() {
   const { isPaymentOpen, setIsPaymentOpen, selectedTier, setSelectedTier } = usePayment()
   const { startPolling, stopPolling } = usePolling()
   const { isSyncing, setIsSyncing, syncPersonaToServer } = useSync()
+  const { isOnline } = useNetworkStatus()
 
   // Local state
   const [viewState, setViewState] = useState<ViewState>({ view: "ONBOARDING" })
   const [isReady, setIsReady] = useState(false)
   const [isReferralOpen, setIsReferralOpen] = useState(false)
+
+  // Error modal state
+  const [errorModal, setErrorModal] = useState<{
+    isOpen: boolean
+    title?: string
+    message: string
+    onRetry?: () => void
+  }>({ isOpen: false, message: "" })
+
+  // Payment success celebration state
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
 
   // Refs
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -503,13 +520,29 @@ export default function PersonaApp() {
     }
   }, [telegramUserId, setPersonas, showMessage])
 
-  // Delete persona handler
+  // Delete persona handler with Telegram-native confirm
   const handleDeletePersona = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (confirm("Удалить?")) {
+
+    const performDelete = () => {
       deletePersona(id)
       if ("personaId" in viewState && viewState.personaId === id) {
         setViewState({ view: "DASHBOARD" })
+      }
+    }
+
+    // Use Telegram.WebApp.showConfirm for native Mini App UX
+    const tg = window.Telegram?.WebApp
+    if (tg?.showConfirm) {
+      tg.showConfirm("Удалить этот аватар?", (confirmed: boolean) => {
+        if (confirmed) {
+          performDelete()
+        }
+      })
+    } else {
+      // Fallback for non-Telegram environment
+      if (confirm("Удалить?")) {
+        performDelete()
       }
     }
   }, [deletePersona, viewState])
@@ -547,6 +580,20 @@ export default function PersonaApp() {
     showMessage("Загружаю фото...")
 
     try {
+      // Check network before sync
+      if (!isOnline) {
+        setErrorModal({
+          isOpen: true,
+          title: "Нет соединения",
+          message: "Проверьте подключение к интернету и попробуйте снова",
+          onRetry: () => {
+            setErrorModal({ isOpen: false, message: "" })
+            handleUploadComplete()
+          },
+        })
+        return
+      }
+
       setIsSyncing(true)
       setIsGenerating(true)
       const dbId = await syncPersonaToServer(persona, telegramUserId)
@@ -559,12 +606,22 @@ export default function PersonaApp() {
     } catch (error) {
       const errorMessage = getErrorMessage(error, "Ошибка сохранения")
       console.error("[Upload] Sync failed:", errorMessage, error)
-      showMessage(`Ошибка: ${errorMessage}`)
+
+      // Show error modal with retry option
+      setErrorModal({
+        isOpen: true,
+        title: "Ошибка загрузки",
+        message: errorMessage,
+        onRetry: () => {
+          setErrorModal({ isOpen: false, message: "" })
+          handleUploadComplete()
+        },
+      })
     } finally {
       setIsSyncing(false)
       setIsGenerating(false)
     }
-  }, [viewState, getActivePersona, getPersona, syncPersonaToServer, telegramUserId, showMessage, setIsSyncing, setIsGenerating, updatePersona])
+  }, [viewState, getActivePersona, getPersona, syncPersonaToServer, telegramUserId, showMessage, setIsSyncing, setIsGenerating, updatePersona, isOnline])
 
   // Generate photos handler
   const handleGenerate = useCallback(async (tier: PricingTier) => {
@@ -677,6 +734,13 @@ export default function PersonaApp() {
   // Payment success handler
   const handlePaymentSuccess = useCallback(() => {
     setIsPaymentOpen(false)
+    // Show celebration first, then generate
+    setShowPaymentSuccess(true)
+  }, [])
+
+  // Handle payment success celebration complete
+  const handlePaymentCelebrationComplete = useCallback(() => {
+    setShowPaymentSuccess(false)
     if (viewState.view === "SELECT_TIER" && selectedTier) {
       handleGenerate(selectedTier)
     }
@@ -719,6 +783,26 @@ export default function PersonaApp() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* Offline Banner */}
+      <OfflineBanner isVisible={!isOnline} />
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, message: "" })}
+        onRetry={errorModal.onRetry}
+        title={errorModal.title}
+        message={errorModal.message}
+        isOffline={!isOnline}
+      />
+
+      {/* Payment Success Celebration */}
+      <PaymentSuccess
+        isVisible={showPaymentSuccess}
+        tier={selectedTier || PRICING_TIERS[1]}
+        onContinue={handlePaymentCelebrationComplete}
+      />
+
       {viewState.view === "ONBOARDING" ? (
         <OnboardingView
           onComplete={completeOnboarding}

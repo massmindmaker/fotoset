@@ -17,15 +17,24 @@ export interface DashboardViewProps {
   onCreate: () => void
   onSelect: (id: string) => void
   onDelete: (id: string, e: React.MouseEvent) => void
+  isLoading?: boolean
 }
 
-export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate, onSelect, onDelete }) => (
-  <div className="space-y-6">
+export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate, onSelect, onDelete, isLoading = false }) => (
+  <div className="space-y-6 view-transition-name-main">
     <div>
       <h1 className="text-2xl font-bold text-foreground">Мои аватары</h1>
       <p className="text-muted-foreground text-sm mt-1">Создавайте AI-фотографии в стиле PINGLASS</p>
     </div>
-    {personas.length === 0 ? (
+    {isLoading ? (
+      <div className="skeleton-grid">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="skeleton-card">
+            <div className="skeleton-avatar" />
+          </div>
+        ))}
+      </div>
+    ) : personas.length === 0 ? (
       <div className="space-y-6">
         <button
           onClick={onCreate}

@@ -37,8 +37,8 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
         <p className="text-sm text-muted-foreground">PINGLASS</p>
       </div>
     </div>
-    <div className="space-y-3">
-      {PRICING_TIERS.map((tier) => (
+    <div className="space-y-3" role="radiogroup" aria-label="Выберите пакет фотографий">
+      {PRICING_TIERS.map((tier, index) => (
         <button
           key={tier.id}
           onClick={() => onSelectTier(tier)}
@@ -48,7 +48,9 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
               ? "border-primary bg-gradient-to-br from-primary/10 to-accent/5 shadow-2xl shadow-primary/20 ring-2 ring-primary/10 hover-glow"
               : "border-transparent card-premium hover:bg-muted/50")
           }
-          aria-pressed={selectedTier?.id === tier.id}
+          role="radio"
+          aria-checked={selectedTier?.id === tier.id}
+          aria-describedby={`tier-desc-${tier.id}`}
         >
           <div className="flex items-center gap-4">
             <div
@@ -70,7 +72,7 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p id={`tier-desc-${tier.id}`} className="text-sm text-muted-foreground">
                 {tier.id === "starter"
                   ? "Попробовать AI-фото"
                   : tier.id === "standard"
