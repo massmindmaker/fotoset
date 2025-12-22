@@ -5,10 +5,10 @@ import { useState, useEffect, useCallback } from "react"
 import { Sparkles } from "lucide-react"
 
 const DEMO_PHOTOS = [
-  "/demo/Screenshot_1.png", "/demo/Screenshot_2.png", "/demo/Screenshot_3.png",
-  "/demo/Screenshot_4.png", "/demo/Screenshot_5.png", "/demo/Screenshot_6.png",
-  "/demo/Screenshot_7.png", "/demo/Screenshot_8.png", "/demo/Screenshot_9.png",
-  "/demo/Screenshot_10.png", "/demo/Screenshot_11.png",
+  "/optimized/demo/Screenshot_1.webp", "/optimized/demo/Screenshot_2.webp", "/optimized/demo/Screenshot_3.webp",
+  "/optimized/demo/Screenshot_4.webp", "/optimized/demo/Screenshot_5.webp", "/optimized/demo/Screenshot_6.webp",
+  "/optimized/demo/Screenshot_7.webp", "/optimized/demo/Screenshot_8.webp", "/optimized/demo/Screenshot_9.webp",
+  "/optimized/demo/Screenshot_10.webp", "/optimized/demo/Screenshot_11.webp",
 ]
 
 export interface OnboardingViewProps {

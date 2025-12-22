@@ -1,8 +1,9 @@
 "use client"
 
-import { Suspense, useEffect, useState, useRef } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { CheckCircle2, Loader2, XCircle, Clock } from "lucide-react"
+import { createPollingController } from "@/components/hooks/usePolling"
 
 // Max polling attempts: 60 seconds for normal, 30 seconds for test/demo
 const MAX_ATTEMPTS_NORMAL = 30 // 30 attempts * 2s = 60 seconds
@@ -12,65 +13,71 @@ function PaymentCallbackContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [status, setStatus] = useState<"loading" | "success" | "error" | "timeout">("loading")
-  const attemptsRef = useRef(0)
 
   useEffect(() => {
-    const checkPayment = async () => {
-      // Telegram-only authentication
-      const telegramUserId = searchParams.get("telegram_user_id")
-      const paymentId = searchParams.get("payment_id")
-      const isTestPayment = searchParams.get("test") === "true"
-      const isDemoPayment = paymentId?.startsWith("demo_")
-      const isFastMode = isTestPayment || isDemoPayment
+    // Telegram-only authentication
+    const telegramUserId = searchParams.get("telegram_user_id")
+    const paymentId = searchParams.get("payment_id")
+    const tier = searchParams.get("tier") || "premium"
+    const isTestPayment = searchParams.get("test") === "true"
+    const isDemoPayment = paymentId?.startsWith("demo_")
+    const isFastMode = isTestPayment || isDemoPayment
 
-      // Check max attempts
-      const maxAttempts = isFastMode ? MAX_ATTEMPTS_FAST : MAX_ATTEMPTS_NORMAL
-      if (attemptsRef.current >= maxAttempts) {
-        console.error("[Callback] Max polling attempts reached:", attemptsRef.current)
-        setStatus("timeout")
-        return
-      }
-      attemptsRef.current++
-
-      // Require telegramUserId
-      if (!telegramUserId) {
-        setStatus("error")
-        return
-      }
-
-      try {
-        // Build URL with telegram_user_id
-        let url = `/api/payment/status?telegram_user_id=${telegramUserId}`
-        if (paymentId) url += `&payment_id=${paymentId}`
-        if (isTestPayment) url += "&test=true"
-        if (isDemoPayment) url += "&demo_confirmed=true"
-
-        const res = await fetch(url)
-        const data = await res.json()
-
-        if (data.paid) {
-          setStatus("success")
-          // Перенаправляем обратно для начала генерации с флагом
-          // FIX: Pass telegram_user_id so auth can work after external redirect
-          // FIX: Increased delay 2s→4s for DB replication
-          setTimeout(() => {
-            let redirectUrl = "/?resume_payment=true"
-            if (telegramUserId) {
-              redirectUrl += `&telegram_user_id=${telegramUserId}`
-            }
-            router.push(redirectUrl)
-          }, 4000)
-        } else if (isFastMode) {
-          setTimeout(checkPayment, 1000)
-        } else {
-          setTimeout(checkPayment, 2000)
-        }
-      } catch {
-        setStatus("error")
-      }
+    // Require telegramUserId
+    if (!telegramUserId) {
+      setStatus("error")
+      return
     }
 
-    checkPayment()
+    const pollingController = createPollingController()
+
+    pollingController.start(
+      'payment-status',
+      async () => {
+        try {
+          // Build URL with telegram_user_id
+          let url = `/api/payment/status?telegram_user_id=${telegramUserId}`
+          if (paymentId) url += `&payment_id=${paymentId}`
+          if (isTestPayment) url += "&test=true"
+          if (isDemoPayment) url += "&demo_confirmed=true"
+
+          const res = await fetch(url)
+          const data = await res.json()
+
+          if (data.paid) {
+            pollingController.stop('payment-status')
+            setStatus("success")
+            // Перенаправляем обратно для начала генерации с флагом
+            // FIX: Pass telegram_user_id so auth can work after external redirect
+            // FIX: Increased delay 2s→4s for DB replication
+            setTimeout(() => {
+              let redirectUrl = "/?resume_payment=true"
+              if (telegramUserId) {
+                redirectUrl += `&telegram_user_id=${telegramUserId}`
+              }
+              redirectUrl += `&tier=${tier}`
+              router.push(redirectUrl)
+            }, 4000)
+          }
+        } catch (err) {
+          console.error("[Callback] Payment check error:", err)
+          pollingController.stop('payment-status')
+          setStatus("error")
+        }
+      },
+      {
+        intervalMs: isFastMode ? 1000 : 2000,
+        maxAttempts: isFastMode ? MAX_ATTEMPTS_FAST : MAX_ATTEMPTS_NORMAL,
+        onTimeout: () => {
+          console.error("[Callback] Max polling attempts reached")
+          setStatus("timeout")
+        },
+      }
+    )
+
+    return () => {
+      pollingController.stopAll()
+    }
   }, [searchParams, router])
 
   const isTest = searchParams.get("test") === "true"
@@ -110,10 +117,7 @@ function PaymentCallbackContent() {
             </p>
             <div className="flex gap-3 justify-center">
               <button
-                onClick={() => {
-                  attemptsRef.current = 0
-                  setStatus("loading")
-                }}
+                onClick={() => window.location.reload()}
                 className="px-6 py-3 bg-primary text-primary-foreground rounded-xl"
               >
                 Проверить снова

@@ -75,8 +75,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
       <div className="flex items-center justify-between">
         <button
           onClick={onBack}
-          disabled={isGenerating}
-          className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95 disabled:opacity-50"
+          className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors active:scale-95"
           aria-label="Назад"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -117,7 +116,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
       </div>
 
       {isGenerating && generationProgress.total > 0 && (
-        <div className="space-y-2 glass rounded-2xl p-4">
+        <div className="space-y-3 glass rounded-2xl p-4">
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500 ease-out shimmer"
@@ -125,6 +124,9 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
             />
           </div>
           <p className="text-xs text-muted-foreground text-center animate-pulse">Генерируем ваши фото...</p>
+          <p className="text-xs text-muted-foreground/70 text-center">
+            Можете закрыть приложение — пришлём фото в Telegram, когда будут готовы
+          </p>
         </div>
       )}
 

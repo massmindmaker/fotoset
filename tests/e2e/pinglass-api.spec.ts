@@ -251,16 +251,6 @@ test.describe('PinGlass API Endpoints', () => {
     });
   });
 
-  test.describe('GET /api/test-models', () => {
-    test('should return model test endpoint', async ({ request }) => {
-      const response = await request.get(`${BASE_URL}/api/test-models`);
-
-      // May or may not exist in production
-      // If exists, should return 200
-      // If not, should return 404
-      expect([200, 404]).toContain(response.status());
-    });
-  });
 
   test.describe('API Error Handling', () => {
     test('should return JSON error responses', async ({ request }) => {

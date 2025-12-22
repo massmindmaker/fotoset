@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql, query } from "@/lib/db"
 import { verifyWebhookSignature } from "@/lib/tbank"
+import { paymentLogger as log } from "@/lib/logger"
 
 const REFERRAL_RATE = 0.10 // 10% партнёру
 
@@ -10,7 +11,7 @@ export async function POST(request: NextRequest) {
     const notification = await request.json()
 
     // Log incoming webhook (without sensitive data)
-    console.log("[T-Bank Webhook] Received:", {
+    log.debug(" Received:", {
       status: notification.Status,
       paymentId: notification.PaymentId,
       orderId: notification.OrderId,
@@ -23,14 +24,14 @@ export async function POST(request: NextRequest) {
     sql`
       INSERT INTO webhook_logs (source, event_type, payload)
       VALUES ('tbank', ${notification.Status || 'unknown'}, ${JSON.stringify(notification)}::jsonb)
-    `.catch(err => console.error("[Webhook Log] Failed to save:", err))
+    `.catch(err => log.error(" Failed to save:", err))
 
     // Verify webhook signature
     const receivedToken = notification.Token || ""
     const isValid = verifyWebhookSignature(notification, receivedToken)
 
     if (!isValid) {
-      console.error("[T-Bank Webhook] Invalid signature for payment:", notification.PaymentId)
+      log.error(" Invalid signature for payment:", notification.PaymentId)
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 })
     }
 
@@ -42,13 +43,13 @@ export async function POST(request: NextRequest) {
       SELECT id, user_id, status FROM payments WHERE tbank_payment_id = ${paymentId}
     `
     if (existingPayment.length === 0) {
-      console.error("[T-Bank Webhook] Unknown payment ID (not in our DB):", paymentId)
+      log.error(" Unknown payment ID (not in our DB):", paymentId)
       return NextResponse.json({ error: "Payment not found" }, { status: 404 })
     }
 
     // T-Bank statuses: NEW, CONFIRMED, REJECTED, AUTHORIZED, PARTIAL_REFUNDED, REFUNDED
     if (status === "CONFIRMED" || status === "AUTHORIZED") {
-      console.log("[T-Bank Webhook] Payment confirmed:", paymentId)
+      log.debug(" Payment confirmed:", paymentId)
 
       // Idempotent update: only update if status is still pending
       // This prevents race conditions from duplicate webhook calls
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
 
       if (updateResult.length === 0) {
         // Payment was already processed - this is a duplicate webhook
-        console.log("[T-Bank Webhook] Payment already processed (duplicate webhook):", paymentId)
+        log.debug(" Payment already processed (duplicate webhook):", paymentId)
         return NextResponse.json({ success: true }, { status: 200 })
       }
 
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
         await processReferralEarning(payment.user_id, paymentId)
       }
     } else if (status === "REJECTED") {
-      console.log("[T-Bank Webhook] Payment rejected:", paymentId)
+      log.debug(" Payment rejected:", paymentId)
 
       await sql`
         UPDATE payments
@@ -80,13 +81,13 @@ export async function POST(request: NextRequest) {
         WHERE tbank_payment_id = ${paymentId}
       `
     } else {
-      console.log("[T-Bank Webhook] Unhandled status:", status, "for payment:", paymentId)
+      log.debug(" Unhandled status:", status, "for payment:", paymentId)
     }
 
     // T-Bank expects "OK" response to confirm receipt
     return NextResponse.json({ success: true }, { status: 200 })
   } catch (error) {
-    console.error("[T-Bank Webhook] Error:", error)
+    log.error(" Error:", error)
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 })
   }
 }
@@ -132,7 +133,7 @@ async function processReferralEarning(userId: number, paymentId: string) {
 
     // If no row returned, earning was already processed (idempotent)
     if (insertResult.rows.length === 0) {
-      console.log(`[Referral] Earning already processed for payment ${paymentId}`)
+      log.debug(`Earning already processed for payment ${paymentId}`)
       return
     }
 
@@ -147,9 +148,9 @@ async function processReferralEarning(userId: number, paymentId: string) {
       [referrerId, earningAmount]
     )
 
-    console.log(`[Referral] Credited ${earningAmount} RUB to user ${referrerId} from payment ${paymentId}`)
+    log.info(`Credited ${earningAmount} RUB to user ${referrerId} from payment ${paymentId}`)
   } catch (error) {
-    console.error("[Referral] Error processing earning:", error)
+    log.error("Error processing earning:", error)
     // Don't throw - referral is not critical for payment success
   }
 }

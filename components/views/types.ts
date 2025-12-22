@@ -31,6 +31,7 @@ export interface Persona {
   images: UploadedImage[]
   generatedAssets: GeneratedAsset[]
   thumbnailUrl?: string
+  referenceCount?: number
 }
 
 export type ViewState =

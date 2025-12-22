@@ -10,6 +10,7 @@
  */
 
 import { createHmac } from 'crypto';
+import { authLogger as log } from './logger';
 
 export interface TelegramUser {
   id: number;
@@ -77,7 +78,7 @@ export function validateTelegramInitData(
     // Extract hash
     const receivedHash = data.hash;
     if (!receivedHash) {
-      console.error('[Telegram Auth] Missing hash parameter');
+      log.error('Missing hash parameter');
       return null;
     }
 
@@ -102,20 +103,20 @@ export function validateTelegramInitData(
 
     // Constant-time comparison to prevent timing attacks
     if (!constantTimeCompare(expectedHash, receivedHash)) {
-      console.error('[Telegram Auth] Hash mismatch');
+      log.error('Hash mismatch');
       return null;
     }
 
     // Check auth_date (prevent replay attacks)
     const authDate = parseInt(data.auth_date, 10);
     if (isNaN(authDate)) {
-      console.error('[Telegram Auth] Invalid auth_date');
+      log.error('Invalid auth_date');
       return null;
     }
 
     const currentTime = Math.floor(Date.now() / 1000);
     if (currentTime - authDate > maxAge) {
-      console.error('[Telegram Auth] initData too old');
+      log.error('initData too old');
       return null;
     }
 
@@ -125,7 +126,7 @@ export function validateTelegramInitData(
       try {
         user = JSON.parse(data.user);
       } catch (error) {
-        console.error('[Telegram Auth] Failed to parse user data:', error);
+        log.error('Failed to parse user data:', error);
         return null;
       }
     }
@@ -141,7 +142,7 @@ export function validateTelegramInitData(
       start_param: data.start_param,
     };
   } catch (error) {
-    console.error('[Telegram Auth] Validation error:', error);
+    log.error('Validation error:', error);
     return null;
   }
 }
@@ -213,7 +214,7 @@ export async function validateTelegramAuthFromRequest(
 
     return null;
   } catch (error) {
-    console.error('[Telegram Auth] Request validation error:', error);
+    log.error('Request validation error:', error);
     return null;
   }
 }

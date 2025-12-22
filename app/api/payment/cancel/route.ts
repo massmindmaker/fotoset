@@ -1,12 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { cancelPayment, type Receipt } from "@/lib/tbank"
+import { paymentLogger as log } from "@/lib/logger"
 
 export async function POST(request: NextRequest) {
   try {
-    const { deviceId, telegramUserId, paymentId, amount, email } = await request.json() as {
-      deviceId?: string
-      telegramUserId?: number
+    const { telegramUserId, paymentId, amount, email } = await request.json() as {
+      telegramUserId: number
       paymentId: string
       amount?: number // Optional for partial refund
       email?: string  // Optional - will try to get from DB
@@ -20,25 +20,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // SECURITY: Require at least one identifier
-    if (!telegramUserId && !deviceId) {
+    // SECURITY: Require telegramUserId (Telegram-only authentication)
+    if (!telegramUserId || typeof telegramUserId !== 'number') {
       return NextResponse.json(
-        { error: "telegramUserId or deviceId is required" },
+        { error: "telegramUserId is required" },
         { status: 400 }
       )
     }
 
-    // Verify payment belongs to user (support both telegram_user_id and device_id)
+    // Verify payment belongs to user (Telegram-only auth)
     const paymentResult = await sql`
       SELECT p.id, p.amount, p.status, u.id as user_id, u.email as user_email
       FROM payments p
       JOIN users u ON p.user_id = u.id
       WHERE p.tbank_payment_id = ${paymentId}
-      AND (
-        (${telegramUserId}::bigint IS NOT NULL AND u.telegram_user_id = ${telegramUserId})
-        OR
-        (${deviceId}::text IS NOT NULL AND u.device_id = ${deviceId})
-      )
+      AND u.telegram_user_id = ${telegramUserId}
     `
 
     if (paymentResult.length === 0) {
@@ -77,10 +73,9 @@ export async function POST(request: NextRequest) {
       }],
     }
 
-    console.log("[Payment Cancel] Processing:", {
+    log.debug(" Processing:", {
       paymentId,
       telegramUserId,
-      deviceId,
       originalAmount: payment.amount,
       refundAmount,
       receiptEmail,
@@ -96,7 +91,7 @@ export async function POST(request: NextRequest) {
       WHERE tbank_payment_id = ${paymentId}
     `
 
-    console.log("[Payment Cancel] Success:", {
+    log.debug(" Success:", {
       paymentId,
       status: result.Status,
       originalAmount: result.OriginalAmount,
@@ -110,7 +105,7 @@ export async function POST(request: NextRequest) {
       newAmount: result.NewAmount,
     })
   } catch (error) {
-    console.error("[Payment Cancel] Error:", error)
+    log.error(" Error:", error)
     const message = error instanceof Error ? error.message : "Failed to cancel payment"
     return NextResponse.json({ error: message }, { status: 500 })
   }

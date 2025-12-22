@@ -34,6 +34,7 @@ interface AvatarWithPhotos {
   createdAt: string
   updatedAt: string
   photoCount: number
+  referenceCount: number
   generatedPhotos: PhotoWithFavorite[]
 }
 
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
     `.then((rows) => rows[0])
     const total = countResult?.count || 0
 
-    // Get avatars with photo counts
+    // Get avatars with photo counts (generated + reference)
     const avatars = await sql`
       SELECT
         a.id,
@@ -91,14 +92,16 @@ export async function GET(request: NextRequest) {
         a.thumbnail_url,
         a.created_at,
         a.updated_at,
-        COUNT(gp.id)::int as photo_count
+        COUNT(DISTINCT gp.id)::int as photo_count,
+        COUNT(DISTINCT rp.id)::int as reference_count
       FROM avatars a
       LEFT JOIN generated_photos gp ON gp.avatar_id = a.id
+      LEFT JOIN reference_photos rp ON rp.avatar_id = a.id
       WHERE a.user_id = ${user.id}
       GROUP BY a.id
       ORDER BY a.created_at DESC
       LIMIT ${pagination.limit} OFFSET ${pagination.offset}
-    ` as (Avatar & { photo_count: number })[]
+    ` as (Avatar & { photo_count: number; reference_count: number })[]
 
     if (avatars.length === 0) {
       logger.info("No avatars found for user", { userId: user.id, telegramUserId })
@@ -155,6 +158,7 @@ export async function GET(request: NextRequest) {
         createdAt: avatar.created_at,
         updatedAt: avatar.updated_at,
         photoCount: avatar.photo_count,
+        referenceCount: avatar.reference_count,
         generatedPhotos: photosByAvatar.get(avatar.id) || [],
       }))
     } else {
@@ -167,6 +171,7 @@ export async function GET(request: NextRequest) {
         createdAt: avatar.created_at,
         updatedAt: avatar.updated_at,
         photoCount: avatar.photo_count,
+        referenceCount: avatar.reference_count,
         generatedPhotos: [],
       }))
     }
@@ -215,6 +220,17 @@ export async function POST(request: NextRequest) {
     const user = await findOrCreateUser({ telegramUserId: tgId })
     logger.info("User resolved", { userId: user.id, telegramUserId: tgId })
 
+    // Check avatar limit (max 3 per user)
+    const MAX_AVATARS = 3
+    const avatarCount = await sql`
+      SELECT COUNT(*)::int as count FROM avatars WHERE user_id = ${user.id}
+    `.then((rows) => rows[0]?.count || 0)
+
+    if (avatarCount >= MAX_AVATARS) {
+      logger.warn("Avatar limit reached", { userId: user.id, count: avatarCount, limit: MAX_AVATARS })
+      return error("LIMIT_REACHED", `Достигнут лимит аватаров (${MAX_AVATARS}). Удалите существующий аватар, чтобы создать новый.`)
+    }
+
     // Create avatar
     const newAvatar = await sql`
       INSERT INTO avatars (user_id, name, status)
@@ -236,6 +252,7 @@ export async function POST(request: NextRequest) {
       createdAt: newAvatar.created_at,
       updatedAt: newAvatar.updated_at,
       photoCount: 0,
+      referenceCount: 0,
       generatedPhotos: [],
     }
 

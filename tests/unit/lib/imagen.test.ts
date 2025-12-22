@@ -161,7 +161,9 @@ describe('Google Imagen Library', () => {
     });
 
     test('should handle API errors gracefully', async () => {
-      const generateImage = async (): Promise<GenerateImageResponse> => {
+      const generateImage = async (
+        _params: GenerateImageParams
+      ): Promise<GenerateImageResponse> => {
         return {
           success: false,
           error: 'API quota exceeded',
@@ -178,7 +180,9 @@ describe('Google Imagen Library', () => {
     });
 
     test('should handle safety filter blocks', async () => {
-      const generateImage = async (): Promise<GenerateImageResponse> => {
+      const generateImage = async (
+        _params: GenerateImageParams
+      ): Promise<GenerateImageResponse> => {
         return {
           success: false,
           error: 'Content blocked by safety filters',
@@ -197,7 +201,9 @@ describe('Google Imagen Library', () => {
     });
 
     test('should return base64 encoded image', async () => {
-      const generateImage = async (): Promise<GenerateImageResponse> => {
+      const generateImage = async (
+        _params: GenerateImageParams
+      ): Promise<GenerateImageResponse> => {
         return {
           success: true,
           imageBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',

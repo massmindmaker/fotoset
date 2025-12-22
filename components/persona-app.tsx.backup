@@ -194,16 +194,16 @@ export default function PersonaApp() {
       // Initialize as null - will be set by Telegram WebApp auth
       let currentIdentifier: UserIdentifier | null = null
 
-      try {
-        // Helper to check if component is still mounted
-        const checkMounted = () => {
-          if (abortController.signal.aborted) {
-            console.log("[Init] Component unmounted, aborting async operations")
-            return false
-          }
-          return true
+      // Helper to check if component is still mounted
+      const checkMounted = () => {
+        if (abortController.signal.aborted) {
+          console.log("[Init] Component unmounted, aborting async operations")
+          return false
         }
+        return true
+      }
 
+      try {
         const savedTheme = localStorage.getItem("pinglass_theme") as "dark" | "light" | null
         if (savedTheme && checkMounted()) {
           setTheme(savedTheme)
@@ -399,6 +399,7 @@ export default function PersonaApp() {
             const tierPhotos = 23 // Default premium tier
 
             // Set UI state for generation
+            if (!checkMounted()) return
             setPersonas(loadedAvatars)
             setViewState({ view: "RESULTS", personaId: targetPersona.id })
             setIsGenerating(true)
@@ -531,6 +532,7 @@ export default function PersonaApp() {
                   timeoutsRef.current.set(pollingKey, timeout)
                 } else if (!data.success) {
                   console.error("[Resume Payment] Generation failed:", data.error)
+                  if (!checkMounted()) return
                   setIsGenerating(false)
 
                   // FIX: Show error to user instead of silent failure
@@ -542,12 +544,14 @@ export default function PersonaApp() {
 
                   // Redirect to dashboard after delay
                   setTimeout(() => {
+                    if (!checkMounted()) return
                     setViewState({ view: "DASHBOARD" })
                   }, 2000)
                 }
               })
               .catch(err => {
                 console.error("[Resume Payment] Generation request failed:", err)
+                if (!checkMounted()) return
                 setIsGenerating(false)
               })
 
@@ -555,6 +559,7 @@ export default function PersonaApp() {
 
           } catch (e) {
             console.error("[Resume Payment] Error:", e)
+            if (!checkMounted()) return
             // On error, show dashboard
             setPersonas(loadedAvatars)
             setViewState({ view: hasAvatars ? "DASHBOARD" : "ONBOARDING" })
@@ -569,14 +574,17 @@ export default function PersonaApp() {
         console.log("[Init] Showing ONBOARDING (always shown on app start)", {
           avatarsCount: loadedAvatars?.length || 0
         })
+        if (!checkMounted()) return
         setPersonas(loadedAvatars) // Keep loaded avatars for dashboard after onboarding
         setViewState({ view: "ONBOARDING" })
       } catch (e) {
         console.error("[Init] Critical error:", e)
+        if (!checkMounted()) return
         // On any error, show onboarding as fallback
         setViewState({ view: "ONBOARDING" })
       } finally {
         // ALWAYS show UI - never leave user on blank screen
+        if (!checkMounted()) return
         setIsReady(true)
       }
     }

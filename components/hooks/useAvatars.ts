@@ -30,6 +30,7 @@ export function useAvatars() {
           name: string
           status: string
           thumbnailUrl?: string
+          referenceCount?: number
           generatedPhotos?: Array<{
             id: number
             styleId: string
@@ -51,6 +52,7 @@ export function useAvatars() {
             createdAt: new Date(photo.createdAt).getTime(),
           })),
           thumbnailUrl: avatar.thumbnailUrl,
+          referenceCount: avatar.referenceCount || 0,
         })
       )
 
