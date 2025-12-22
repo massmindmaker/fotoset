@@ -153,6 +153,7 @@ export default function PersonaApp() {
         const urlParams = new URLSearchParams(window.location.search)
         const resumePayment = urlParams.get("resume_payment") === "true"
         const urlTelegramUserId = urlParams.get("telegram_user_id")
+        const urlTier = urlParams.get("tier") || "premium"
 
         if (resumePayment) {
           window.history.replaceState({}, "", window.location.pathname)
@@ -219,9 +220,11 @@ export default function PersonaApp() {
               return
             }
 
-            console.log("[Resume Payment] Starting generation for persona:", targetPersona.id)
+            console.log("[Resume Payment] Starting generation for persona:", targetPersona.id, "tier:", urlTier)
 
-            const tierPhotos = 23
+            // Get tier photos from URL parameter (passed from payment callback)
+            const TIER_PHOTOS: Record<string, number> = { starter: 7, standard: 15, premium: 23 }
+            const tierPhotos = TIER_PHOTOS[urlTier] || 7
 
             if (!checkMounted()) return
             setPersonas(loadedAvatars)
@@ -323,8 +326,10 @@ export default function PersonaApp() {
                         console.log("[Resume Payment] Generation completed:", statusData.status)
                       }
                     },
-                    3000,
-                    15 * 60 * 1000
+                    {
+                      intervalMs: 3000,
+                      timeoutMs: 15 * 60 * 1000,
+                    }
                   )
                 } else if (!data.success) {
                   console.error("[Resume Payment] Generation failed:", data.error)
@@ -360,13 +365,24 @@ export default function PersonaApp() {
           }
         }
 
-        // Normal flow: always show onboarding on app start
-        console.log("[Init] Showing ONBOARDING (always shown on app start)", {
-          avatarsCount: loadedAvatars?.length || 0
-        })
+        // Normal flow: check if onboarding already completed
+        const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"
+
         if (!checkMounted()) return
         setPersonas(loadedAvatars)
-        setViewState({ view: "ONBOARDING" })
+
+        if (onboardingComplete && loadedAvatars.length > 0) {
+          console.log("[Init] Onboarding complete, showing DASHBOARD", {
+            avatarsCount: loadedAvatars.length
+          })
+          setViewState({ view: "DASHBOARD" })
+        } else {
+          console.log("[Init] Showing ONBOARDING", {
+            onboardingComplete,
+            avatarsCount: loadedAvatars?.length || 0
+          })
+          setViewState({ view: "ONBOARDING" })
+        }
       } catch (e) {
         console.error("[Init] Critical error:", e)
         if (!checkMounted()) return
@@ -577,7 +593,6 @@ export default function PersonaApp() {
     }
 
     console.log("[Upload] Starting sync with", persona.images.length, "photos")
-    showMessage("Загружаю фото...")
 
     try {
       // Check network before sync
@@ -718,8 +733,10 @@ export default function PersonaApp() {
               }
             }
           },
-          3000,
-          15 * 60 * 1000
+          {
+            intervalMs: 3000,
+            timeoutMs: 15 * 60 * 1000,
+          }
         )
       }
     } catch (e) {

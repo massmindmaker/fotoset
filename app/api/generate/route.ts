@@ -34,7 +34,7 @@ const logger = createLogger("Generate")
 
 const GENERATION_CONFIG = {
   concurrency: 7,              // Parallel requests (increased for speed)
-  maxPhotos: 23,               // Max photos per generation
+  maxPhotos: 23,               // Max photos per generation (production)
   maxReferenceImages: 20,      // Use all user images (10-20)
   minReferenceImages: 1,       // Minimum for generation
   maxRetries: 2,               // Max retries for failed generations

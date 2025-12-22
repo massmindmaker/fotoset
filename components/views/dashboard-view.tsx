@@ -5,11 +5,10 @@ import { Plus, X, User, ChevronRight, Zap, Shield, Star } from "lucide-react"
 import Link from "next/link"
 import type { Persona, PricingTier } from "./types"
 
-// TODO: Restore original values after testing (7, 15, 23)
 export const PRICING_TIERS: PricingTier[] = [
-  { id: "starter", photos: 3, price: 499 },    // Original: 7
-  { id: "standard", photos: 3, price: 999, popular: true },  // Original: 15
-  { id: "premium", photos: 3, price: 1499 },   // Original: 23
+  { id: "starter", photos: 7, price: 499 },
+  { id: "standard", photos: 15, price: 999, popular: true },
+  { id: "premium", photos: 23, price: 1499 },
 ]
 
 export interface DashboardViewProps {
@@ -137,7 +136,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate
                   }
                 />
                 <span className="text-[10px] text-white/80">
-                  {persona.status === "ready" ? persona.generatedAssets.length + " фото" : "Черновик"}
+                  {persona.status === "ready"
+                    ? persona.generatedAssets.length + " фото"
+                    : persona.referenceCount
+                      ? persona.referenceCount + " ref фото"
+                      : "Черновик"}
                 </span>
               </div>
             </div>

@@ -2,13 +2,14 @@ import { type NextRequest, NextResponse } from "next/server"
 import { sql, query } from "@/lib/db"
 import { initPayment, IS_TEST_MODE, HAS_CREDENTIALS, type PaymentMethod, type Receipt } from "@/lib/tbank"
 import { findOrCreateUser } from "@/lib/user-identity"
+import { paymentLogger as log } from "@/lib/logger"
 
 // Pricing tiers matching frontend (components/views/dashboard-view.tsx)
 // TODO: Restore original values after testing (7, 15, 23)
 const TIER_PRICES: Record<string, { price: number; photos: number }> = {
-  starter: { price: 499, photos: 2 },    // Original: 7
-  standard: { price: 999, photos: 5 },   // Original: 15
-  premium: { price: 1499, photos: 8 },   // Original: 23
+  starter: { price: 499, photos: 3 },    // Original: 7
+  standard: { price: 999, photos: 3 },   // Original: 15
+  premium: { price: 1499, photos: 3 },   // Original: 23
 }
 
 export async function POST(request: NextRequest) {
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
     // Use URL API for proper encoding of query parameters
     const successUrlObj = new URL(`${baseUrl}/payment/callback`)
     successUrlObj.searchParams.set('telegram_user_id', String(telegramUserId))
+    successUrlObj.searchParams.set('tier', tierId || 'premium')
     const successUrl = successUrlObj.toString()
     const failUrl = `${baseUrl}/payment/fail`
     const notificationUrl = `${baseUrl}/api/payment/webhook`
@@ -90,7 +92,7 @@ export async function POST(request: NextRequest) {
       }],
     }
 
-    console.log("[Payment] Creating T-Bank payment:", {
+    log.debug(" Creating T-Bank payment:", {
       orderId,
       amount,
       tierId: tierId || 'premium',
@@ -117,7 +119,7 @@ export async function POST(request: NextRequest) {
       receipt, // Receipt for fiscal check
     )
 
-    // Save payment to DB with deviceId for callback lookup
+    // Save payment to DB for callback lookup
     // NOTE: Using tbank_payment_id column for backward compatibility (stores T-Bank payment ID)
     await sql`
       INSERT INTO payments (user_id, tbank_payment_id, amount, status)
@@ -129,7 +131,7 @@ export async function POST(request: NextRequest) {
       UPDATE users SET updated_at = NOW() WHERE id = ${user.id}
     `.catch(() => {}) // Non-critical
 
-    console.log("[Payment] Created successfully:", {
+    log.debug(" Created successfully:", {
       orderId,
       paymentId: payment.PaymentId,
       hasPaymentUrl: !!payment.PaymentURL,
@@ -143,7 +145,7 @@ export async function POST(request: NextRequest) {
       telegramUserId, // Return for client-side usage
     })
   } catch (error) {
-    console.error("Payment creation error:", error)
+    log.error("Creation error:", error)
     const message = error instanceof Error ? error.message : "Failed to create payment"
     return NextResponse.json({ error: message }, { status: 500 })
   }
@@ -185,8 +187,8 @@ async function applyReferralCode(userId: number, code: string) {
       [referrerId]
     )
 
-    console.log(`[Referral] Applied code ${code} for user ${userId}, referrer: ${referrerId}`)
+    log.info(`Applied referral code ${code} for user ${userId}, referrer: ${referrerId}`)
   } catch (error) {
-    console.error("[Referral] Error applying code:", error)
+    log.error(" Error applying code:", error)
   }
 }

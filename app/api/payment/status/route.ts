@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { getPaymentState } from "@/lib/tbank"
 import { findOrCreateUser } from "@/lib/user-identity"
+import { paymentLogger as log } from "@/lib/logger"
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
     const telegramUserId = searchParams.get("telegram_user_id")
     let paymentId = searchParams.get("payment_id")
 
-    console.log("[Payment Status] Check:", {
+    log.debug(" Check:", {
       telegramUserId,
       paymentId,
     })
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!process.env.DATABASE_URL) {
-      console.warn("[Payment Status] DATABASE_URL not configured, using test mode")
+      log.warn(" DATABASE_URL not configured, using test mode")
       return NextResponse.json({ paid: false, status: "pending", testMode: true })
     }
 
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
         telegramUserId: parseInt(telegramUserId)
       })
     } catch (dbError) {
-      console.error("[Payment Status] Database error:", dbError)
+      log.error(" Database error:", dbError)
       return NextResponse.json({ paid: false, status: "pending", error: "db_unavailable" })
     }
 
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ paid: false, status: "no_payment" })
         }
       } catch (err) {
-        console.error("[Payment Status] Error finding latest payment:", err)
+        log.error(" Error finding latest payment:", err)
         return NextResponse.json({ paid: false, status: "pending" })
       }
     }
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ paid: false, status: "pending" })
     }
   } catch (error) {
-    console.error("Status check error:", error)
+    log.error("Status check error:", error)
     return NextResponse.json({ paid: false, status: "pending", error: "check_failed" })
   }
 }
