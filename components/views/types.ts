@@ -40,6 +40,13 @@ export type ViewState =
   | { view: "CREATE_PERSONA_UPLOAD"; personaId: string }
   | { view: "SELECT_TIER"; personaId: string }
   | { view: "RESULTS"; personaId: string }
+  | { view: "AVATAR_DETAIL"; personaId: string }
+
+export interface ReferencePhoto {
+  id: number
+  imageUrl: string
+  createdAt: string
+}
 
 export interface GenerationProgress {
   completed: number

@@ -7,7 +7,7 @@ import Link from "next/link"
 import dynamic from "next/dynamic"
 
 // Import types and constants
-import type { Persona, ViewState, PricingTier } from "./views/types"
+import type { Persona, ViewState, PricingTier, ReferencePhoto } from "./views/types"
 import { getErrorMessage } from "@/lib/error-utils"
 import { PRICING_TIERS } from "./views/dashboard-view"
 
@@ -52,6 +52,10 @@ const ResultsView = dynamic(() => import("./views/results-view"), {
   loading: () => <ComponentLoader />,
 })
 
+const AvatarDetailView = dynamic(() => import("./views/avatar-detail-view"), {
+  loading: () => <ComponentLoader />,
+})
+
 // Lazy load heavy components
 const PaymentModal = lazy(() => import("./payment-modal").then((m) => ({ default: m.PaymentModal })))
 const ReferralPanel = lazy(() => import("./referral-panel").then((m) => ({ default: m.ReferralPanel })))
@@ -82,6 +86,10 @@ export default function PersonaApp() {
 
   // Payment success celebration state
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
+
+  // Reference photos state for Avatar Detail View
+  const [referencePhotos, setReferencePhotos] = useState<ReferencePhoto[]>([])
+  const [isLoadingReferences, setIsLoadingReferences] = useState(false)
 
   // Refs
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -563,6 +571,101 @@ export default function PersonaApp() {
     }
   }, [deletePersona, viewState])
 
+  // Load reference photos for Avatar Detail View
+  const loadReferencePhotos = useCallback(async (avatarId: string) => {
+    if (!telegramUserId) return
+
+    setIsLoadingReferences(true)
+    try {
+      const response = await fetch(`/api/avatars/${avatarId}/references`, {
+        headers: {
+          "X-Telegram-User-Id": String(telegramUserId),
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setReferencePhotos(data.references || [])
+      }
+    } catch (error) {
+      console.error("[AvatarDetail] Failed to load references:", error)
+    } finally {
+      setIsLoadingReferences(false)
+    }
+  }, [telegramUserId])
+
+  // Add photos to avatar
+  const handleAddPhotos = useCallback(async (files: File[]) => {
+    const activePersona = getActivePersona()
+    if (!activePersona || !telegramUserId) return
+
+    // Convert files to base64
+    const base64Images = await Promise.all(
+      files.slice(0, 20 - referencePhotos.length).map((file) => fileToBase64(file))
+    )
+
+    const response = await fetch(`/api/avatars/${activePersona.id}/references`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-User-Id": String(telegramUserId),
+      },
+      body: JSON.stringify({
+        referenceImages: base64Images,
+        telegramUserId,
+      }),
+    })
+
+    if (response.ok) {
+      // Reload reference photos and avatars to get updated thumbnail
+      await loadReferencePhotos(activePersona.id)
+      await loadAvatarsFromServer()
+    } else {
+      showMessage("Ошибка при загрузке фото")
+    }
+  }, [getActivePersona, telegramUserId, referencePhotos.length, fileToBase64, loadReferencePhotos, loadAvatarsFromServer, showMessage])
+
+  // Delete single reference photo
+  const handleDeleteReferencePhoto = useCallback(async (photoId: number) => {
+    const activePersona = getActivePersona()
+    if (!activePersona || !telegramUserId) return
+
+    const response = await fetch(`/api/avatars/${activePersona.id}/references/${photoId}`, {
+      method: "DELETE",
+      headers: {
+        "X-Telegram-User-Id": String(telegramUserId),
+      },
+    })
+
+    if (response.ok) {
+      setReferencePhotos((prev) => prev.filter((p) => p.id !== photoId))
+      // Reload avatars to get updated thumbnail
+      await loadAvatarsFromServer()
+    } else {
+      showMessage("Ошибка при удалении фото")
+    }
+  }, [getActivePersona, telegramUserId, loadAvatarsFromServer, showMessage])
+
+  // Open Avatar Detail View
+  const handleSelectAvatar = useCallback((id: string) => {
+    const p = getPersona(id)
+    if (!p) return
+
+    // If avatar has reference photos, show detail view
+    // If it's draft without refs, go to upload
+    // If it's ready, go to results
+    if (p.status === "ready" && p.generatedAssets.length > 0) {
+      setViewState({ view: "AVATAR_DETAIL", personaId: id })
+      loadReferencePhotos(id)
+    } else if (p.status === "draft" && (!p.referenceCount || p.referenceCount === 0)) {
+      setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: id })
+    } else {
+      // Has references but not ready - show detail
+      setViewState({ view: "AVATAR_DETAIL", personaId: id })
+      loadReferencePhotos(id)
+    }
+  }, [getPersona, loadReferencePhotos])
+
   // Upload complete handler
   const handleUploadComplete = useCallback(async () => {
     console.log("[Upload] ===== BUTTON CLICKED =====")
@@ -830,7 +933,7 @@ export default function PersonaApp() {
       ) : (
         <>
           <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-black/5 safe-area-inset-top">
-            <div className="max-w-5xl mx-auto px-5 py-3 flex items-center justify-between safe-area-inset-x">
+            <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between safe-area-inset-x">
               <div className="flex items-center gap-2">
                 <Suspense fallback={<div className="w-10 h-10" />}>
                   <AnimatedLogoCompact
@@ -866,19 +969,12 @@ export default function PersonaApp() {
               </div>
             </div>
           </header>
-          <main className="max-w-5xl mx-auto px-5 py-6 safe-area-inset-x">
+          <main className="max-w-5xl mx-auto px-6 py-6 safe-area-inset-x">
             {viewState.view === "DASHBOARD" && (
               <DashboardView
                 personas={personas}
                 onCreate={handleCreatePersona}
-                onSelect={(id) => {
-                  const p = getPersona(id)
-                  setViewState(
-                    p?.status === "draft"
-                      ? { view: "CREATE_PERSONA_UPLOAD", personaId: id }
-                      : { view: "RESULTS", personaId: id }
-                  )
-                }}
+                onSelect={handleSelectAvatar}
                 onDelete={handleDeletePersona}
               />
             )}
@@ -931,8 +1027,27 @@ export default function PersonaApp() {
                 </div>
               )
             )}
+            {viewState.view === "AVATAR_DETAIL" && (
+              getActivePersona() ? (
+                <AvatarDetailView
+                  persona={getActivePersona()!}
+                  referencePhotos={referencePhotos}
+                  onBack={() => setViewState({ view: "DASHBOARD" })}
+                  onGoToResults={() => setViewState({ view: "RESULTS", personaId: viewState.personaId })}
+                  onAddPhotos={handleAddPhotos}
+                  onDeletePhoto={handleDeleteReferencePhoto}
+                  onStartGeneration={() => setViewState({ view: "SELECT_TIER", personaId: viewState.personaId })}
+                  isLoading={isLoadingReferences}
+                  telegramUserId={telegramUserId}
+                />
+              ) : (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              )
+            )}
           </main>
-          <footer className="mt-auto py-6 px-5 border-t border-border/50">
+          <footer className="mt-auto py-6 px-6 border-t border-border/50">
             <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-4">
                 <Link href="/oferta" className="hover:text-foreground transition-colors">

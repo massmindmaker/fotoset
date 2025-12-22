@@ -152,6 +152,30 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    // Auto-set thumbnail from first uploaded photo if avatar has no thumbnail
+    if (insertedIds.length > 0) {
+      const avatarResult = await query(
+        "SELECT thumbnail_url FROM avatars WHERE id = $1",
+        [avatarId]
+      )
+
+      if (!avatarResult.rows[0]?.thumbnail_url) {
+        // Get first reference photo URL (the one we just inserted)
+        const firstPhotoResult = await query(
+          "SELECT image_url FROM reference_photos WHERE avatar_id = $1 ORDER BY created_at ASC LIMIT 1",
+          [avatarId]
+        )
+
+        if (firstPhotoResult.rows[0]?.image_url) {
+          await query(
+            "UPDATE avatars SET thumbnail_url = $1, updated_at = NOW() WHERE id = $2",
+            [firstPhotoResult.rows[0].image_url, avatarId]
+          )
+          console.log(`[API] Auto-set thumbnail for avatar ${avatarId}`)
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       avatarId,
