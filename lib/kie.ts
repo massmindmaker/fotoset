@@ -7,7 +7,7 @@ const KIE_STATUS_URL = "https://api.kie.ai/api/v1/jobs/recordInfo"
 export interface KieGenerationOptions {
   prompt: string
   referenceImages?: string[]
-  aspectRatio?: "1:1" | "2:3" | "3:2" | "9:16" | "16:9"
+  aspectRatio?: "1:1" | "2:3" | "3:2" | "3:4" | "4:3" | "9:16" | "16:9"
   resolution?: "1K" | "2K" | "4K"
   outputFormat?: "png" | "jpg"
   seed?: number
@@ -86,10 +86,12 @@ export async function generateWithKie(options: KieGenerationOptions): Promise<Ki
 
     console.log(`[Kie.ai] Task created: ${taskId}`)
 
-    // Poll for result (max 2 minutes)
-    const maxWaitTime = 120000
+    // Poll for result (max 3 minutes with error tolerance)
+    const maxWaitTime = 180000  // 3 minutes for complex generations
     const pollInterval = 2000
     let elapsed = 0
+    let consecutiveErrors = 0
+    const MAX_CONSECUTIVE_ERRORS = 5  // Allow some network hiccups
 
     while (elapsed < maxWaitTime) {
       await new Promise(resolve => setTimeout(resolve, pollInterval))
@@ -103,9 +105,16 @@ export async function generateWithKie(options: KieGenerationOptions): Promise<Ki
       })
 
       if (!statusResponse.ok) {
-        console.warn(`[Kie.ai] Status check failed: ${statusResponse.status}`)
+        consecutiveErrors++
+        console.warn(`[Kie.ai] Status check failed: ${statusResponse.status} (error ${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS})`)
+        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+          throw new Error(`Kie.ai polling failed after ${consecutiveErrors} consecutive errors`)
+        }
         continue
       }
+
+      // Reset error counter on successful response
+      consecutiveErrors = 0
 
       const statusData = await statusResponse.json()
       const status = statusData.data?.state || statusData.data?.status || statusData.status

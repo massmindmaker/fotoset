@@ -38,7 +38,7 @@ interface WithdrawalPreview {
 }
 
 interface ReferralPanelProps {
-  telegramUserId: number
+  telegramUserId?: number
   isOpen: boolean
   onClose: () => void
 }
@@ -244,7 +244,7 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
                     <input
                       type="text"
                       readOnly
-                      value={`https://t.me/Pinglass_bot/Pinglass?startapp=${encodeURIComponent(stats.code)}`}
+                      value={`https://t.me/Pinglass_bot/Pinglass?startapp=${encodeURIComponent(stats.code || "")}`}
                       className="flex-1 min-w-0 px-3 py-2 bg-blue-500/5 rounded-xl text-sm text-foreground truncate border border-blue-500/10"
                     />
                     <button
@@ -410,7 +410,7 @@ function WithdrawModal({
   onClose,
   onSuccess
 }: {
-  telegramUserId: number
+  telegramUserId?: number
   balance: number
   onClose: () => void
   onSuccess: () => void

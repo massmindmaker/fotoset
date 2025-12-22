@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     // Get user by telegram_user_id (don't create - require existing user)
     const user = await sql`
       SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
-    `.then(rows => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     // Get or create referral code
     let codeResult = await sql`
       SELECT code FROM referral_codes WHERE user_id = ${userId} AND is_active = true
-    `.then(rows => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     let referralCode: string | null = codeResult?.code || null
 
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 
       // Ensure unique code
       while (attempts < maxAttempts) {
-        const duplicate = await sql`SELECT id FROM referral_codes WHERE code = ${code}`.then(rows => rows[0])
+        const duplicate = await sql`SELECT id FROM referral_codes WHERE code = ${code}`.then((rows: any[]) => rows[0])
         if (!duplicate) break
         code = generateCode()
         attempts++
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     // Get or create balance record
     let balanceResult = await sql`
       SELECT * FROM referral_balances WHERE user_id = ${userId}
-    `.then(rows => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     if (!balanceResult) {
       await sql`
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
       SELECT COALESCE(SUM(amount), 0) as total
       FROM referral_withdrawals
       WHERE user_id = ${userId} AND status IN ('pending', 'processing')
-    `.then(rows => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     const pendingWithdrawal = Number(pendingResult?.total || 0)
     const availableBalance = Number(balance.balance) - pendingWithdrawal

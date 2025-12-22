@@ -63,6 +63,7 @@ export type ErrorCode =
   | "INSUFFICIENT_CREDITS"
   | "INVALID_STYLE"
   | "NO_REFERENCE_IMAGES"
+  | "LIMIT_REACHED"
 
 const ERROR_STATUS_MAP: Record<ErrorCode, number> = {
   // Client errors
@@ -88,6 +89,7 @@ const ERROR_STATUS_MAP: Record<ErrorCode, number> = {
   INSUFFICIENT_CREDITS: 402,
   INVALID_STYLE: 400,
   NO_REFERENCE_IMAGES: 400,
+  LIMIT_REACHED: 429,
 }
 
 // ============================================================================

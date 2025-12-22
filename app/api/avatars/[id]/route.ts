@@ -65,7 +65,7 @@ async function verifyAvatarOwnershipWithData(
     FROM avatars a
     JOIN users u ON u.id = a.user_id
     WHERE a.id = ${avatarId}
-  `.then((rows) => rows[0])
+  `.then((rows: any[]) => rows[0])
 
   if (!avatar) {
     return { avatar: null, authorized: false }
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       WHERE avatar_id = ${avatarId}
       ORDER BY created_at DESC
       LIMIT 1
-    `.then((rows) => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     const response: AvatarDetail = {
       id: avatar.id,
@@ -211,49 +211,49 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         SET name = ${name}, status = ${status}, thumbnail_url = ${thumbnailUrl}, updated_at = NOW()
         WHERE id = ${avatarId}
         RETURNING id, name, status, thumbnail_url, created_at, updated_at
-      `.then((rows) => rows[0])
+      `.then((rows: any[]) => rows[0])
     } else if (name !== undefined && status !== undefined) {
       updated = await sql`
         UPDATE avatars
         SET name = ${name}, status = ${status}, updated_at = NOW()
         WHERE id = ${avatarId}
         RETURNING id, name, status, thumbnail_url, created_at, updated_at
-      `.then((rows) => rows[0])
+      `.then((rows: any[]) => rows[0])
     } else if (name !== undefined && thumbnailUrl !== undefined) {
       updated = await sql`
         UPDATE avatars
         SET name = ${name}, thumbnail_url = ${thumbnailUrl}, updated_at = NOW()
         WHERE id = ${avatarId}
         RETURNING id, name, status, thumbnail_url, created_at, updated_at
-      `.then((rows) => rows[0])
+      `.then((rows: any[]) => rows[0])
     } else if (status !== undefined && thumbnailUrl !== undefined) {
       updated = await sql`
         UPDATE avatars
         SET status = ${status}, thumbnail_url = ${thumbnailUrl}, updated_at = NOW()
         WHERE id = ${avatarId}
         RETURNING id, name, status, thumbnail_url, created_at, updated_at
-      `.then((rows) => rows[0])
+      `.then((rows: any[]) => rows[0])
     } else if (name !== undefined) {
       updated = await sql`
         UPDATE avatars
         SET name = ${name}, updated_at = NOW()
         WHERE id = ${avatarId}
         RETURNING id, name, status, thumbnail_url, created_at, updated_at
-      `.then((rows) => rows[0])
+      `.then((rows: any[]) => rows[0])
     } else if (status !== undefined) {
       updated = await sql`
         UPDATE avatars
         SET status = ${status}, updated_at = NOW()
         WHERE id = ${avatarId}
         RETURNING id, name, status, thumbnail_url, created_at, updated_at
-      `.then((rows) => rows[0])
+      `.then((rows: any[]) => rows[0])
     } else if (thumbnailUrl !== undefined) {
       updated = await sql`
         UPDATE avatars
         SET thumbnail_url = ${thumbnailUrl}, updated_at = NOW()
         WHERE id = ${avatarId}
         RETURNING id, name, status, thumbnail_url, created_at, updated_at
-      `.then((rows) => rows[0])
+      `.then((rows: any[]) => rows[0])
     } else {
       return error("VALIDATION_ERROR", "No fields to update. Provide: name, status, or thumbnailUrl")
     }

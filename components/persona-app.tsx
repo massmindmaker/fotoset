@@ -71,8 +71,20 @@ export default function PersonaApp() {
   const { isSyncing, setIsSyncing, syncPersonaToServer } = useSync()
   const { isOnline } = useNetworkStatus()
 
+  // Check for payment redirect SYNCHRONOUSLY before first render to prevent onboarding flash
+  const getInitialViewState = (): ViewState => {
+    if (typeof window === "undefined") return { view: "ONBOARDING" }
+    const urlParams = new URLSearchParams(window.location.search)
+    const resumePayment = urlParams.get("resume_payment") === "true"
+    // If coming from payment, show loading instead of onboarding to prevent flash
+    if (resumePayment) {
+      return { view: "DASHBOARD" }  // Neutral view while processing
+    }
+    return { view: "ONBOARDING" }
+  }
+
   // Local state
-  const [viewState, setViewState] = useState<ViewState>({ view: "ONBOARDING" })
+  const [viewState, setViewState] = useState<ViewState>(getInitialViewState)
   const [isReady, setIsReady] = useState(false)
   const [isReferralOpen, setIsReferralOpen] = useState(false)
 
@@ -642,11 +654,11 @@ export default function PersonaApp() {
     if (response.ok) {
       // Reload reference photos and avatars to get updated thumbnail
       await loadReferencePhotos(activePersona.id)
-      await loadAvatarsFromServer()
+      if (userIdentifier) await loadAvatarsFromServer(userIdentifier)
     } else {
       showMessage("Ошибка при загрузке фото")
     }
-  }, [getActivePersona, telegramUserId, referencePhotos.length, fileToBase64, loadReferencePhotos, loadAvatarsFromServer, showMessage])
+  }, [getActivePersona, telegramUserId, userIdentifier, referencePhotos.length, fileToBase64, loadReferencePhotos, loadAvatarsFromServer, showMessage])
 
   // Delete single reference photo
   const handleDeleteReferencePhoto = useCallback(async (photoId: number) => {
@@ -663,11 +675,11 @@ export default function PersonaApp() {
     if (response.ok) {
       setReferencePhotos((prev) => prev.filter((p) => p.id !== photoId))
       // Reload avatars to get updated thumbnail
-      await loadAvatarsFromServer()
+      if (userIdentifier) await loadAvatarsFromServer(userIdentifier)
     } else {
       showMessage("Ошибка при удалении фото")
     }
-  }, [getActivePersona, telegramUserId, loadAvatarsFromServer, showMessage])
+  }, [getActivePersona, telegramUserId, userIdentifier, loadAvatarsFromServer, showMessage])
 
   // Open Avatar Detail View
   const handleSelectAvatar = useCallback((id: string) => {
@@ -952,6 +964,7 @@ export default function PersonaApp() {
           onStart={handleStartOnboarding}
           isAuthPending={authStatus === 'pending'}
           authError={authStatus === 'failed'}
+          isTelegramWebApp={(authStatus as string) !== 'not_in_telegram'}
         />
       ) : (
         <>

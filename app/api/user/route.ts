@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     // Find or create user
     let user = await sql`
       SELECT * FROM users WHERE telegram_user_id = ${telegramUserId}
-    `.then((rows) => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     if (!user) {
       // Create new user
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         INSERT INTO users (telegram_user_id)
         VALUES (${telegramUserId})
         RETURNING *
-      `.then((rows) => rows[0])
+      `.then((rows: any[]) => rows[0])
       console.log(`[User API] Created new Telegram user: ${telegramUserId}`)
     }
 

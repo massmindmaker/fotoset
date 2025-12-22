@@ -115,7 +115,7 @@ async function runBackgroundGeneration(params: {
               UPDATE generation_jobs
               SET completed_photos = ${completed}, updated_at = NOW()
               WHERE id = ${jobId}
-            `.catch(err => logger.error("Progress update failed", { jobId, error: err.message }))
+            `.catch((err: Error) => logger.error("Progress update failed", { jobId, error: err.message }))
           }
         },
       }
@@ -155,7 +155,7 @@ async function runBackgroundGeneration(params: {
         await sql`
           INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
           VALUES (${dbAvatarId}, ${styleId}, ${originalPrompt}, ${finalImageUrl})
-        `.catch(err => logger.error("Failed to save photo to DB", { jobId, photoIndex: i, error: err.message }))
+        `.catch((err: Error) => logger.error("Failed to save photo to DB", { jobId, photoIndex: i, error: err.message }))
 
         // Set first photo as thumbnail
         if (!firstPhotoUrl) {
@@ -164,7 +164,7 @@ async function runBackgroundGeneration(params: {
             UPDATE avatars
             SET thumbnail_url = ${finalImageUrl}, updated_at = NOW()
             WHERE id = ${dbAvatarId}
-          `.catch(err => logger.error("Failed to update thumbnail", { avatarId: dbAvatarId, error: err.message }))
+          `.catch((err: Error) => logger.error("Failed to update thumbnail", { avatarId: dbAvatarId, error: err.message }))
         }
       } else {
         failedCount++
@@ -200,7 +200,7 @@ async function runBackgroundGeneration(params: {
     try {
       const userWithTelegram = await sql`
         SELECT telegram_user_id FROM users WHERE id = ${userId}
-      `.then(rows => rows[0])
+      `.then((rows: any[]) => rows[0])
 
       if (userWithTelegram?.telegram_user_id && successCount > 0 && firstPhotoUrl) {
         await sendGenerationNotification(
@@ -241,7 +241,7 @@ async function runBackgroundGeneration(params: {
           error_message = ${errorMessage},
           updated_at = NOW()
       WHERE id = ${jobId}
-    `.catch(e => logger.error("Failed to update job status", { jobId, error: e.message }))
+    `.catch((e: Error) => logger.error("Failed to update job status", { jobId, error: e.message }))
 
     // Reset avatar status
     await sql`
@@ -299,7 +299,7 @@ export async function POST(request: NextRequest) {
         SELECT a.id FROM avatars a
         JOIN users u ON a.user_id = u.id
         WHERE u.telegram_user_id = ${tgId} AND a.id = ${parseInt(avatarId)}
-      `.then(rows => rows[0])
+      `.then((rows: any[]) => rows[0])
 
       if (!avatarCheck) {
         return error("AVATAR_NOT_FOUND", "Avatar not found or access denied")
@@ -354,7 +354,7 @@ export async function POST(request: NextRequest) {
       WHERE user_id = ${user.id} AND status = 'succeeded'
       ORDER BY created_at DESC
       LIMIT 1
-    `.then((rows) => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     if (!successfulPayment) {
       logger.warn("User has no successful payment", { userId: user.id, telegramUserId: tgId })
@@ -381,7 +381,7 @@ export async function POST(request: NextRequest) {
     if (isValidDbId) {
       existingAvatar = await sql`
         SELECT id FROM avatars WHERE id = ${parsedAvatarId} AND user_id = ${user.id}
-      `.then((rows) => rows[0])
+      `.then((rows: any[]) => rows[0])
     }
 
     if (existingAvatar) {
@@ -392,7 +392,7 @@ export async function POST(request: NextRequest) {
         INSERT INTO avatars (user_id, name, status)
         VALUES (${user.id}, 'My Avatar', 'processing')
         RETURNING id
-      `.then((rows) => rows[0])
+      `.then((rows: any[]) => rows[0])
       dbAvatarId = newAvatar.id
       logger.info("Created new avatar", {
         avatarId: dbAvatarId,
@@ -452,7 +452,7 @@ export async function POST(request: NextRequest) {
       INSERT INTO generation_jobs (avatar_id, style_id, status, total_photos)
       VALUES (${dbAvatarId}, ${styleId}, 'pending', ${totalPhotos})
       RETURNING *
-    `.then((rows) => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     logger.info("Generation job created", {
       jobId: job.id,
@@ -599,7 +599,7 @@ export async function GET(request: NextRequest) {
 
       job = await sql`
         SELECT * FROM generation_jobs WHERE id = ${parsedJobId}
-      `.then(rows => rows[0])
+      `.then((rows: any[]) => rows[0])
     } else {
       const parsedAvatarId = parseInt(avatarId!, 10)
       if (isNaN(parsedAvatarId)) {
@@ -624,7 +624,7 @@ export async function GET(request: NextRequest) {
         WHERE avatar_id = ${parsedAvatarId}
         ORDER BY created_at DESC
         LIMIT 1
-      `.then(rows => rows[0])
+      `.then((rows: any[]) => rows[0])
     }
 
     if (!job) {

@@ -86,6 +86,11 @@ interface TelegramWebApp {
   showScanQrPopup(params: { text?: string }, callback?: (text: string) => boolean): void
   closeScanQrPopup(): void
   readTextFromClipboard(callback?: (text: string) => void): void
+  HapticFeedback: {
+    impactOccurred(style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft'): void
+    notificationOccurred(type: 'error' | 'success' | 'warning'): void
+    selectionChanged(): void
+  }
   requestWriteAccess(callback?: (granted: boolean) => void): void
   requestContact(callback?: (granted: boolean, contact?: {
     contact: {

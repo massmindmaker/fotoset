@@ -52,7 +52,7 @@ export async function POST(request: Request) {
         // Check if already processing (which is fine) or finished
         const job = await sql`
           SELECT status FROM generation_jobs WHERE id = ${jobId}
-        `.then((rows) => rows[0])
+        `.then((rows: any[]) => rows[0])
 
         if (!job) {
           console.error("[Jobs/Process] Job not found:", jobId)
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
         SELECT id, status, completed_photos, total_photos
         FROM generation_jobs
         WHERE id = ${jobId}
-      `.then((rows) => rows[0])
+      `.then((rows: any[]) => rows[0])
 
       if (!job) {
         console.error("[Jobs/Process] Job not found:", jobId)
@@ -186,7 +186,7 @@ export async function POST(request: Request) {
       // All chunks processed - mark job as completed
       const finalJob = await sql`
         SELECT completed_photos, total_photos FROM generation_jobs WHERE id = ${jobId}
-      `.then((rows) => rows[0])
+      `.then((rows: any[]) => rows[0])
 
       const finalStatus = finalJob.completed_photos >= finalJob.total_photos * 0.5 ? "completed" : "failed"
 

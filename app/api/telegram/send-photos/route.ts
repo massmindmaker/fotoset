@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     if (!chatId && deviceId) {
       const user = await sql`
         SELECT telegram_user_id FROM users WHERE device_id = ${deviceId}
-      `.then(rows => rows[0])
+      `.then((rows: any[]) => rows[0])
 
       chatId = user?.telegram_user_id
     }

@@ -16,7 +16,7 @@ interface PaymentModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
-  telegramUserId: number  // Required (Telegram-only authentication)
+  telegramUserId?: number  // Telegram-only authentication (optional for non-Telegram context)
   tier: PricingTier
   personaId?: string  // For post-payment redirect to generation
 }

@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     // Get user by telegram_user_id
     const user = await sql`
       SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
-    `.then(rows => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     // Get balance
     const balanceResult = await sql`
       SELECT * FROM referral_balances WHERE user_id = ${userId}
-    `.then(rows => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     if (!balanceResult) {
       return NextResponse.json(
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       SELECT COALESCE(SUM(amount), 0) as total
       FROM referral_withdrawals
       WHERE user_id = ${userId} AND status IN ('pending', 'processing')
-    `.then(rows => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     const pendingAmount = Number(pendingResult?.total || 0)
     const availableBalance = balance - pendingAmount
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       (user_id, amount, ndfl_amount, payout_amount, status, payout_method, card_number, phone, recipient_name)
       VALUES (${userId}, ${amount}, ${ndflAmount}, ${payoutAmount}, 'pending', ${payoutMethod}, ${maskedCard}, ${payoutMethod === "sbp" ? phone : null}, ${recipientName.trim()})
       RETURNING id
-    `.then(rows => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     return NextResponse.json({
       success: true,
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
     // Get user by telegram_user_id
     const user = await sql`
       SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
-    `.then(rows => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })

@@ -42,7 +42,7 @@ export const AvatarIdSchema = z.union([
  * Style ID validation
  */
 export const StyleIdSchema = z.enum(["professional", "lifestyle", "creative"], {
-  errorMap: () => ({ message: "Invalid style. Must be: professional, lifestyle, or creative" }),
+  message: "Invalid style. Must be: professional, lifestyle, or creative",
 })
 
 /**

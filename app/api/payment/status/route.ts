@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
           WHERE user_id = ${user.id} 
           ORDER BY created_at DESC 
           LIMIT 1
-        `.then(rows => rows[0])
+        `.then((rows: any[]) => rows[0])
         
         if (latestPayment) {
           paymentId = latestPayment.tbank_payment_id
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     // Проверяем статус платежа в T-Bank
     try {
-      const payment = await getPaymentState(paymentId)
+      const payment = await getPaymentState(paymentId!)
 
       if (payment.Status === "CONFIRMED" || payment.Status === "AUTHORIZED") {
         // IDEMPOTENT: Only update if not already succeeded (prevents race with webhook)
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
       // Проверяем статус платежа в БД если T-Bank недоступен
       const dbPayment = await sql`
         SELECT status FROM payments WHERE tbank_payment_id = ${paymentId}
-      `.then(rows => rows[0])
+      `.then((rows: any[]) => rows[0])
 
       if (dbPayment?.status === 'succeeded') {
         return NextResponse.json({ paid: true, status: "succeeded" })

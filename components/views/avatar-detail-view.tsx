@@ -36,6 +36,7 @@ export const AvatarDetailView: React.FC<AvatarDetailViewProps> = ({
   const MIN_PHOTOS = 5
   const MAX_PHOTOS = 20
   const hasGeneratedPhotos = persona.generatedAssets.length > 0
+  const hasActiveGeneration = persona.status === "processing"
   const canGenerate = referencePhotos.length >= MIN_PHOTOS
   const progress = Math.min(100, (referencePhotos.length / MAX_PHOTOS) * 100)
 
@@ -74,7 +75,7 @@ export const AvatarDetailView: React.FC<AvatarDetailViewProps> = ({
   )
 
   const handleAction = () => {
-    if (hasGeneratedPhotos) {
+    if (hasGeneratedPhotos || hasActiveGeneration) {
       onGoToResults()
     } else if (canGenerate) {
       onStartGeneration()
@@ -82,6 +83,9 @@ export const AvatarDetailView: React.FC<AvatarDetailViewProps> = ({
   }
 
   const getButtonText = () => {
+    if (hasActiveGeneration) {
+      return "Смотреть прогресс генерации"
+    }
     if (hasGeneratedPhotos) {
       return `Смотреть результат (${persona.generatedAssets.length})`
     }
@@ -213,13 +217,17 @@ export const AvatarDetailView: React.FC<AvatarDetailViewProps> = ({
       <div className="fixed bottom-0 left-0 right-0 p-4 glass-strong border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
         <button
           onClick={handleAction}
-          disabled={!canGenerate}
+          disabled={!canGenerate && !hasActiveGeneration && !hasGeneratedPhotos}
           className="w-full sm:w-auto btn-premium disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
+          {hasActiveGeneration ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
             <Sparkles className="w-4 h-4" />
+          )}
           {getButtonText()}
         </button>
-        {!canGenerate && (
+        {!canGenerate && !hasActiveGeneration && !hasGeneratedPhotos && (
           <p className="text-xs text-center text-muted-foreground mt-2 sm:hidden">
             Нужно ещё {MIN_PHOTOS - referencePhotos.length} фото
           </p>

@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     // Find user by telegram_user_id only
     const user = await sql`
       SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
-    `.then((rows) => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     if (!user) {
       logger.info("No user found, returning empty avatars", { telegramUserId })
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     // Get total count
     const countResult = await sql`
       SELECT COUNT(*)::int as count FROM avatars WHERE user_id = ${user.id}
-    `.then((rows) => rows[0])
+    `.then((rows: any[]) => rows[0])
     const total = countResult?.count || 0
 
     // Get avatars with photo counts (generated + reference)
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
     const MAX_AVATARS = 3
     const avatarCount = await sql`
       SELECT COUNT(*)::int as count FROM avatars WHERE user_id = ${user.id}
-    `.then((rows) => rows[0]?.count || 0)
+    `.then((rows: any[]) => rows[0]?.count || 0)
 
     if (avatarCount >= MAX_AVATARS) {
       logger.warn("Avatar limit reached", { userId: user.id, count: avatarCount, limit: MAX_AVATARS })
@@ -236,7 +236,7 @@ export async function POST(request: NextRequest) {
       INSERT INTO avatars (user_id, name, status)
       VALUES (${user.id}, ${name}, 'draft')
       RETURNING id, name, status, thumbnail_url, created_at, updated_at
-    `.then((rows) => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     logger.info("Avatar created", {
       avatarId: newAvatar.id,

@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     // Get user by telegram_user_id
     const user = await sql`
       SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
-    `.then(rows => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     // Check existing code
     const existingCode = await sql`
       SELECT code, is_active FROM referral_codes WHERE user_id = ${userId}
-    `.then(rows => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     if (existingCode) {
       return NextResponse.json({
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     while (attempts < maxAttempts) {
       const duplicate = await sql`
         SELECT id FROM referral_codes WHERE code = ${code}
-      `.then(rows => rows[0])
+      `.then((rows: any[]) => rows[0])
       if (!duplicate) break
       code = generateCode()
       attempts++

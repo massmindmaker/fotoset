@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     sql`
       INSERT INTO webhook_logs (source, event_type, payload)
       VALUES ('tbank', ${notification.Status || 'unknown'}, ${JSON.stringify(notification)}::jsonb)
-    `.catch(err => log.error(" Failed to save:", err))
+    `.catch((err: unknown) => log.error(" Failed to save:", err))
 
     // Verify webhook signature
     const receivedToken = notification.Token || ""

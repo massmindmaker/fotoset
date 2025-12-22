@@ -4,23 +4,6 @@ import { Suspense, useEffect, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { XCircle, Loader2, RefreshCw, Home, AlertTriangle } from "lucide-react"
 
-// Telegram WebApp types
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp?: {
-        HapticFeedback?: {
-          notificationOccurred: (type: "error" | "success" | "warning") => void
-          impactOccurred: (style: "light" | "medium" | "heavy" | "rigid" | "soft") => void
-        }
-        close?: () => void
-        ready?: () => void
-        expand?: () => void
-      }
-    }
-  }
-}
-
 function PaymentFailContent() {
   const searchParams = useSearchParams()
   const router = useRouter()

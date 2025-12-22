@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     // Get user by telegram_user_id
     const user = await sql`
       SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
-    `.then(rows => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     // Get total count
     const countResult = await sql`
       SELECT COUNT(*) as count FROM referral_earnings WHERE referrer_id = ${userId}
-    `.then(rows => rows[0])
+    `.then((rows: any[]) => rows[0])
 
     return NextResponse.json({
       success: true,
