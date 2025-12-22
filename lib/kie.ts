@@ -67,7 +67,7 @@ export async function generateWithKie(options: KieGenerationOptions): Promise<Ki
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/nano-banana-pro",
+        model: "nano-banana-pro",
         input,
       }),
     })
@@ -108,13 +108,29 @@ export async function generateWithKie(options: KieGenerationOptions): Promise<Ki
       }
 
       const statusData = await statusResponse.json()
-      const status = statusData.data?.status || statusData.status
+      const status = statusData.data?.state || statusData.data?.status || statusData.status
 
-      if (status === "SUCCESS" || status === "COMPLETED") {
-        const outputUrl = statusData.data?.output?.url ||
-                          statusData.data?.output?.[0]?.url ||
-                          statusData.data?.url ||
-                          statusData.output?.url
+      if (status === "success" || status === "SUCCESS" || status === "COMPLETED") {
+        // Parse resultJson if it's a string
+        let outputUrl = ""
+        if (statusData.data?.resultJson) {
+          try {
+            const resultJson = typeof statusData.data.resultJson === "string"
+              ? JSON.parse(statusData.data.resultJson)
+              : statusData.data.resultJson
+            outputUrl = resultJson.resultUrls?.[0] || resultJson.url || ""
+          } catch {
+            // Fallback to other paths
+          }
+        }
+
+        // Fallback to other possible paths
+        if (!outputUrl) {
+          outputUrl = statusData.data?.output?.url ||
+                      statusData.data?.output?.[0]?.url ||
+                      statusData.data?.url ||
+                      statusData.output?.url || ""
+        }
 
         if (!outputUrl) {
           throw new Error("No output URL in completed task")
@@ -131,8 +147,8 @@ export async function generateWithKie(options: KieGenerationOptions): Promise<Ki
         }
       }
 
-      if (status === "FAILED" || status === "ERROR") {
-        const errorMsg = statusData.data?.error || statusData.error || "Unknown error"
+      if (status === "failed" || status === "FAILED" || status === "ERROR") {
+        const errorMsg = statusData.data?.failMsg || statusData.data?.error || statusData.error || "Unknown error"
         throw new Error(`Kie.ai generation failed: ${errorMsg}`)
       }
 
