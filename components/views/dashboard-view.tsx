@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { Plus, X, User, ChevronRight, Zap, Shield, Star } from "lucide-react"
+import { Plus, X, ChevronRight, Zap, Shield, Star } from "lucide-react"
 import Link from "next/link"
 import type { Persona, PricingTier } from "./types"
 
@@ -113,20 +113,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate
             onClick={() => onSelect(persona.id)}
             className="aspect-[4/5] card-premium overflow-hidden relative cursor-pointer group hover-lift active-press"
           >
-            {persona.thumbnailUrl ? (
-              <img
-                src={persona.thumbnailUrl}
-                alt={persona.name}
-                className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500"
-                loading="lazy"
-              />
-            ) : (
-              <div className="w-full h-full bg-muted flex flex-col items-center justify-center p-4 text-center">
-                <div className="w-14 h-14 rounded-full bg-background mb-3 flex items-center justify-center">
-                  <User className="w-7 h-7 text-muted-foreground" />
-                </div>
-              </div>
-            )}
+            <img
+              src={persona.thumbnailUrl || "/placeholder-user.jpg"}
+              alt={persona.name}
+              className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500"
+              loading="lazy"
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent p-3 flex flex-col justify-end">
               <h3 className="text-sm font-semibold text-white truncate">{persona.name}</h3>
               <div className="flex items-center gap-1.5 mt-1">
