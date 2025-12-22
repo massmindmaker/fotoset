@@ -5,11 +5,10 @@ import { findOrCreateUser } from "@/lib/user-identity"
 import { paymentLogger as log } from "@/lib/logger"
 
 // Pricing tiers matching frontend (components/views/dashboard-view.tsx)
-// TODO: Restore original values after testing (7, 15, 23)
 const TIER_PRICES: Record<string, { price: number; photos: number }> = {
-  starter: { price: 499, photos: 3 },    // Original: 7
-  standard: { price: 999, photos: 3 },   // Original: 15
-  premium: { price: 1499, photos: 3 },   // Original: 23
+  starter: { price: 499, photos: 7 },
+  standard: { price: 999, photos: 15 },
+  premium: { price: 1499, photos: 23 },
 }
 
 export async function POST(request: NextRequest) {

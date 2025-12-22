@@ -60,10 +60,15 @@ export interface Receipt {
 
 // Generate token for T-Bank API requests
 function generateToken(params: Record<string, string | number>): string {
+  // SECURITY: Require password - never use fallback
+  if (!TBANK_PASSWORD) {
+    throw new Error("TBANK_PASSWORD not configured - cannot generate payment token")
+  }
+
   // Создаем объект с паролем
   const values: Record<string, string | number> = {
     ...params,
-    Password: TBANK_PASSWORD || "test_password",
+    Password: TBANK_PASSWORD,
   }
 
   // Сортируем ключи и создаем строку для подписи
@@ -201,17 +206,12 @@ export async function getPaymentState(paymentId: string): Promise<TBankPayment> 
 }
 
 export function verifyWebhookSignature(notification: Record<string, unknown>, receivedToken: string): boolean {
-  // SECURITY: ALWAYS verify signature in production, regardless of test mode
-  const isProduction = process.env.NODE_ENV === 'production'
-
-  if (!isProduction && process.env.NODE_ENV === 'development' && IS_TEST_MODE) {
-    // Only skip in EXPLICIT development mode AND test mode
-    log.warn("Skipping webhook signature verification (dev only + test mode)")
-    return true
+  // SECURITY: ALWAYS verify signature - no bypasses allowed
+  // If TBANK_PASSWORD is not configured, reject all webhooks
+  if (!TBANK_PASSWORD) {
+    log.error("Cannot verify webhook: TBANK_PASSWORD not configured")
+    return false
   }
-
-  // For production OR any non-development environment: ALWAYS verify
-  // This ensures security even if someone accidentally deploys with test key
 
   // Создаем копию уведомления без токена
   const params: Record<string, string | number> = {}
