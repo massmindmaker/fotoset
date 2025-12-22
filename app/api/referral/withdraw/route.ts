@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
+import { validateLuhn } from "@/lib/validation"
 
 const MIN_WITHDRAWAL = 5000
 const NDFL_RATE = 0.13
@@ -31,12 +32,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate card number format
+    // Validate card number with Luhn algorithm
     if (payoutMethod === "card") {
       const cleanCard = cardNumber.replace(/\s/g, "")
       if (!/^\d{16,19}$/.test(cleanCard)) {
         return NextResponse.json(
           { error: "Invalid card number format" },
+          { status: 400 }
+        )
+      }
+      if (!validateLuhn(cleanCard)) {
+        return NextResponse.json(
+          { error: "Неверный номер карты", code: "INVALID_CARD" },
           { status: 400 }
         )
       }
@@ -53,65 +60,88 @@ export async function POST(request: NextRequest) {
 
     const userId = user.id
 
-    // Get balance
-    const balanceResult = await sql`
-      SELECT * FROM referral_balances WHERE user_id = ${userId}
-    `.then((rows: any[]) => rows[0])
+    // Mask card number for storage (keep last 4 digits)
+    const maskedCard = payoutMethod === "card"
+      ? "**** **** **** " + cardNumber.replace(/\s/g, "").slice(-4)
+      : null
 
-    if (!balanceResult) {
-      return NextResponse.json(
-        { error: "No referral balance found" },
-        { status: 400 }
+    const phoneValue = payoutMethod === "sbp" ? phone : null
+
+    // ATOMIC OPERATION: Calculate available balance, create withdrawal, and update balance in one query
+    // This prevents race conditions where two withdrawals could be created simultaneously
+    const result = await sql`
+      WITH available AS (
+        SELECT
+          rb.balance - COALESCE(pending.total, 0) as available_amount,
+          rb.user_id,
+          rb.balance
+        FROM referral_balances rb
+        LEFT JOIN (
+          SELECT user_id, SUM(amount) as total
+          FROM referral_withdrawals
+          WHERE status IN ('pending', 'processing')
+          GROUP BY user_id
+        ) pending ON pending.user_id = rb.user_id
+        WHERE rb.user_id = ${userId}
+      ),
+      create_withdrawal AS (
+        INSERT INTO referral_withdrawals
+        (user_id, amount, ndfl_amount, payout_amount, status, payout_method, card_number, phone, recipient_name)
+        SELECT
+          ${userId},
+          available_amount,
+          ROUND(available_amount * ${NDFL_RATE}, 2),
+          ROUND(available_amount * ${1 - NDFL_RATE}, 2),
+          'pending',
+          ${payoutMethod},
+          ${maskedCard},
+          ${phoneValue},
+          ${recipientName.trim()}
+        FROM available
+        WHERE available_amount >= ${MIN_WITHDRAWAL}
+        RETURNING id, amount, ndfl_amount, payout_amount
       )
-    }
+      SELECT * FROM create_withdrawal
+    `
 
-    const balance = Number(balanceResult.balance)
+    if (result.length === 0) {
+      // Get current balance for error message
+      const balanceInfo = await sql`
+        SELECT
+          rb.balance,
+          COALESCE(pending.total, 0) as pending
+        FROM referral_balances rb
+        LEFT JOIN (
+          SELECT user_id, SUM(amount) as total
+          FROM referral_withdrawals
+          WHERE user_id = ${userId} AND status IN ('pending', 'processing')
+          GROUP BY user_id
+        ) pending ON pending.user_id = rb.user_id
+        WHERE rb.user_id = ${userId}
+      `.then((rows: any[]) => rows[0])
 
-    // Check pending withdrawals
-    const pendingResult = await sql`
-      SELECT COALESCE(SUM(amount), 0) as total
-      FROM referral_withdrawals
-      WHERE user_id = ${userId} AND status IN ('pending', 'processing')
-    `.then((rows: any[]) => rows[0])
+      const available = balanceInfo
+        ? Number(balanceInfo.balance) - Number(balanceInfo.pending)
+        : 0
 
-    const pendingAmount = Number(pendingResult?.total || 0)
-    const availableBalance = balance - pendingAmount
-
-    if (availableBalance < MIN_WITHDRAWAL) {
       return NextResponse.json(
         {
-          error: `Minimum withdrawal is ${MIN_WITHDRAWAL} RUB. Available: ${availableBalance} RUB`,
+          error: `Минимальная сумма для вывода ${MIN_WITHDRAWAL} ₽. Доступно: ${available.toFixed(2)} ₽`,
           code: "INSUFFICIENT_BALANCE",
         },
         { status: 400 }
       )
     }
 
-    // Calculate amounts
-    const amount = availableBalance
-    const ndflAmount = Math.round(amount * NDFL_RATE * 100) / 100
-    const payoutAmount = amount - ndflAmount
-
-    // Mask card number for storage (keep last 4 digits)
-    const maskedCard = payoutMethod === "card"
-      ? "**** **** **** " + cardNumber.replace(/\s/g, "").slice(-4)
-      : null
-
-    // Create withdrawal request
-    const insertResult = await sql`
-      INSERT INTO referral_withdrawals
-      (user_id, amount, ndfl_amount, payout_amount, status, payout_method, card_number, phone, recipient_name)
-      VALUES (${userId}, ${amount}, ${ndflAmount}, ${payoutAmount}, 'pending', ${payoutMethod}, ${maskedCard}, ${payoutMethod === "sbp" ? phone : null}, ${recipientName.trim()})
-      RETURNING id
-    `.then((rows: any[]) => rows[0])
+    const withdrawal = result[0]
 
     return NextResponse.json({
       success: true,
-      withdrawalId: insertResult.id,
-      amount,
-      ndflAmount,
-      payoutAmount,
-      message: "Withdrawal request created. Processing within 3 business days.",
+      withdrawalId: withdrawal.id,
+      amount: Number(withdrawal.amount),
+      ndflAmount: Number(withdrawal.ndfl_amount),
+      payoutAmount: Number(withdrawal.payout_amount),
+      message: "Заявка на вывод создана. Обработка в течение 3 рабочих дней.",
     })
   } catch (error) {
     console.error("[Referral] Withdrawal error:", error)

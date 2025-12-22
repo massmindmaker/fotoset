@@ -170,20 +170,11 @@ async function applyReferralCode(userId: number, code: string) {
     const referrerId = codeResult.rows[0].user_id
     if (referrerId === userId) return // Can't refer yourself
 
-    // Create referral
+    // Create referral link
+    // NOTE: referrals_count is updated in webhook when FIRST payment is made
     await query(
       "INSERT INTO referrals (referrer_id, referred_id, referral_code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
       [referrerId, userId, code.toUpperCase()]
-    )
-
-    // Update referrer count
-    await query(
-      `INSERT INTO referral_balances (user_id, referrals_count)
-       VALUES ($1, 1)
-       ON CONFLICT (user_id) DO UPDATE SET
-         referrals_count = referral_balances.referrals_count + 1,
-         updated_at = NOW()`,
-      [referrerId]
     )
 
     log.info(`Applied referral code ${code} for user ${userId}, referrer: ${referrerId}`)

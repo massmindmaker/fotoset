@@ -54,7 +54,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate
         </button>
         <div>
           <h3 className="text-sm font-medium text-muted-foreground mb-3">Тарифы</h3>
-          <div className="grid grid-cols-3 gap-3 px-0.5">
+          <div className="grid grid-cols-3 gap-3 px-1">
             {PRICING_TIERS.map((tier) => (
               <div
                 key={tier.id}
@@ -79,7 +79,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 px-0.5">
+        <div className="grid grid-cols-2 gap-3 px-1">
           <div className="p-4 card-premium hover-lift">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 transition-all group hover:bg-primary/20 hover-glow">
               <Zap className="w-5 h-5 text-primary transition-transform group-hover:scale-110" />
@@ -97,7 +97,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate
         </div>
       </div>
     ) : (
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 px-0.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 px-1">
         <button
           onClick={onCreate}
           className="aspect-[4/5] rounded-2xl border-2 border-dashed border-border hover:border-primary/50 active:border-primary/60 hover:bg-muted/50 active:bg-muted/70 transition-all flex flex-col items-center justify-center gap-2 sm:gap-3 group touch-manipulation hover-lift active-press"

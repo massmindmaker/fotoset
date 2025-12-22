@@ -71,18 +71,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Create referral link
+    // NOTE: referrals_count is updated in webhook when FIRST payment is made
     await query(
       `INSERT INTO referrals (referrer_id, referred_id, referral_code)
        VALUES ($1, $2, $3)`,
       [referrerId, referredId, code]
-    )
-
-    // Update referrer's count
-    await query(
-      `UPDATE referral_balances
-       SET referrals_count = referrals_count + 1, updated_at = NOW()
-       WHERE user_id = $1`,
-      [referrerId]
     )
 
     return NextResponse.json({

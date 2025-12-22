@@ -98,6 +98,24 @@ export async function initPayment(
 
   const amountInKopeks = Math.round(amount * 100)
 
+  // DIAGNOSTIC: Log configuration state for error 501 debugging
+  log.debug("Init payment - config check", {
+    terminalKeySet: !!TBANK_TERMINAL_KEY,
+    terminalKeyLength: TBANK_TERMINAL_KEY?.length,
+    terminalKeyPrefix: TBANK_TERMINAL_KEY?.substring(0, 8),
+    passwordSet: !!TBANK_PASSWORD,
+    passwordLength: TBANK_PASSWORD?.length,
+    testMode: IS_TEST_MODE,
+    orderId,
+    amount,
+    amountInKopeks: Math.round(amount * 100),
+  })
+
+  // Validate TerminalKey is not undefined/empty
+  if (!TBANK_TERMINAL_KEY || TBANK_TERMINAL_KEY === "undefined" || TBANK_TERMINAL_KEY.trim() === "") {
+    throw new Error("TBANK_TERMINAL_KEY is invalid or empty - check Vercel environment variables")
+  }
+
   log.debug("Calling API", { testMode: IS_TEST_MODE, orderId, amount })
 
   // Все параметры для Token (кроме Receipt, DATA, Token)

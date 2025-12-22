@@ -555,12 +555,16 @@ export default function PersonaApp() {
         }),
       })
 
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || "Failed to create avatar")
-      }
-
       const data = await res.json()
+
+      if (!res.ok) {
+        // Handle LIMIT_REACHED with user-friendly message
+        if (data.error?.code === "LIMIT_REACHED") {
+          showMessage("Достигнут лимит аватаров (3). Удалите существующий аватар.")
+          return
+        }
+        throw new Error(data.error?.message || "Не удалось создать аватар")
+      }
       const dbId = String(data.data?.id || data.id)
 
       // Create local persona with DB ID
@@ -583,10 +587,14 @@ export default function PersonaApp() {
   const handleDeletePersona = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation()
 
-    const performDelete = () => {
-      deletePersona(id)
-      if ("personaId" in viewState && viewState.personaId === id) {
-        setViewState({ view: "DASHBOARD" })
+    const performDelete = async () => {
+      const success = await deletePersona(id, telegramUserId)
+      if (success) {
+        if ("personaId" in viewState && viewState.personaId === id) {
+          setViewState({ view: "DASHBOARD" })
+        }
+      } else {
+        showMessage("Не удалось удалить аватар")
       }
     }
 
@@ -604,7 +612,7 @@ export default function PersonaApp() {
         performDelete()
       }
     }
-  }, [deletePersona, viewState])
+  }, [deletePersona, viewState, telegramUserId, showMessage])
 
   // Load reference photos for Avatar Detail View
   const loadReferencePhotos = useCallback(async (avatarId: string) => {
@@ -969,7 +977,7 @@ export default function PersonaApp() {
       ) : (
         <>
           <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-black/5 safe-area-inset-top">
-            <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between safe-area-inset-x">
+            <div className="max-w-5xl mx-auto px-7 py-3 flex items-center justify-between safe-area-inset-x">
               <div className="flex items-center gap-2">
                 <Suspense fallback={<div className="w-10 h-10" />}>
                   <AnimatedLogoCompact
@@ -1005,7 +1013,7 @@ export default function PersonaApp() {
               </div>
             </div>
           </header>
-          <main className="max-w-5xl mx-auto px-6 py-6 safe-area-inset-x">
+          <main className="max-w-5xl mx-auto px-7 py-6 safe-area-inset-x">
             {viewState.view === "DASHBOARD" && (
               <DashboardView
                 personas={personas}

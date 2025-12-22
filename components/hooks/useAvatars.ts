@@ -84,9 +84,32 @@ export function useAvatars() {
     setPersonas((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)))
   }, [])
 
-  // Delete persona
-  const deletePersona = useCallback((id: string) => {
-    setPersonas((prev) => prev.filter((p) => p.id !== id))
+  // Delete persona - calls API and removes from state
+  const deletePersona = useCallback(async (id: string, telegramUserId?: number): Promise<boolean> => {
+    // Skip API for temp IDs (not yet saved to DB)
+    if (id.startsWith("temp_")) {
+      setPersonas((prev) => prev.filter((p) => p.id !== id))
+      return true
+    }
+
+    try {
+      const url = telegramUserId
+        ? `/api/avatars/${id}?telegram_user_id=${telegramUserId}`
+        : `/api/avatars/${id}`
+
+      const res = await fetch(url, { method: "DELETE" })
+
+      if (!res.ok) {
+        console.error("[Avatars] Delete failed:", res.status)
+        return false
+      }
+
+      setPersonas((prev) => prev.filter((p) => p.id !== id))
+      return true
+    } catch (err) {
+      console.error("[Avatars] Delete error:", err)
+      return false
+    }
   }, [])
 
   // Get persona by ID
