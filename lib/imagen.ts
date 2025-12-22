@@ -1,12 +1,14 @@
-// Image Generation API - Replicate Provider
-// Primary provider: Replicate (Flux-PuLID, Nano-Banana-Pro)
+// Image Generation API - Multi-Provider
+// Priority: 1) Kie.ai (Nano Banana Pro) 2) Replicate (fallback)
 
+import { generateWithKie, isKieConfigured } from "./kie"
 import { generatePortrait as replicateGeneratePortrait } from "./replicate/index"
 import { prepareImageForApi as prepareImageForReplicate } from "./replicate/utils/image-processor"
 import type { GenerationOptions as ReplicateOptions, GenerationResult as ReplicateResult } from "./replicate/types"
 
 // Re-export for external use
 export { testConnections } from "./replicate/index"
+export { testKieConnection, isKieConfigured } from "./kie"
 
 export interface GenerationOptions {
   prompt: string
@@ -24,7 +26,28 @@ export interface GenerationResult {
   provider?: string
 }
 
-// ============ REPLICATE PROVIDER (Primary) ============
+// ============ KIE.AI PROVIDER (Primary) ============
+
+async function generateWithKieProvider(options: GenerationOptions): Promise<string> {
+  const { prompt, referenceImages, seed } = options
+
+  const result = await generateWithKie({
+    prompt,
+    referenceImages,
+    aspectRatio: "3:4", // Portrait
+    resolution: "2K",
+    outputFormat: "jpg",
+    seed,
+  })
+
+  if (!result.success) {
+    throw new Error(result.error || "Kie.ai generation failed")
+  }
+
+  return result.url
+}
+
+// ============ REPLICATE PROVIDER (Fallback) ============
 
 async function generateWithReplicate(options: GenerationOptions): Promise<string> {
   const { prompt, referenceImages, seed } = options
@@ -71,20 +94,39 @@ async function generateWithReplicate(options: GenerationOptions): Promise<string
 // ============ UNIFIED GENERATION FUNCTION ============
 
 /**
- * Generate a single image using Replicate provider
+ * Generate a single image
+ * Priority: 1) Kie.ai (Nano Banana Pro) 2) Replicate (fallback)
  */
 export async function generateImage(options: GenerationOptions): Promise<string> {
-  console.log(`[Image Gen] Starting generation with Replicate...`)
-
-  try {
-    const result = await generateWithReplicate(options)
-    console.log(`[Image Gen] Success with Replicate`)
-    return result
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : "Unknown error"
-    console.error(`[Image Gen] Replicate failed:`, errorMsg)
-    throw new Error(`Generation failed: ${errorMsg}`)
+  // Try Kie.ai first (primary provider)
+  if (isKieConfigured()) {
+    console.log(`[Image Gen] Starting generation with Kie.ai (Nano Banana Pro)...`)
+    try {
+      const result = await generateWithKieProvider(options)
+      console.log(`[Image Gen] Success with Kie.ai`)
+      return result
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Unknown error"
+      console.error(`[Image Gen] Kie.ai failed:`, errorMsg)
+      // Fall through to Replicate
+    }
   }
+
+  // Fallback to Replicate
+  if (process.env.REPLICATE_API_TOKEN) {
+    console.log(`[Image Gen] Falling back to Replicate...`)
+    try {
+      const result = await generateWithReplicate(options)
+      console.log(`[Image Gen] Success with Replicate (fallback)`)
+      return result
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Unknown error"
+      console.error(`[Image Gen] Replicate failed:`, errorMsg)
+      throw new Error(`Generation failed: ${errorMsg}`)
+    }
+  }
+
+  throw new Error("No image generation provider configured (need KIE_API_KEY or REPLICATE_API_TOKEN)")
 }
 
 /**
@@ -113,8 +155,9 @@ export async function generateMultipleImages(
   const results: GenerationResult[] = new Array(prompts.length)
   const failedIndices: number[] = []
 
+  const activeProvider = isKieConfigured() ? "Kie.ai" : process.env.REPLICATE_API_TOKEN ? "Replicate" : "None"
   console.log(`[Image Gen] Starting batch: ${prompts.length} images, concurrency: ${concurrency}, maxRetries: ${maxRetries}`)
-  console.log(`[Image Gen] Active provider: Replicate`)
+  console.log(`[Image Gen] Active provider: ${activeProvider}`)
 
   // First pass: generate all images
   for (let i = 0; i < prompts.length; i += concurrency) {
@@ -142,7 +185,7 @@ export async function generateMultipleImages(
         results[globalIndex] = {
           url: result.value,
           success: true,
-          provider: "Replicate",
+          provider: activeProvider,
         }
         console.log(`[Image Gen] Image ${globalIndex + 1}/${prompts.length}`)
       } else {
@@ -195,7 +238,7 @@ export async function generateMultipleImages(
           results[originalIndex] = {
             url: result.value,
             success: true,
-            provider: "Replicate",
+            provider: activeProvider,
           }
           console.log(`[Image Gen] Retry success for image ${originalIndex + 1}`)
         } else {
@@ -233,12 +276,18 @@ export function getProviderInfo(): {
   available: string[]
   pricing: Record<string, number>
 } {
+  const hasKie = isKieConfigured()
   const hasReplicate = !!process.env.REPLICATE_API_TOKEN
 
+  const available: string[] = []
+  if (hasKie) available.push("kie")
+  if (hasReplicate) available.push("replicate")
+
   return {
-    active: hasReplicate ? "Replicate" : null,
-    available: hasReplicate ? ["replicate"] : [],
+    active: hasKie ? "Kie.ai" : hasReplicate ? "Replicate" : null,
+    available,
     pricing: {
+      kie: 0.03, // Approximate per image
       replicate: 0.05,
     },
   }
