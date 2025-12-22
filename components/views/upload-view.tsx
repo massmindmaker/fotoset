@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useRef } from "react"
-import { ArrowLeft, ArrowRight, Camera, Plus, X } from "lucide-react"
+import { ArrowLeft, Camera, Plus, Sparkles, X } from "lucide-react"
 import type { Persona } from "./types"
 
 export interface UploadViewProps {
@@ -107,7 +107,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3 px-0.5">
         <button
           onClick={() => fileInputRef.current?.click()}
           className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 active:border-primary/60 hover:bg-muted/50 active:bg-muted/70 transition-all flex flex-col items-center justify-center gap-1.5 group touch-manipulation min-h-[80px] hover-lift active-press"
@@ -144,8 +144,8 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
           disabled={!isReady}
           className="w-full sm:w-auto btn-premium disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          Далее
-          <ArrowRight className="w-4 h-4" />
+          <Sparkles className="w-4 h-4" />
+          Сгенерировать фото
         </button>
         {!isReady && (
           <p className="text-xs text-center text-muted-foreground mt-2 sm:hidden">

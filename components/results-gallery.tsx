@@ -631,8 +631,12 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3 p-4 bg-card border border-border rounded-2xl">
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary flex-shrink-0">
-            <img src={thumbnailUrl || assets[0]?.url} alt={personaName} className="w-full h-full object-cover" loading="lazy" />
+          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary flex-shrink-0 bg-muted flex items-center justify-center">
+            {thumbnailUrl || assets[0]?.url ? (
+              <img src={thumbnailUrl || assets[0]?.url} alt={personaName} className="w-full h-full object-cover" loading="lazy" />
+            ) : (
+              <span className="text-lg font-semibold text-muted-foreground">{personaName.charAt(0).toUpperCase()}</span>
+            )}
           </div>
           <div className="min-w-0">
             <h3 className="font-semibold truncate">{personaName}</h3>
@@ -731,7 +735,7 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
       )}
 
       {/* Photo grid with memoized cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 px-0.5">
         {assets.map((asset, index) => (
           <AssetCard
             key={asset.id}

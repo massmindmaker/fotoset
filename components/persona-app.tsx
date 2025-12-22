@@ -166,6 +166,13 @@ export default function PersonaApp() {
         if (resumePayment) {
           window.history.replaceState({}, "", window.location.pathname)
 
+          // Restore saved view state for proper redirect after payment
+          const savedViewState = loadViewState()
+          console.log("[Resume Payment] Saved viewState:", savedViewState)
+
+          // Always mark onboarding as complete after payment
+          localStorage.setItem("pinglass_onboarding_complete", "true")
+
           try {
             const tgId = userIdentifier.telegramUserId || (urlTelegramUserId ? parseInt(urlTelegramUserId) : null)
 
@@ -173,7 +180,12 @@ export default function PersonaApp() {
               console.error("[Resume Payment] No valid Telegram user ID")
               showMessage("Ошибка аутентификации. Пожалуйста, перезапустите приложение в Telegram.")
               if (!checkMounted()) return
-              setViewState({ view: "DASHBOARD" })
+              // Use saved view state or fallback to dashboard (not onboarding)
+              if (savedViewState && savedViewState.view !== "ONBOARDING") {
+                setViewState(savedViewState)
+              } else {
+                setViewState({ view: "DASHBOARD" })
+              }
               setIsReady(true)
               return
             }
@@ -219,11 +231,17 @@ export default function PersonaApp() {
             }
 
             if (!targetPersona) {
-              console.log("[Resume Payment] No avatars found after payment, showing dashboard")
+              console.log("[Resume Payment] No avatars found after payment")
               showMessage("Оплата прошла успешно! Создайте аватар и загрузите фото.")
-              localStorage.setItem("pinglass_onboarding_complete", "true")
               if (!checkMounted()) return
-              setViewState({ view: "DASHBOARD" })
+              setPersonas(loadedAvatars)
+              // Use saved view state if available, otherwise dashboard (never onboarding)
+              if (savedViewState && savedViewState.view !== "ONBOARDING") {
+                console.log("[Resume Payment] Restoring saved view:", savedViewState.view)
+                setViewState(savedViewState)
+              } else {
+                setViewState({ view: "DASHBOARD" })
+              }
               setIsReady(true)
               return
             }
@@ -367,7 +385,12 @@ export default function PersonaApp() {
             console.error("[Resume Payment] Error:", e)
             if (!checkMounted()) return
             setPersonas(loadedAvatars)
-            setViewState({ view: loadedAvatars.length > 0 ? "DASHBOARD" : "ONBOARDING" })
+            // Use saved view state or fallback to dashboard (never onboarding after payment)
+            if (savedViewState && savedViewState.view !== "ONBOARDING") {
+              setViewState(savedViewState)
+            } else {
+              setViewState({ view: "DASHBOARD" })
+            }
             setIsReady(true)
             return
           }
@@ -1037,6 +1060,7 @@ export default function PersonaApp() {
                   onAddPhotos={handleAddPhotos}
                   onDeletePhoto={handleDeleteReferencePhoto}
                   onStartGeneration={() => setViewState({ view: "SELECT_TIER", personaId: viewState.personaId })}
+                  onUpdateName={(name) => updatePersona(viewState.personaId, { name })}
                   isLoading={isLoadingReferences}
                   telegramUserId={telegramUserId}
                 />
