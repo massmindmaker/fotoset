@@ -1,8 +1,31 @@
 // Kie.ai Nano Banana Pro Provider
 // Primary provider for image generation using Google Gemini 3.0 Pro Image
 
+import { uploadBase64Image, isR2Configured, getPublicUrl } from "./r2"
+
 const KIE_API_URL = "https://api.kie.ai/api/v1/jobs/createTask"
 const KIE_STATUS_URL = "https://api.kie.ai/api/v1/jobs/recordInfo"
+
+/**
+ * Convert base64 data URI to a public URL by uploading to R2
+ * Kie.ai requires URLs, not base64 data URIs
+ */
+async function convertBase64ToUrl(base64DataUri: string, index: number): Promise<string> {
+  // If already a URL (not base64), return as-is
+  if (!base64DataUri.startsWith("data:")) {
+    return base64DataUri
+  }
+
+  // Upload to R2 and get public URL
+  if (!isR2Configured()) {
+    console.warn("[Kie.ai] R2 not configured, cannot convert base64 to URL")
+    throw new Error("R2 storage required for base64 image conversion")
+  }
+
+  const key = `kie-temp/ref-${Date.now()}-${index}.jpg`
+  await uploadBase64Image(base64DataUri, key)
+  return getPublicUrl(key)
+}
 
 export interface KieGenerationOptions {
   prompt: string
@@ -51,8 +74,14 @@ export async function generateWithKie(options: KieGenerationOptions): Promise<Ki
     }
 
     // Add reference images if provided (Nano Banana Pro supports up to 14)
+    // Kie.ai requires URLs, not base64 data URIs - convert if needed
     if (options.referenceImages && options.referenceImages.length > 0) {
-      input.image_input = options.referenceImages.slice(0, 14)
+      const refs = options.referenceImages.slice(0, 14)
+      const convertedRefs = await Promise.all(
+        refs.map((ref, i) => convertBase64ToUrl(ref, i))
+      )
+      console.log(`[Kie.ai] Converted ${convertedRefs.length} reference images to URLs`)
+      input.image_input = convertedRefs
     }
 
     if (options.seed) {
