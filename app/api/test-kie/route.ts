@@ -30,19 +30,7 @@ export async function GET() {
       })
     }
 
-    // Test connection first
-    console.log("[Test-Kie] Testing connection...")
-    const connectionTest = await testKieConnection()
-    console.log("[Test-Kie] Connection result:", connectionTest)
-
-    if (!connectionTest.success) {
-      return NextResponse.json({
-        success: false,
-        error: `Connection test failed: ${connectionTest.message}`,
-        connectionTest,
-      })
-    }
-
+    // Skip connection test (uses deprecated endpoint), go straight to generation
     // Try a simple generation
     console.log("[Test-Kie] Starting test generation...")
     const result = await generateWithKie({
