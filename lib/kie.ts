@@ -32,7 +32,7 @@ export function isKieConfigured(): boolean {
  * Generate image using Kie.ai Nano Banana Pro API
  */
 export async function generateWithKie(options: KieGenerationOptions): Promise<KieGenerationResult> {
-  const apiKey = process.env.KIE_API_KEY
+  const apiKey = process.env.KIE_API_KEY?.trim()
 
   if (!apiKey) {
     throw new Error("KIE_API_KEY not configured")
