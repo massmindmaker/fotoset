@@ -30,6 +30,17 @@ export async function POST(request: Request) {
 
   const { jobId, avatarId, telegramUserId, styleId, photoCount, referenceImages, startIndex, chunkSize } = payload
 
+  // Debug: Log environment variables for Kie.ai
+  const kieAiKey = process.env.KIE_AI_API_KEY?.trim()
+  const kieKey = process.env.KIE_API_KEY?.trim()
+  const replicateKey = process.env.REPLICATE_API_TOKEN?.trim()
+  console.log("[Jobs/Process] ENV CHECK:", {
+    KIE_AI_API_KEY_length: kieAiKey?.length || 0,
+    KIE_AI_API_KEY_first5: kieAiKey?.substring(0, 5) || "NOT_SET",
+    KIE_API_KEY_length: kieKey?.length || 0,
+    REPLICATE_length: replicateKey?.length || 0,
+  })
+
   console.log("[Jobs/Process] Processing chunk:", {
     jobId,
     avatarId,
