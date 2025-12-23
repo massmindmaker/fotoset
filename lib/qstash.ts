@@ -59,8 +59,8 @@ export async function publishGenerationJob(
       url: `${baseUrl}/api/jobs/process`,
       body: payload,
       retries: 3,
-      // Set timeout to 5 minutes per chunk
-      timeout: "5m",
+      // Set timeout to 10 minutes per chunk (Kie.ai can take 5+ min per image)
+      timeout: "10m",
     })
 
     log.debug("Job published", { messageId: result.messageId, jobId: payload.jobId })

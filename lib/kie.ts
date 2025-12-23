@@ -86,9 +86,10 @@ export async function generateWithKie(options: KieGenerationOptions): Promise<Ki
 
     console.log(`[Kie.ai] Task created: ${taskId}`)
 
-    // Poll for result (max 3 minutes with error tolerance)
-    const maxWaitTime = 180000  // 3 minutes for complex generations
-    const pollInterval = 2000
+    // Poll for result (max 6 minutes with error tolerance)
+    // Kie.ai can take 3-5 minutes for complex generations
+    const maxWaitTime = 360000  // 6 minutes to be safe
+    const pollInterval = 3000   // Poll every 3 seconds to reduce API load
     let elapsed = 0
     let consecutiveErrors = 0
     const MAX_CONSECUTIVE_ERRORS = 5  // Allow some network hiccups
@@ -164,7 +165,7 @@ export async function generateWithKie(options: KieGenerationOptions): Promise<Ki
       console.log(`[Kie.ai] Status: ${status}, elapsed: ${elapsed}ms`)
     }
 
-    throw new Error("Kie.ai generation timeout (2 minutes)")
+    throw new Error("Kie.ai generation timeout (6 minutes)")
 
   } catch (error) {
     const latencyMs = Date.now() - startTime
