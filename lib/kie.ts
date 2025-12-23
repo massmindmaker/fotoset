@@ -80,10 +80,11 @@ export async function generateWithKie(options: KieGenerationOptions): Promise<Ki
     }
 
     const createData = await createResponse.json()
+    console.log(`[Kie.ai] Create response:`, JSON.stringify(createData).substring(0, 500))
     const taskId = createData.data?.taskId || createData.taskId
 
     if (!taskId) {
-      throw new Error("No taskId returned from Kie.ai")
+      throw new Error(`No taskId returned from Kie.ai. Response: ${JSON.stringify(createData).substring(0, 300)}`)
     }
 
     console.log(`[Kie.ai] Task created: ${taskId}`)
