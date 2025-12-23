@@ -128,6 +128,32 @@ export default function PersonaApp() {
     return "personaId" in viewState ? getPersona(viewState.personaId) : null
   }, [viewState, getPersona])
 
+  // CRITICAL FIX: Capture payment redirect params IMMEDIATELY on mount
+  // This runs BEFORE auth check to prevent race condition where:
+  // 1. T-Bank redirects with ?resume_payment=true
+  // 2. Auth is still pending (Telegram SDK takes 0-2 sec)
+  // 3. Main initApp skips because authStatus === 'pending'
+  // 4. sessionStorage never gets set, onboarding shows instead
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const urlParams = new URLSearchParams(window.location.search)
+    const resumePayment = urlParams.get("resume_payment") === "true"
+    const urlTelegramUserId = urlParams.get("telegram_user_id")
+    const urlTier = urlParams.get("tier")
+
+    if (resumePayment) {
+      console.log("[Payment] EARLY CAPTURE: Saving URL params to sessionStorage BEFORE auth check")
+      sessionStorage.setItem("pinglass_resume_payment", "true")
+      localStorage.setItem("pinglass_onboarding_complete", "true") // Never show onboarding after payment
+      if (urlTier) sessionStorage.setItem("pinglass_tier", urlTier)
+      if (urlTelegramUserId) sessionStorage.setItem("pinglass_telegram_user_id", urlTelegramUserId)
+
+      // Clean URL immediately to prevent duplicate processing
+      window.history.replaceState({}, "", window.location.pathname)
+    }
+  }, []) // Empty deps = runs once on mount, BEFORE auth-dependent effects
+
   // Initialize app
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -170,28 +196,14 @@ export default function PersonaApp() {
         })
 
         // Check for pending payment after redirect from T-Bank
-        const urlParams = new URLSearchParams(window.location.search)
-        const resumePaymentFromUrl = urlParams.get("resume_payment") === "true"
-        const urlTelegramUserId = urlParams.get("telegram_user_id")
-        const urlTier = urlParams.get("tier") || "premium"
-
-        // CRITICAL FIX: Save URL params to sessionStorage BEFORE replaceState
-        // This prevents race conditions where params are lost before being processed
-        if (resumePaymentFromUrl) {
-          sessionStorage.setItem("pinglass_resume_payment", "true")
-          if (urlTier) sessionStorage.setItem("pinglass_tier", urlTier)
-          if (urlTelegramUserId) sessionStorage.setItem("pinglass_telegram_user_id", urlTelegramUserId)
-          console.log("[Payment] Saved to sessionStorage:", { resumePaymentFromUrl, urlTier, urlTelegramUserId })
-        }
-
-        // Now read from sessionStorage (survives page reload)
-        const resumePayment = sessionStorage.getItem("pinglass_resume_payment") === "true" || resumePaymentFromUrl
-        const savedTier = sessionStorage.getItem("pinglass_tier") || urlTier
-        const savedTelegramUserId = sessionStorage.getItem("pinglass_telegram_user_id") || urlTelegramUserId
+        // NOTE: URL params already captured by early mount effect (lines 131-155)
+        // Just read from sessionStorage which was set BEFORE auth check
+        const resumePayment = sessionStorage.getItem("pinglass_resume_payment") === "true"
+        const savedTier = sessionStorage.getItem("pinglass_tier") || "premium"
+        const savedTelegramUserId = sessionStorage.getItem("pinglass_telegram_user_id")
 
         if (resumePayment) {
-          // Safe to remove from URL now - we have the data in sessionStorage
-          window.history.replaceState({}, "", window.location.pathname)
+          console.log("[Resume Payment] Reading from sessionStorage (set by early capture)")
 
           // Restore saved view state for proper redirect after payment
           const savedViewState = loadViewState()
