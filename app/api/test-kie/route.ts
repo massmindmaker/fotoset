@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { isKieConfigured, testKieConnection } from "@/lib/kie"
+import { isKieConfigured, generateWithKie } from "@/lib/kie"
 
 export async function GET() {
   const kieKey = process.env.KIE_API_KEY?.trim()
@@ -15,18 +15,29 @@ export async function GET() {
       configured: !!replicateKey,
       keyLength: replicateKey?.length || 0,
     },
-    test: null as { success: boolean; message: string } | null,
+    generation: null as { success: boolean; url?: string; error?: string; latencyMs?: number } | null,
   }
 
-  // Test Kie.ai connection
+  // Test actual Kie.ai generation
   if (isKieConfigured()) {
     try {
-      const testResult = await testKieConnection()
-      result.test = testResult
+      console.log("[test-kie] Starting test generation...")
+      const genResult = await generateWithKie({
+        prompt: "A professional headshot portrait, studio lighting, high quality",
+        aspectRatio: "3:4",
+        outputFormat: "jpg",
+      })
+      console.log("[test-kie] Generation result:", genResult)
+      result.generation = {
+        success: genResult.success,
+        url: genResult.url,
+        error: genResult.error,
+        latencyMs: genResult.latencyMs,
+      }
     } catch (error) {
-      result.test = {
+      result.generation = {
         success: false,
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: error instanceof Error ? error.message : "Unknown error",
       }
     }
   }
