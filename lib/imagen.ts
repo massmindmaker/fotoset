@@ -98,8 +98,12 @@ async function generateWithReplicate(options: GenerationOptions): Promise<string
  * Priority: 1) Kie.ai (Nano Banana Pro) 2) Replicate (fallback)
  */
 export async function generateImage(options: GenerationOptions): Promise<string> {
+  const kieConfigured = isKieConfigured()
+  const kieKey = process.env.KIE_API_KEY?.trim()
+  console.log(`[Image Gen] Provider check: Kie.ai configured=${kieConfigured}, key length=${kieKey?.length || 0}`)
+
   // Try Kie.ai first (primary provider)
-  if (isKieConfigured()) {
+  if (kieConfigured) {
     console.log(`[Image Gen] Starting generation with Kie.ai (Nano Banana Pro)...`)
     try {
       const result = await generateWithKieProvider(options)
@@ -107,9 +111,11 @@ export async function generateImage(options: GenerationOptions): Promise<string>
       return result
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error"
-      console.error(`[Image Gen] Kie.ai failed:`, errorMsg)
+      console.error(`[Image Gen] Kie.ai failed, will try Replicate fallback:`, errorMsg)
       // Fall through to Replicate
     }
+  } else {
+    console.log(`[Image Gen] Kie.ai not configured, skipping to Replicate`)
   }
 
   // Fallback to Replicate
