@@ -171,11 +171,26 @@ export default function PersonaApp() {
 
         // Check for pending payment after redirect from T-Bank
         const urlParams = new URLSearchParams(window.location.search)
-        const resumePayment = urlParams.get("resume_payment") === "true"
+        const resumePaymentFromUrl = urlParams.get("resume_payment") === "true"
         const urlTelegramUserId = urlParams.get("telegram_user_id")
         const urlTier = urlParams.get("tier") || "premium"
 
+        // CRITICAL FIX: Save URL params to sessionStorage BEFORE replaceState
+        // This prevents race conditions where params are lost before being processed
+        if (resumePaymentFromUrl) {
+          sessionStorage.setItem("pinglass_resume_payment", "true")
+          if (urlTier) sessionStorage.setItem("pinglass_tier", urlTier)
+          if (urlTelegramUserId) sessionStorage.setItem("pinglass_telegram_user_id", urlTelegramUserId)
+          console.log("[Payment] Saved to sessionStorage:", { resumePaymentFromUrl, urlTier, urlTelegramUserId })
+        }
+
+        // Now read from sessionStorage (survives page reload)
+        const resumePayment = sessionStorage.getItem("pinglass_resume_payment") === "true" || resumePaymentFromUrl
+        const savedTier = sessionStorage.getItem("pinglass_tier") || urlTier
+        const savedTelegramUserId = sessionStorage.getItem("pinglass_telegram_user_id") || urlTelegramUserId
+
         if (resumePayment) {
+          // Safe to remove from URL now - we have the data in sessionStorage
           window.history.replaceState({}, "", window.location.pathname)
 
           // Restore saved view state for proper redirect after payment
@@ -186,7 +201,7 @@ export default function PersonaApp() {
           localStorage.setItem("pinglass_onboarding_complete", "true")
 
           try {
-            const tgId = userIdentifier.telegramUserId || (urlTelegramUserId ? parseInt(urlTelegramUserId) : null)
+            const tgId = userIdentifier.telegramUserId || (savedTelegramUserId ? parseInt(savedTelegramUserId) : null)
 
             if (!tgId) {
               console.error("[Resume Payment] No valid Telegram user ID")
@@ -202,9 +217,9 @@ export default function PersonaApp() {
               return
             }
 
-            // Reload avatars if URL has telegram_user_id
-            if (urlTelegramUserId) {
-              console.log("[Resume Payment] Reloading avatars with URL tgId:", tgId)
+            // Reload avatars if we have telegram_user_id from URL or sessionStorage
+            if (savedTelegramUserId) {
+              console.log("[Resume Payment] Reloading avatars with saved tgId:", tgId)
               loadedAvatars = await loadAvatarsFromServer(userIdentifier)
               if (!checkMounted()) return
             }
@@ -258,11 +273,11 @@ export default function PersonaApp() {
               return
             }
 
-            console.log("[Resume Payment] Starting generation for persona:", targetPersona.id, "tier:", urlTier)
+            console.log("[Resume Payment] Starting generation for persona:", targetPersona.id, "tier:", savedTier)
 
-            // Get tier photos from URL parameter (passed from payment callback)
+            // Get tier photos from saved parameter (from URL or sessionStorage)
             const TIER_PHOTOS: Record<string, number> = { starter: 7, standard: 15, premium: 23 }
-            const tierPhotos = TIER_PHOTOS[urlTier] || 7
+            const tierPhotos = TIER_PHOTOS[savedTier] || 7
 
             if (!checkMounted()) return
             setPersonas(loadedAvatars)
@@ -318,6 +333,10 @@ export default function PersonaApp() {
               .then(data => {
                 if (data.success && data.data?.jobId) {
                   console.log("[Resume Payment] Generation started, jobId:", data.data.jobId)
+                  // Clear sessionStorage after successful generation start
+                  sessionStorage.removeItem("pinglass_resume_payment")
+                  sessionStorage.removeItem("pinglass_tier")
+                  sessionStorage.removeItem("pinglass_telegram_user_id")
                   const jobId = data.data.jobId
                   const personaId = targetPersona.id
                   let lastPhotoCount = 0
@@ -414,7 +433,16 @@ export default function PersonaApp() {
         if (!checkMounted()) return
         setPersonas(loadedAvatars)
 
-        if (onboardingComplete && loadedAvatars.length > 0) {
+        // CRITICAL: Check if returning from payment FIRST - never show onboarding after payment
+        const isReturningFromPayment = sessionStorage.getItem("pinglass_resume_payment") === "true"
+
+        // FIX: isReturningFromPayment check MUST come first, regardless of avatars count
+        if (isReturningFromPayment) {
+          // User is returning from payment - show dashboard, never onboarding
+          console.log("[Init] Returning from payment, showing DASHBOARD (bypassing onboarding)")
+          localStorage.setItem("pinglass_onboarding_complete", "true")
+          setViewState({ view: "DASHBOARD" })
+        } else if (onboardingComplete && loadedAvatars.length > 0) {
           console.log("[Init] Onboarding complete, showing DASHBOARD", {
             avatarsCount: loadedAvatars.length
           })
@@ -422,14 +450,21 @@ export default function PersonaApp() {
         } else {
           console.log("[Init] Showing ONBOARDING", {
             onboardingComplete,
-            avatarsCount: loadedAvatars?.length || 0
+            avatarsCount: loadedAvatars?.length || 0,
+            isReturningFromPayment
           })
           setViewState({ view: "ONBOARDING" })
         }
       } catch (e) {
         console.error("[Init] Critical error:", e)
         if (!checkMounted()) return
-        setViewState({ view: "ONBOARDING" })
+        // Don't show onboarding if returning from payment
+        const isReturningFromPayment = sessionStorage.getItem("pinglass_resume_payment") === "true"
+        if (isReturningFromPayment) {
+          setViewState({ view: "DASHBOARD" })
+        } else {
+          setViewState({ view: "ONBOARDING" })
+        }
       } finally {
         if (!checkMounted()) return
         setIsReady(true)
@@ -1043,6 +1078,7 @@ export default function PersonaApp() {
                   onBack={() => setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: viewState.personaId })}
                   onGenerate={handleGenerate}
                   isGenerating={isGenerating}
+                  isProcessingPayment={isPaymentOpen}
                   onUpgrade={(t) => {
                     setSelectedTier(t)
                     setIsPaymentOpen(true)

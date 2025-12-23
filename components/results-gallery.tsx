@@ -163,25 +163,54 @@ const ShareModal: React.FC<{
       if (isMultiple) {
         const zip = new JSZip()
         const folder = zip.folder("pinglass_photos")
+        let addedFiles = 0
 
         for (let i = 0; i < asset.length; i++) {
-          const response = await fetch(asset[i].url)
-          const blob = await response.blob()
-          const filename = `photo_${String(i + 1).padStart(2, "0")}.png`
-          folder?.file(filename, blob)
+          try {
+            const response = await fetch(asset[i].url, { mode: 'cors', credentials: 'omit' })
+            if (!response.ok) throw new Error(`HTTP ${response.status}`)
+            const blob = await response.blob()
+            if (blob.size === 0) throw new Error("Empty response")
+            const filename = `photo_${String(i + 1).padStart(2, "0")}.png`
+            folder?.file(filename, blob)
+            addedFiles++
+          } catch (err) {
+            console.error(`Failed to download photo ${i + 1}:`, err)
+          }
+        }
+
+        if (addedFiles === 0) {
+          // All downloads failed - show fallback message
+          const tg = window.Telegram?.WebApp
+          if (tg?.showAlert) {
+            tg.showAlert("Не удалось скачать фото. Откройте фото по отдельности и сохраните вручную.")
+          } else {
+            alert("Не удалось скачать фото. Попробуйте скачать по одному.")
+          }
+          return
         }
 
         const zipBlob = await zip.generateAsync({ type: "blob" })
-        saveAs(zipBlob, `pinglass_${photoCount}photos.zip`)
+        saveAs(zipBlob, `pinglass_${addedFiles}photos.zip`)
       } else {
-        const response = await fetch(asset.url)
+        const response = await fetch(asset.url, { mode: 'cors', credentials: 'omit' })
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
         const blob = await response.blob()
+        if (blob.size === 0) throw new Error("Empty file received")
         const filename = `pinglass_${asset.id.slice(-8)}.png`
         saveAs(blob, filename)
       }
       onClose()
     } catch (e) {
       console.error("Download failed:", e)
+      // Fallback: open in new tab with instruction
+      if (!isMultiple) {
+        window.open(asset.url, '_blank')
+        const tg = window.Telegram?.WebApp
+        if (tg?.showAlert) {
+          tg.showAlert("Фото открыто в новой вкладке. Сохраните вручную (долгое нажатие).")
+        }
+      }
     }
   }
 

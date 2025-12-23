@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect, useCallback } from "react"
-import { X, Check, Loader2, CreditCard, Smartphone, Mail, ShieldCheck } from "lucide-react"
+import { X, Check, Loader2, Mail, ShieldCheck } from "lucide-react"
 import { extractErrorMessage, getErrorMessage } from "@/lib/error-utils"
 
 interface PricingTier {
@@ -21,8 +21,6 @@ interface PaymentModalProps {
   personaId?: string  // For post-payment redirect to generation
 }
 
-type PaymentMethod = "card" | "sbp" | "tpay"
-
 interface PaymentResponse {
   paymentId: string
   confirmationUrl: string
@@ -34,7 +32,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [emailError, setEmailError] = useState("")
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("card")
   const [errorMessage, setErrorMessage] = useState("")
 
   // Reset state when modal opens
@@ -96,7 +93,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         body: JSON.stringify({
           telegramUserId,  // Telegram-only authentication
           email: email.trim(),
-          paymentMethod: selectedMethod,
           tierId: tier.id,
           photoCount: tier.photos,
           referralCode: pendingReferral || undefined,
@@ -133,34 +129,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
     } finally {
       setLoading(false)
     }
-  }, [email, selectedMethod, telegramUserId, tier, personaId, onSuccess, onClose])
+  }, [email, telegramUserId, tier])
 
   if (!isOpen) return null
-
-  const paymentMethods = [
-    {
-      id: "card" as PaymentMethod,
-      name: "Банковская карта",
-      description: "Visa, Mastercard, МИР",
-      icon: CreditCard,
-    },
-    {
-      id: "sbp" as PaymentMethod,
-      name: "СБП",
-      description: "Система быстрых платежей",
-      icon: Smartphone,
-    },
-    {
-      id: "tpay" as PaymentMethod,
-      name: "T-Pay",
-      description: "Оплата через Т-Банк",
-      icon: () => (
-        <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm0-8h-2V7h2v2zm4 8h-2v-4h2v4zm0-6h-2V9h2v2z"/>
-        </svg>
-      ),
-    },
-  ]
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -195,52 +166,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                 </p>
               </div>
 
-              {/* Payment Methods */}
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">
-                  Способ оплаты
-                </label>
-                <div className="grid gap-2">
-                  {paymentMethods.map((method) => {
-                    const Icon = method.icon
-                    return (
-                      <button
-                        key={method.id}
-                        type="button"
-                        onClick={() => setSelectedMethod(method.id)}
-                        className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
-                          selectedMethod === method.id
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-muted-foreground/30 hover:bg-muted/50"
-                        }`}
-                      >
-                        <div className={`p-2 rounded-lg ${
-                          selectedMethod === method.id
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-muted-foreground"
-                        }`}>
-                          <Icon className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">{method.name}</div>
-                          <div className="text-xs text-muted-foreground">{method.description}</div>
-                        </div>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          selectedMethod === method.id
-                            ? "border-primary bg-primary"
-                            : "border-muted-foreground/30"
-                        }`}>
-                          {selectedMethod === method.id && (
-                            <Check className="w-3 h-3 text-primary-foreground" />
-                          )}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Email Input - ОБЯЗАТЕЛЬНОЕ ПОЛЕ (54-ФЗ) */}
+              {/* Email Input - ОБЯЗАТЕЛЬНОЕ ПОЛЕ для фискальных чеков (54-ФЗ) */}
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium text-foreground flex items-center gap-2">
                   <Mail className="w-4 h-4" />

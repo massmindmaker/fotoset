@@ -97,15 +97,22 @@ async function processReferralEarning(userId: number, paymentId: string) {
   console.log(`[Referral] START: Processing for user=${userId}, payment=${paymentId}`)
   try {
     // Check if user was referred
-    const referralResult = await query<{ referrer_id: number }>(
-      "SELECT referrer_id FROM referrals WHERE referred_id = $1",
+    const referralResult = await query<{ referrer_id: number; referral_code: string }>(
+      "SELECT referrer_id, referral_code FROM referrals WHERE referred_id = $1",
       [userId]
     )
 
+    // DIAGNOSTIC: Log total referrals count
+    const totalReferrals = await query("SELECT COUNT(*) as count FROM referrals")
+    console.log(`[Referral] Total referrals in DB: ${totalReferrals.rows[0]?.count || 0}`)
+
     if (referralResult.rows.length === 0) {
-      console.log(`[Referral] User ${userId} has no referrer - skipping`)
+      console.log(`[Referral] User ${userId} has no referrer in referrals table - skipping`)
+      console.log(`[Referral] TIP: Referral code must be applied via /api/referral/apply or passed in payment create request`)
       return // User has no referrer
     }
+
+    console.log(`[Referral] Found referral: referrer_id=${referralResult.rows[0].referrer_id}, code=${referralResult.rows[0].referral_code}`)
 
     const referrerId = referralResult.rows[0].referrer_id
 

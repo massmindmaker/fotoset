@@ -124,17 +124,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate
               <div className="flex items-center gap-1.5 mt-1">
                 <span
                   className={
-                    "w-1.5 h-1.5 rounded-full " + (persona.status === "ready" ? "bg-green-400" : "bg-amber-400")
+                    "w-1.5 h-1.5 rounded-full " + (persona.status === "ready" ? "bg-green-400" : persona.status === "processing" ? "bg-blue-400 animate-pulse" : "bg-amber-400")
                   }
                 />
                 <span className="text-[10px] text-white/80">
                   {persona.status === "ready"
-                    ? persona.generatedAssets.length + " фото"
-                    : persona.referenceCount
-                      ? persona.referenceCount + " ref фото"
+                    ? "Готово"
+                    : persona.status === "processing"
+                      ? "Генерация..."
                       : "Черновик"}
                 </span>
               </div>
+              {/* Show "View Results" button for avatars with generated photos */}
+              {persona.generatedAssets.length > 0 && (
+                <div className="mt-2 px-2 py-1 bg-primary/80 backdrop-blur-sm rounded-lg text-center">
+                  <span className="text-[10px] font-medium text-white">Смотреть результат</span>
+                </div>
+              )}
             </div>
             <button
               onClick={(e) => onDelete(persona.id, e)}

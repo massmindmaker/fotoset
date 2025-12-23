@@ -10,6 +10,7 @@ export interface TierSelectViewProps {
   onBack: () => void
   onGenerate: (tier: PricingTier) => void
   isGenerating: boolean
+  isProcessingPayment?: boolean  // Show loader immediately after button click
   onUpgrade: (tier: PricingTier) => void
   selectedTier: PricingTier
   onSelectTier: (tier: PricingTier) => void
@@ -19,6 +20,7 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
   onBack,
   onGenerate,
   isGenerating,
+  isProcessingPayment,
   onUpgrade,
   selectedTier,
   onSelectTier,
@@ -97,13 +99,13 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
     <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
       <button
         onClick={() => selectedTier && onUpgrade(selectedTier)}
-        disabled={!selectedTier || isGenerating}
+        disabled={!selectedTier || isGenerating || isProcessingPayment}
         className="w-full sm:w-auto btn-premium disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
-        {isGenerating ? (
+        {(isGenerating || isProcessingPayment) ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            Генерация...
+            {isGenerating ? "Генерация..." : "Обработка..."}
           </>
         ) : (
           <>

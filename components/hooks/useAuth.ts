@@ -104,11 +104,14 @@ export function useAuth() {
         setAuthStatus('success')
         console.log("[TG] Auth success:", tgUser.id, tgUser.username || tgUser.first_name)
 
-        // Handle referral code from start_param
+        // Handle referral code from start_param (passed via Telegram deep link)
         const telegramRefCode = tg.initDataUnsafe?.start_param
         if (telegramRefCode) {
-          console.log("[TG] Referral code:", telegramRefCode)
-          sessionStorage.setItem("pinglass_referral_code", telegramRefCode)
+          console.log("[TG] Referral code from start_param:", telegramRefCode)
+          // Save to BOTH localStorage (for payment-modal) and sessionStorage (for backup)
+          // FIX: payment-modal reads from localStorage, not sessionStorage
+          localStorage.setItem("pinglass_pending_referral", telegramRefCode.toUpperCase())
+          sessionStorage.setItem("pinglass_referral_code", telegramRefCode.toUpperCase())
         }
 
         // Wrap in try-catch - these methods throw WebAppMethodUnsupported outside Telegram

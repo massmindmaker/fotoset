@@ -32,7 +32,10 @@ export async function POST(request: NextRequest) {
 
     // Apply referral code if provided and not already applied
     if (referralCode) {
+      console.log(`[Payment] Applying referral code ${referralCode} for user ${user.id}`)
       await applyReferralCode(user.id, referralCode)
+    } else {
+      console.log(`[Payment] No referral code provided for user ${user.id}`)
     }
 
     // Check credentials before proceeding

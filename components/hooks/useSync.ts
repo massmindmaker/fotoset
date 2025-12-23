@@ -126,7 +126,10 @@ export function useSync() {
 
             const uploadRes = await fetch("/api/upload", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                "X-Telegram-User-Id": String(tgId), // FIX: Add required auth header
+              },
               body: JSON.stringify({
                 avatarId: dbAvatarId,
                 type: "reference",
