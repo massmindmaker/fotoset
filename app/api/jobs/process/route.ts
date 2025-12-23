@@ -147,11 +147,22 @@ export async function POST(request: Request) {
             }
           }
 
-          // Save to database
-          await sql`
-            INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
-            VALUES (${avatarId}, ${styleId}, ${prompt.substring(0, 500)}, ${finalImageUrl})
-          `
+          // Save to database (with duplicate check)
+          // Use prompt_index to prevent duplicates from QStash retries
+          const existingPhoto = await sql`
+            SELECT id FROM generated_photos
+            WHERE avatar_id = ${avatarId} AND style_id = ${styleId} AND prompt = ${prompt.substring(0, 500)}
+            LIMIT 1
+          `.then((rows: any[]) => rows[0])
+
+          if (!existingPhoto) {
+            await sql`
+              INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
+              VALUES (${avatarId}, ${styleId}, ${prompt.substring(0, 500)}, ${finalImageUrl})
+            `
+          } else {
+            console.log(`[Jobs/Process] Photo ${promptIndex + 1} already exists, skipping duplicate`)
+          }
 
           return { promptIndex, imageUrl: finalImageUrl }
         })
@@ -166,10 +177,15 @@ export async function POST(request: Request) {
           results.push({ success: true, url: result.value.imageUrl, index: promptIndex })
           console.log(`[Jobs/Process] ✓ Photo ${promptIndex + 1}/${photoCount}`)
 
-          // Update progress
+          // Update progress based on actual photo count (prevents inflation from retries)
+          const actualCount = await sql`
+            SELECT COUNT(*) as count FROM generated_photos
+            WHERE avatar_id = ${avatarId} AND style_id = ${styleId}
+          `.then((rows: any[]) => parseInt(rows[0]?.count || '0'))
+
           await sql`
             UPDATE generation_jobs
-            SET completed_photos = completed_photos + 1, updated_at = NOW()
+            SET completed_photos = ${actualCount}, updated_at = NOW()
             WHERE id = ${jobId}
           `.catch(() => {})
         } else {
