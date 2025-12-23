@@ -2,8 +2,9 @@
 import crypto from "crypto"
 import { paymentLogger as log } from "./logger"
 
-const TBANK_TERMINAL_KEY = process.env.TBANK_TERMINAL_KEY || ""
-const TBANK_PASSWORD = process.env.TBANK_PASSWORD || ""
+// CRITICAL: .trim() prevents error 501 from whitespace/newlines in env vars
+const TBANK_TERMINAL_KEY = (process.env.TBANK_TERMINAL_KEY || "").trim()
+const TBANK_PASSWORD = (process.env.TBANK_PASSWORD || "").trim()
 const TBANK_API_URL = "https://securepay.tinkoff.ru/v2"
 
 // Check if credentials are configured

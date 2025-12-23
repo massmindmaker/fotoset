@@ -31,3 +31,9 @@ dist-ssr
 .env*.local
 photos/
 test-replicate-local.mjs
+
+# Test artifacts
+test-results/
+coverage/
+playwright-report/
+*.tsbuildinfo

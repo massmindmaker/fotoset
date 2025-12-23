@@ -1,0 +1,3700 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\bob\\Projects\\Fotoset\\playwright.config.ts",
+    "rootDir": "C:/Users/bob/Projects/Fotoset/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 600000,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "test-reports/playwright-html"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-reports/playwright-results.json"
+        }
+      ],
+      [
+        "junit",
+        {
+          "outputFile": "test-reports/playwright-junit.xml"
+        }
+      ],
+      [
+        "list",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "C:/Users/bob/Projects/Fotoset/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/bob/Projects/Fotoset/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/bob/Projects/Fotoset/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "C:/Users/bob/Projects/Fotoset/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/bob/Projects/Fotoset/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "C:/Users/bob/Projects/Fotoset/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/bob/Projects/Fotoset/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "mobile-chrome",
+        "name": "mobile-chrome",
+        "testDir": "C:/Users/bob/Projects/Fotoset/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/bob/Projects/Fotoset/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "mobile-safari",
+        "name": "mobile-safari",
+        "testDir": "C:/Users/bob/Projects/Fotoset/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.57.0",
+    "workers": 4,
+    "webServer": {
+      "command": "npm run dev",
+      "url": "http://localhost:3000",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "critical-paths\\full-user-journey.spec.ts",
+      "file": "critical-paths/full-user-journey.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Full User Journey - First Time User",
+          "file": "critical-paths/full-user-journey.spec.ts",
+          "line": 14,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should complete entire flow: onboarding → upload → payment → generation → results",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c1cbeda4f45537763227-4eeec93db71b0f329e3f",
+              "file": "critical-paths/full-user-journey.spec.ts",
+              "line": 21,
+              "column": 7
+            },
+            {
+              "title": "should handle generation failure gracefully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c1cbeda4f45537763227-eeb6c82261b5d347e699",
+              "file": "critical-paths/full-user-journey.spec.ts",
+              "line": 178,
+              "column": 7
+            },
+            {
+              "title": "should allow user to leave and return during generation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c1cbeda4f45537763227-8fb284deb5851ef84196",
+              "file": "critical-paths/full-user-journey.spec.ts",
+              "line": 207,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Full User Journey - Different Styles",
+          "file": "critical-paths/full-user-journey.spec.ts",
+          "line": 231,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should generate photos with professional style",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c1cbeda4f45537763227-7025450abc59c4bd886e",
+              "file": "critical-paths/full-user-journey.spec.ts",
+              "line": 245,
+              "column": 9
+            },
+            {
+              "title": "should generate photos with lifestyle style",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c1cbeda4f45537763227-fe8cc2ccea5a0f0e05f4",
+              "file": "critical-paths/full-user-journey.spec.ts",
+              "line": 245,
+              "column": 9
+            },
+            {
+              "title": "should generate photos with creative style",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c1cbeda4f45537763227-89a4a29447927eea6618",
+              "file": "critical-paths/full-user-journey.spec.ts",
+              "line": 245,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "Full User Journey - Error Recovery",
+          "file": "critical-paths/full-user-journey.spec.ts",
+          "line": 288,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should recover from network interruption during upload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c1cbeda4f45537763227-a6b27c1f138a1be4f9ac",
+              "file": "critical-paths/full-user-journey.spec.ts",
+              "line": 295,
+              "column": 7
+            },
+            {
+              "title": "should handle payment timeout",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c1cbeda4f45537763227-4434f2c7241d18c64ac7",
+              "file": "critical-paths/full-user-journey.spec.ts",
+              "line": 324,
+              "column": 7
+            },
+            {
+              "title": "should handle partial generation (only 15/23 photos)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c1cbeda4f45537763227-83eec0979318b660eaf7",
+              "file": "critical-paths/full-user-journey.spec.ts",
+              "line": 342,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "critical-paths\\returning-user.spec.ts",
+      "file": "critical-paths/returning-user.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Returning Pro User Journey",
+          "file": "critical-paths/returning-user.spec.ts",
+          "line": 14,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should skip onboarding and go directly to dashboard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "664f30827a7c155c9b5f-47f533dfe23dc216fe44",
+              "file": "critical-paths/returning-user.spec.ts",
+              "line": 26,
+              "column": 7
+            },
+            {
+              "title": "should display existing personas on dashboard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "664f30827a7c155c9b5f-1a884533bff3218c2773",
+              "file": "critical-paths/returning-user.spec.ts",
+              "line": 42,
+              "column": 7
+            },
+            {
+              "title": "should create new persona without payment prompt",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "664f30827a7c155c9b5f-6958635abdbc99cc8a5a",
+              "file": "critical-paths/returning-user.spec.ts",
+              "line": 96,
+              "column": 7
+            },
+            {
+              "title": "should view existing persona photos",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "664f30827a7c155c9b5f-c1fd3d470339bf12540c",
+              "file": "critical-paths/returning-user.spec.ts",
+              "line": 131,
+              "column": 7
+            },
+            {
+              "title": "should download all photos as ZIP",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "664f30827a7c155c9b5f-1229c222e98882a3010a",
+              "file": "critical-paths/returning-user.spec.ts",
+              "line": 169,
+              "column": 7
+            },
+            {
+              "title": "should create multiple personas sequentially",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "664f30827a7c155c9b5f-9bc5a33e31a1347125ca",
+              "file": "critical-paths/returning-user.spec.ts",
+              "line": 194,
+              "column": 7
+            },
+            {
+              "title": "should handle Pro status expiration gracefully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "664f30827a7c155c9b5f-11e8e2dd21b9db66b56b",
+              "file": "critical-paths/returning-user.spec.ts",
+              "line": 252,
+              "column": 7
+            },
+            {
+              "title": "should preserve state across browser sessions",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "664f30827a7c155c9b5f-8259c19a9d288a8db9e7",
+              "file": "critical-paths/returning-user.spec.ts",
+              "line": 269,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Returning User - Edge Cases",
+          "file": "critical-paths/returning-user.spec.ts",
+          "line": 302,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should handle corrupted localStorage gracefully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "664f30827a7c155c9b5f-d9ed00a19b54d052efdb",
+              "file": "critical-paths/returning-user.spec.ts",
+              "line": 309,
+              "column": 7
+            },
+            {
+              "title": "should sync Pro status with backend",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "664f30827a7c155c9b5f-02bf131a02ef285612d9",
+              "file": "critical-paths/returning-user.spec.ts",
+              "line": 337,
+              "column": 7
+            },
+            {
+              "title": "should handle deleted avatar gracefully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "664f30827a7c155c9b5f-c2858cdadf4a0f530400",
+              "file": "critical-paths/returning-user.spec.ts",
+              "line": 361,
+              "column": 7
+            },
+            {
+              "title": "should handle concurrent generations",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "664f30827a7c155c9b5f-eeec7d84f038d04e9956",
+              "file": "critical-paths/returning-user.spec.ts",
+              "line": 405,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "payment\\payment-flow-complete.spec.ts",
+      "file": "payment/payment-flow-complete.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Payment Flow - Starter Tier (499 RUB, 7 photos)",
+          "file": "payment/payment-flow-complete.spec.ts",
+          "line": 64,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should complete full payment flow for starter tier",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "153dd94a912f16ed2535-aba493af716efd0a5c8b",
+              "file": "payment/payment-flow-complete.spec.ts",
+              "line": 71,
+              "column": 7
+            },
+            {
+              "title": "should handle payment cancellation gracefully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "153dd94a912f16ed2535-6b58a3fc8c989818a290",
+              "file": "payment/payment-flow-complete.spec.ts",
+              "line": 170,
+              "column": 7
+            },
+            {
+              "title": "should show error for failed payment",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "153dd94a912f16ed2535-521e1175c5dfe1a4f88f",
+              "file": "payment/payment-flow-complete.spec.ts",
+              "line": 194,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Payment Flow - Standard Tier (999 RUB, 15 photos)",
+          "file": "payment/payment-flow-complete.spec.ts",
+          "line": 218,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should process standard tier payment correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "153dd94a912f16ed2535-68a8fd9a94f4e47fd1f6",
+              "file": "payment/payment-flow-complete.spec.ts",
+              "line": 219,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Payment Flow - Premium Tier (1499 RUB, 23 photos)",
+          "file": "payment/payment-flow-complete.spec.ts",
+          "line": 250,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should process premium tier payment correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "153dd94a912f16ed2535-1e571691459b7b1a6ef1",
+              "file": "payment/payment-flow-complete.spec.ts",
+              "line": 251,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Payment Status Polling",
+          "file": "payment/payment-flow-complete.spec.ts",
+          "line": 278,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should poll payment status until success",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "153dd94a912f16ed2535-6b10f0f4d635f71f96fb",
+              "file": "payment/payment-flow-complete.spec.ts",
+              "line": 279,
+              "column": 7
+            },
+            {
+              "title": "should handle permanent payment failure",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "153dd94a912f16ed2535-b878137f0ebd41db472f",
+              "file": "payment/payment-flow-complete.spec.ts",
+              "line": 312,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Referral Code Application",
+          "file": "payment/payment-flow-complete.spec.ts",
+          "line": 331,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should apply referral code during payment",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "153dd94a912f16ed2535-8eb5c53d8a5e667b2085",
+              "file": "payment/payment-flow-complete.spec.ts",
+              "line": 332,
+              "column": 7
+            },
+            {
+              "title": "should ignore invalid referral code",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "153dd94a912f16ed2535-0cf739ea0194c02df6a9",
+              "file": "payment/payment-flow-complete.spec.ts",
+              "line": 352,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Payment Security",
+          "file": "payment/payment-flow-complete.spec.ts",
+          "line": 368,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should not allow duplicate payments",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "153dd94a912f16ed2535-4d2d4045f9e2d1f5c252",
+              "file": "payment/payment-flow-complete.spec.ts",
+              "line": 369,
+              "column": 7
+            },
+            {
+              "title": "should require valid device ID",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "153dd94a912f16ed2535-29e117b6d3221b72cd13",
+              "file": "payment/payment-flow-complete.spec.ts",
+              "line": 390,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Edge Cases",
+          "file": "payment/payment-flow-complete.spec.ts",
+          "line": 403,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should handle network errors during payment creation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "153dd94a912f16ed2535-e7e55dcbace8ff2e4f0e",
+              "file": "payment/payment-flow-complete.spec.ts",
+              "line": 404,
+              "column": 7
+            },
+            {
+              "title": "should handle T-Bank timeout",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "153dd94a912f16ed2535-a437dd1143655dbd9523",
+              "file": "payment/payment-flow-complete.spec.ts",
+              "line": 418,
+              "column": 7
+            },
+            {
+              "title": "should handle browser back button during payment",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "153dd94a912f16ed2535-7d79e656d7b5073f5b0d",
+              "file": "payment/payment-flow-complete.spec.ts",
+              "line": 438,
+              "column": 7
+            },
+            {
+              "title": "should handle page refresh during status polling",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "153dd94a912f16ed2535-547b1748429c2cef429b",
+              "file": "payment/payment-flow-complete.spec.ts",
+              "line": 455,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "payment\\payment-flow.spec.ts",
+      "file": "payment/payment-flow.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Payment Flow - T-Bank Integration",
+          "file": "payment/payment-flow.spec.ts",
+          "line": 14,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display payment modal for non-Pro user",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c0a2252cecfabd316978-ae387f021724368989d8",
+              "file": "payment/payment-flow.spec.ts",
+              "line": 26,
+              "column": 7
+            },
+            {
+              "title": "should create payment order via API",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c0a2252cecfabd316978-647c4f0d488e00bbc38c",
+              "file": "payment/payment-flow.spec.ts",
+              "line": 49,
+              "column": 7
+            },
+            {
+              "title": "should redirect to T-Bank payment page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c0a2252cecfabd316978-aedbdf76cb40d19e1100",
+              "file": "payment/payment-flow.spec.ts",
+              "line": 91,
+              "column": 7
+            },
+            {
+              "title": "should poll payment status after redirect",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c0a2252cecfabd316978-9ba74383f548d0bab1a9",
+              "file": "payment/payment-flow.spec.ts",
+              "line": 130,
+              "column": 7
+            },
+            {
+              "title": "should handle payment cancellation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c0a2252cecfabd316978-4ef11b2acdfa4475ad94",
+              "file": "payment/payment-flow.spec.ts",
+              "line": 191,
+              "column": 7
+            },
+            {
+              "title": "should handle payment API errors gracefully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c0a2252cecfabd316978-04970d097b2fd8478978",
+              "file": "payment/payment-flow.spec.ts",
+              "line": 242,
+              "column": 7
+            },
+            {
+              "title": "should update localStorage after successful payment",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c0a2252cecfabd316978-0c24e425bdb4fdf9e75b",
+              "file": "payment/payment-flow.spec.ts",
+              "line": 274,
+              "column": 7
+            },
+            {
+              "title": "should navigate to generation after successful payment",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c0a2252cecfabd316978-d2ba53b0e1db020523f3",
+              "file": "payment/payment-flow.spec.ts",
+              "line": 331,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Payment Webhook Processing",
+          "file": "payment/payment-flow.spec.ts",
+          "line": 383,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should process webhook correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c0a2252cecfabd316978-6735349505523ed78ff6",
+              "file": "payment/payment-flow.spec.ts",
+              "line": 384,
+              "column": 7
+            },
+            {
+              "title": "should reject webhook with invalid signature",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c0a2252cecfabd316978-c47b380249de0bad7d48",
+              "file": "payment/payment-flow.spec.ts",
+              "line": 438,
+              "column": 7
+            },
+            {
+              "title": "should handle duplicate webhook delivery",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c0a2252cecfabd316978-12de3f7c6414eb68060d",
+              "file": "payment/payment-flow.spec.ts",
+              "line": 457,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Payment Edge Cases",
+          "file": "payment/payment-flow.spec.ts",
+          "line": 508,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should handle network timeout during payment creation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c0a2252cecfabd316978-8586229d6b5f47abd03d",
+              "file": "payment/payment-flow.spec.ts",
+              "line": 515,
+              "column": 7
+            },
+            {
+              "title": "should prevent double payment for same generation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c0a2252cecfabd316978-c995d3220b87bc8d3cd7",
+              "file": "payment/payment-flow.spec.ts",
+              "line": 537,
+              "column": 7
+            },
+            {
+              "title": "should handle user closing payment window without completing",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c0a2252cecfabd316978-274438af4dfddb85d694",
+              "file": "payment/payment-flow.spec.ts",
+              "line": 574,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "pinglass-api.spec.ts",
+      "file": "pinglass-api.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "PinGlass API Endpoints",
+          "file": "pinglass-api.spec.ts",
+          "line": 11,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "POST /api/user",
+              "file": "pinglass-api.spec.ts",
+              "line": 14,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should create new user with device ID",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-b9ab07f0bc4040c97468",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 15,
+                  "column": 9
+                },
+                {
+                  "title": "should return existing user on duplicate device ID",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-723b40756d922da9e99b",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 30,
+                  "column": 9
+                },
+                {
+                  "title": "should reject request without device ID",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-553ebda41a1d331fede1",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 47,
+                  "column": 9
+                },
+                {
+                  "title": "should reject invalid device ID format",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-70270f61507d66a5c576",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 55,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "POST /api/payment/create",
+              "file": "pinglass-api.spec.ts",
+              "line": 66,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should create payment order",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-993fb4b70c4078cbe450",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 67,
+                  "column": 9
+                },
+                {
+                  "title": "should create payment with avatar ID",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-90b295b47f2c240dc870",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 83,
+                  "column": 9
+                },
+                {
+                  "title": "should reject payment without device ID",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-d7394cf354417b274a4c",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 96,
+                  "column": 9
+                },
+                {
+                  "title": "should handle T-Bank API errors gracefully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-7ec2bfbdf5482fdf5e6a",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 104,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "GET /api/payment/status",
+              "file": "pinglass-api.spec.ts",
+              "line": 122,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should check payment status",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-f6ee944adc83118a1057",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 123,
+                  "column": 9
+                },
+                {
+                  "title": "should require device_id parameter",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-298845d1b6c397c5d424",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 136,
+                  "column": 9
+                },
+                {
+                  "title": "should require payment_id parameter",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-2aed7c8451a14e5cc532",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 144,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "POST /api/generate",
+              "file": "pinglass-api.spec.ts",
+              "line": 153,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should reject non-Pro user",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-c061e43586ac3c5d86c7",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 154,
+                  "column": 9
+                },
+                {
+                  "title": "should accept Pro user generation request",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-7089e50e936bdc13a651",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 173,
+                  "column": 9
+                },
+                {
+                  "title": "should validate required fields",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-954f0efc0281a15b2072",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 183,
+                  "column": 9
+                },
+                {
+                  "title": "should validate style ID",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-d93c9c8e7d9e11bf0219",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 194,
+                  "column": 9
+                },
+                {
+                  "title": "should validate reference images count",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-fe5c1e3f2df7c272ab77",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 207,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "POST /api/payment/webhook",
+              "file": "pinglass-api.spec.ts",
+              "line": 221,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should require valid T-Bank signature",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-1de7732d934be0490b0e",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 222,
+                  "column": 9
+                },
+                {
+                  "title": "should handle payment.succeeded event",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-fc057251912a764f1c16",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 235,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "API Error Handling",
+              "file": "pinglass-api.spec.ts",
+              "line": 255,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should return JSON error responses",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-2e1ebf9205ba3d936393",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 256,
+                  "column": 9
+                },
+                {
+                  "title": "should handle CORS properly",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-a70e2eeae3c299ea5b66",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 270,
+                  "column": 9
+                },
+                {
+                  "title": "should rate limit (if implemented)",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-3fdedd0e1f752cd59e2b",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 277,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "API Performance",
+              "file": "pinglass-api.spec.ts",
+              "line": 298,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should respond quickly to user creation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-2c6c58aea193379b66bc",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 299,
+                  "column": 9
+                },
+                {
+                  "title": "should respond quickly to payment status check",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-60edd9f159a1af49051f",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 312,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "API Security",
+              "file": "pinglass-api.spec.ts",
+              "line": 326,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should not expose sensitive data in errors",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-bb5ddb552272a00a0083",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 327,
+                  "column": 9
+                },
+                {
+                  "title": "should sanitize SQL injection attempts",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-2b389a7f993bfd73ef8b",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 344,
+                  "column": 9
+                },
+                {
+                  "title": "should prevent XSS in user inputs",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "257e2b5a7ea11c407aa7-7d90cbdf9a545eddf644",
+                  "file": "pinglass-api.spec.ts",
+                  "line": 359,
+                  "column": 9
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "pinglass-user-flow.spec.ts",
+      "file": "pinglass-user-flow.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "PinGlass User Flow",
+          "file": "pinglass-user-flow.spec.ts",
+          "line": 11,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "First-Time User Journey",
+              "file": "pinglass-user-flow.spec.ts",
+              "line": 19,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should complete onboarding flow",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-af09d9ed699de359965e",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 20,
+                  "column": 9
+                },
+                {
+                  "title": "should upload photos successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-7abd2c68ad29e563783f",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 35,
+                  "column": 9
+                },
+                {
+                  "title": "should validate minimum photo count",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-ce70b8c0a13fd374f4f5",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 57,
+                  "column": 9
+                },
+                {
+                  "title": "should select style and proceed",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-24af9f6408ff128dde80",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 68,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Payment Flow",
+              "file": "pinglass-user-flow.spec.ts",
+              "line": 87,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should show payment modal for non-pro user",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-0e5925e53cc9d226d9cc",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 88,
+                  "column": 9
+                },
+                {
+                  "title": "should create payment and redirect",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-4aceabcc8f238711cbd5",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 102,
+                  "column": 9
+                },
+                {
+                  "title": "should update Pro status after successful payment",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-1f4cbc801087ebe99dd7",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 125,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Photo Generation Flow",
+              "file": "pinglass-user-flow.spec.ts",
+              "line": 139,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should initiate generation for Pro user",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-8167cc29baf815bf7e2f",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 140,
+                  "column": 9
+                },
+                {
+                  "title": "should display generation progress",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-074048761b5a13e4c923",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 158,
+                  "column": 9
+                },
+                {
+                  "title": "should display 23 generated photos in results",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-cb50b57b742458b9cf00",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 168,
+                  "column": 9
+                },
+                {
+                  "title": "should allow photo download",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-e3db804b2c383d5eb388",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 180,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Returning User (Pro)",
+              "file": "pinglass-user-flow.spec.ts",
+              "line": 192,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should skip onboarding and show dashboard",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-b76bf01b13a2950ae87d",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 193,
+                  "column": 9
+                },
+                {
+                  "title": "should display existing personas",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-aebd985bec2984dbfd45",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 204,
+                  "column": 9
+                },
+                {
+                  "title": "should allow creating new persona",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-f3f5a208ab94d34058b7",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 214,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Error Handling & Edge Cases",
+              "file": "pinglass-user-flow.spec.ts",
+              "line": 227,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should handle API errors gracefully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-21a1df971677dcfb1fe0",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 228,
+                  "column": 9
+                },
+                {
+                  "title": "should handle network timeout",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-70c823a1198ec878e34c",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 242,
+                  "column": 9
+                },
+                {
+                  "title": "should handle partial generation failure",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-46a001d3cb65c4fc31a5",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 251,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Browser Console & Errors",
+              "file": "pinglass-user-flow.spec.ts",
+              "line": 271,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should load without JavaScript errors",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-87ccb04ffca9825a3d9d",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 272,
+                  "column": 9
+                },
+                {
+                  "title": "should load without network errors",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-a0669711b96f80c74ce1",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 289,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Accessibility",
+              "file": "pinglass-user-flow.spec.ts",
+              "line": 306,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should have no accessibility violations",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-101af92341de8498760d",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 307,
+                  "column": 9
+                },
+                {
+                  "title": "should support keyboard navigation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-42dcfa98f384b31b1c48",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 313,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Performance",
+              "file": "pinglass-user-flow.spec.ts",
+              "line": 326,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should load within acceptable time",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-1de36ad738be8beaa192",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 327,
+                  "column": 9
+                },
+                {
+                  "title": "should have good Core Web Vitals",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "c90695f60fd17cd50c37-2386e06cf78223b8e8d7",
+                  "file": "pinglass-user-flow.spec.ts",
+                  "line": 337,
+                  "column": 9
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "smoke.spec.ts",
+      "file": "smoke.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Smoke Tests",
+          "file": "smoke.spec.ts",
+          "line": 7,
+          "column": 6,
+          "specs": [
+            {
+              "title": "homepage loads correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-63a2346803351eec6faf",
+              "file": "smoke.spec.ts",
+              "line": 8,
+              "column": 7
+            },
+            {
+              "title": "can start new persona flow",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-4ccc48dcde51147d5e6a",
+              "file": "smoke.spec.ts",
+              "line": 18,
+              "column": 7
+            },
+            {
+              "title": "payment callback page loads",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-d1ee0497570f812bad1f",
+              "file": "smoke.spec.ts",
+              "line": 30,
+              "column": 7
+            },
+            {
+              "title": "API health check - user endpoint",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-4f209e10fc080ad2a9be",
+              "file": "smoke.spec.ts",
+              "line": 42,
+              "column": 7
+            },
+            {
+              "title": "API health check - payment create validation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-6ef5efd15e10cdc6888e",
+              "file": "smoke.spec.ts",
+              "line": 52,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "workflows\\generation-workflow.spec.ts",
+      "file": "workflows/generation-workflow.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Photo Upload Workflow",
+          "file": "workflows/generation-workflow.spec.ts",
+          "line": 85,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should upload 10 photos successfully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-c9ca3e7c819e2c2acdd2",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 92,
+              "column": 7
+            },
+            {
+              "title": "should validate minimum photo count (10)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-a161232b73dbc7293ed0",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 108,
+              "column": 7
+            },
+            {
+              "title": "should validate maximum photo count (20)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-8d4125bca05ee83ffc2e",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 133,
+              "column": 7
+            },
+            {
+              "title": "should allow removing uploaded photos",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-969b7e9ab5dbe5078175",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 150,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Style Selection Workflow",
+          "file": "workflows/generation-workflow.spec.ts",
+          "line": 174,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should select professional style",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-888b2a1d56d70ef3c0fa",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 184,
+              "column": 9
+            },
+            {
+              "title": "should select lifestyle style",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-43db4f996044c48c251a",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 184,
+              "column": 9
+            },
+            {
+              "title": "should select creative style",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-33a8477cc062b8d4719d",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 184,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "Generation API Workflow",
+          "file": "workflows/generation-workflow.spec.ts",
+          "line": 201,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should call generation API with correct parameters",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-5db63e9d9d80fb6e2106",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 208,
+              "column": 7
+            },
+            {
+              "title": "should handle generation progress updates",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-05a9d2e94495b23b19df",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 265,
+              "column": 7
+            },
+            {
+              "title": "should handle generation failure gracefully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-1e58af3c4c74d27d2b7a",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 310,
+              "column": 7
+            },
+            {
+              "title": "should handle partial generation (15/23 photos)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-aa15a81f5d7da7aaef6c",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 341,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Results Gallery Workflow",
+          "file": "workflows/generation-workflow.spec.ts",
+          "line": 389,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display all generated photos in gallery",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-7470257c5fbfe3d71068",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 396,
+              "column": 7
+            },
+            {
+              "title": "should allow downloading individual photos",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-df4f8cff0857d803c4b4",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 422,
+              "column": 7
+            },
+            {
+              "title": "should allow downloading all photos as ZIP",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-2bbce5697cdb8108c882",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 455,
+              "column": 7
+            },
+            {
+              "title": "should show lightbox when clicking on photo",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-69dcd687e0bfba73e1f7",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 474,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Generation - Parallel Processing",
+          "file": "workflows/generation-workflow.spec.ts",
+          "line": 509,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should process photos in parallel batches",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-c515a626c134fdb26748",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 510,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Generation - Error Recovery",
+          "file": "workflows/generation-workflow.spec.ts",
+          "line": 539,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should retry failed photos",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-ede328ccb0d23cba2d01",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 540,
+              "column": 7
+            },
+            {
+              "title": "should handle network interruption during generation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0a8b9e5d0a1766a64009-202983d2a99b620dbc2e",
+              "file": "workflows/generation-workflow.spec.ts",
+              "line": 571,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "workflows\\payment-workflow.spec.ts",
+      "file": "workflows/payment-workflow.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Payment Flow - New User Complete Journey",
+          "file": "workflows/payment-workflow.spec.ts",
+          "line": 86,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should complete payment and show dashboard (not onboarding) after T-Bank redirect",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "54eadfed6a85a07dfac2-3e66d8a0824909832ff4",
+              "file": "workflows/payment-workflow.spec.ts",
+              "line": 93,
+              "column": 7
+            },
+            {
+              "title": "should handle payment cancellation and allow retry",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "54eadfed6a85a07dfac2-3af30d89c1b5dac8f017",
+              "file": "workflows/payment-workflow.spec.ts",
+              "line": 175,
+              "column": 7
+            },
+            {
+              "title": "should correctly save payment state in sessionStorage before redirect",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "54eadfed6a85a07dfac2-963329ac309acfd0bbff",
+              "file": "workflows/payment-workflow.spec.ts",
+              "line": 200,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Payment Flow - All Tiers",
+          "file": "workflows/payment-workflow.spec.ts",
+          "line": 220,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should create payment for starter tier (499 RUB)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "54eadfed6a85a07dfac2-d8da22f3c5ed57b68caa",
+              "file": "workflows/payment-workflow.spec.ts",
+              "line": 228,
+              "column": 9
+            },
+            {
+              "title": "should create payment for standard tier (999 RUB)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "54eadfed6a85a07dfac2-164d20b924de0a17b58d",
+              "file": "workflows/payment-workflow.spec.ts",
+              "line": 228,
+              "column": 9
+            },
+            {
+              "title": "should create payment for premium tier (1499 RUB)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "54eadfed6a85a07dfac2-d70e23bf6be876c5810d",
+              "file": "workflows/payment-workflow.spec.ts",
+              "line": 228,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "Payment Status Polling",
+          "file": "workflows/payment-workflow.spec.ts",
+          "line": 262,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should poll status until payment confirmed",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "54eadfed6a85a07dfac2-c274641741829884ff92",
+              "file": "workflows/payment-workflow.spec.ts",
+              "line": 263,
+              "column": 7
+            },
+            {
+              "title": "should handle payment failure gracefully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "54eadfed6a85a07dfac2-514b6c3229f6d97d95ab",
+              "file": "workflows/payment-workflow.spec.ts",
+              "line": 297,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Payment API Validation",
+          "file": "workflows/payment-workflow.spec.ts",
+          "line": 318,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should reject payment without device ID",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "54eadfed6a85a07dfac2-cdcce98f74390c014657",
+              "file": "workflows/payment-workflow.spec.ts",
+              "line": 319,
+              "column": 7
+            },
+            {
+              "title": "should reject invalid tier ID",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "54eadfed6a85a07dfac2-a54d57933eb4f5712d80",
+              "file": "workflows/payment-workflow.spec.ts",
+              "line": 332,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Payment Edge Cases",
+          "file": "workflows/payment-workflow.spec.ts",
+          "line": 346,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should handle network error during payment creation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "54eadfed6a85a07dfac2-08de62c258e17b36635a",
+              "file": "workflows/payment-workflow.spec.ts",
+              "line": 347,
+              "column": 7
+            },
+            {
+              "title": "should handle rapid double-click on pay button",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "54eadfed6a85a07dfac2-c91a2828da6c2f27752c",
+              "file": "workflows/payment-workflow.spec.ts",
+              "line": 366,
+              "column": 7
+            },
+            {
+              "title": "should preserve payment intent across page refresh",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "54eadfed6a85a07dfac2-66dda7c3c6b6d16841fc",
+              "file": "workflows/payment-workflow.spec.ts",
+              "line": 390,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "workflows\\referral-workflow.spec.ts",
+      "file": "workflows/referral-workflow.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Referral Code Generation",
+          "file": "workflows/referral-workflow.spec.ts",
+          "line": 64,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should generate unique referral code for user",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-ae1dfc69da514b858640",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 65,
+              "column": 7
+            },
+            {
+              "title": "should display share button with referral link",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-2b21671bddb4685fc93e",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 97,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Referral Code Application",
+          "file": "workflows/referral-workflow.spec.ts",
+          "line": 125,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should apply referral code from Telegram start_param",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-e2dae45df3f36025eb01",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 126,
+              "column": 7
+            },
+            {
+              "title": "should save referral code to database (not just localStorage)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-235b2a08e174b608fbfc",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 156,
+              "column": 7
+            },
+            {
+              "title": "should preserve referral code after T-Bank redirect",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-4aaad3fa73bfdda46ce3",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 191,
+              "column": 7
+            },
+            {
+              "title": "should apply referral code from manual input",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-34c22b1ca50b8a064a31",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 236,
+              "column": 7
+            },
+            {
+              "title": "should validate referral code format",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-c3aab885b7b5f04f1fb5",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 273,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Referral Earning on Payment",
+          "file": "workflows/referral-workflow.spec.ts",
+          "line": 297,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should calculate 10% earning on successful payment",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-b85f05116a2dfbbf7206",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 298,
+              "column": 7
+            },
+            {
+              "title": "should credit earning to referrer balance",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-a4c96afb511a93aea13d",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 318,
+              "column": 7
+            },
+            {
+              "title": "should handle idempotent webhook (prevent duplicate earnings)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-37d24ef7becb255287cc",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 343,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Referral Balance Display",
+          "file": "workflows/referral-workflow.spec.ts",
+          "line": 382,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display current balance and stats",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-a4005eea1be9c967f1bf",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 383,
+              "column": 7
+            },
+            {
+              "title": "should show earnings history",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-756c87a119c345bc9967",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 409,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Referral - Edge Cases",
+          "file": "workflows/referral-workflow.spec.ts",
+          "line": 437,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should not allow self-referral",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-ae03b3cc2e54e289a94a",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 438,
+              "column": 7
+            },
+            {
+              "title": "should handle expired referral code",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-5f5e21612a89c783e08e",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 460,
+              "column": 7
+            },
+            {
+              "title": "should handle non-existent referral code",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-9bc4af17da14323ec935",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 477,
+              "column": 7
+            },
+            {
+              "title": "should only count referral once per user",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-ab5b4ef3f91811fa474c",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 497,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Referral - Telegram Integration",
+          "file": "workflows/referral-workflow.spec.ts",
+          "line": 523,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should extract referral code from Telegram initDataUnsafe",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-aeb2eeb739d165c7b761",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 524,
+              "column": 7
+            },
+            {
+              "title": "should share referral via Telegram share dialog",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c9adf37df01545f1a62a-b2d6d4d7b833a28edff4",
+              "file": "workflows/referral-workflow.spec.ts",
+              "line": 551,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-12-23T21:59:05.549Z",
+    "duration": 901.3559999999998,
+    "expected": 0,
+    "skipped": 153,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

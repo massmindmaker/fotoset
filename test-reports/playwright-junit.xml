@@ -1,0 +1,634 @@
+<testsuites id="" name="" tests="153" failures="0" skipped="153" errors="0" time="0.9013559999999997">
+<testsuite name="critical-paths\full-user-journey.spec.ts" timestamp="2025-12-23T21:59:06.280Z" hostname="chromium" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testcase name="Full User Journey - First Time User › should complete entire flow: onboarding → upload → payment → generation → results" classname="critical-paths\full-user-journey.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full User Journey - First Time User › should handle generation failure gracefully" classname="critical-paths\full-user-journey.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full User Journey - First Time User › should allow user to leave and return during generation" classname="critical-paths\full-user-journey.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full User Journey - Different Styles › should generate photos with professional style" classname="critical-paths\full-user-journey.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full User Journey - Different Styles › should generate photos with lifestyle style" classname="critical-paths\full-user-journey.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full User Journey - Different Styles › should generate photos with creative style" classname="critical-paths\full-user-journey.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full User Journey - Error Recovery › should recover from network interruption during upload" classname="critical-paths\full-user-journey.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full User Journey - Error Recovery › should handle payment timeout" classname="critical-paths\full-user-journey.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full User Journey - Error Recovery › should handle partial generation (only 15/23 photos)" classname="critical-paths\full-user-journey.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="critical-paths\returning-user.spec.ts" timestamp="2025-12-23T21:59:06.280Z" hostname="chromium" tests="12" failures="0" skipped="12" time="0" errors="0">
+<testcase name="Returning Pro User Journey › should skip onboarding and go directly to dashboard" classname="critical-paths\returning-user.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Returning Pro User Journey › should display existing personas on dashboard" classname="critical-paths\returning-user.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Returning Pro User Journey › should create new persona without payment prompt" classname="critical-paths\returning-user.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Returning Pro User Journey › should view existing persona photos" classname="critical-paths\returning-user.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Returning Pro User Journey › should download all photos as ZIP" classname="critical-paths\returning-user.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Returning Pro User Journey › should create multiple personas sequentially" classname="critical-paths\returning-user.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Returning Pro User Journey › should handle Pro status expiration gracefully" classname="critical-paths\returning-user.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Returning Pro User Journey › should preserve state across browser sessions" classname="critical-paths\returning-user.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Returning User - Edge Cases › should handle corrupted localStorage gracefully" classname="critical-paths\returning-user.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Returning User - Edge Cases › should sync Pro status with backend" classname="critical-paths\returning-user.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Returning User - Edge Cases › should handle deleted avatar gracefully" classname="critical-paths\returning-user.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Returning User - Edge Cases › should handle concurrent generations" classname="critical-paths\returning-user.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="payment\payment-flow-complete.spec.ts" timestamp="2025-12-23T21:59:06.280Z" hostname="chromium" tests="15" failures="0" skipped="15" time="0" errors="0">
+<testcase name="Payment Flow - Starter Tier (499 RUB, 7 photos) › should complete full payment flow for starter tier" classname="payment\payment-flow-complete.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - Starter Tier (499 RUB, 7 photos) › should handle payment cancellation gracefully" classname="payment\payment-flow-complete.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - Starter Tier (499 RUB, 7 photos) › should show error for failed payment" classname="payment\payment-flow-complete.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - Standard Tier (999 RUB, 15 photos) › should process standard tier payment correctly" classname="payment\payment-flow-complete.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - Premium Tier (1499 RUB, 23 photos) › should process premium tier payment correctly" classname="payment\payment-flow-complete.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Status Polling › should poll payment status until success" classname="payment\payment-flow-complete.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Status Polling › should handle permanent payment failure" classname="payment\payment-flow-complete.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral Code Application › should apply referral code during payment" classname="payment\payment-flow-complete.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral Code Application › should ignore invalid referral code" classname="payment\payment-flow-complete.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Security › should not allow duplicate payments" classname="payment\payment-flow-complete.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Security › should require valid device ID" classname="payment\payment-flow-complete.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Edge Cases › should handle network errors during payment creation" classname="payment\payment-flow-complete.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Edge Cases › should handle T-Bank timeout" classname="payment\payment-flow-complete.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Edge Cases › should handle browser back button during payment" classname="payment\payment-flow-complete.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Edge Cases › should handle page refresh during status polling" classname="payment\payment-flow-complete.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="payment\payment-flow.spec.ts" timestamp="2025-12-23T21:59:06.280Z" hostname="chromium" tests="14" failures="0" skipped="14" time="0" errors="0">
+<testcase name="Payment Flow - T-Bank Integration › should display payment modal for non-Pro user" classname="payment\payment-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - T-Bank Integration › should create payment order via API" classname="payment\payment-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - T-Bank Integration › should redirect to T-Bank payment page" classname="payment\payment-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - T-Bank Integration › should poll payment status after redirect" classname="payment\payment-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - T-Bank Integration › should handle payment cancellation" classname="payment\payment-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - T-Bank Integration › should handle payment API errors gracefully" classname="payment\payment-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - T-Bank Integration › should update localStorage after successful payment" classname="payment\payment-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - T-Bank Integration › should navigate to generation after successful payment" classname="payment\payment-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Webhook Processing › should process webhook correctly" classname="payment\payment-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Webhook Processing › should reject webhook with invalid signature" classname="payment\payment-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Webhook Processing › should handle duplicate webhook delivery" classname="payment\payment-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Edge Cases › should handle network timeout during payment creation" classname="payment\payment-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Edge Cases › should prevent double payment for same generation" classname="payment\payment-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Edge Cases › should handle user closing payment window without completing" classname="payment\payment-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="pinglass-api.spec.ts" timestamp="2025-12-23T21:59:06.280Z" hostname="chromium" tests="26" failures="0" skipped="26" time="0" errors="0">
+<testcase name="PinGlass API Endpoints › POST /api/user › should create new user with device ID" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › POST /api/user › should return existing user on duplicate device ID" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › POST /api/user › should reject request without device ID" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › POST /api/user › should reject invalid device ID format" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › POST /api/payment/create › should create payment order" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › POST /api/payment/create › should create payment with avatar ID" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › POST /api/payment/create › should reject payment without device ID" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › POST /api/payment/create › should handle T-Bank API errors gracefully" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › GET /api/payment/status › should check payment status" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › GET /api/payment/status › should require device_id parameter" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › GET /api/payment/status › should require payment_id parameter" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › POST /api/generate › should reject non-Pro user" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › POST /api/generate › should accept Pro user generation request" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › POST /api/generate › should validate required fields" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › POST /api/generate › should validate style ID" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › POST /api/generate › should validate reference images count" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › POST /api/payment/webhook › should require valid T-Bank signature" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › POST /api/payment/webhook › should handle payment.succeeded event" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › API Error Handling › should return JSON error responses" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › API Error Handling › should handle CORS properly" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › API Error Handling › should rate limit (if implemented)" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › API Performance › should respond quickly to user creation" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › API Performance › should respond quickly to payment status check" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › API Security › should not expose sensitive data in errors" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › API Security › should sanitize SQL injection attempts" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass API Endpoints › API Security › should prevent XSS in user inputs" classname="pinglass-api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="pinglass-user-flow.spec.ts" timestamp="2025-12-23T21:59:06.280Z" hostname="chromium" tests="23" failures="0" skipped="23" time="0" errors="0">
+<testcase name="PinGlass User Flow › First-Time User Journey › should complete onboarding flow" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › First-Time User Journey › should upload photos successfully" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › First-Time User Journey › should validate minimum photo count" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › First-Time User Journey › should select style and proceed" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Payment Flow › should show payment modal for non-pro user" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Payment Flow › should create payment and redirect" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Payment Flow › should update Pro status after successful payment" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Photo Generation Flow › should initiate generation for Pro user" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Photo Generation Flow › should display generation progress" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Photo Generation Flow › should display 23 generated photos in results" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Photo Generation Flow › should allow photo download" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Returning User (Pro) › should skip onboarding and show dashboard" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Returning User (Pro) › should display existing personas" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Returning User (Pro) › should allow creating new persona" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Error Handling &amp; Edge Cases › should handle API errors gracefully" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Error Handling &amp; Edge Cases › should handle network timeout" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Error Handling &amp; Edge Cases › should handle partial generation failure" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Browser Console &amp; Errors › should load without JavaScript errors" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Browser Console &amp; Errors › should load without network errors" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Accessibility › should have no accessibility violations" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Accessibility › should support keyboard navigation" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Performance › should load within acceptable time" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="PinGlass User Flow › Performance › should have good Core Web Vitals" classname="pinglass-user-flow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="smoke.spec.ts" timestamp="2025-12-23T21:59:06.280Z" hostname="chromium" tests="5" failures="0" skipped="5" time="0" errors="0">
+<testcase name="Smoke Tests › homepage loads correctly" classname="smoke.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Smoke Tests › can start new persona flow" classname="smoke.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Smoke Tests › payment callback page loads" classname="smoke.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Smoke Tests › API health check - user endpoint" classname="smoke.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Smoke Tests › API health check - payment create validation" classname="smoke.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="workflows\generation-workflow.spec.ts" timestamp="2025-12-23T21:59:06.280Z" hostname="chromium" tests="18" failures="0" skipped="18" time="0" errors="0">
+<testcase name="Photo Upload Workflow › should upload 10 photos successfully" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Photo Upload Workflow › should validate minimum photo count (10)" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Photo Upload Workflow › should validate maximum photo count (20)" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Photo Upload Workflow › should allow removing uploaded photos" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Style Selection Workflow › should select professional style" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Style Selection Workflow › should select lifestyle style" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Style Selection Workflow › should select creative style" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Generation API Workflow › should call generation API with correct parameters" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Generation API Workflow › should handle generation progress updates" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Generation API Workflow › should handle generation failure gracefully" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Generation API Workflow › should handle partial generation (15/23 photos)" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Results Gallery Workflow › should display all generated photos in gallery" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Results Gallery Workflow › should allow downloading individual photos" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Results Gallery Workflow › should allow downloading all photos as ZIP" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Results Gallery Workflow › should show lightbox when clicking on photo" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Generation - Parallel Processing › should process photos in parallel batches" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Generation - Error Recovery › should retry failed photos" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Generation - Error Recovery › should handle network interruption during generation" classname="workflows\generation-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="workflows\payment-workflow.spec.ts" timestamp="2025-12-23T21:59:06.280Z" hostname="chromium" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Payment Flow - New User Complete Journey › should complete payment and show dashboard (not onboarding) after T-Bank redirect" classname="workflows\payment-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - New User Complete Journey › should handle payment cancellation and allow retry" classname="workflows\payment-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - New User Complete Journey › should correctly save payment state in sessionStorage before redirect" classname="workflows\payment-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - All Tiers › should create payment for starter tier (499 RUB)" classname="workflows\payment-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - All Tiers › should create payment for standard tier (999 RUB)" classname="workflows\payment-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Flow - All Tiers › should create payment for premium tier (1499 RUB)" classname="workflows\payment-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Status Polling › should poll status until payment confirmed" classname="workflows\payment-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Status Polling › should handle payment failure gracefully" classname="workflows\payment-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment API Validation › should reject payment without device ID" classname="workflows\payment-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment API Validation › should reject invalid tier ID" classname="workflows\payment-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Edge Cases › should handle network error during payment creation" classname="workflows\payment-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Edge Cases › should handle rapid double-click on pay button" classname="workflows\payment-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Payment Edge Cases › should preserve payment intent across page refresh" classname="workflows\payment-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="workflows\referral-workflow.spec.ts" timestamp="2025-12-23T21:59:06.280Z" hostname="chromium" tests="18" failures="0" skipped="18" time="0" errors="0">
+<testcase name="Referral Code Generation › should generate unique referral code for user" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral Code Generation › should display share button with referral link" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral Code Application › should apply referral code from Telegram start_param" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral Code Application › should save referral code to database (not just localStorage)" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral Code Application › should preserve referral code after T-Bank redirect" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral Code Application › should apply referral code from manual input" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral Code Application › should validate referral code format" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral Earning on Payment › should calculate 10% earning on successful payment" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral Earning on Payment › should credit earning to referrer balance" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral Earning on Payment › should handle idempotent webhook (prevent duplicate earnings)" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral Balance Display › should display current balance and stats" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral Balance Display › should show earnings history" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral - Edge Cases › should not allow self-referral" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral - Edge Cases › should handle expired referral code" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral - Edge Cases › should handle non-existent referral code" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral - Edge Cases › should only count referral once per user" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral - Telegram Integration › should extract referral code from Telegram initDataUnsafe" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Referral - Telegram Integration › should share referral via Telegram share dialog" classname="workflows\referral-workflow.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+</testsuites>
