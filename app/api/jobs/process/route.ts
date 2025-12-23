@@ -108,68 +108,81 @@ export async function POST(request: Request) {
 
     const results: { success: boolean; url?: string; error?: string; index: number }[] = []
 
-    // Process each photo in the chunk
-    for (let i = 0; i < promptsToProcess.length; i++) {
-      const promptIndex = startIndex + i
-      const prompt = promptsToProcess[i]
+    // Process photos in PARALLEL within chunk (Kie.ai supports concurrent requests)
+    const PARALLEL_LIMIT = 3 // Generate 3 photos at a time
+    const useR2 = isR2Configured()
 
-      try {
-        const options: GenerationOptions = {
-          prompt,
-          referenceImages: referenceImages.slice(0, 4), // Use up to 4 reference images
-          aspectRatio: "3:4",
-          resolution: "1K",
-        }
+    console.log(`[Jobs/Process] Processing ${promptsToProcess.length} photos in parallel (limit: ${PARALLEL_LIMIT})`)
 
-        console.log(`[Jobs/Process] Calling generateImage for photo ${promptIndex + 1}, KIE_AI_API_KEY length: ${(process.env.KIE_AI_API_KEY || process.env.KIE_API_KEY)?.trim()?.length || 0}`)
-        const imageUrl = await generateImage(options)
+    // Process in batches of PARALLEL_LIMIT
+    for (let batchStart = 0; batchStart < promptsToProcess.length; batchStart += PARALLEL_LIMIT) {
+      const batchEnd = Math.min(batchStart + PARALLEL_LIMIT, promptsToProcess.length)
+      const batchPrompts = promptsToProcess.slice(batchStart, batchEnd)
 
-        // Upload to R2 if configured, fallback to original URL
-        let finalImageUrl = imageUrl
-        const useR2 = isR2Configured()
-        if (useR2) {
-          try {
-            const r2Key = generatePromptKey(avatarId.toString(), styleId, promptIndex, "png")
-            const r2Result = await uploadFromUrl(imageUrl, r2Key)
-            finalImageUrl = r2Result.url
-            console.log(`[Jobs/Process] Uploaded to R2: ${r2Key}`)
-          } catch (r2Error) {
-            console.warn(`[Jobs/Process] R2 upload failed, using original URL:`, r2Error)
-            // Keep original URL as fallback
+      console.log(`[Jobs/Process] Parallel batch ${batchStart}-${batchEnd - 1}`)
+
+      const batchResults = await Promise.allSettled(
+        batchPrompts.map(async (prompt, batchIndex) => {
+          const promptIndex = startIndex + batchStart + batchIndex
+
+          const options: GenerationOptions = {
+            prompt,
+            referenceImages: referenceImages.slice(0, 4),
+            aspectRatio: "3:4",
+            resolution: "1K",
           }
+
+          console.log(`[Jobs/Process] Starting photo ${promptIndex + 1}`)
+          const imageUrl = await generateImage(options)
+
+          // Upload to R2 if configured
+          let finalImageUrl = imageUrl
+          if (useR2) {
+            try {
+              const r2Key = generatePromptKey(avatarId.toString(), styleId, promptIndex, "png")
+              const r2Result = await uploadFromUrl(imageUrl, r2Key)
+              finalImageUrl = r2Result.url
+            } catch (r2Error) {
+              console.warn(`[Jobs/Process] R2 upload failed for ${promptIndex}:`, r2Error)
+            }
+          }
+
+          // Save to database
+          await sql`
+            INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
+            VALUES (${avatarId}, ${styleId}, ${prompt.substring(0, 500)}, ${finalImageUrl})
+          `
+
+          return { promptIndex, imageUrl: finalImageUrl }
+        })
+      )
+
+      // Process batch results
+      for (let i = 0; i < batchResults.length; i++) {
+        const result = batchResults[i]
+        const promptIndex = startIndex + batchStart + i
+
+        if (result.status === "fulfilled") {
+          results.push({ success: true, url: result.value.imageUrl, index: promptIndex })
+          console.log(`[Jobs/Process] ✓ Photo ${promptIndex + 1}/${photoCount}`)
+
+          // Update progress
+          await sql`
+            UPDATE generation_jobs
+            SET completed_photos = completed_photos + 1, updated_at = NOW()
+            WHERE id = ${jobId}
+          `.catch(() => {})
+        } else {
+          const errorMsg = result.reason instanceof Error ? result.reason.message : "Unknown error"
+          results.push({ success: false, error: errorMsg, index: promptIndex })
+          console.error(`[Jobs/Process] ✗ Photo ${promptIndex + 1}:`, errorMsg)
+
+          await sql`
+            UPDATE generation_jobs
+            SET error_message = ${errorMsg}, updated_at = NOW()
+            WHERE id = ${jobId}
+          `.catch(() => {})
         }
-
-        // Save to database
-        await sql`
-          INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
-          VALUES (${avatarId}, ${styleId}, ${prompt.substring(0, 500)}, ${finalImageUrl})
-        `
-
-        // Update job progress
-        await sql`
-          UPDATE generation_jobs
-          SET completed_photos = completed_photos + 1, updated_at = NOW()
-          WHERE id = ${jobId}
-        `
-
-        results.push({ success: true, url: imageUrl, index: promptIndex })
-        console.log(`[Jobs/Process] ✓ Generated photo ${promptIndex + 1}/${photoCount}`)
-
-        // Small delay between generations to avoid rate limits
-        if (i < promptsToProcess.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 500))
-        }
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : "Unknown error"
-        console.error(`[Jobs/Process] ✗ Failed photo ${promptIndex + 1}:`, errorMsg)
-        results.push({ success: false, error: errorMsg, index: promptIndex })
-
-        // Update job with error but continue
-        await sql`
-          UPDATE generation_jobs
-          SET error_message = ${errorMsg}, updated_at = NOW()
-          WHERE id = ${jobId}
-        `
       }
     }
 
