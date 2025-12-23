@@ -99,7 +99,7 @@ async function generateWithReplicate(options: GenerationOptions): Promise<string
  */
 export async function generateImage(options: GenerationOptions): Promise<string> {
   const kieConfigured = isKieConfigured()
-  const kieKey = process.env.KIE_API_KEY?.trim()
+  const kieKey = (process.env.KIE_AI_API_KEY || process.env.KIE_API_KEY)?.trim()
   console.log(`[Image Gen] Provider check: Kie.ai configured=${kieConfigured}, key length=${kieKey?.length || 0}`)
 
   // Try Kie.ai first (primary provider)

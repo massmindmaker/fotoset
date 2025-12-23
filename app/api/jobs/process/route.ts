@@ -110,7 +110,7 @@ export async function POST(request: Request) {
           resolution: "1K",
         }
 
-        console.log(`[Jobs/Process] Calling generateImage for photo ${promptIndex + 1}, KIE_API_KEY length: ${process.env.KIE_API_KEY?.trim()?.length || 0}`)
+        console.log(`[Jobs/Process] Calling generateImage for photo ${promptIndex + 1}, KIE_AI_API_KEY length: ${(process.env.KIE_AI_API_KEY || process.env.KIE_API_KEY)?.trim()?.length || 0}`)
         const imageUrl = await generateImage(options)
 
         // Upload to R2 if configured, fallback to original URL

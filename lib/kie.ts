@@ -25,14 +25,16 @@ export interface KieGenerationResult {
  * Check if Kie.ai API is configured
  */
 export function isKieConfigured(): boolean {
-  return !!process.env.KIE_API_KEY
+  // Use KIE_AI_API_KEY (renamed from KIE_API_KEY to bypass Vercel env cache bug)
+  return !!(process.env.KIE_AI_API_KEY || process.env.KIE_API_KEY)
 }
 
 /**
  * Generate image using Kie.ai Nano Banana Pro API
  */
 export async function generateWithKie(options: KieGenerationOptions): Promise<KieGenerationResult> {
-  const apiKey = process.env.KIE_API_KEY?.trim()
+  // Use KIE_AI_API_KEY (renamed from KIE_API_KEY to bypass Vercel env cache bug)
+  const apiKey = (process.env.KIE_AI_API_KEY || process.env.KIE_API_KEY)?.trim()
 
   if (!apiKey) {
     throw new Error("KIE_API_KEY not configured")
