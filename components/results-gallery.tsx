@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, memo } from "react"
 import {
   X, Download, Share2, Star, ChevronLeft, ChevronRight,
-  Check, CheckSquare, Square, Archive, ZoomIn, Heart,
+  Check, CheckSquare, Square, Archive, ZoomIn,
   Copy, ExternalLink, Loader2, Send, MessageCircle, Link as LinkIcon
 } from "lucide-react"
 import JSZip from "jszip"
@@ -29,10 +29,8 @@ const AssetCard = memo<{
   asset: GeneratedAsset
   index: number
   isSelected: boolean
-  isFavorite: boolean
   isSelectionMode: boolean
   onToggleSelection: (id: string) => void
-  onToggleFavorite: (id: string) => void
   onOpenLightbox: (index: number) => void
   onShare: (asset: GeneratedAsset) => void
   onDownload: (asset: GeneratedAsset) => void
@@ -41,10 +39,8 @@ const AssetCard = memo<{
     asset,
     index,
     isSelected,
-    isFavorite,
     isSelectionMode,
     onToggleSelection,
-    onToggleFavorite,
     onOpenLightbox,
     onShare,
     onDownload,
@@ -72,13 +68,6 @@ const AssetCard = memo<{
           </button>
         )}
 
-        {/* Favorite badge */}
-        {isFavorite && !isSelectionMode && (
-          <div className="absolute top-2 left-2 z-10 w-7 h-7 rounded-lg bg-red-500/80 flex items-center justify-center">
-            <Heart className="w-4 h-4 text-white fill-white" />
-          </div>
-        )}
-
         {/* Image */}
         <button
           onClick={() => (isSelectionMode ? onToggleSelection(asset.id) : onOpenLightbox(index))}
@@ -92,20 +81,6 @@ const AssetCard = memo<{
         {!isSelectionMode && (
           <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
             <div className="flex items-center justify-center gap-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onToggleFavorite(asset.id)
-                }}
-                className={
-                  "p-2 rounded-lg transition-colors " +
-                  (isFavorite ? "bg-red-500/80 text-white" : "bg-white/20 text-white hover:bg-white/30")
-                }
-                aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-                aria-pressed={isFavorite}
-              >
-                <Heart className={"w-4 h-4 " + (isFavorite ? "fill-current" : "")} />
-              </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -146,7 +121,6 @@ const AssetCard = memo<{
   (prev, next) =>
     prev.asset.id === next.asset.id &&
     prev.isSelected === next.isSelected &&
-    prev.isFavorite === next.isFavorite &&
     prev.isSelectionMode === next.isSelectionMode &&
     prev.index === next.index
 )
@@ -346,9 +320,7 @@ const Lightbox: React.FC<{
   onNavigate: (index: number) => void
   onDownload: (asset: GeneratedAsset) => void
   onShare: (asset: GeneratedAsset) => void
-  favorites: Set<string>
-  onToggleFavorite: (id: string) => void
-}> = ({ assets, currentIndex, onClose, onNavigate, onDownload, onShare, favorites, onToggleFavorite }) => {
+}> = ({ assets, currentIndex, onClose, onNavigate, onDownload, onShare }) => {
   const asset = assets[currentIndex]
 
   useEffect(() => {
@@ -393,8 +365,6 @@ const Lightbox: React.FC<{
     return () => { document.body.style.overflow = "" }
   }, [])
 
-  const isFavorite = favorites.has(asset.id)
-
   return (
     <div className="fixed inset-0 z-50 bg-black/95 flex flex-col" role="dialog" aria-modal="true" aria-label="Photo viewer">
       <div className="flex items-center justify-between p-4 text-white">
@@ -403,14 +373,6 @@ const Lightbox: React.FC<{
         </button>
         <span className="text-sm text-white/70" aria-live="polite">{currentIndex + 1} / {assets.length}</span>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => onToggleFavorite(asset.id)}
-            className={"p-2 rounded-xl transition-colors " + (isFavorite ? "bg-red-500/20 text-red-400" : "hover:bg-white/10")}
-            aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-            aria-pressed={isFavorite}
-          >
-            <Heart className={"w-5 h-5 " + (isFavorite ? "fill-current" : "")} />
-          </button>
           <button onClick={() => onShare(asset)} className="p-2 hover:bg-white/10 rounded-xl transition-colors" aria-label="Share photo">
             <Share2 className="w-5 h-5" />
           </button>
@@ -483,21 +445,13 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
-  const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [isDownloading, setIsDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState(0)
   const [shareModalAsset, setShareModalAsset] = useState<GeneratedAsset | GeneratedAsset[] | null>(null)
   const [referralCode, setReferralCode] = useState<string | null>(null)
 
-  // Load favorites and referral code from localStorage
+  // Load referral code from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("pinglass_favorites")
-    if (saved) {
-      try {
-        setFavorites(new Set(JSON.parse(saved)))
-      } catch {}
-    }
-
     // Load referral code for sharing
     const loadReferralCode = async () => {
       // Get telegram user ID from Telegram WebApp
@@ -521,16 +475,6 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
   }, [])
 
   // Memoized handlers to prevent re-creating functions
-  const toggleFavorite = useCallback((id: string) => {
-    setFavorites(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      localStorage.setItem("pinglass_favorites", JSON.stringify([...next]))
-      return next
-    })
-  }, [])
-
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -550,12 +494,22 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
 
   const downloadSingle = useCallback(async (asset: GeneratedAsset) => {
     try {
-      const response = await fetch(asset.url)
+      const response = await fetch(asset.url, { mode: 'cors', credentials: 'omit' })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
       const blob = await response.blob()
+      if (blob.size === 0) throw new Error("Empty file")
+
       const filename = `pinglass_${asset.id.slice(-8)}.png`
       saveAs(blob, filename)
     } catch (e) {
       console.error("Download failed:", e)
+      // Fallback: open in new tab + show explanation
+      window.open(asset.url, '_blank')
+      const tg = (window as any).Telegram?.WebApp
+      if (tg?.showAlert) {
+        tg.showAlert("Фото открыто в новой вкладке. Сохраните его вручную (долгое нажатие).")
+      }
     }
   }, [])
 
@@ -568,22 +522,39 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
     try {
       const zip = new JSZip()
       const folder = zip.folder("pinglass_photos")
+      let addedFiles = 0
 
       for (let i = 0; i < assetsToDownload.length; i++) {
         const asset = assetsToDownload[i]
         try {
-          const response = await fetch(asset.url)
+          const response = await fetch(asset.url, { mode: 'cors', credentials: 'omit' })
+          if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
           const blob = await response.blob()
+          if (blob.size === 0) throw new Error("Empty response")
+
           const filename = `photo_${String(i + 1).padStart(2, "0")}.png`
           folder?.file(filename, blob)
+          addedFiles++
           setDownloadProgress(Math.round(((i + 1) / assetsToDownload.length) * 100))
         } catch (e) {
           console.error(`Failed to download ${asset.id}:`, e)
         }
       }
 
+      // Check if any files were added
+      if (addedFiles === 0) {
+        const tg = (window as any).Telegram?.WebApp
+        if (tg?.showAlert) {
+          tg.showAlert("Не удалось скачать фото. Попробуйте скачать по одному.")
+        } else {
+          alert("Не удалось скачать фото. Попробуйте скачать по одному.")
+        }
+        return
+      }
+
       const zipBlob = await zip.generateAsync({ type: "blob" })
-      saveAs(zipBlob, `pinglass_${personaName.replace(/\s+/g, "_")}_${assetsToDownload.length}photos.zip`)
+      saveAs(zipBlob, `pinglass_${personaName.replace(/\s+/g, "_")}_${addedFiles}photos.zip`)
     } catch (e) {
       console.error("ZIP creation failed:", e)
     } finally {
@@ -624,7 +595,6 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
   }, [personaName, referralCode])
 
   const selectedAssets = assets.filter(a => selectedIds.has(a.id))
-  const favoriteAssets = assets.filter(a => favorites.has(a.id))
 
   return (
     <div className="space-y-4">
@@ -709,31 +679,6 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
         </div>
       )}
 
-      {/* Favorites */}
-      {favoriteAssets.length > 0 && !isSelectionMode && (
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <Heart className="w-4 h-4 fill-red-400 text-red-400" />
-            Избранное ({favoriteAssets.length})
-          </h4>
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {favoriteAssets.map((asset) => {
-              const index = assets.findIndex(a => a.id === asset.id)
-              return (
-                <button
-                  key={asset.id}
-                  onClick={() => setLightboxIndex(index)}
-                  className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 ring-2 ring-red-400/50 hover:ring-red-400 transition-all"
-                  aria-label={`View favorite photo ${index + 1}`}
-                >
-                  <img src={asset.url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Photo grid with memoized cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 px-0.5">
         {assets.map((asset, index) => (
@@ -742,10 +687,8 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
             asset={asset}
             index={index}
             isSelected={selectedIds.has(asset.id)}
-            isFavorite={favorites.has(asset.id)}
             isSelectionMode={isSelectionMode}
             onToggleSelection={toggleSelection}
-            onToggleFavorite={toggleFavorite}
             onOpenLightbox={setLightboxIndex}
             onShare={sharePhoto}
             onDownload={downloadSingle}
@@ -762,8 +705,6 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
           onNavigate={setLightboxIndex}
           onDownload={downloadSingle}
           onShare={sharePhoto}
-          favorites={favorites}
-          onToggleFavorite={toggleFavorite}
         />
       )}
 

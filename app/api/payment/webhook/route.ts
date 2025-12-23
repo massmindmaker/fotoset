@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
 
 // Process referral earning when payment succeeds
 async function processReferralEarning(userId: number, paymentId: string) {
+  console.log(`[Referral] START: Processing for user=${userId}, payment=${paymentId}`)
   try {
     // Check if user was referred
     const referralResult = await query<{ referrer_id: number }>(
@@ -102,6 +103,7 @@ async function processReferralEarning(userId: number, paymentId: string) {
     )
 
     if (referralResult.rows.length === 0) {
+      console.log(`[Referral] User ${userId} has no referrer - skipping`)
       return // User has no referrer
     }
 

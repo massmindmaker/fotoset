@@ -188,17 +188,6 @@ export function useSync() {
         if (uploadedUrls.length === 0) {
           console.warn("[Sync] R2 upload failed for all photos, trying direct DB fallback...")
 
-          // Notify user about fallback (slower path)
-          const tg = window.Telegram?.WebApp
-          const fallbackMessage = "Используем альтернативный способ загрузки..."
-          if (tg?.showAlert) {
-            try {
-              tg.showAlert(fallbackMessage)
-            } catch {
-              // Silent fallback
-            }
-          }
-
           const fallbackImages = imagesToUpload.slice(0, 5)
           const base64Images: string[] = []
 
