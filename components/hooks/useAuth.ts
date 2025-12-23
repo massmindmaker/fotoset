@@ -105,13 +105,39 @@ export function useAuth() {
         console.log("[TG] Auth success:", tgUser.id, tgUser.username || tgUser.first_name)
 
         // Handle referral code from start_param (passed via Telegram deep link)
+        // CRITICAL: Save to DATABASE via API - localStorage clears during T-Bank redirect!
         const telegramRefCode = tg.initDataUnsafe?.start_param
         if (telegramRefCode) {
           console.log("[TG] Referral code from start_param:", telegramRefCode)
-          // Save to BOTH localStorage (for payment-modal) and sessionStorage (for backup)
-          // FIX: payment-modal reads from localStorage, not sessionStorage
-          localStorage.setItem("pinglass_pending_referral", telegramRefCode.toUpperCase())
-          sessionStorage.setItem("pinglass_referral_code", telegramRefCode.toUpperCase())
+          // Save referral code to DB via API (survives T-Bank redirect)
+          try {
+            const res = await fetch("/api/user", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                telegramUserId: tgUser.id,
+                referralCode: telegramRefCode.toUpperCase(),
+              }),
+            })
+            if (res.ok) {
+              console.log("[TG] Referral code saved to DB:", telegramRefCode.toUpperCase())
+            } else {
+              console.error("[TG] Failed to save referral code to DB:", res.status)
+            }
+          } catch (err) {
+            console.error("[TG] Error saving referral code:", err)
+          }
+        } else {
+          // No referral code - still register user in DB
+          try {
+            await fetch("/api/user", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ telegramUserId: tgUser.id }),
+            })
+          } catch {
+            // Non-critical, user will be created on first payment
+          }
         }
 
         // Wrap in try-catch - these methods throw WebAppMethodUnsupported outside Telegram

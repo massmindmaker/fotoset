@@ -30,12 +30,16 @@ export async function POST(request: NextRequest) {
     // Find or create user (Telegram-only)
     const user = await findOrCreateUser({ telegramUserId })
 
-    // Apply referral code if provided and not already applied
-    if (referralCode) {
-      console.log(`[Payment] Applying referral code ${referralCode} for user ${user.id}`)
-      await applyReferralCode(user.id, referralCode)
+    // CRITICAL: Use pending_referral_code from DATABASE (survives T-Bank redirect)
+    // Client referralCode parameter is deprecated but still accepted as fallback
+    const effectiveReferralCode = user.pending_referral_code || referralCode
+
+    // Apply referral code if exists and not already applied
+    if (effectiveReferralCode) {
+      console.log(`[Payment] Applying referral code ${effectiveReferralCode} for user ${user.id} (source: ${user.pending_referral_code ? 'DB' : 'client'})`)
+      await applyReferralCode(user.id, effectiveReferralCode)
     } else {
-      console.log(`[Payment] No referral code provided for user ${user.id}`)
+      console.log(`[Payment] No referral code for user ${user.id}`)
     }
 
     // Check credentials before proceeding

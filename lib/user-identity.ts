@@ -16,8 +16,9 @@ export interface UserIdentifier {
  */
 export async function findOrCreateUser(params: {
   telegramUserId: number
+  referralCode?: string
 }): Promise<User> {
-  const { telegramUserId } = params
+  const { telegramUserId, referralCode } = params
 
   // Validate telegram_user_id
   const tgId = typeof telegramUserId === 'number'
@@ -28,12 +29,17 @@ export async function findOrCreateUser(params: {
     throw new Error("Invalid telegram_user_id format: must be a valid number")
   }
 
+  // Normalize referral code (uppercase, trimmed)
+  const normalizedCode = referralCode?.toUpperCase().trim() || null
+
   // Find or create user (atomic)
+  // CRITICAL: Save referral code on FIRST login - this survives T-Bank redirect
   const result = await sql`
-    INSERT INTO users (telegram_user_id)
-    VALUES (${tgId})
+    INSERT INTO users (telegram_user_id, pending_referral_code)
+    VALUES (${tgId}, ${normalizedCode})
     ON CONFLICT (telegram_user_id) DO UPDATE SET
-      updated_at = NOW()
+      updated_at = NOW(),
+      pending_referral_code = COALESCE(users.pending_referral_code, ${normalizedCode})
     RETURNING *
   `
 

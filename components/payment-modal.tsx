@@ -82,11 +82,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
     setErrorMessage("")
 
     try {
-      // Get pending referral code from localStorage
-      const pendingReferral = typeof window !== "undefined"
-        ? localStorage.getItem("pinglass_pending_referral")
-        : null
-
+      // NOTE: Referral code is now stored in DB (user.pending_referral_code)
+      // No localStorage needed - API reads referral code directly from DB
       const response = await fetch("/api/payment/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -95,15 +92,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
           email: email.trim(),
           tierId: tier.id,
           photoCount: tier.photos,
-          referralCode: pendingReferral || undefined,
+          // referralCode removed - API uses DB field pending_referral_code
         }),
       })
-
-      // Mark referral as applied
-      if (pendingReferral) {
-        localStorage.setItem("pinglass_referral_applied", "true")
-        localStorage.removeItem("pinglass_pending_referral")
-      }
 
       const data: PaymentResponse = await response.json()
 
