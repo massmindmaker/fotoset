@@ -31,10 +31,23 @@ export async function GET() {
     }
 
     // Skip connection test (uses deprecated endpoint), go straight to generation
-    // Try a simple generation
-    console.log("[Test-Kie] Starting test generation...")
+    // Get sample reference images from avatar 7
+    const { sql } = await import("@/lib/db")
+    const refs = await sql`
+      SELECT image_url FROM reference_photos
+      WHERE avatar_id = 7
+      ORDER BY created_at ASC
+      LIMIT 4
+    `
+    const referenceUrls = refs.map((r: any) => r.image_url)
+    console.log("[Test-Kie] Reference images:", referenceUrls.length, "URLs")
+    console.log("[Test-Kie] First URL preview:", referenceUrls[0]?.substring(0, 80))
+
+    // Try a simple generation with reference images
+    console.log("[Test-Kie] Starting test generation WITH references...")
     const result = await generateWithKie({
       prompt: "Professional portrait photo of a person, studio lighting, clean white background, high quality",
+      referenceImages: referenceUrls,
       aspectRatio: "3:4",
       resolution: "1K",  // Use 1K for faster test
       outputFormat: "jpg",
