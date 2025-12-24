@@ -104,31 +104,43 @@ export function useAuth() {
         setAuthStatus('success')
         console.log("[TG] Auth success:", tgUser.id, tgUser.username || tgUser.first_name)
 
-        // Handle referral code from start_param (passed via Telegram deep link)
-        // CRITICAL: Save to DATABASE via API - localStorage clears during T-Bank redirect!
-        const telegramRefCode = tg.initDataUnsafe?.start_param
-        if (telegramRefCode) {
-          console.log("[TG] Referral code from start_param:", telegramRefCode)
-          // Save referral code to DB via API (survives T-Bank redirect)
-          try {
-            const res = await fetch("/api/user", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                telegramUserId: tgUser.id,
-                referralCode: telegramRefCode.toUpperCase(),
-              }),
-            })
-            if (res.ok) {
-              console.log("[TG] Referral code saved to DB:", telegramRefCode.toUpperCase())
-            } else {
-              console.error("[TG] Failed to save referral code to DB:", res.status)
+        // Handle start_param (passed via Telegram deep link)
+        // Can be: referral code (e.g., "ABC123") or command (e.g., "generate")
+        const startParam = tg.initDataUnsafe?.start_param
+        if (startParam) {
+          console.log("[TG] start_param:", startParam)
+
+          // Check if it's a generate command (from post-payment redirect)
+          if (startParam === "generate") {
+            console.log("[TG] Generate command detected - setting resume_payment flag")
+            // Set flag to trigger generation in persona-app.tsx
+            sessionStorage.setItem("pinglass_resume_payment", "true")
+            sessionStorage.setItem("pinglass_from_telegram_deeplink", "true")
+            localStorage.setItem("pinglass_onboarding_complete", "true")
+          } else {
+            // Treat as referral code - save to DATABASE via API
+            // CRITICAL: localStorage clears during T-Bank redirect!
+            console.log("[TG] Referral code from start_param:", startParam)
+            try {
+              const res = await fetch("/api/user", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  telegramUserId: tgUser.id,
+                  referralCode: startParam.toUpperCase(),
+                }),
+              })
+              if (res.ok) {
+                console.log("[TG] Referral code saved to DB:", startParam.toUpperCase())
+              } else {
+                console.error("[TG] Failed to save referral code to DB:", res.status)
+              }
+            } catch (err) {
+              console.error("[TG] Error saving referral code:", err)
             }
-          } catch (err) {
-            console.error("[TG] Error saving referral code:", err)
           }
         } else {
-          // No referral code - still register user in DB
+          // No start_param - still register user in DB
           try {
             await fetch("/api/user", {
               method: "POST",

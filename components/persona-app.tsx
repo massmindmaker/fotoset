@@ -967,6 +967,45 @@ export default function PersonaApp() {
 
   // Block access if not in Telegram Mini App
   if (authStatus === 'not_in_telegram') {
+    // Check if returning from payment - show success message with Telegram link
+    const isFromPayment = typeof window !== "undefined" && (
+      new URLSearchParams(window.location.search).get("resume_payment") === "true" ||
+      sessionStorage.getItem("pinglass_resume_payment") === "true"
+    )
+
+    if (isFromPayment) {
+      // Payment success - redirect user back to Telegram
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center bg-gradient-to-br from-background via-background to-muted/20">
+          <div className="max-w-md space-y-6">
+            <div className="w-20 h-20 mx-auto bg-green-500/20 rounded-full flex items-center justify-center">
+              <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
+              Оплата успешна!
+            </h1>
+            <p className="text-muted-foreground text-lg leading-relaxed">
+              Вернитесь в Telegram для начала генерации ваших AI-фото.
+            </p>
+            <div className="pt-4">
+              <a
+                href="https://t.me/Pinglass_bot?start=generate"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105"
+              >
+                ✨ Открыть в Telegram
+              </a>
+            </div>
+            <p className="text-sm text-muted-foreground/60">
+              Генерация начнётся автоматически
+            </p>
+          </div>
+        </div>
+      )
+    }
+
+    // Regular "open in Telegram" screen
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center bg-gradient-to-br from-background via-background to-muted/20">
         <div className="max-w-md space-y-6">
@@ -980,7 +1019,7 @@ export default function PersonaApp() {
           </p>
           <div className="pt-4">
             <a
-              href="https://t.me/your_bot_name"
+              href="https://t.me/Pinglass_bot"
               className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105"
             >
               Открыть в Telegram →
