@@ -128,31 +128,54 @@ export default function PersonaApp() {
     return "personaId" in viewState ? getPersona(viewState.personaId) : null
   }, [viewState, getPersona])
 
-  // CRITICAL FIX: Capture payment redirect params IMMEDIATELY on mount
-  // This runs BEFORE auth check to prevent race condition where:
-  // 1. T-Bank redirects with ?resume_payment=true
-  // 2. Auth is still pending (Telegram SDK takes 0-2 sec)
-  // 3. Main initApp skips because authStatus === 'pending'
-  // 4. sessionStorage never gets set, onboarding shows instead
+  // State for payment redirect handling (checked via API, not localStorage)
+  const [paymentRedirectState, setPaymentRedirectState] = useState<{
+    isFromPayment: boolean
+    telegramUserId: string | null
+    hasPaidPayment: boolean
+    checked: boolean
+  }>({ isFromPayment: false, telegramUserId: null, hasPaidPayment: false, checked: false })
+
+  // CRITICAL FIX: Check payment status via DATABASE when returning from T-Bank
+  // No localStorage/sessionStorage - use API to check if user has paid
   useEffect(() => {
     if (typeof window === "undefined") return
 
     const urlParams = new URLSearchParams(window.location.search)
     const resumePayment = urlParams.get("resume_payment") === "true"
     const urlTelegramUserId = urlParams.get("telegram_user_id")
-    const urlTier = urlParams.get("tier")
 
-    if (resumePayment) {
-      console.log("[Payment] EARLY CAPTURE: Saving URL params to sessionStorage BEFORE auth check")
-      sessionStorage.setItem("pinglass_resume_payment", "true")
-      localStorage.setItem("pinglass_onboarding_complete", "true") // Never show onboarding after payment
-      if (urlTier) sessionStorage.setItem("pinglass_tier", urlTier)
-      if (urlTelegramUserId) sessionStorage.setItem("pinglass_telegram_user_id", urlTelegramUserId)
+    if (resumePayment && urlTelegramUserId) {
+      console.log("[Payment] Checking payment status via API for user:", urlTelegramUserId)
 
-      // Clean URL immediately to prevent duplicate processing
+      // Check payment status in DATABASE
+      fetch(`/api/payment/status?telegram_user_id=${urlTelegramUserId}`)
+        .then(res => res.json())
+        .then(data => {
+          console.log("[Payment] API response:", data)
+          setPaymentRedirectState({
+            isFromPayment: true,
+            telegramUserId: urlTelegramUserId,
+            hasPaidPayment: data.paid === true,
+            checked: true,
+          })
+        })
+        .catch(err => {
+          console.error("[Payment] API error:", err)
+          setPaymentRedirectState({
+            isFromPayment: true,
+            telegramUserId: urlTelegramUserId,
+            hasPaidPayment: false,
+            checked: true,
+          })
+        })
+
+      // Clean URL to prevent re-checking on refresh
       window.history.replaceState({}, "", window.location.pathname)
+    } else {
+      setPaymentRedirectState(prev => ({ ...prev, checked: true }))
     }
-  }, []) // Empty deps = runs once on mount, BEFORE auth-dependent effects
+  }, []) // Empty deps = runs once on mount
 
   // Initialize app
   useEffect(() => {
@@ -967,14 +990,10 @@ export default function PersonaApp() {
 
   // Block access if not in Telegram Mini App
   if (authStatus === 'not_in_telegram') {
-    // Check if returning from payment - show success message with Telegram link
-    const isFromPayment = typeof window !== "undefined" && (
-      new URLSearchParams(window.location.search).get("resume_payment") === "true" ||
-      sessionStorage.getItem("pinglass_resume_payment") === "true"
-    )
-
-    if (isFromPayment) {
-      // Payment success - redirect user back to Telegram
+    // Check if returning from payment via DATABASE (not localStorage!)
+    // paymentRedirectState.hasPaidPayment is set by API call in useEffect above
+    if (paymentRedirectState.isFromPayment && paymentRedirectState.hasPaidPayment) {
+      // Payment confirmed in DB - show success screen with Telegram link
       return (
         <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center bg-gradient-to-br from-background via-background to-muted/20">
           <div className="max-w-md space-y-6">
@@ -1001,6 +1020,15 @@ export default function PersonaApp() {
               Генерация начнётся автоматически
             </p>
           </div>
+        </div>
+      )
+    }
+
+    // Still checking payment status - show loading
+    if (paymentRedirectState.isFromPayment && !paymentRedirectState.checked) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       )
     }
