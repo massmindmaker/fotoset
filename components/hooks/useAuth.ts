@@ -163,12 +163,36 @@ export function useAuth() {
         } catch {
           console.warn('[TG] expand() not available outside Telegram')
         }
-      } else if (!tg) {
-        console.log("[TG] Not in Telegram WebApp context")
-        setAuthStatus('not_in_telegram')
       } else {
-        console.log("[TG] No user data in initDataUnsafe")
-        setAuthStatus('failed')
+        // Not in Telegram WebApp - check for payment redirect with telegram_user_id
+        // This happens after T-Bank payment redirect back to browser
+        const urlParams = new URLSearchParams(window.location.search)
+        const urlTelegramUserId = urlParams.get("telegram_user_id")
+        const sessionTelegramUserId = sessionStorage.getItem("pinglass_telegram_user_id")
+        const fallbackTelegramUserId = urlTelegramUserId || sessionTelegramUserId
+
+        if (fallbackTelegramUserId) {
+          const tgId = parseInt(fallbackTelegramUserId, 10)
+          if (!isNaN(tgId) && tgId > 0) {
+            console.log("[TG] Auth fallback from URL/sessionStorage:", tgId)
+            const identifier: UserIdentifier = {
+              type: "telegram",
+              telegramUserId: tgId,
+              deviceId: `tg_${tgId}`,
+            }
+            setUserIdentifier(identifier)
+            setAuthStatus('success')
+            return
+          }
+        }
+
+        if (!tg) {
+          console.log("[TG] Not in Telegram WebApp context")
+          setAuthStatus('not_in_telegram')
+        } else {
+          console.log("[TG] No user data in initDataUnsafe")
+          setAuthStatus('failed')
+        }
       }
     }
 

@@ -63,45 +63,36 @@ const AnimatedLogoCompact = lazy(() => import("./animated-logo").then((m) => ({ 
 
 export default function PersonaApp() {
   // CRITICAL: Check for payment redirect BEFORE anything else
-  // This must happen synchronously on first render to show success screen
-  const [isPaymentRedirect, setIsPaymentRedirect] = useState(() => {
+  // Set sessionStorage flags immediately so generation can start
+  const [paymentRedirectHandled] = useState(() => {
     if (typeof window === "undefined") return false
     const urlParams = new URLSearchParams(window.location.search)
-    return urlParams.get("resume_payment") === "true"
+    const isPaymentRedirect = urlParams.get("resume_payment") === "true"
+
+    if (isPaymentRedirect) {
+      // Save to sessionStorage IMMEDIATELY for generation flow
+      sessionStorage.setItem("pinglass_resume_payment", "true")
+      localStorage.setItem("pinglass_onboarding_complete", "true")
+
+      const tier = urlParams.get("tier") || "premium"
+      const telegramUserId = urlParams.get("telegram_user_id")
+
+      sessionStorage.setItem("pinglass_tier", tier)
+      if (telegramUserId) {
+        sessionStorage.setItem("pinglass_telegram_user_id", telegramUserId)
+      }
+
+      // Clear URL params to prevent re-triggering
+      window.history.replaceState({}, "", window.location.pathname)
+
+      console.log("[Payment Redirect] Flags set, proceeding to generation")
+      return true
+    }
+    return false
   })
 
-  // If returning from T-Bank payment - show success screen IMMEDIATELY
-  // No auth check, no hooks, no nothing - just success screen with Telegram link
-  if (isPaymentRedirect) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center bg-gradient-to-br from-background via-background to-muted/20">
-        <div className="max-w-md space-y-6">
-          <div className="w-20 h-20 mx-auto bg-green-500/20 rounded-full flex items-center justify-center">
-            <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
-            Оплата успешна!
-          </h1>
-          <p className="text-muted-foreground text-lg leading-relaxed">
-            Вернитесь в Telegram для генерации ваших AI-фото.
-          </p>
-          <div className="pt-4">
-            <a
-              href="https://t.me/Pinglass_bot?start=generate"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105"
-            >
-              ✨ Открыть в Telegram
-            </a>
-          </div>
-          <p className="text-sm text-muted-foreground/60">
-            Генерация начнётся автоматически
-          </p>
-        </div>
-      </div>
-    )
-  }
+  // No static success screen - proceed directly to normal flow
+  // Generation will start automatically via resume_payment in sessionStorage
 
   // Custom hooks
   const { userIdentifier, authStatus, telegramUserId, theme, toggleTheme, showMessage } = useAuth()
