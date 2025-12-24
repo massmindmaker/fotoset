@@ -13,13 +13,14 @@ const TIER_PRICES: Record<string, { price: number; photos: number }> = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { telegramUserId, email, paymentMethod, tierId, photoCount, referralCode } = await request.json() as {
+    const { telegramUserId, email, paymentMethod, tierId, photoCount, referralCode, avatarId } = await request.json() as {
       telegramUserId: number
       email?: string
       paymentMethod?: PaymentMethod
       tierId?: string
       photoCount?: number
       referralCode?: string
+      avatarId?: string
     }
 
     // SECURITY: Require telegramUserId (Telegram-only authentication)
@@ -132,10 +133,24 @@ export async function POST(request: NextRequest) {
       VALUES (${user.id}, ${payment.PaymentId}, ${amount}, 'pending')
     `
 
-    // Also store the mapping for success page redirect
+    // CRITICAL: Save pending generation params to user record
+    // This survives Telegram WebApp redirects (sessionStorage/localStorage don't)
+    const avatarIdNum = avatarId ? parseInt(avatarId, 10) : null
     await sql`
-      UPDATE users SET updated_at = NOW() WHERE id = ${user.id}
-    `.catch(() => {}) // Non-critical
+      UPDATE users
+      SET
+        pending_generation_tier = ${tierId || 'premium'},
+        pending_generation_avatar_id = ${avatarIdNum},
+        pending_generation_at = NOW(),
+        updated_at = NOW()
+      WHERE id = ${user.id}
+    `
+
+    log.debug(" Saved pending generation:", {
+      userId: user.id,
+      tier: tierId || 'premium',
+      avatarId: avatarIdNum,
+    })
 
     log.debug(" Created successfully:", {
       orderId,

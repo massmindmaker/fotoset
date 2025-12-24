@@ -92,6 +92,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
           email: email.trim(),
           tierId: tier.id,
           photoCount: tier.photos,
+          avatarId: personaId, // For auto-generation after payment
           // referralCode removed - API uses DB field pending_referral_code
         }),
       })
