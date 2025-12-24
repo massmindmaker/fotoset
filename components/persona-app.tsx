@@ -63,36 +63,27 @@ const AnimatedLogoCompact = lazy(() => import("./animated-logo").then((m) => ({ 
 
 export default function PersonaApp() {
   // CRITICAL: Check for payment redirect BEFORE anything else
-  // Set sessionStorage flags immediately so generation can start
-  const [paymentRedirectHandled] = useState(() => {
-    if (typeof window === "undefined") return false
+  // Extract all params synchronously on first render
+  const [paymentRedirectData] = useState(() => {
+    if (typeof window === "undefined") return null
     const urlParams = new URLSearchParams(window.location.search)
     const isPaymentRedirect = urlParams.get("resume_payment") === "true"
 
     if (isPaymentRedirect) {
-      // Save to sessionStorage IMMEDIATELY for generation flow
-      sessionStorage.setItem("pinglass_resume_payment", "true")
+      const tier = urlParams.get("tier") || "premium"
+      const tgId = urlParams.get("telegram_user_id")
+
+      // Mark onboarding as complete
       localStorage.setItem("pinglass_onboarding_complete", "true")
 
-      const tier = urlParams.get("tier") || "premium"
-      const telegramUserId = urlParams.get("telegram_user_id")
-
-      sessionStorage.setItem("pinglass_tier", tier)
-      if (telegramUserId) {
-        sessionStorage.setItem("pinglass_telegram_user_id", telegramUserId)
-      }
-
-      // Clear URL params to prevent re-triggering
+      // Clear URL params
       window.history.replaceState({}, "", window.location.pathname)
 
-      console.log("[Payment Redirect] Flags set, proceeding to generation")
-      return true
+      console.log("[Payment Redirect] Detected, tier:", tier, "tgId:", tgId)
+      return { tier, telegramUserId: tgId ? parseInt(tgId, 10) : null }
     }
-    return false
+    return null
   })
-
-  // No static success screen - proceed directly to normal flow
-  // Generation will start automatically via resume_payment in sessionStorage
 
   // Custom hooks
   const { userIdentifier, authStatus, telegramUserId, theme, toggleTheme, showMessage } = useAuth()
@@ -154,9 +145,155 @@ export default function PersonaApp() {
     return "personaId" in viewState ? getPersona(viewState.personaId) : null
   }, [viewState, getPersona])
 
-
-  // Initialize app
+  // PAYMENT REDIRECT: Start generation IMMEDIATELY without waiting for auth
   useEffect(() => {
+    if (!paymentRedirectData) return
+    if (typeof window === "undefined") return
+
+    const startGenerationAfterPayment = async () => {
+      const { tier, telegramUserId: tgId } = paymentRedirectData
+
+      if (!tgId) {
+        console.error("[Payment Redirect] No telegram_user_id in redirect")
+        setViewState({ view: "DASHBOARD" })
+        setIsReady(true)
+        return
+      }
+
+      console.log("[Payment Redirect] Starting generation immediately, tgId:", tgId, "tier:", tier)
+
+      // Get tier photo count
+      const TIER_PHOTOS: Record<string, number> = { starter: 7, standard: 15, premium: 23 }
+      const tierPhotos = TIER_PHOTOS[tier] || 23
+
+      // Show generation screen immediately
+      setIsGenerating(true)
+      setGenerationProgress({ completed: 0, total: tierPhotos })
+      setIsReady(true)
+
+      // Find or create avatar and start generation
+      try {
+        // First, get user's avatars
+        const avatarsRes = await fetch(`/api/avatars?telegram_user_id=${tgId}`)
+        const avatarsData = await avatarsRes.json()
+        const avatars = avatarsData.data || []
+
+        console.log("[Payment Redirect] Loaded avatars:", avatars.length)
+
+        let targetAvatarId: string | null = null
+
+        if (avatars.length > 0) {
+          // Use most recent avatar
+          const mostRecent = avatars.reduce((a: { id: number }, b: { id: number }) =>
+            Number(b.id) > Number(a.id) ? b : a
+          )
+          targetAvatarId = String(mostRecent.id)
+          console.log("[Payment Redirect] Using avatar:", targetAvatarId)
+
+          // Update personas state
+          setPersonas(avatars.map((a: { id: number; name?: string; status?: string; thumbnail_url?: string }) => ({
+            id: String(a.id),
+            name: a.name || "Мой аватар",
+            status: a.status || "draft",
+            thumbnailUrl: a.thumbnail_url,
+            generatedAssets: [],
+          })))
+
+          // Set view to RESULTS with this persona
+          setViewState({ view: "RESULTS", personaId: targetAvatarId })
+        } else {
+          // No avatar - show dashboard
+          console.log("[Payment Redirect] No avatars, showing dashboard")
+          setIsGenerating(false)
+          setViewState({ view: "DASHBOARD" })
+          return
+        }
+
+        // Start generation
+        console.log("[Payment Redirect] Calling /api/generate")
+        const genRes = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            telegramUserId: tgId,
+            avatarId: targetAvatarId,
+            styleId: "pinglass",
+            photoCount: tierPhotos,
+            useStoredReferences: true,
+          }),
+        })
+        const genData = await genRes.json()
+
+        if (genData.success && genData.data?.jobId) {
+          console.log("[Payment Redirect] Generation started, jobId:", genData.data.jobId)
+          const jobId = genData.data.jobId
+          let lastPhotoCount = 0
+
+          // Poll for progress
+          startPolling(
+            `payment-gen-${jobId}`,
+            async () => {
+              const statusRes = await fetch(`/api/generate?job_id=${jobId}`)
+              const statusData = await statusRes.json()
+
+              setGenerationProgress({
+                completed: statusData.progress?.completed || 0,
+                total: statusData.progress?.total || tierPhotos,
+              })
+
+              // Update photos as they arrive
+              if (statusData.photos && statusData.photos.length > lastPhotoCount) {
+                const newPhotos = statusData.photos.slice(lastPhotoCount)
+                const newAssets = newPhotos.map((url: string, i: number) => ({
+                  id: `${jobId}-${lastPhotoCount + i}`,
+                  type: "PHOTO" as const,
+                  url,
+                  styleId: "pinglass",
+                  createdAt: Date.now(),
+                }))
+
+                setPersonas((prev) =>
+                  prev.map((persona) =>
+                    persona.id === targetAvatarId
+                      ? {
+                          ...persona,
+                          generatedAssets: [...newAssets, ...persona.generatedAssets],
+                          thumbnailUrl: persona.thumbnailUrl || newAssets[0]?.url,
+                        }
+                      : persona
+                  )
+                )
+                lastPhotoCount = statusData.photos.length
+              }
+
+              if (statusData.status === "completed" || statusData.status === "failed") {
+                stopPolling(`payment-gen-${jobId}`)
+                setIsGenerating(false)
+
+                if (statusData.status === "completed") {
+                  console.log("[Payment Redirect] Generation completed!")
+                }
+              }
+            },
+            { intervalMs: 3000, maxAttempts: 200 }
+          )
+        } else {
+          console.error("[Payment Redirect] Generation failed:", genData.error)
+          setIsGenerating(false)
+        }
+      } catch (err) {
+        console.error("[Payment Redirect] Error:", err)
+        setIsGenerating(false)
+        setViewState({ view: "DASHBOARD" })
+      }
+    }
+
+    startGenerationAfterPayment()
+  }, [paymentRedirectData, setIsGenerating, setGenerationProgress, setPersonas, startPolling, stopPolling])
+
+  // Initialize app (normal flow - skip if payment redirect)
+  useEffect(() => {
+    if (paymentRedirectData) return // Skip - handled by payment redirect effect
     if (typeof window === "undefined") return
 
     const abortController = new AbortController()
@@ -196,266 +333,13 @@ export default function PersonaApp() {
           telegramUserId: userIdentifier?.telegramUserId
         })
 
-        // Check for pending payment after redirect from T-Bank
-        // NOTE: URL params already captured by early mount effect (lines 131-155)
-        // Just read from sessionStorage which was set BEFORE auth check
-        const resumePayment = sessionStorage.getItem("pinglass_resume_payment") === "true"
-        const savedTier = sessionStorage.getItem("pinglass_tier") || "premium"
-        const savedTelegramUserId = sessionStorage.getItem("pinglass_telegram_user_id")
-
-        if (resumePayment) {
-          console.log("[Resume Payment] Reading from sessionStorage (set by early capture)")
-
-          // Restore saved view state for proper redirect after payment
-          const savedViewState = loadViewState()
-          console.log("[Resume Payment] Saved viewState:", savedViewState)
-
-          // Always mark onboarding as complete after payment
-          localStorage.setItem("pinglass_onboarding_complete", "true")
-
-          try {
-            const tgId = userIdentifier.telegramUserId || (savedTelegramUserId ? parseInt(savedTelegramUserId) : null)
-
-            if (!tgId) {
-              console.error("[Resume Payment] No valid Telegram user ID")
-              showMessage("Ошибка аутентификации. Пожалуйста, перезапустите приложение в Telegram.")
-              if (!checkMounted()) return
-              // Use saved view state or fallback to dashboard (not onboarding)
-              if (savedViewState && savedViewState.view !== "ONBOARDING") {
-                setViewState(savedViewState)
-              } else {
-                setViewState({ view: "DASHBOARD" })
-              }
-              setIsReady(true)
-              return
-            }
-
-            // Reload avatars if we have telegram_user_id from URL or sessionStorage
-            if (savedTelegramUserId) {
-              console.log("[Resume Payment] Reloading avatars with saved tgId:", tgId)
-              loadedAvatars = await loadAvatarsFromServer(userIdentifier)
-              if (!checkMounted()) return
-            }
-
-            console.log("[Resume Payment] telegramUserId:", tgId, "avatars:", loadedAvatars.length)
-
-            // Find target persona for generation
-            let targetPersona: Persona | null = null
-
-            if (loadedAvatars.length > 0) {
-              targetPersona = loadedAvatars.reduce((latest, current) =>
-                Number(current.id) > Number(latest.id) ? current : latest
-              )
-              console.log("[Resume Payment] Found most recent avatar:", targetPersona.id, "status:", targetPersona.status)
-
-              // Check if avatar has reference photos
-              try {
-                const refRes = await fetch(`/api/avatars/${targetPersona.id}/references?telegram_user_id=${tgId}`)
-                if (refRes.ok) {
-                  const refData = await refRes.json()
-                  const refCount = refData.data?.count || refData.count || 0
-                  console.log("[Resume Payment] Avatar", targetPersona.id, "has", refCount, "reference photos")
-
-                  if (refCount === 0) {
-                    showMessage("Оплата прошла успешно! Загрузите фото для генерации.")
-                    if (!checkMounted()) return
-                    setPersonas(loadedAvatars)
-                    setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: targetPersona.id })
-                    setIsReady(true)
-                    return
-                  }
-                }
-              } catch (err) {
-                console.error("[Resume Payment] Error checking references:", err)
-              }
-            }
-
-            if (!targetPersona) {
-              console.log("[Resume Payment] No avatars found after payment")
-              showMessage("Оплата прошла успешно! Создайте аватар и загрузите фото.")
-              if (!checkMounted()) return
-              setPersonas(loadedAvatars)
-              // Use saved view state if available, otherwise dashboard (never onboarding)
-              if (savedViewState && savedViewState.view !== "ONBOARDING") {
-                console.log("[Resume Payment] Restoring saved view:", savedViewState.view)
-                setViewState(savedViewState)
-              } else {
-                setViewState({ view: "DASHBOARD" })
-              }
-              setIsReady(true)
-              return
-            }
-
-            console.log("[Resume Payment] Starting generation for persona:", targetPersona.id, "tier:", savedTier)
-
-            // Get tier photos from saved parameter (from URL or sessionStorage)
-            const TIER_PHOTOS: Record<string, number> = { starter: 7, standard: 15, premium: 23 }
-            const tierPhotos = TIER_PHOTOS[savedTier] || 7
-
-            if (!checkMounted()) return
-            setPersonas(loadedAvatars)
-            setViewState({ view: "RESULTS", personaId: targetPersona.id })
-            setIsGenerating(true)
-            setGenerationProgress({ completed: 0, total: tierPhotos })
-            setIsReady(true)
-
-            // Start generation with retry logic
-            const startGeneration = async () => {
-              const MAX_RETRIES = 3
-              const RETRY_DELAY = 2000
-
-              for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-                try {
-                  console.log(`[Resume Payment] Generation attempt ${attempt}/${MAX_RETRIES}`)
-                  const res = await fetch("/api/generate", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      telegramUserId: tgId,
-                      avatarId: targetPersona.id,
-                      styleId: "pinglass",
-                      photoCount: tierPhotos,
-                      useStoredReferences: true,
-                    }),
-                  })
-                  const data = await res.json()
-
-                  if (data.success && data.data?.jobId) {
-                    return data
-                  }
-
-                  if (data.error === "PAYMENT_REQUIRED" && attempt < MAX_RETRIES) {
-                    console.log(`[Resume Payment] PAYMENT_REQUIRED, retrying in ${RETRY_DELAY}ms...`)
-                    await new Promise(r => setTimeout(r, RETRY_DELAY))
-                    continue
-                  }
-
-                  return data
-                } catch (err) {
-                  console.error(`[Resume Payment] Attempt ${attempt} failed:`, err)
-                  if (attempt === MAX_RETRIES) {
-                    return { success: false, error: String(err) }
-                  }
-                  await new Promise(r => setTimeout(r, RETRY_DELAY))
-                }
-              }
-              return { success: false, error: "Max retries exceeded" }
-            }
-
-            startGeneration()
-              .then(data => {
-                if (data.success && data.data?.jobId) {
-                  console.log("[Resume Payment] Generation started, jobId:", data.data.jobId)
-                  // Clear sessionStorage after successful generation start
-                  sessionStorage.removeItem("pinglass_resume_payment")
-                  sessionStorage.removeItem("pinglass_tier")
-                  sessionStorage.removeItem("pinglass_telegram_user_id")
-                  const jobId = data.data.jobId
-                  const personaId = targetPersona.id
-                  let lastPhotoCount = 0
-
-                  startPolling(
-                    `resume-payment-${jobId}`,
-                    async () => {
-                      const statusRes = await fetch(`/api/generate?job_id=${jobId}`)
-                      const statusData = await statusRes.json()
-
-                      setGenerationProgress({
-                        completed: statusData.progress?.completed || 0,
-                        total: statusData.progress?.total || tierPhotos,
-                      })
-
-                      if (statusData.photos && statusData.photos.length > lastPhotoCount) {
-                        const newPhotos = statusData.photos.slice(lastPhotoCount)
-                        const newAssets = newPhotos.map((url: string, i: number) => ({
-                          id: `${jobId}-${lastPhotoCount + i}`,
-                          type: "PHOTO" as const,
-                          url,
-                          styleId: "pinglass",
-                          createdAt: Date.now(),
-                        }))
-
-                        setPersonas((prev) =>
-                          prev.map((persona) =>
-                            persona.id === personaId
-                              ? {
-                                  ...persona,
-                                  generatedAssets: [...newAssets, ...persona.generatedAssets],
-                                  thumbnailUrl: persona.thumbnailUrl || newAssets[0]?.url,
-                                }
-                              : persona
-                          )
-                        )
-                        lastPhotoCount = statusData.photos.length
-                      }
-
-                      if (statusData.status === "completed" || statusData.status === "failed") {
-                        stopPolling(`resume-payment-${jobId}`)
-                        setIsGenerating(false)
-                        setGenerationProgress({ completed: 0, total: 0 })
-                        console.log("[Resume Payment] Generation completed:", statusData.status)
-                      }
-                    },
-                    {
-                      intervalMs: 3000,
-                      timeoutMs: 15 * 60 * 1000,
-                    }
-                  )
-                } else if (!data.success) {
-                  console.error("[Resume Payment] Generation failed:", data.error)
-                  if (!checkMounted()) return
-                  setIsGenerating(false)
-
-                  if (data.error === "PAYMENT_REQUIRED") {
-                    showMessage("Оплата не подтверждена. Попробуйте ещё раз.")
-                  } else {
-                    showMessage("Ошибка генерации: " + (data.error || "Попробуйте позже"))
-                  }
-
-                  setTimeout(() => {
-                    if (!checkMounted()) return
-                    setViewState({ view: "DASHBOARD" })
-                  }, 2000)
-                }
-              })
-              .catch(err => {
-                console.error("[Resume Payment] Generation request failed:", err)
-                if (!checkMounted()) return
-                setIsGenerating(false)
-              })
-
-            return
-          } catch (e) {
-            console.error("[Resume Payment] Error:", e)
-            if (!checkMounted()) return
-            setPersonas(loadedAvatars)
-            // Use saved view state or fallback to dashboard (never onboarding after payment)
-            if (savedViewState && savedViewState.view !== "ONBOARDING") {
-              setViewState(savedViewState)
-            } else {
-              setViewState({ view: "DASHBOARD" })
-            }
-            setIsReady(true)
-            return
-          }
-        }
-
         // Normal flow: check if onboarding already completed
         const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"
 
         if (!checkMounted()) return
         setPersonas(loadedAvatars)
 
-        // CRITICAL: Check if returning from payment FIRST - never show onboarding after payment
-        const isReturningFromPayment = sessionStorage.getItem("pinglass_resume_payment") === "true"
-
-        // FIX: isReturningFromPayment check MUST come first, regardless of avatars count
-        if (isReturningFromPayment) {
-          // User is returning from payment - show dashboard, never onboarding
-          console.log("[Init] Returning from payment, showing DASHBOARD (bypassing onboarding)")
-          localStorage.setItem("pinglass_onboarding_complete", "true")
-          setViewState({ view: "DASHBOARD" })
-        } else if (onboardingComplete && loadedAvatars.length > 0) {
+        if (onboardingComplete && loadedAvatars.length > 0) {
           console.log("[Init] Onboarding complete, showing DASHBOARD", {
             avatarsCount: loadedAvatars.length
           })
@@ -463,21 +347,14 @@ export default function PersonaApp() {
         } else {
           console.log("[Init] Showing ONBOARDING", {
             onboardingComplete,
-            avatarsCount: loadedAvatars?.length || 0,
-            isReturningFromPayment
+            avatarsCount: loadedAvatars?.length || 0
           })
           setViewState({ view: "ONBOARDING" })
         }
       } catch (e) {
         console.error("[Init] Critical error:", e)
         if (!checkMounted()) return
-        // Don't show onboarding if returning from payment
-        const isReturningFromPayment = sessionStorage.getItem("pinglass_resume_payment") === "true"
-        if (isReturningFromPayment) {
-          setViewState({ view: "DASHBOARD" })
-        } else {
-          setViewState({ view: "ONBOARDING" })
-        }
+        setViewState({ view: "ONBOARDING" })
       } finally {
         if (!checkMounted()) return
         setIsReady(true)
