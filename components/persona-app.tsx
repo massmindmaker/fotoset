@@ -62,6 +62,47 @@ const ReferralPanel = lazy(() => import("./referral-panel").then((m) => ({ defau
 const AnimatedLogoCompact = lazy(() => import("./animated-logo").then((m) => ({ default: m.AnimatedLogoCompact })))
 
 export default function PersonaApp() {
+  // CRITICAL: Check for payment redirect BEFORE anything else
+  // This must happen synchronously on first render to show success screen
+  const [isPaymentRedirect, setIsPaymentRedirect] = useState(() => {
+    if (typeof window === "undefined") return false
+    const urlParams = new URLSearchParams(window.location.search)
+    return urlParams.get("resume_payment") === "true"
+  })
+
+  // If returning from T-Bank payment - show success screen IMMEDIATELY
+  // No auth check, no hooks, no nothing - just success screen with Telegram link
+  if (isPaymentRedirect) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center bg-gradient-to-br from-background via-background to-muted/20">
+        <div className="max-w-md space-y-6">
+          <div className="w-20 h-20 mx-auto bg-green-500/20 rounded-full flex items-center justify-center">
+            <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
+            Оплата успешна!
+          </h1>
+          <p className="text-muted-foreground text-lg leading-relaxed">
+            Вернитесь в Telegram для генерации ваших AI-фото.
+          </p>
+          <div className="pt-4">
+            <a
+              href="https://t.me/Pinglass_bot?start=generate"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105"
+            >
+              ✨ Открыть в Telegram
+            </a>
+          </div>
+          <p className="text-sm text-muted-foreground/60">
+            Генерация начнётся автоматически
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   // Custom hooks
   const { userIdentifier, authStatus, telegramUserId, theme, toggleTheme, showMessage } = useAuth()
   const { personas, setPersonas, loadAvatarsFromServer, createPersona, updatePersona, deletePersona, getPersona } = useAvatars()
@@ -74,12 +115,6 @@ export default function PersonaApp() {
   // Check for payment redirect SYNCHRONOUSLY before first render to prevent onboarding flash
   const getInitialViewState = (): ViewState => {
     if (typeof window === "undefined") return { view: "ONBOARDING" }
-    const urlParams = new URLSearchParams(window.location.search)
-    const resumePayment = urlParams.get("resume_payment") === "true"
-    // If coming from payment, show loading instead of onboarding to prevent flash
-    if (resumePayment) {
-      return { view: "DASHBOARD" }  // Neutral view while processing
-    }
     return { view: "ONBOARDING" }
   }
 
@@ -128,54 +163,6 @@ export default function PersonaApp() {
     return "personaId" in viewState ? getPersona(viewState.personaId) : null
   }, [viewState, getPersona])
 
-  // State for payment redirect handling (checked via API, not localStorage)
-  const [paymentRedirectState, setPaymentRedirectState] = useState<{
-    isFromPayment: boolean
-    telegramUserId: string | null
-    hasPaidPayment: boolean
-    checked: boolean
-  }>({ isFromPayment: false, telegramUserId: null, hasPaidPayment: false, checked: false })
-
-  // CRITICAL FIX: Check payment status via DATABASE when returning from T-Bank
-  // No localStorage/sessionStorage - use API to check if user has paid
-  useEffect(() => {
-    if (typeof window === "undefined") return
-
-    const urlParams = new URLSearchParams(window.location.search)
-    const resumePayment = urlParams.get("resume_payment") === "true"
-    const urlTelegramUserId = urlParams.get("telegram_user_id")
-
-    if (resumePayment && urlTelegramUserId) {
-      console.log("[Payment] Checking payment status via API for user:", urlTelegramUserId)
-
-      // Check payment status in DATABASE
-      fetch(`/api/payment/status?telegram_user_id=${urlTelegramUserId}`)
-        .then(res => res.json())
-        .then(data => {
-          console.log("[Payment] API response:", data)
-          setPaymentRedirectState({
-            isFromPayment: true,
-            telegramUserId: urlTelegramUserId,
-            hasPaidPayment: data.paid === true,
-            checked: true,
-          })
-        })
-        .catch(err => {
-          console.error("[Payment] API error:", err)
-          setPaymentRedirectState({
-            isFromPayment: true,
-            telegramUserId: urlTelegramUserId,
-            hasPaidPayment: false,
-            checked: true,
-          })
-        })
-
-      // Clean URL to prevent re-checking on refresh
-      window.history.replaceState({}, "", window.location.pathname)
-    } else {
-      setPaymentRedirectState(prev => ({ ...prev, checked: true }))
-    }
-  }, []) // Empty deps = runs once on mount
 
   // Initialize app
   useEffect(() => {
@@ -990,50 +977,6 @@ export default function PersonaApp() {
 
   // Block access if not in Telegram Mini App
   if (authStatus === 'not_in_telegram') {
-    // Check if returning from payment via DATABASE (not localStorage!)
-    // paymentRedirectState.hasPaidPayment is set by API call in useEffect above
-    if (paymentRedirectState.isFromPayment && paymentRedirectState.hasPaidPayment) {
-      // Payment confirmed in DB - show success screen with Telegram link
-      return (
-        <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center bg-gradient-to-br from-background via-background to-muted/20">
-          <div className="max-w-md space-y-6">
-            <div className="w-20 h-20 mx-auto bg-green-500/20 rounded-full flex items-center justify-center">
-              <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
-              Оплата успешна!
-            </h1>
-            <p className="text-muted-foreground text-lg leading-relaxed">
-              Вернитесь в Telegram для начала генерации ваших AI-фото.
-            </p>
-            <div className="pt-4">
-              <a
-                href="https://t.me/Pinglass_bot?start=generate"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105"
-              >
-                ✨ Открыть в Telegram
-              </a>
-            </div>
-            <p className="text-sm text-muted-foreground/60">
-              Генерация начнётся автоматически
-            </p>
-          </div>
-        </div>
-      )
-    }
-
-    // Still checking payment status - show loading
-    if (paymentRedirectState.isFromPayment && !paymentRedirectState.checked) {
-      return (
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      )
-    }
-
-    // Regular "open in Telegram" screen
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center bg-gradient-to-br from-background via-background to-muted/20">
         <div className="max-w-md space-y-6">
