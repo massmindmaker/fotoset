@@ -522,14 +522,21 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
   }, [selectedIds.size, assets])
 
   const downloadSingle = useCallback(async (asset: GeneratedAsset) => {
+    const filename = `pinglass_${asset.id.slice(-8)}.png`
+
     try {
-      const response = await fetch(asset.url, { mode: 'cors', credentials: 'omit' })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // Use proxy to bypass CORS
+      const proxyUrl = `/api/download?url=${encodeURIComponent(asset.url)}&filename=${encodeURIComponent(filename)}`
+      const response = await fetch(proxyUrl)
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        throw new Error(error.error || `HTTP ${response.status}`)
+      }
 
       const blob = await response.blob()
       if (blob.size === 0) throw new Error("Empty file")
 
-      const filename = `pinglass_${asset.id.slice(-8)}.png`
       saveAs(blob, filename)
     } catch (e) {
       console.error("Download failed:", e)
@@ -552,23 +559,47 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
       const zip = new JSZip()
       const folder = zip.folder("pinglass_photos")
       let addedFiles = 0
+      let processedFiles = 0
 
-      for (let i = 0; i < assetsToDownload.length; i++) {
-        const asset = assetsToDownload[i]
-        try {
-          const response = await fetch(asset.url, { mode: 'cors', credentials: 'omit' })
-          if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // Parallel download with limit
+      const PARALLEL_LIMIT = 5
+      const chunks: GeneratedAsset[][] = []
+      for (let i = 0; i < assetsToDownload.length; i += PARALLEL_LIMIT) {
+        chunks.push(assetsToDownload.slice(i, i + PARALLEL_LIMIT))
+      }
 
-          const blob = await response.blob()
-          if (blob.size === 0) throw new Error("Empty response")
+      for (const chunk of chunks) {
+        const results = await Promise.all(
+          chunk.map(async (asset, chunkIndex) => {
+            const globalIndex = processedFiles + chunkIndex
+            const filename = `photo_${String(globalIndex + 1).padStart(2, "0")}.png`
+            try {
+              // Use proxy to bypass CORS
+              const proxyUrl = `/api/download?url=${encodeURIComponent(asset.url)}&filename=${encodeURIComponent(filename)}`
+              const response = await fetch(proxyUrl)
+              if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
-          const filename = `photo_${String(i + 1).padStart(2, "0")}.png`
-          folder?.file(filename, blob)
-          addedFiles++
-          setDownloadProgress(Math.round(((i + 1) / assetsToDownload.length) * 100))
-        } catch (e) {
-          console.error(`Failed to download ${asset.id}:`, e)
+              const blob = await response.blob()
+              if (blob.size === 0) throw new Error("Empty response")
+
+              return { filename, blob, success: true }
+            } catch (e) {
+              console.error(`Failed to download ${asset.id}:`, e)
+              return { filename, blob: null, success: false }
+            }
+          })
+        )
+
+        // Add successful downloads to zip
+        for (const result of results) {
+          if (result.success && result.blob) {
+            folder?.file(result.filename, result.blob)
+            addedFiles++
+          }
         }
+
+        processedFiles += chunk.length
+        setDownloadProgress(Math.round((processedFiles / assetsToDownload.length) * 100))
       }
 
       // Check if any files were added

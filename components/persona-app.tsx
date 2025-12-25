@@ -32,7 +32,7 @@ const ComponentLoader = () => (
 
 // Lazy load view components with dynamic imports
 const OnboardingView = dynamic(() => import("./views/onboarding-view"), {
-  loading: () => <ComponentLoader />,
+  loading: () => null, // No loader for onboarding - show instantly
   ssr: false,
 })
 
@@ -334,12 +334,23 @@ export default function PersonaApp() {
     localStorage.setItem("pinglass_onboarding_complete", "true")
 
     if (telegramUserId && userIdentifier) {
-      console.log("[Onboarding] Reloading avatars for user:", telegramUserId)
+      console.log("[Onboarding] Completing onboarding for user:", telegramUserId)
       try {
+        // Mark onboarding complete on server (triggers +1 referral for referrer)
+        await fetch("/api/user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            telegramUserId,
+            markOnboardingComplete: true,
+          }),
+        })
+        console.log("[Onboarding] Onboarding marked complete on server")
+
         const avatars = await loadAvatarsFromServer(userIdentifier)
         console.log("[Onboarding] Loaded", avatars.length, "avatars")
       } catch (err) {
-        console.error("[Onboarding] Failed to reload avatars:", err)
+        console.error("[Onboarding] Failed to complete onboarding:", err)
       }
     }
 

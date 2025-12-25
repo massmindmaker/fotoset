@@ -25,6 +25,11 @@ import {
   getUserIdentifier,
   verifyResourceOwnershipWithIdentifier,
 } from "@/lib/auth-utils"
+import {
+  trackGenerationStarted,
+  trackGenerationCompleted,
+  trackGenerationFailed,
+} from "@/lib/sentry-events"
 
 const logger = createLogger("Generate")
 
@@ -101,6 +106,9 @@ async function runBackgroundGeneration(params: {
       totalPhotos,
       concurrency,
     })
+
+    // Track generation start in Sentry
+    trackGenerationStarted(userId, String(dbAvatarId), styleId, totalPhotos)
 
     const results: GenerationResult[] = await generateMultipleImages(
       mergedPrompts,
@@ -230,9 +238,15 @@ async function runBackgroundGeneration(params: {
       elapsedSeconds: elapsedTime,
     })
 
+    // Track generation completion in Sentry
+    trackGenerationCompleted(userId, String(dbAvatarId), successCount, elapsedTime * 1000)
+
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error"
     logger.error("Generation fatal error", { jobId, error: errorMessage })
+
+    // Track generation failure in Sentry
+    trackGenerationFailed(userId, String(dbAvatarId), errorMessage)
 
     // Update job status to failed
     await sql`

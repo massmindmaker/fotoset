@@ -146,41 +146,18 @@ async function processReferralEarning(userId: number, paymentId: string) {
       return
     }
 
-    // Check if this is the FIRST payment from this referred user
-    // Count earnings from this referred_id (including the one we just inserted)
-    const earningsCountResult = await query<{ count: number }>(
-      `SELECT COUNT(*)::int as count FROM referral_earnings WHERE referred_id = $1`,
-      [userId]
-    )
-    const isFirstPayment = Number(earningsCountResult.rows[0]?.count || 0) === 1
-
     // Update referrer balance atomically
-    // Increment referrals_count ONLY on first payment from this referral
-    if (isFirstPayment) {
-      await query(
-        `INSERT INTO referral_balances (user_id, balance, total_earned, referrals_count)
-         VALUES ($1, $2, $2, 1)
-         ON CONFLICT (user_id) DO UPDATE SET
-           balance = referral_balances.balance + $2,
-           total_earned = referral_balances.total_earned + $2,
-           referrals_count = referral_balances.referrals_count + 1,
-           updated_at = NOW()`,
-        [referrerId, earningAmount]
-      )
-      log.info(`FIRST payment from referral ${userId}: credited ${earningAmount} RUB, incremented count for user ${referrerId}`)
-    } else {
-      // Subsequent payments - only update balance, not count
-      await query(
-        `INSERT INTO referral_balances (user_id, balance, total_earned, referrals_count)
-         VALUES ($1, $2, $2, 0)
-         ON CONFLICT (user_id) DO UPDATE SET
-           balance = referral_balances.balance + $2,
-           total_earned = referral_balances.total_earned + $2,
-           updated_at = NOW()`,
-        [referrerId, earningAmount]
-      )
-      log.info(`Subsequent payment: credited ${earningAmount} RUB to user ${referrerId} from payment ${paymentId}`)
-    }
+    // NOTE: referrals_count is now incremented at onboarding completion, not here
+    await query(
+      `INSERT INTO referral_balances (user_id, balance, total_earned, referrals_count)
+       VALUES ($1, $2, $2, 0)
+       ON CONFLICT (user_id) DO UPDATE SET
+         balance = referral_balances.balance + $2,
+         total_earned = referral_balances.total_earned + $2,
+         updated_at = NOW()`,
+      [referrerId, earningAmount]
+    )
+    log.info(`Credited ${earningAmount} RUB to user ${referrerId} from payment ${paymentId}`)
   } catch (error) {
     log.error("Error processing earning:", error)
     // Don't throw - referral is not critical for payment success
