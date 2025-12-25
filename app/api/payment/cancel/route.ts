@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     // Verify payment belongs to user (Telegram-only auth)
     const paymentResult = await sql`
-      SELECT p.id, p.amount, p.status, u.id as user_id, u.email as user_email
+      SELECT p.id, p.amount, p.status, u.id as user_id
       FROM payments p
       JOIN users u ON p.user_id = u.id
       WHERE p.tbank_payment_id = ${paymentId}
@@ -54,8 +54,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get email for receipt: provided > user's stored > fallback
-    const receiptEmail = email?.trim() || payment.user_email || "noreply@pinglass.ru"
+    // Get email for receipt: provided > fallback
+    const receiptEmail = email?.trim() || "noreply@pinglass.ru"
 
     // Create refund receipt with user's email (54-ФЗ compliance)
     const refundAmount = amount || payment.amount
