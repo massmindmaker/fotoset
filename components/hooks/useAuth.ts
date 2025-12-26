@@ -117,6 +117,20 @@ export function useAuth() {
             sessionStorage.setItem("pinglass_resume_payment", "true")
             sessionStorage.setItem("pinglass_from_telegram_deeplink", "true")
             localStorage.setItem("pinglass_onboarding_complete", "true")
+            // FIX: Also mark onboarding complete on server (for referral +1 count)
+            try {
+              await fetch("/api/user", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  telegramUserId: tgUser.id,
+                  markOnboardingComplete: true,
+                }),
+              })
+              console.log("[TG] Onboarding marked complete on server")
+            } catch (err) {
+              console.error("[TG] Failed to mark onboarding complete:", err)
+            }
           } else {
             // Treat as referral code - save to DATABASE via API
             // CRITICAL: localStorage clears during T-Bank redirect!

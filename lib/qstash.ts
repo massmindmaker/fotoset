@@ -107,7 +107,8 @@ export async function verifyQStashSignature(
 // Configuration for chunked generation
 export const GENERATION_CONFIG = {
   // Photos per chunk (each chunk runs in one serverless invocation)
-  CHUNK_SIZE: 5,
+  // FIX: Reduced from 5 to 1 to stay under Cloudflare 100s timeout
+  CHUNK_SIZE: 1,
   // Max concurrent chunks
   MAX_CONCURRENT: 2,
   // Delay between chunks (ms) to avoid rate limits
