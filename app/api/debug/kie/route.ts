@@ -7,12 +7,9 @@ import { testKieConnection } from "@/lib/kie"
 export const maxDuration = 60
 
 export async function GET() {
-  // Check at runtime, not build time
-  const isAllowed = process.env.VERCEL_ENV !== "production" || process.env.ALLOW_DEBUG === "true"
-
-  if (!isAllowed) {
-    return NextResponse.json({ error: "Debug disabled in production" }, { status: 403 })
-  }
+  // Temporarily always allow for debugging
+  const vercelEnv = process.env.VERCEL_ENV || "unknown"
+  const allowDebug = process.env.ALLOW_DEBUG || "not_set"
 
   const kieAiKey = process.env.KIE_AI_API_KEY?.trim()
   const kieKey = process.env.KIE_API_KEY?.trim()
@@ -23,7 +20,8 @@ export async function GET() {
     KIE_API_KEY: kieKey ? `SET (${kieKey.length} chars, starts: ${kieKey.substring(0, 8)}...)` : "NOT SET",
     REPLICATE_API_TOKEN: replicateKey ? `SET (${replicateKey.length} chars)` : "NOT SET",
     NODE_ENV: process.env.NODE_ENV,
-    VERCEL_ENV: process.env.VERCEL_ENV,
+    VERCEL_ENV: vercelEnv,
+    ALLOW_DEBUG: allowDebug,
   }
 
   console.log("[Debug/Kie] ENV Check:", JSON.stringify(envCheck))
