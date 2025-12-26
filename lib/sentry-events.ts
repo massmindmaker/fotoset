@@ -75,3 +75,32 @@ export function trackReferralEarning(referrerId: number, amount: number, payment
   })
   console.log("[Sentry] Referral Earning:", { referrerId, amount, paymentId })
 }
+
+
+// ==================== QSTASH EVENTS ====================
+
+export function trackQStashFallback(jobId: number, avatarId: number, reason: string) {
+  Sentry.captureMessage("QStash Fallback to Local", {
+    level: "warning",
+    tags: { event_type: "qstash", action: "fallback" },
+    extra: { jobId, avatarId, reason }
+  })
+  console.warn("[Sentry] QStash Fallback to Local:", { jobId, avatarId, reason })
+}
+
+export function trackQStashSuccess(jobId: number, messageId: string) {
+  Sentry.captureMessage("QStash Job Published", {
+    level: "info",
+    tags: { event_type: "qstash", action: "published" },
+    extra: { jobId, messageId }
+  })
+  console.log("[Sentry] QStash Job Published:", { jobId, messageId })
+}
+
+export function trackQStashTimeout(jobId: number, chunkIndex: number, error: string) {
+  Sentry.captureException(new Error(`QStash Timeout: ${error}`), {
+    tags: { event_type: "qstash", action: "timeout" },
+    extra: { jobId, chunkIndex }
+  })
+  console.error("[Sentry] QStash Timeout:", { jobId, chunkIndex, error })
+}

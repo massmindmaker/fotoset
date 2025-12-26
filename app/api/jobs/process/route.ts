@@ -1,4 +1,8 @@
 // Background Job Processor - Called by Upstash QStash
+// IMPORTANT: maxDuration is required for long-running AI generation
+// Vercel Pro plan supports up to 300s (5 min)
+export const maxDuration = 300
+
 import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { generateImage, type GenerationOptions } from "@/lib/imagen"
@@ -10,6 +14,7 @@ import {
   GENERATION_CONFIG,
 } from "@/lib/qstash"
 import { uploadFromUrl, generatePromptKey, isR2Configured } from "@/lib/r2"
+import { autoRefundForFailedGeneration } from "@/lib/tbank"
 
 // POST /api/jobs/process - Process a generation chunk
 export async function POST(request: Request) {
@@ -224,27 +229,59 @@ export async function POST(request: Request) {
 
       console.log(`[Jobs/Process] Queued next chunk starting at ${nextStartIndex}`)
     } else {
-      // All chunks processed - mark job as completed
+      // All chunks processed - check final result
       const finalJob = await sql`
         SELECT completed_photos, total_photos FROM generation_jobs WHERE id = ${jobId}
       `.then((rows: any[]) => rows[0])
 
-      const finalStatus = finalJob.completed_photos >= finalJob.total_photos * 0.5 ? "completed" : "failed"
+      const failedPhotos = finalJob.total_photos - finalJob.completed_photos
 
-      await sql`
-        UPDATE generation_jobs
-        SET status = ${finalStatus}, updated_at = NOW()
-        WHERE id = ${jobId}
-      `
+      // POLICY: If ANY photo failed, refund the entire payment
+      if (failedPhotos > 0) {
+        console.log(`[Jobs/Process] ${failedPhotos}/${finalJob.total_photos} photos failed - triggering auto-refund`)
 
-      // Update avatar status
-      await sql`
-        UPDATE avatars
-        SET status = ${finalStatus === "completed" ? "ready" : "draft"}, updated_at = NOW()
-        WHERE id = ${avatarId}
-      `
+        // Get userId from avatar
+        const avatarData = await sql`
+          SELECT user_id FROM avatars WHERE id = ${avatarId}
+        `.then((rows: any[]) => rows[0])
 
-      console.log(`[Jobs/Process] Job ${jobId} finished with status: ${finalStatus}`)
+        if (avatarData?.user_id) {
+          const refundResult = await autoRefundForFailedGeneration(avatarId, avatarData.user_id)
+          console.log(`[Jobs/Process] Auto-refund result:`, refundResult)
+        }
+
+        // Mark as failed
+        await sql`
+          UPDATE generation_jobs
+          SET status = 'failed',
+              error_message = ${`${failedPhotos}/${finalJob.total_photos} photos failed - payment refunded`},
+              updated_at = NOW()
+          WHERE id = ${jobId}
+        `
+
+        await sql`
+          UPDATE avatars
+          SET status = 'draft', updated_at = NOW()
+          WHERE id = ${avatarId}
+        `
+
+        console.log(`[Jobs/Process] Job ${jobId} failed - ${failedPhotos} photos failed, payment refunded`)
+      } else {
+        // All photos successful
+        await sql`
+          UPDATE generation_jobs
+          SET status = 'completed', updated_at = NOW()
+          WHERE id = ${jobId}
+        `
+
+        await sql`
+          UPDATE avatars
+          SET status = 'ready', updated_at = NOW()
+          WHERE id = ${avatarId}
+        `
+
+        console.log(`[Jobs/Process] Job ${jobId} completed successfully - all ${finalJob.total_photos} photos generated`)
+      }
     }
 
     return NextResponse.json({
@@ -256,15 +293,31 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("[Jobs/Process] Critical error:", error)
 
+    // Get userId for refund
+    try {
+      const avatarData = await sql`
+        SELECT user_id FROM avatars WHERE id = ${avatarId}
+      `.then((rows: any[]) => rows[0])
+
+      if (avatarData?.user_id) {
+        console.log(`[Jobs/Process] Fatal error - triggering auto-refund for avatar ${avatarId}`)
+        const refundResult = await autoRefundForFailedGeneration(avatarId, avatarData.user_id)
+        console.log(`[Jobs/Process] Auto-refund result:`, refundResult)
+      }
+    } catch (refundError) {
+      console.error("[Jobs/Process] Auto-refund failed:", refundError)
+    }
+
     // Mark job as failed
+    const errorMessage = error instanceof Error ? error.message : "Processing failed"
     await sql`
       UPDATE generation_jobs
-      SET status = 'failed', error_message = ${error instanceof Error ? error.message : "Processing failed"}, updated_at = NOW()
+      SET status = 'failed', error_message = ${`${errorMessage} - payment refunded`}, updated_at = NOW()
       WHERE id = ${jobId}
     `.catch(() => {})
 
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Processing failed" },
+      { error: errorMessage },
       { status: 500 }
     )
   }

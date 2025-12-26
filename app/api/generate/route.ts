@@ -1,3 +1,7 @@
+// maxDuration for local fallback generation (when QStash unavailable)
+// Vercel Pro plan supports up to 300s (5 min)
+export const maxDuration = 300
+
 import { type NextRequest, after } from "next/server"
 import { sql } from "@/lib/db"
 import { generateMultipleImages, type GenerationResult } from "@/lib/imagen"
@@ -29,7 +33,10 @@ import {
   trackGenerationStarted,
   trackGenerationCompleted,
   trackGenerationFailed,
+  trackQStashFallback,
+  trackQStashSuccess,
 } from "@/lib/sentry-events"
+import { autoRefundForFailedGeneration } from "@/lib/tbank"
 
 const logger = createLogger("Generate")
 
@@ -184,33 +191,80 @@ async function runBackgroundGeneration(params: {
       }
     }
 
-    // Update job status to completed
-    const finalStatus = successCount > 0 ? "completed" : "failed"
+    // POLICY: If ANY photo failed, refund the entire payment
+    // User paid for complete photoset (7/15/23 photos), partial delivery is not acceptable
+    if (failedCount > 0) {
+      logger.warn("Generation has failed photos - triggering auto-refund", {
+        jobId,
+        avatarId: dbAvatarId,
+        successCount,
+        failedCount,
+        totalPhotos,
+      })
+
+      // Attempt auto-refund
+      const refundResult = await autoRefundForFailedGeneration(dbAvatarId, userId)
+
+      if (refundResult.success) {
+        logger.info("Auto-refund successful", {
+          jobId,
+          avatarId: dbAvatarId,
+          refundedPaymentId: refundResult.refundedPaymentId,
+        })
+      } else {
+        logger.error("Auto-refund failed", {
+          jobId,
+          avatarId: dbAvatarId,
+          error: refundResult.error,
+        })
+      }
+
+      // Mark job as failed (partial success = failure for refund policy)
+      await sql`
+        UPDATE generation_jobs
+        SET status = 'failed',
+            completed_photos = ${successCount},
+            error_message = ${`${failedCount}/${totalPhotos} photos failed - payment refunded`},
+            updated_at = NOW()
+        WHERE id = ${jobId}
+      `
+
+      // Reset avatar to draft (incomplete generation)
+      await sql`
+        UPDATE avatars
+        SET status = 'draft', updated_at = NOW()
+        WHERE id = ${dbAvatarId}
+      `
+
+      // Track as failure in Sentry
+      trackGenerationFailed(userId, String(dbAvatarId), `${failedCount}/${totalPhotos} photos failed`)
+
+      return // Early exit - don't send success notification
+    }
+
+    // ALL photos successful - mark as completed
     await sql`
       UPDATE generation_jobs
-      SET status = ${finalStatus},
+      SET status = 'completed',
           completed_photos = ${successCount},
-          error_message = ${failedCount > 0 ? `${failedCount} photos failed to generate` : null},
           updated_at = NOW()
       WHERE id = ${jobId}
     `
 
-    // Update avatar status
-    if (successCount > 0) {
-      await sql`
-        UPDATE avatars
-        SET status = 'ready', updated_at = NOW()
-        WHERE id = ${dbAvatarId}
-      `
-    }
+    // Update avatar status to ready
+    await sql`
+      UPDATE avatars
+      SET status = 'ready', updated_at = NOW()
+      WHERE id = ${dbAvatarId}
+    `
 
-    // Send Telegram notification if user is connected
+    // Send Telegram notification for successful generation
     try {
       const userWithTelegram = await sql`
         SELECT telegram_user_id FROM users WHERE id = ${userId}
       `.then((rows: any[]) => rows[0])
 
-      if (userWithTelegram?.telegram_user_id && successCount > 0 && firstPhotoUrl) {
+      if (userWithTelegram?.telegram_user_id && firstPhotoUrl) {
         await sendGenerationNotification(
           userWithTelegram.telegram_user_id,
           successCount,
@@ -229,11 +283,10 @@ async function runBackgroundGeneration(params: {
     }
 
     const elapsedTime = Math.round((Date.now() - startTime) / 1000)
-    logger.info("Generation completed", {
+    logger.info("Generation completed successfully", {
       jobId,
       avatarId: dbAvatarId,
       successCount,
-      failedCount,
       totalPhotos,
       elapsedSeconds: elapsedTime,
     })
@@ -248,11 +301,26 @@ async function runBackgroundGeneration(params: {
     // Track generation failure in Sentry
     trackGenerationFailed(userId, String(dbAvatarId), errorMessage)
 
+    // POLICY: Fatal error = auto-refund
+    logger.warn("Fatal error - triggering auto-refund", { jobId, avatarId: dbAvatarId })
+    const refundResult = await autoRefundForFailedGeneration(dbAvatarId, userId)
+    if (refundResult.success) {
+      logger.info("Auto-refund successful after fatal error", {
+        jobId,
+        refundedPaymentId: refundResult.refundedPaymentId,
+      })
+    } else {
+      logger.error("Auto-refund failed after fatal error", {
+        jobId,
+        error: refundResult.error,
+      })
+    }
+
     // Update job status to failed
     await sql`
       UPDATE generation_jobs
       SET status = 'failed',
-          error_message = ${errorMessage},
+          error_message = ${`${errorMessage} - payment refunded`},
           updated_at = NOW()
       WHERE id = ${jobId}
     `.catch((e: Error) => logger.error("Failed to update job status", { jobId, error: e.message }))
@@ -513,6 +581,8 @@ export async function POST(request: NextRequest) {
 
       if (!qstashResult) {
         logger.error("Failed to publish to QStash, falling back to local")
+        // Track QStash fallback in Sentry
+        trackQStashFallback(job.id, dbAvatarId, "publishGenerationJob returned null")
         // Fall back to local generation
         after(() => {
           runBackgroundGeneration({
@@ -529,6 +599,8 @@ export async function POST(request: NextRequest) {
         })
       } else {
         logger.info("Job published to QStash", { messageId: qstashResult.messageId })
+        // Track QStash success in Sentry
+        trackQStashSuccess(job.id, qstashResult.messageId)
       }
     } else {
       // Local generation (may timeout on Vercel)

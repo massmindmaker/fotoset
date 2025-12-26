@@ -323,3 +323,90 @@ export async function cancelPayment(
     throw error
   }
 }
+
+
+/**
+ * Auto-refund payment when generation fails (any photo failed = full refund)
+ * Called automatically when generation has ANY failed photos
+ * @param avatarId - Avatar ID that had failed generation
+ * @param userId - User ID for logging
+ * @returns true if refund was successful, false otherwise
+ */
+export async function autoRefundForFailedGeneration(
+  avatarId: number,
+  userId: number,
+): Promise<{ success: boolean; refundedPaymentId?: string; error?: string }> {
+  // Import sql here to avoid circular dependency
+  const { sql } = await import("./db")
+  
+  log.info("Auto-refund check for failed generation", { avatarId, userId })
+  
+  try {
+    // Find the most recent succeeded payment for this user
+    // that was made before the generation job started
+    const paymentResult = await sql`
+      SELECT p.tbank_payment_id, p.amount, p.status, p.id
+      FROM payments p
+      WHERE p.user_id = ${userId}
+        AND p.status = 'succeeded'
+      ORDER BY p.created_at DESC
+      LIMIT 1
+    `
+    
+    if (paymentResult.length === 0) {
+      log.warn("No succeeded payment found for refund", { avatarId, userId })
+      return { success: false, error: "No payment found" }
+    }
+    
+    const payment = paymentResult[0]
+    
+    // Create refund receipt (54-ФЗ compliance)
+    const receipt: Receipt = {
+      Email: "noreply@pinglass.ru",
+      Taxation: "usn_income_outcome",
+      Items: [{
+        Name: "Возврат - PinGlass AI фото (ошибка генерации)",
+        Price: Math.round(payment.amount * 100),
+        Quantity: 1,
+        Amount: Math.round(payment.amount * 100),
+        Tax: "none",
+        PaymentMethod: "full_payment",
+        PaymentObject: "service",
+      }],
+    }
+    
+    log.info("Processing auto-refund", {
+      paymentId: payment.tbank_payment_id,
+      amount: payment.amount,
+      avatarId,
+      userId,
+    })
+    
+    // Call T-Bank Cancel API for full refund
+    const result = await cancelPayment(payment.tbank_payment_id, undefined, receipt)
+    
+    // Update payment status in DB
+    await sql`
+      UPDATE payments
+      SET status = 'refunded', updated_at = NOW()
+      WHERE tbank_payment_id = ${payment.tbank_payment_id}
+    `
+    
+    log.info("Auto-refund successful", {
+      paymentId: payment.tbank_payment_id,
+      status: result.Status,
+      originalAmount: result.OriginalAmount,
+    })
+    
+    return { 
+      success: true, 
+      refundedPaymentId: payment.tbank_payment_id 
+    }
+    
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    log.error("Auto-refund failed", { avatarId, userId, error: errorMessage })
+    
+    return { success: false, error: errorMessage }
+  }
+}
