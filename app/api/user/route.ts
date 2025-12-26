@@ -77,8 +77,8 @@ export async function POST(request: NextRequest) {
             if (existingReferral.length === 0) {
               // Create referral link in referrals table (for webhook to find referrer)
               await sql`
-                INSERT INTO referrals (referrer_id, referred_id, referral_code)
-                VALUES (${referrerId}, ${user.id}, ${user.pending_referral_code})
+                INSERT INTO referrals (referrer_id, referred_id)
+                VALUES (${referrerId}, ${user.id})
                 ON CONFLICT DO NOTHING
               `
               console.log(`[User API] Created referral link: ${referrerId} -> ${user.id}`)

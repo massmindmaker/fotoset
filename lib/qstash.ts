@@ -61,6 +61,10 @@ export async function publishGenerationJob(
       retries: 3,
       // Set timeout to 10 minutes per chunk (Kie.ai can take 5+ min per image)
       timeout: "10m",
+      // Handle failed deliveries - auto-refund on permanent failure
+      failureCallback: `${baseUrl}/api/jobs/failure`,
+      // Prevent duplicate processing of the same job chunk
+      deduplicationId: `gen-${payload.jobId}-${payload.startIndex}`,
     })
 
     log.debug("Job published", { messageId: result.messageId, jobId: payload.jobId })

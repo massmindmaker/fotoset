@@ -194,8 +194,8 @@ async function applyReferralCode(userId: number, code: string) {
 
     // Create referral link (fallback if not created during onboarding)
     const insertResult = await query<{ id: number }>(
-      "INSERT INTO referrals (referrer_id, referred_id, referral_code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING id",
-      [referrerId, userId, code.toUpperCase()]
+      "INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id",
+      [referrerId, userId]
     )
 
     // Only increment count if we actually created a new referral (not duplicate)

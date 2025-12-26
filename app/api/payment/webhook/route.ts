@@ -80,6 +80,23 @@ export async function POST(request: NextRequest) {
         SET status = 'canceled', updated_at = NOW()
         WHERE tbank_payment_id = ${paymentId}
       `
+    } else if (status === "PARTIAL_REFUNDED" || status === "REFUNDED") {
+      // Handle refund status from T-Bank (sync from their side)
+      log.info(" Payment refunded via T-Bank:", { paymentId, status })
+
+      await sql`
+        UPDATE payments
+        SET status = 'refunded', updated_at = NOW()
+        WHERE tbank_payment_id = ${paymentId}
+      `
+    } else if (status === "CANCELED") {
+      log.debug(" Payment canceled:", paymentId)
+
+      await sql`
+        UPDATE payments
+        SET status = 'canceled', updated_at = NOW()
+        WHERE tbank_payment_id = ${paymentId}
+      `
     } else {
       log.debug(" Unhandled status:", status, "for payment:", paymentId)
     }
@@ -96,9 +113,9 @@ export async function POST(request: NextRequest) {
 async function processReferralEarning(userId: number, paymentId: string) {
   console.log(`[Referral] START: Processing for user=${userId}, payment=${paymentId}`)
   try {
-    // Check if user was referred
-    const referralResult = await query<{ referrer_id: number; referral_code: string }>(
-      "SELECT referrer_id, referral_code FROM referrals WHERE referred_id = $1",
+    // Check if user was referred (referrals table has: referrer_id, referred_id, created_at)
+    const referralResult = await query<{ referrer_id: number }>(
+      "SELECT referrer_id FROM referrals WHERE referred_id = $1",
       [userId]
     )
 
@@ -112,7 +129,7 @@ async function processReferralEarning(userId: number, paymentId: string) {
       return // User has no referrer
     }
 
-    console.log(`[Referral] Found referral: referrer_id=${referralResult.rows[0].referrer_id}, code=${referralResult.rows[0].referral_code}`)
+    console.log(`[Referral] Found referral: referrer_id=${referralResult.rows[0].referrer_id}`)
 
     const referrerId = referralResult.rows[0].referrer_id
 

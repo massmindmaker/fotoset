@@ -342,16 +342,32 @@ export async function autoRefundForFailedGeneration(
   log.info("Auto-refund check for failed generation", { avatarId, userId })
   
   try {
-    // Find the most recent succeeded payment for this user
-    // that was made before the generation job started
-    const paymentResult = await sql`
+    // First try to find payment linked to the specific generation job
+    // This is the correct approach to avoid refunding the wrong payment
+    const jobPaymentResult = await sql`
       SELECT p.tbank_payment_id, p.amount, p.status, p.id
-      FROM payments p
-      WHERE p.user_id = ${userId}
+      FROM generation_jobs gj
+      JOIN payments p ON gj.payment_id = p.id
+      WHERE gj.avatar_id = ${avatarId}
         AND p.status = 'succeeded'
-      ORDER BY p.created_at DESC
+      ORDER BY gj.created_at DESC
       LIMIT 1
     `
+    
+    let paymentResult = jobPaymentResult
+    
+    // Fallback: if no linked payment (legacy jobs), use most recent succeeded payment
+    if (paymentResult.length === 0) {
+      log.warn("No linked payment found, using fallback to latest", { avatarId, userId })
+      paymentResult = await sql`
+        SELECT p.tbank_payment_id, p.amount, p.status, p.id
+        FROM payments p
+        WHERE p.user_id = ${userId}
+          AND p.status = 'succeeded'
+        ORDER BY p.created_at DESC
+        LIMIT 1
+      `
+    }
     
     if (paymentResult.length === 0) {
       log.warn("No succeeded payment found for refund", { avatarId, userId })

@@ -85,9 +85,9 @@ export async function POST(request: NextRequest) {
     // Create referral link in referrals table
     // NOTE: This is used when user applies code manually (not via startapp param)
     await query(
-      `INSERT INTO referrals (referrer_id, referred_id, referral_code)
-       VALUES ($1, $2, $3)`,
-      [referrerId, referredId, code]
+      `INSERT INTO referrals (referrer_id, referred_id)
+       VALUES ($1, $2)`,
+      [referrerId, referredId]
     )
 
     // Increment referrer's referrals_count atomically
