@@ -217,7 +217,10 @@ export async function generateWithKie(options: KieGenerationOptions): Promise<Ki
  * Test Kie.ai connection
  */
 export async function testKieConnection(): Promise<{ success: boolean; message: string }> {
-  if (!isKieConfigured()) {
+  // Use same logic as generateWithKie
+  const apiKey = (process.env.KIE_AI_API_KEY || process.env.KIE_API_KEY)?.trim()
+
+  if (!apiKey) {
     return { success: false, message: "KIE_API_KEY not configured" }
   }
 
@@ -225,15 +228,17 @@ export async function testKieConnection(): Promise<{ success: boolean; message: 
     // Just verify API key works by checking a simple endpoint
     const response = await fetch("https://api.kie.ai/api/v1/user/info", {
       headers: {
-        "Authorization": `Bearer ${process.env.KIE_API_KEY}`,
+        "Authorization": `Bearer ${apiKey}`,
       },
     })
 
     if (response.ok) {
-      return { success: true, message: "Kie.ai connected successfully" }
+      const data = await response.json()
+      return { success: true, message: `Kie.ai connected - user: ${data.email || data.name || 'unknown'}` }
     }
 
-    return { success: false, message: `API returned ${response.status}` }
+    const errorText = await response.text()
+    return { success: false, message: `API returned ${response.status}: ${errorText.substring(0, 200)}` }
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error"
     return { success: false, message: msg }
