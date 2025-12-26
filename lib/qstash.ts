@@ -59,8 +59,8 @@ export async function publishGenerationJob(
       url: `${baseUrl}/api/jobs/process`,
       body: payload,
       retries: 3,
-      // Set timeout to 10 minutes per chunk (Kie.ai can take 5+ min per image)
-      timeout: "10m",
+      // Timeout 3 minutes per chunk - faster retry on issues
+      timeout: "3m",
       // Handle failed deliveries - auto-refund on permanent failure
       failureCallback: `${baseUrl}/api/jobs/failure`,
       // Prevent duplicate processing of the same job chunk
@@ -106,11 +106,10 @@ export async function verifyQStashSignature(
 
 // Configuration for chunked generation
 export const GENERATION_CONFIG = {
-  // Photos per chunk (each chunk runs in one serverless invocation)
-  // FIX: Reduced from 5 to 1 to stay under Cloudflare 100s timeout
-  CHUNK_SIZE: 1,
+  // Variant B: 2 photos per chunk for balanced speed/stability
+  CHUNK_SIZE: 2,
   // Max concurrent chunks
   MAX_CONCURRENT: 2,
-  // Delay between chunks (ms) to avoid rate limits
-  CHUNK_DELAY_MS: 1000,
+  // Delay between chunks (ms) - reduced for faster processing
+  CHUNK_DELAY_MS: 500,
 }

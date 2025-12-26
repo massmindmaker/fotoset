@@ -6,7 +6,7 @@
       "maxDuration": 60
     },
     "app/api/jobs/process/route.ts": {
-      "maxDuration": 300
+      "maxDuration": 120
     },
     "app/api/cron/check-stuck-jobs/route.ts": {
       "maxDuration": 60
