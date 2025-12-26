@@ -6,11 +6,11 @@ import { testKieConnection } from "@/lib/kie"
 
 export const maxDuration = 60
 
-// Only allow in development/preview, not production
-const ALLOWED = process.env.VERCEL_ENV !== "production" || process.env.ALLOW_DEBUG === "true"
-
 export async function GET() {
-  if (!ALLOWED) {
+  // Check at runtime, not build time
+  const isAllowed = process.env.VERCEL_ENV !== "production" || process.env.ALLOW_DEBUG === "true"
+
+  if (!isAllowed) {
     return NextResponse.json({ error: "Debug disabled in production" }, { status: 403 })
   }
 
