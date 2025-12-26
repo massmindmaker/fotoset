@@ -25,7 +25,7 @@ export async function GET() {
 
   // Test with reference images (like real generation)
   let createTaskResult: unknown = null
-  let statusResult: unknown = null
+  const statusChecks: unknown[] = []
 
   try {
     const input: Record<string, unknown> = {
@@ -38,8 +38,6 @@ export async function GET() {
     if (referenceImages.length > 0) {
       input.image_input = referenceImages
     }
-
-    console.log("[Debug/Kie] Request input:", JSON.stringify(input).substring(0, 500))
 
     const response = await fetch(KIE_API_URL, {
       method: "POST",
@@ -54,36 +52,59 @@ export async function GET() {
     })
 
     const responseText = await response.text()
-    console.log(`[Debug/Kie] Create task response: ${response.status} - ${responseText.substring(0, 500)}`)
+    console.log(`[Debug/Kie] Create task response: ${response.status}`)
 
     createTaskResult = {
       status: response.status,
       ok: response.ok,
-      body: responseText.substring(0, 500),
+      body: responseText.substring(0, 300),
     }
 
-    // If task created, poll for result
+    // If task created, poll for result (30 seconds with 5s intervals)
     if (response.ok) {
       const createData = JSON.parse(responseText)
       const taskId = createData.data?.taskId
 
       if (taskId) {
-        // Wait 5 seconds then check status
-        await new Promise(r => setTimeout(r, 5000))
+        for (let i = 0; i < 6; i++) {
+          await new Promise(r => setTimeout(r, 5000))
 
-        const statusResponse = await fetch(`${KIE_STATUS_URL}?taskId=${taskId}`, {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${apiKey}`,
-          },
-        })
+          const statusResponse = await fetch(`${KIE_STATUS_URL}?taskId=${taskId}`, {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${apiKey}`,
+            },
+          })
 
-        const statusText = await statusResponse.text()
-        console.log(`[Debug/Kie] Status response: ${statusResponse.status} - ${statusText.substring(0, 500)}`)
+          const statusText = await statusResponse.text()
+          const statusData = JSON.parse(statusText)
+          const state = statusData.data?.state
 
-        statusResult = {
-          status: statusResponse.status,
-          body: statusText.substring(0, 500),
+          console.log(`[Debug/Kie] Status check ${i + 1}: ${state}`)
+
+          statusChecks.push({
+            check: i + 1,
+            state,
+            hasResultJson: !!statusData.data?.resultJson,
+          })
+
+          // If completed or failed, break
+          if (state === "success" || state === "SUCCESS" || state === "failed" || state === "FAILED") {
+            if (statusData.data?.resultJson) {
+              try {
+                const resultJson = typeof statusData.data.resultJson === "string"
+                  ? JSON.parse(statusData.data.resultJson)
+                  : statusData.data.resultJson
+                statusChecks.push({
+                  final: true,
+                  resultUrls: resultJson.resultUrls,
+                })
+              } catch {
+                statusChecks.push({ final: true, parseError: true })
+              }
+            }
+            break
+          }
         }
       }
     }
@@ -96,8 +117,7 @@ export async function GET() {
   return NextResponse.json({
     timestamp: new Date().toISOString(),
     referenceImagesCount: referenceImages.length,
-    referenceImagesSample: referenceImages[0]?.substring(0, 80) + "...",
     createTaskTest: createTaskResult,
-    statusCheck: statusResult,
+    statusChecks,
   })
 }
