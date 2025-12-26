@@ -64,6 +64,7 @@ export type ErrorCode =
   | "INVALID_STYLE"
   | "NO_REFERENCE_IMAGES"
   | "LIMIT_REACHED"
+  | "QUEUE_FAILED"
 
 const ERROR_STATUS_MAP: Record<ErrorCode, number> = {
   // Client errors
@@ -90,6 +91,7 @@ const ERROR_STATUS_MAP: Record<ErrorCode, number> = {
   INVALID_STYLE: 400,
   NO_REFERENCE_IMAGES: 400,
   LIMIT_REACHED: 429,
+  QUEUE_FAILED: 503,
 }
 
 // ============================================================================

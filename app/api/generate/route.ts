@@ -1,8 +1,8 @@
-// maxDuration for local fallback generation (when QStash unavailable)
-// Vercel Pro plan supports up to 300s (5 min)
-export const maxDuration = 300
+// maxDuration not needed - all generation runs via QStash (no local fallback)
+// Keeping 60s for API validation/response
+export const maxDuration = 60
 
-import { type NextRequest, after } from "next/server"
+import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"
 import { generateMultipleImages, type GenerationResult } from "@/lib/imagen"
 import { PHOTOSET_PROMPTS, STYLE_CONFIGS } from "@/lib/prompts"
@@ -558,67 +558,85 @@ export async function POST(request: NextRequest) {
 
     logger.info("Prompts prepared", { count: mergedPrompts.length })
 
-    // Choose processing method: QStash (background) or local (blocking)
-    if (HAS_QSTASH) {
-      // Use QStash for reliable background processing (survives Vercel timeout)
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.headers.get("origin") || "http://localhost:3000"
+    // ============================================================================
+    // QSTASH ONLY - No local fallback (local mode times out on Vercel)
+    // ============================================================================
 
-      logger.info("Using QStash for background generation", { baseUrl })
+    if (!HAS_QSTASH) {
+      // QStash not configured - cannot process generation reliably
+      logger.error("QStash not configured - cannot start generation", { jobId: job.id })
 
-      const qstashResult = await publishGenerationJob(
-        {
-          jobId: job.id,
-          avatarId: dbAvatarId,
-          telegramUserId: tgId,
-          styleId,
-          photoCount: totalPhotos,
-          referenceImages: validReferenceImages,
-          startIndex: 0,
-          chunkSize: QSTASH_CONFIG.CHUNK_SIZE,
-        },
-        baseUrl
-      )
+      // Mark job as failed
+      await sql`
+        UPDATE generation_jobs
+        SET status = 'failed', error_message = 'QStash not configured - generation unavailable'
+        WHERE id = ${job.id}
+      `
 
-      if (!qstashResult) {
-        logger.error("Failed to publish to QStash, falling back to local")
-        // Track QStash fallback in Sentry
-        trackQStashFallback(job.id, dbAvatarId, "publishGenerationJob returned null")
-        // Fall back to local generation
-        after(() => {
-          runBackgroundGeneration({
-            jobId: job.id,
-            dbAvatarId,
-            userId: user.id,
-            styleId,
-            mergedPrompts,
-            validReferenceImages,
-            totalPhotos,
-            startTime,
-            concurrency: GENERATION_CONFIG.concurrency,
-          })
-        })
-      } else {
-        logger.info("Job published to QStash", { messageId: qstashResult.messageId })
-        // Track QStash success in Sentry
-        trackQStashSuccess(job.id, qstashResult.messageId)
-      }
-    } else {
-      // Local generation (may timeout on Vercel)
-      logger.info("Using local background generation (QStash not configured)")
-      after(() => {
-        runBackgroundGeneration({
-          jobId: job.id,
-          dbAvatarId,
-          userId: user.id,
-          styleId,
-          mergedPrompts,
-          validReferenceImages,
-          totalPhotos,
-          startTime,
-          concurrency: GENERATION_CONFIG.concurrency,
-        })
+      // Auto-refund the payment
+      const refundResult = await autoRefundForFailedGeneration(dbAvatarId, user.id)
+      logger.warn("Auto-refund triggered due to QStash unavailable", {
+        jobId: job.id,
+        refundSuccess: refundResult.success,
+        refundedPaymentId: refundResult.refundedPaymentId,
+      })
+
+      return error("SERVICE_UNAVAILABLE", "Generation service temporarily unavailable. Payment has been refunded.", {
+        refunded: refundResult.success,
       })
     }
+
+    // Use QStash for reliable background processing (survives Vercel timeout)
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.headers.get("origin") || "http://localhost:3000"
+
+    logger.info("Publishing to QStash", { baseUrl, jobId: job.id })
+
+    const qstashResult = await publishGenerationJob(
+      {
+        jobId: job.id,
+        avatarId: dbAvatarId,
+        telegramUserId: tgId,
+        styleId,
+        photoCount: totalPhotos,
+        referenceImages: validReferenceImages,
+        startIndex: 0,
+        chunkSize: QSTASH_CONFIG.CHUNK_SIZE,
+      },
+      baseUrl
+    )
+
+    if (!qstashResult) {
+      // QStash publish failed - do NOT fallback to local (will timeout)
+      logger.error("Failed to publish to QStash - aborting generation", { jobId: job.id })
+      trackQStashFallback(job.id, dbAvatarId, "publishGenerationJob returned null - NO LOCAL FALLBACK")
+
+      // Mark job as failed
+      await sql`
+        UPDATE generation_jobs
+        SET status = 'failed', error_message = 'Failed to queue generation job'
+        WHERE id = ${job.id}
+      `
+
+      // Auto-refund the payment
+      const refundResult = await autoRefundForFailedGeneration(dbAvatarId, user.id)
+      logger.warn("Auto-refund triggered due to QStash publish failure", {
+        jobId: job.id,
+        refundSuccess: refundResult.success,
+        refundedPaymentId: refundResult.refundedPaymentId,
+      })
+
+      return error("QUEUE_FAILED", "Failed to start generation. Payment has been refunded.", {
+        refunded: refundResult.success,
+      })
+    }
+
+    logger.info("Job published to QStash successfully", {
+      messageId: qstashResult.messageId,
+      jobId: job.id,
+      avatarId: dbAvatarId,
+      totalPhotos,
+    })
+    trackQStashSuccess(job.id, qstashResult.messageId)
 
     // Return immediately with job info for polling
     return success({
@@ -629,7 +647,7 @@ export async function POST(request: NextRequest) {
       referenceImagesUsed: validReferenceImages.length,
       referenceImagesRejected: rejected.length,
       style: styleConfig.name,
-      processingMode: HAS_QSTASH ? "qstash" : "local",
+      processingMode: "qstash",
     })
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error"
