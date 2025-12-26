@@ -118,10 +118,10 @@ export async function generateWithKie(options: KieGenerationOptions): Promise<Ki
 
     console.log(`[Kie.ai] Task created: ${taskId}`)
 
-    // Poll for result (max 60 seconds to stay under Cloudflare's ~100s timeout)
-    // QStash will retry on timeout, and Replicate fallback will kick in
-    const maxWaitTime = 60000  // 60 seconds (Cloudflare 524 protection)
-    const pollInterval = 3000   // Poll every 3 seconds to reduce API load
+    // Poll for result (max 80 seconds to stay under Cloudflare's ~100s timeout)
+    // Gives Kie.ai more time for busy periods, with ~20s buffer for R2 upload
+    const maxWaitTime = 80000  // 80 seconds (Cloudflare 524 protection)
+    const pollInterval = 2000   // Poll every 2 seconds for faster response
     let elapsed = 0
     let consecutiveErrors = 0
     const MAX_CONSECUTIVE_ERRORS = 5  // Allow some network hiccups
@@ -197,7 +197,7 @@ export async function generateWithKie(options: KieGenerationOptions): Promise<Ki
       console.log(`[Kie.ai] Status: ${status}, elapsed: ${elapsed}ms`)
     }
 
-    throw new Error("Kie.ai generation timeout (6 minutes)")
+    throw new Error("Kie.ai generation timeout (80 seconds)")
 
   } catch (error) {
     const latencyMs = Date.now() - startTime
