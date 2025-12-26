@@ -66,7 +66,8 @@ export async function GET() {
       const taskId = createData.data?.taskId
 
       if (taskId) {
-        for (let i = 0; i < 6; i++) {
+        // Poll for up to 50 seconds
+        for (let i = 0; i < 10; i++) {
           await new Promise(r => setTimeout(r, 5000))
 
           const statusResponse = await fetch(`${KIE_STATUS_URL}?taskId=${taskId}`, {
