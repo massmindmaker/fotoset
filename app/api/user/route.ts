@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       markOnboardingComplete,
     })
 
-    // Handle onboarding completion - increment referrer's count
+    // Handle onboarding completion - increment referrer's count and create referral link
     if (markOnboardingComplete) {
       // Check if not already completed
       const checkResult = await sql`
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         `
         console.log(`[User API] Onboarding completed for user ${user.id}`)
 
-        // Increment referrer's count if user has pending referral
+        // Process referral if user has pending referral code
         if (user.pending_referral_code) {
           const referrerResult = await sql`
             SELECT u.id FROM users u
@@ -68,14 +68,33 @@ export async function POST(request: NextRequest) {
 
           if (referrerResult.length > 0) {
             const referrerId = referrerResult[0].id
-            await sql`
-              INSERT INTO referral_balances (user_id, referrals_count, balance)
-              VALUES (${referrerId}, 1, 0)
-              ON CONFLICT (user_id)
-              DO UPDATE SET referrals_count = referral_balances.referrals_count + 1
+
+            // Check if referral link already exists (idempotent)
+            const existingReferral = await sql`
+              SELECT id FROM referrals WHERE referred_id = ${user.id}
             `
-            console.log(`[User API] +1 referral count for user ${referrerId} (referrer of ${user.id})`)
-            trackReferralApplied(user.id, referrerId)
+
+            if (existingReferral.length === 0) {
+              // Create referral link in referrals table (for webhook to find referrer)
+              await sql`
+                INSERT INTO referrals (referrer_id, referred_id, referral_code)
+                VALUES (${referrerId}, ${user.id}, ${user.pending_referral_code})
+                ON CONFLICT DO NOTHING
+              `
+              console.log(`[User API] Created referral link: ${referrerId} -> ${user.id}`)
+
+              // Increment referrer's referrals_count atomically
+              await sql`
+                INSERT INTO referral_balances (user_id, referrals_count, balance)
+                VALUES (${referrerId}, 1, 0)
+                ON CONFLICT (user_id)
+                DO UPDATE SET referrals_count = referral_balances.referrals_count + 1
+              `
+              console.log(`[User API] +1 referral count for user ${referrerId} (referrer of ${user.id})`)
+              trackReferralApplied(user.id, referrerId)
+            } else {
+              console.log(`[User API] Referral link already exists for user ${user.id}`)
+            }
           }
         }
       }

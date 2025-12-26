@@ -2,11 +2,9 @@
 
 import React, { useState, useEffect, useCallback, memo } from "react"
 import {
-  X, Download, Share2, Star, ChevronLeft, ChevronRight,
-  Check, CheckSquare, Square, Archive, ZoomIn,
-  Copy, ExternalLink, Loader2, Send, MessageCircle, Link as LinkIcon
+  X, Download, Share2, ChevronLeft, ChevronRight,
+  ZoomIn, ExternalLink, Loader2, Send, MessageCircle, Link as LinkIcon, Check
 } from "lucide-react"
-import JSZip from "jszip"
 import { saveAs } from "file-saver"
 
 interface GeneratedAsset {
@@ -28,9 +26,6 @@ interface ResultsGalleryProps {
 const AssetCard = memo<{
   asset: GeneratedAsset
   index: number
-  isSelected: boolean
-  isSelectionMode: boolean
-  onToggleSelection: (id: string) => void
   onOpenLightbox: (index: number) => void
   onShare: (asset: GeneratedAsset) => void
   onDownload: (asset: GeneratedAsset) => void
@@ -38,90 +33,62 @@ const AssetCard = memo<{
   ({
     asset,
     index,
-    isSelected,
-    isSelectionMode,
-    onToggleSelection,
     onOpenLightbox,
     onShare,
     onDownload,
   }) => {
     return (
-      <div
-        className={
-          "relative rounded-2xl overflow-hidden bg-card border transition-all group " +
-          (isSelected ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/50")
-        }
-      >
-        {/* Selection checkbox */}
-        {isSelectionMode && (
-          <button
-            onClick={() => onToggleSelection(asset.id)}
-            className={
-              "absolute top-2 left-2 z-10 w-7 h-7 rounded-lg flex items-center justify-center transition-all " +
-              (isSelected ? "bg-primary text-primary-foreground" : "bg-black/50 text-white hover:bg-black/70")
-            }
-            role="checkbox"
-            aria-checked={isSelected}
-            aria-label={`Select photo ${index + 1}`}
-          >
-            {isSelected ? <Check className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-          </button>
-        )}
-
+      <div className="relative rounded-2xl overflow-hidden bg-card border border-border hover:border-primary/50 transition-all group">
         {/* Image */}
         <button
-          onClick={() => (isSelectionMode ? onToggleSelection(asset.id) : onOpenLightbox(index))}
+          onClick={() => onOpenLightbox(index)}
           className="aspect-square w-full"
-          aria-label={isSelectionMode ? `Select photo ${index + 1}` : `View photo ${index + 1} in fullscreen`}
+          aria-label={`View photo ${index + 1} in fullscreen`}
         >
           <img src={asset.url} alt={`Generated photo ${index + 1}`} className="w-full h-full object-cover" loading="lazy" />
         </button>
 
         {/* Hover actions */}
-        {!isSelectionMode && (
-          <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="flex items-center justify-center gap-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onOpenLightbox(index)
-                }}
-                className="p-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
-                aria-label="View fullscreen"
-              >
-                <ZoomIn className="w-4 h-4" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onShare(asset)
-                }}
-                className="p-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
-                aria-label="Share photo"
-              >
-                <Share2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDownload(asset)
-                }}
-                className="p-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
-                aria-label="Download photo"
-              >
-                <Download className="w-4 h-4" />
-              </button>
-            </div>
+        <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center justify-center gap-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onOpenLightbox(index)
+              }}
+              className="p-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+              aria-label="View fullscreen"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onShare(asset)
+              }}
+              className="p-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+              aria-label="Share photo"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDownload(asset)
+              }}
+              className="p-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+              aria-label="Download photo"
+            >
+              <Download className="w-4 h-4" />
+            </button>
           </div>
-        )}
+        </div>
       </div>
     )
   },
   // Custom comparison function - only re-render if these props change
   (prev, next) =>
     prev.asset.id === next.asset.id &&
-    prev.isSelected === next.isSelected &&
-    prev.isSelectionMode === next.isSelectionMode &&
     prev.index === next.index
 )
 
@@ -129,24 +96,21 @@ AssetCard.displayName = 'AssetCard'
 
 // Share Modal Component with referral link
 const ShareModal: React.FC<{
-  asset: GeneratedAsset | GeneratedAsset[]
+  asset: GeneratedAsset
   onClose: () => void
   personaName: string
   referralCode?: string | null
-}> = ({ asset, onClose, personaName, referralCode }) => {
+  onDownload: (asset: GeneratedAsset) => void
+}> = ({ asset, onClose, personaName, referralCode, onDownload }) => {
   const [copied, setCopied] = useState(false)
-  const isMultiple = Array.isArray(asset)
-  const photoCount = isMultiple ? asset.length : 1
-  const shareUrl = isMultiple ? asset[0].url : asset.url
+  const shareUrl = asset.url
 
   // Build referral link for PinGlass promotion
   const appUrl = referralCode
     ? `https://t.me/PinGlassBot/app?startapp=${referralCode}`
     : (typeof window !== "undefined" ? window.location.origin : "")
 
-  const shareText = isMultiple
-    ? `Мои AI-фото от ${personaName} (${photoCount} фото)\n\nPinGlass - создай свои AI-портреты:\n${appUrl}`
-    : `Моё AI-фото от ${personaName}\n\nPinGlass - создай свои AI-портреты:\n${appUrl}`
+  const shareText = `Моё AI-фото от ${personaName}\n\nPinGlass - создай свои AI-портреты:\n${appUrl}`
 
   const copyLink = async () => {
     try {
@@ -155,62 +119,6 @@ const ShareModal: React.FC<{
       setTimeout(() => setCopied(false), 2000)
     } catch (e) {
       console.error("Failed to copy:", e)
-    }
-  }
-
-  const downloadPhoto = async () => {
-    try {
-      if (isMultiple) {
-        const zip = new JSZip()
-        const folder = zip.folder("pinglass_photos")
-        let addedFiles = 0
-
-        for (let i = 0; i < asset.length; i++) {
-          try {
-            const response = await fetch(asset[i].url, { mode: 'cors', credentials: 'omit' })
-            if (!response.ok) throw new Error(`HTTP ${response.status}`)
-            const blob = await response.blob()
-            if (blob.size === 0) throw new Error("Empty response")
-            const filename = `photo_${String(i + 1).padStart(2, "0")}.png`
-            folder?.file(filename, blob)
-            addedFiles++
-          } catch (err) {
-            console.error(`Failed to download photo ${i + 1}:`, err)
-          }
-        }
-
-        if (addedFiles === 0) {
-          // All downloads failed - show fallback message
-          const tg = window.Telegram?.WebApp
-          if (tg?.showAlert) {
-            tg.showAlert("Не удалось скачать фото. Откройте фото по отдельности и сохраните вручную.")
-          } else {
-            alert("Не удалось скачать фото. Попробуйте скачать по одному.")
-          }
-          return
-        }
-
-        const zipBlob = await zip.generateAsync({ type: "blob" })
-        saveAs(zipBlob, `pinglass_${addedFiles}photos.zip`)
-      } else {
-        const response = await fetch(asset.url, { mode: 'cors', credentials: 'omit' })
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        const blob = await response.blob()
-        if (blob.size === 0) throw new Error("Empty file received")
-        const filename = `pinglass_${asset.id.slice(-8)}.png`
-        saveAs(blob, filename)
-      }
-      onClose()
-    } catch (e) {
-      console.error("Download failed:", e)
-      // Fallback: open in new tab with instruction
-      if (!isMultiple) {
-        window.open(asset.url, '_blank')
-        const tg = window.Telegram?.WebApp
-        if (tg?.showAlert) {
-          tg.showAlert("Фото открыто в новой вкладке. Сохраните вручную (долгое нажатие).")
-        }
-      }
     }
   }
 
@@ -257,7 +165,10 @@ const ShareModal: React.FC<{
       name: "Скачать",
       icon: Download,
       color: "bg-primary",
-      action: downloadPhoto
+      action: () => {
+        onDownload(asset)
+        onClose()
+      }
     }
   ]
 
@@ -284,29 +195,12 @@ const ShareModal: React.FC<{
               <X className="w-5 h-5" />
             </button>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {isMultiple ? `${photoCount} фото` : "1 фото"} - {personaName}
-          </p>
+          <p className="text-sm text-muted-foreground">1 фото - {personaName}</p>
         </div>
 
         <div className="p-4 bg-muted/30">
-          <div className="flex gap-2 overflow-x-auto">
-            {isMultiple ? (
-              asset.slice(0, 4).map((a, i) => (
-                <div key={a.id} className="relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 border-border">
-                  <img src={a.url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                  {i === 3 && asset.length > 4 && (
-                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center text-white text-sm font-semibold">
-                      +{asset.length - 4}
-                    </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              <div className="w-full max-w-[200px] mx-auto rounded-xl overflow-hidden border-2 border-border">
-                <img src={asset.url} alt="" className="w-full aspect-square object-cover" loading="lazy" />
-              </div>
-            )}
+          <div className="w-full max-w-[200px] mx-auto rounded-xl overflow-hidden border-2 border-border">
+            <img src={asset.url} alt="" className="w-full aspect-square object-cover" loading="lazy" />
           </div>
         </div>
 
@@ -471,12 +365,8 @@ const Lightbox: React.FC<{
 
 // Main Gallery Component
 export default function ResultsGallery({ assets, personaName, thumbnailUrl }: ResultsGalleryProps) {
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
-  const [isDownloading, setIsDownloading] = useState(false)
-  const [downloadProgress, setDownloadProgress] = useState(0)
-  const [shareModalAsset, setShareModalAsset] = useState<GeneratedAsset | GeneratedAsset[] | null>(null)
+  const [shareModalAsset, setShareModalAsset] = useState<GeneratedAsset | null>(null)
   const [referralCode, setReferralCode] = useState<string | null>(null)
 
   // Load referral code from localStorage
@@ -503,24 +393,7 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
     loadReferralCode()
   }, [])
 
-  // Memoized handlers to prevent re-creating functions
-  const toggleSelection = useCallback((id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }, [])
-
-  const selectAll = useCallback(() => {
-    if (selectedIds.size === assets.length) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(assets.map(a => a.id)))
-    }
-  }, [selectedIds.size, assets])
-
+  // Download single photo
   const downloadSingle = useCallback(async (asset: GeneratedAsset) => {
     const filename = `pinglass_${asset.id.slice(-8)}.png`
 
@@ -549,80 +422,7 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
     }
   }, [])
 
-  const downloadAsZip = useCallback(async (assetsToDownload: GeneratedAsset[]) => {
-    if (assetsToDownload.length === 0) return
-
-    setIsDownloading(true)
-    setDownloadProgress(0)
-
-    try {
-      const zip = new JSZip()
-      const folder = zip.folder("pinglass_photos")
-      let addedFiles = 0
-      let processedFiles = 0
-
-      // Parallel download with limit
-      const PARALLEL_LIMIT = 5
-      const chunks: GeneratedAsset[][] = []
-      for (let i = 0; i < assetsToDownload.length; i += PARALLEL_LIMIT) {
-        chunks.push(assetsToDownload.slice(i, i + PARALLEL_LIMIT))
-      }
-
-      for (const chunk of chunks) {
-        const results = await Promise.all(
-          chunk.map(async (asset, chunkIndex) => {
-            const globalIndex = processedFiles + chunkIndex
-            const filename = `photo_${String(globalIndex + 1).padStart(2, "0")}.png`
-            try {
-              // Use proxy to bypass CORS
-              const proxyUrl = `/api/download?url=${encodeURIComponent(asset.url)}&filename=${encodeURIComponent(filename)}`
-              const response = await fetch(proxyUrl)
-              if (!response.ok) throw new Error(`HTTP ${response.status}`)
-
-              const blob = await response.blob()
-              if (blob.size === 0) throw new Error("Empty response")
-
-              return { filename, blob, success: true }
-            } catch (e) {
-              console.error(`Failed to download ${asset.id}:`, e)
-              return { filename, blob: null, success: false }
-            }
-          })
-        )
-
-        // Add successful downloads to zip
-        for (const result of results) {
-          if (result.success && result.blob) {
-            folder?.file(result.filename, result.blob)
-            addedFiles++
-          }
-        }
-
-        processedFiles += chunk.length
-        setDownloadProgress(Math.round((processedFiles / assetsToDownload.length) * 100))
-      }
-
-      // Check if any files were added
-      if (addedFiles === 0) {
-        const tg = (window as any).Telegram?.WebApp
-        if (tg?.showAlert) {
-          tg.showAlert("Не удалось скачать фото. Попробуйте скачать по одному.")
-        } else {
-          alert("Не удалось скачать фото. Попробуйте скачать по одному.")
-        }
-        return
-      }
-
-      const zipBlob = await zip.generateAsync({ type: "blob" })
-      saveAs(zipBlob, `pinglass_${personaName.replace(/\s+/g, "_")}_${addedFiles}photos.zip`)
-    } catch (e) {
-      console.error("ZIP creation failed:", e)
-    } finally {
-      setIsDownloading(false)
-      setDownloadProgress(0)
-    }
-  }, [personaName])
-
+  // Share photo
   const sharePhoto = useCallback(async (asset: GeneratedAsset) => {
     // Build referral link
     const shareUrl = referralCode
@@ -654,90 +454,22 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
     setShareModalAsset(asset)
   }, [personaName, referralCode])
 
-  const selectedAssets = assets.filter(a => selectedIds.has(a.id))
-
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center gap-3 p-4 bg-card border border-border rounded-2xl">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary flex-shrink-0 bg-muted flex items-center justify-center">
-            {thumbnailUrl || assets[0]?.url ? (
-              <img src={thumbnailUrl || assets[0]?.url} alt={personaName} className="w-full h-full object-cover" loading="lazy" />
-            ) : (
-              <span className="text-lg font-semibold text-muted-foreground">{personaName.charAt(0).toUpperCase()}</span>
-            )}
-          </div>
-          <div className="min-w-0">
-            <h3 className="font-semibold truncate">{personaName}</h3>
-            <p className="text-sm text-muted-foreground">{assets.length} фото</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => {
-              setIsSelectionMode(!isSelectionMode)
-              if (isSelectionMode) setSelectedIds(new Set())
-            }}
-            className={
-              "px-3 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 " +
-              (isSelectionMode ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80")
-            }
-            aria-pressed={isSelectionMode}
-          >
-            <CheckSquare className="w-4 h-4" />
-            <span className="hidden sm:inline">{isSelectionMode ? "Готово" : "Выбрать"}</span>
-          </button>
-
-          <button
-            onClick={() => downloadAsZip(assets)}
-            disabled={isDownloading}
-            className="px-3 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50"
-            aria-label="Download all photos as ZIP"
-          >
-            {isDownloading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="hidden sm:inline">{downloadProgress}%</span>
-              </>
-            ) : (
-              <>
-                <Archive className="w-4 h-4" />
-                <span className="hidden sm:inline">Скачать все</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Selection actions */}
-      {isSelectionMode && (
-        <div className="flex items-center gap-3 p-3 bg-primary/10 border border-primary/20 rounded-xl">
-          <button
-            onClick={selectAll}
-            className="px-3 py-1.5 text-sm font-medium hover:bg-primary/10 rounded-lg transition-colors flex items-center gap-2"
-          >
-            {selectedIds.size === assets.length ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-            {selectedIds.size === assets.length ? "Снять всё" : "Выбрать всё"}
-          </button>
-
-          <div className="flex-1 text-sm text-muted-foreground" aria-live="polite">
-            Выбрано: {selectedIds.size}
-          </div>
-
-          {selectedIds.size > 0 && (
-            <button
-              onClick={() => downloadAsZip(selectedAssets)}
-              disabled={isDownloading}
-              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 flex items-center gap-2 disabled:opacity-50"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Скачать ({selectedIds.size})</span>
-            </button>
+      <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-2xl">
+        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary flex-shrink-0 bg-muted flex items-center justify-center">
+          {thumbnailUrl || assets[0]?.url ? (
+            <img src={thumbnailUrl || assets[0]?.url} alt={personaName} className="w-full h-full object-cover" loading="lazy" />
+          ) : (
+            <span className="text-lg font-semibold text-muted-foreground">{personaName.charAt(0).toUpperCase()}</span>
           )}
         </div>
-      )}
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold truncate">{personaName}</h3>
+          <p className="text-sm text-muted-foreground">{assets.length} фото</p>
+        </div>
+      </div>
 
       {/* Photo grid with memoized cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 px-0.5">
@@ -746,9 +478,6 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
             key={asset.id}
             asset={asset}
             index={index}
-            isSelected={selectedIds.has(asset.id)}
-            isSelectionMode={isSelectionMode}
-            onToggleSelection={toggleSelection}
             onOpenLightbox={setLightboxIndex}
             onShare={sharePhoto}
             onDownload={downloadSingle}
@@ -775,6 +504,7 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
           onClose={() => setShareModalAsset(null)}
           personaName={personaName}
           referralCode={referralCode}
+          onDownload={downloadSingle}
         />
       )}
     </div>

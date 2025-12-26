@@ -82,15 +82,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create referral link
-    // NOTE: referrals_count is updated in webhook when FIRST payment is made
+    // Create referral link in referrals table
+    // NOTE: This is used when user applies code manually (not via startapp param)
     await query(
       `INSERT INTO referrals (referrer_id, referred_id, referral_code)
        VALUES ($1, $2, $3)`,
       [referrerId, referredId, code]
     )
 
-    console.log("[Referral Apply] SUCCESS: Created referral link", {
+    // Increment referrer's referrals_count atomically
+    await query(
+      `INSERT INTO referral_balances (user_id, referrals_count, balance)
+       VALUES ($1, 1, 0)
+       ON CONFLICT (user_id)
+       DO UPDATE SET referrals_count = referral_balances.referrals_count + 1`,
+      [referrerId]
+    )
+
+    console.log("[Referral Apply] SUCCESS: Created referral link + incremented count", {
       referrerId,
       referredId,
       code,

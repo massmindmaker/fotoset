@@ -192,14 +192,23 @@ async function applyReferralCode(userId: number, code: string) {
     const referrerId = codeResult.rows[0].user_id
     if (referrerId === userId) return // Can't refer yourself
 
-    // Create referral link
-    // NOTE: referrals_count is updated in webhook when FIRST payment is made
-    await query(
-      "INSERT INTO referrals (referrer_id, referred_id, referral_code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+    // Create referral link (fallback if not created during onboarding)
+    const insertResult = await query<{ id: number }>(
+      "INSERT INTO referrals (referrer_id, referred_id, referral_code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING id",
       [referrerId, userId, code.toUpperCase()]
     )
 
-    log.info(`Applied referral code ${code} for user ${userId}, referrer: ${referrerId}`)
+    // Only increment count if we actually created a new referral (not duplicate)
+    if (insertResult.rows.length > 0) {
+      await query(
+        `INSERT INTO referral_balances (user_id, referrals_count, balance)
+         VALUES ($1, 1, 0)
+         ON CONFLICT (user_id)
+         DO UPDATE SET referrals_count = referral_balances.referrals_count + 1`,
+        [referrerId]
+      )
+      log.info(`Applied referral code ${code} for user ${userId}, referrer: ${referrerId} (+1 count)`)
+    }
   } catch (error) {
     log.error(" Error applying code:", error)
   }
