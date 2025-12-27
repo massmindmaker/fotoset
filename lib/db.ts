@@ -60,7 +60,7 @@ export type Payment = {
   tbank_payment_id: string
   amount: number
   currency: string
-  status: "pending" | "succeeded" | "canceled"
+  status: "pending" | "succeeded" | "canceled" | "refunded" | "refunding"
   created_at: string
   updated_at: string
 }

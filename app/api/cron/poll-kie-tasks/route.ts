@@ -228,6 +228,105 @@ async function checkJobCompletion() {
       `
 
       console.log(`[Poll Kie Tasks] Job ${job.id} completed successfully - all ${job.total_photos} photos generated`)
+
+      // Send photos to Telegram automatically
+      await sendPhotosToTelegram(job.avatar_id)
     }
+  }
+}
+
+// Send all generated photos to user's Telegram
+async function sendPhotosToTelegram(avatarId: number) {
+  const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
+
+  if (!TELEGRAM_BOT_TOKEN) {
+    console.log("[Poll Kie Tasks] Telegram bot not configured, skipping send")
+    return
+  }
+
+  try {
+    // Get avatar's user and their telegram_user_id
+    const userData = await sql`
+      SELECT u.telegram_user_id
+      FROM avatars a
+      JOIN users u ON u.id = a.user_id
+      WHERE a.id = ${avatarId}
+    `.then((rows: any[]) => rows[0])
+
+    if (!userData?.telegram_user_id) {
+      console.log(`[Poll Kie Tasks] No telegram_user_id for avatar ${avatarId}, skipping send`)
+      return
+    }
+
+    const chatId = userData.telegram_user_id
+
+    // Get all generated photos for this avatar
+    const photos = await sql`
+      SELECT image_url FROM generated_photos
+      WHERE avatar_id = ${avatarId}
+      ORDER BY created_at DESC
+    `
+
+    if (photos.length === 0) {
+      console.log(`[Poll Kie Tasks] No photos found for avatar ${avatarId}`)
+      return
+    }
+
+    const photoUrls = photos.map((p: any) => p.image_url)
+    console.log(`[Poll Kie Tasks] Sending ${photoUrls.length} photos to Telegram user ${chatId}`)
+
+    // Send photos in batches of 10 (Telegram limit)
+    const batchSize = 10
+    let sentCount = 0
+
+    for (let i = 0; i < photoUrls.length; i += batchSize) {
+      const batch = photoUrls.slice(i, i + batchSize)
+
+      if (batch.length === 1) {
+        // Single photo
+        const response = await fetch(
+          `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              photo: batch[0],
+              caption: i === 0 ? `✨ Ваши ${photoUrls.length} AI-портретов готовы!\n\nPinGlass` : undefined
+            })
+          }
+        )
+        const result = await response.json()
+        if (result.ok) sentCount++
+      } else {
+        // Media group
+        const media = batch.map((url: string, idx: number) => ({
+          type: "photo",
+          media: url,
+          caption: i === 0 && idx === 0 ? `✨ Ваши ${photoUrls.length} AI-портретов готовы!\n\nPinGlass` : undefined
+        }))
+
+        const response = await fetch(
+          `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMediaGroup`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: chatId, media })
+          }
+        )
+        const result = await response.json()
+        if (result.ok) sentCount += batch.length
+      }
+
+      // Delay between batches
+      if (i + batchSize < photoUrls.length) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+    }
+
+    console.log(`[Poll Kie Tasks] ✓ Sent ${sentCount}/${photoUrls.length} photos to Telegram`)
+
+  } catch (error) {
+    console.error("[Poll Kie Tasks] Failed to send photos to Telegram:", error)
   }
 }

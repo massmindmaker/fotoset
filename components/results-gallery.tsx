@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, memo } from "react"
 import {
   X, Download, Share2, ChevronLeft, ChevronRight,
-  ZoomIn, ExternalLink, Loader2, Send, MessageCircle, Link as LinkIcon, Check
+  ZoomIn, ExternalLink, Loader2, Send, MessageCircle, Link as LinkIcon, Check, Sparkles
 } from "lucide-react"
 import { saveAs } from "file-saver"
 
@@ -20,6 +20,7 @@ interface ResultsGalleryProps {
   assets: GeneratedAsset[]
   personaName: string
   thumbnailUrl?: string
+  onGenerateMore?: () => void
 }
 
 // Memoized Asset Card Component - prevents unnecessary re-renders
@@ -364,7 +365,7 @@ const Lightbox: React.FC<{
 }
 
 // Main Gallery Component
-export default function ResultsGallery({ assets, personaName, thumbnailUrl }: ResultsGalleryProps) {
+export default function ResultsGallery({ assets, personaName, thumbnailUrl, onGenerateMore }: ResultsGalleryProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [shareModalAsset, setShareModalAsset] = useState<GeneratedAsset | null>(null)
   const [referralCode, setReferralCode] = useState<string | null>(null)
@@ -469,6 +470,15 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl }: Re
           <h3 className="font-semibold truncate">{personaName}</h3>
           <p className="text-sm text-muted-foreground">{assets.length} фото</p>
         </div>
+        {onGenerateMore && (
+          <button
+            onClick={onGenerateMore}
+            className="flex items-center gap-2 btn-premium text-sm flex-shrink-0"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Ещё</span>
+          </button>
+        )}
       </div>
 
       {/* Photo grid with memoized cards */}
