@@ -65,6 +65,7 @@ export type ErrorCode =
   | "NO_REFERENCE_IMAGES"
   | "LIMIT_REACHED"
   | "QUEUE_FAILED"
+  | "NO_PROMPTS_AVAILABLE"
 
 const ERROR_STATUS_MAP: Record<ErrorCode, number> = {
   // Client errors
@@ -92,6 +93,7 @@ const ERROR_STATUS_MAP: Record<ErrorCode, number> = {
   NO_REFERENCE_IMAGES: 400,
   LIMIT_REACHED: 429,
   QUEUE_FAILED: 503,
+  NO_PROMPTS_AVAILABLE: 400,
 }
 
 // ============================================================================

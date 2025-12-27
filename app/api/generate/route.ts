@@ -539,7 +539,7 @@ export async function POST(request: NextRequest) {
     const availablePrompts = PHOTOSET_PROMPTS.filter(prompt => {
       // Check if this base prompt was already used (compare first 100 chars to handle merged prompts)
       const promptStart = prompt.substring(0, 100)
-      return !usedPrompts.some(used => used && used.substring(0, 100) === promptStart)
+      return !usedPrompts.some((used: string | null) => used && used.substring(0, 100) === promptStart)
     })
 
     if (availablePrompts.length === 0) {
