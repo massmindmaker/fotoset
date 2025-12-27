@@ -114,7 +114,7 @@ export async function POST(request: Request) {
     const results: { success: boolean; url?: string; error?: string; index: number }[] = []
 
     // Process photos in PARALLEL within chunk (Kie.ai supports concurrent requests)
-    const PARALLEL_LIMIT = 2 // Generate 2 photos at a time (Kie.ai stable)
+    const PARALLEL_LIMIT = 1 // Generate 1 photo at a time for reliability
     const useR2 = isR2Configured()
 
     console.log(`[Jobs/Process] Processing ${promptsToProcess.length} photos in parallel (limit: ${PARALLEL_LIMIT})`)

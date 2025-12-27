@@ -106,10 +106,11 @@ export async function verifyQStashSignature(
 
 // Configuration for chunked generation
 export const GENERATION_CONFIG = {
-  // Variant B: 2 photos per chunk for balanced speed/stability
-  CHUNK_SIZE: 2,
+  // Conservative: 1 photo per chunk for reliability
+  // Kie.ai can be slow (50-95s), so process one at a time
+  CHUNK_SIZE: 1,
   // Max concurrent chunks
-  MAX_CONCURRENT: 2,
-  // Delay between chunks (ms) - reduced for faster processing
-  CHUNK_DELAY_MS: 500,
+  MAX_CONCURRENT: 1,
+  // Delay between chunks (ms)
+  CHUNK_DELAY_MS: 1000,
 }
