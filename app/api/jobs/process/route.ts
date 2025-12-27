@@ -1,11 +1,11 @@
 // Background Job Processor - Called by Upstash QStash
-// IMPORTANT: maxDuration is required for long-running AI generation
-// Vercel Pro allows up to 300s, each Kie.ai call can take up to 95s
-export const maxDuration = 300 // Maximum for Vercel Pro
+// ASYNC ARCHITECTURE: Creates Kie.ai tasks and returns immediately
+// Polling is done by /api/cron/poll-kie-tasks
+export const maxDuration = 60 // Now fast - just creates tasks (~5s each)
 
 import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { generateImage, type GenerationOptions } from "@/lib/imagen"
+import { createKieTask, type KieGenerationOptions } from "@/lib/kie"
 import { PHOTOSET_PROMPTS } from "@/lib/prompts"
 import {
   verifyQStashSignature,
@@ -13,10 +13,8 @@ import {
   type GenerationJobPayload,
   GENERATION_CONFIG,
 } from "@/lib/qstash"
-import { uploadFromUrl, generatePromptKey, isR2Configured } from "@/lib/r2"
-import { autoRefundForFailedGeneration } from "@/lib/tbank"
 
-// POST /api/jobs/process - Process a generation chunk
+// POST /api/jobs/process - Create Kie.ai tasks for a generation chunk
 export async function POST(request: Request) {
   // Verify QStash signature
   const { valid, body } = await verifyQStashSignature(request)
@@ -35,17 +33,6 @@ export async function POST(request: Request) {
 
   const { jobId, avatarId, telegramUserId, styleId, photoCount, referenceImages, startIndex, chunkSize } = payload
 
-  // Debug: Log environment variables for Kie.ai
-  const kieAiKey = process.env.KIE_AI_API_KEY?.trim()
-  const kieKey = process.env.KIE_API_KEY?.trim()
-  const replicateKey = process.env.REPLICATE_API_TOKEN?.trim()
-  console.log("[Jobs/Process] ENV CHECK:", {
-    KIE_AI_API_KEY_length: kieAiKey?.length || 0,
-    KIE_AI_API_KEY_first5: kieAiKey?.substring(0, 5) || "NOT_SET",
-    KIE_API_KEY_length: kieKey?.length || 0,
-    REPLICATE_length: replicateKey?.length || 0,
-  })
-
   console.log("[Jobs/Process] Processing chunk:", {
     jobId,
     avatarId,
@@ -55,7 +42,7 @@ export async function POST(request: Request) {
   })
 
   try {
-    // For first chunk, use atomic lock to prevent dual execution with local after()
+    // For first chunk, use atomic lock to prevent dual execution
     if (startIndex === 0) {
       const lockResult = await sql`
         UPDATE generation_jobs
@@ -65,7 +52,6 @@ export async function POST(request: Request) {
       `
 
       if (lockResult.length === 0) {
-        // Check if already processing (which is fine) or finished
         const job = await sql`
           SELECT status FROM generation_jobs WHERE id = ${jobId}
         `.then((rows: any[]) => rows[0])
@@ -80,18 +66,15 @@ export async function POST(request: Request) {
           return NextResponse.json({ success: true, skipped: true })
         }
 
-        // If status is 'processing', another executor started first - skip this one
         if (job.status === "processing") {
-          console.log("[Jobs/Process] Job already being processed by another executor, skipping")
+          console.log("[Jobs/Process] Job already being processed, skipping")
           return NextResponse.json({ success: true, skipped: true, reason: "already_processing" })
         }
       }
     } else {
-      // For subsequent chunks, just verify job exists and is still processing
+      // Verify job exists and is still processing
       const job = await sql`
-        SELECT id, status, completed_photos, total_photos
-        FROM generation_jobs
-        WHERE id = ${jobId}
+        SELECT id, status FROM generation_jobs WHERE id = ${jobId}
       `.then((rows: any[]) => rows[0])
 
       if (!job) {
@@ -109,112 +92,60 @@ export async function POST(request: Request) {
     const endIndex = Math.min(startIndex + chunkSize, photoCount)
     const promptsToProcess = PHOTOSET_PROMPTS.slice(startIndex, endIndex)
 
-    console.log(`[Jobs/Process] Processing prompts ${startIndex} to ${endIndex - 1}`)
+    console.log(`[Jobs/Process] Creating ${promptsToProcess.length} Kie.ai tasks (${startIndex} to ${endIndex - 1})`)
 
-    const results: { success: boolean; url?: string; error?: string; index: number }[] = []
+    const tasksCreated: { promptIndex: number; taskId: string }[] = []
+    const tasksFailed: { promptIndex: number; error: string }[] = []
 
-    // Process photos in PARALLEL within chunk (Kie.ai supports concurrent requests)
-    const PARALLEL_LIMIT = 1 // Generate 1 photo at a time for reliability
-    const useR2 = isR2Configured()
+    // Create Kie.ai tasks (fire-and-forget, ~2-5s each)
+    for (let i = 0; i < promptsToProcess.length; i++) {
+      const prompt = promptsToProcess[i]
+      const promptIndex = startIndex + i
 
-    console.log(`[Jobs/Process] Processing ${promptsToProcess.length} photos in parallel (limit: ${PARALLEL_LIMIT})`)
+      // Check if task already exists (prevent duplicates from retries)
+      const existing = await sql`
+        SELECT id FROM kie_tasks
+        WHERE job_id = ${jobId} AND prompt_index = ${promptIndex}
+        LIMIT 1
+      `.then((rows: any[]) => rows[0])
 
-    // Process in batches of PARALLEL_LIMIT
-    for (let batchStart = 0; batchStart < promptsToProcess.length; batchStart += PARALLEL_LIMIT) {
-      const batchEnd = Math.min(batchStart + PARALLEL_LIMIT, promptsToProcess.length)
-      const batchPrompts = promptsToProcess.slice(batchStart, batchEnd)
+      if (existing) {
+        console.log(`[Jobs/Process] Task for prompt ${promptIndex} already exists, skipping`)
+        continue
+      }
 
-      console.log(`[Jobs/Process] Parallel batch ${batchStart}-${batchEnd - 1}`)
+      const options: KieGenerationOptions = {
+        prompt,
+        referenceImages: referenceImages.slice(0, 4),
+        aspectRatio: "3:4",
+      }
 
-      const batchResults = await Promise.allSettled(
-        batchPrompts.map(async (prompt, batchIndex) => {
-          const promptIndex = startIndex + batchStart + batchIndex
+      console.log(`[Jobs/Process] Creating Kie.ai task for prompt ${promptIndex + 1}/${photoCount}`)
+      const result = await createKieTask(options)
 
-          const options: GenerationOptions = {
-            prompt,
-            referenceImages: referenceImages.slice(0, 4),
-            aspectRatio: "3:4",
-            resolution: "1K",
-          }
+      if (result.success && result.taskId) {
+        // Save task to database for polling
+        await sql`
+          INSERT INTO kie_tasks (job_id, avatar_id, kie_task_id, prompt_index, prompt, status)
+          VALUES (${jobId}, ${avatarId}, ${result.taskId}, ${promptIndex}, ${prompt.substring(0, 500)}, 'pending')
+        `
+        tasksCreated.push({ promptIndex, taskId: result.taskId })
+        console.log(`[Jobs/Process] ✓ Created task ${result.taskId} for prompt ${promptIndex + 1}`)
+      } else {
+        tasksFailed.push({ promptIndex, error: result.error || "Unknown error" })
+        console.error(`[Jobs/Process] ✗ Failed to create task for prompt ${promptIndex + 1}: ${result.error}`)
 
-          console.log(`[Jobs/Process] Starting photo ${promptIndex + 1}`, {
-            refCount: referenceImages.length,
-            refSample: referenceImages[0]?.substring(0, 60),
-            promptLen: prompt.length,
-          })
-          const imageUrl = await generateImage(options)
-
-          // Upload to R2 if configured
-          let finalImageUrl = imageUrl
-          if (useR2) {
-            try {
-              const r2Key = generatePromptKey(avatarId.toString(), styleId, promptIndex, "png")
-              const r2Result = await uploadFromUrl(imageUrl, r2Key)
-              finalImageUrl = r2Result.url
-            } catch (r2Error) {
-              console.warn(`[Jobs/Process] R2 upload failed for ${promptIndex}:`, r2Error)
-            }
-          }
-
-          // Save to database (with duplicate check)
-          // Use prompt_index to prevent duplicates from QStash retries
-          const existingPhoto = await sql`
-            SELECT id FROM generated_photos
-            WHERE avatar_id = ${avatarId} AND style_id = ${styleId} AND prompt = ${prompt.substring(0, 500)}
-            LIMIT 1
-          `.then((rows: any[]) => rows[0])
-
-          if (!existingPhoto) {
-            await sql`
-              INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
-              VALUES (${avatarId}, ${styleId}, ${prompt.substring(0, 500)}, ${finalImageUrl})
-            `
-          } else {
-            console.log(`[Jobs/Process] Photo ${promptIndex + 1} already exists, skipping duplicate`)
-          }
-
-          return { promptIndex, imageUrl: finalImageUrl }
-        })
-      )
-
-      // Process batch results
-      for (let i = 0; i < batchResults.length; i++) {
-        const result = batchResults[i]
-        const promptIndex = startIndex + batchStart + i
-
-        if (result.status === "fulfilled") {
-          results.push({ success: true, url: result.value.imageUrl, index: promptIndex })
-          console.log(`[Jobs/Process] ✓ Photo ${promptIndex + 1}/${photoCount}`)
-
-          // Update progress based on actual photo count (prevents inflation from retries)
-          const actualCount = await sql`
-            SELECT COUNT(*) as count FROM generated_photos
-            WHERE avatar_id = ${avatarId} AND style_id = ${styleId}
-          `.then((rows: any[]) => parseInt(rows[0]?.count || '0'))
-
-          await sql`
-            UPDATE generation_jobs
-            SET completed_photos = ${actualCount}, updated_at = NOW()
-            WHERE id = ${jobId}
-          `.catch(() => {})
-        } else {
-          const errorMsg = result.reason instanceof Error ? result.reason.message : "Unknown error"
-          results.push({ success: false, error: errorMsg, index: promptIndex })
-          console.error(`[Jobs/Process] ✗ Photo ${promptIndex + 1}:`, errorMsg)
-
-          await sql`
-            UPDATE generation_jobs
-            SET error_message = ${errorMsg}, updated_at = NOW()
-            WHERE id = ${jobId}
-          `.catch(() => {})
-        }
+        // Save failed task for tracking
+        await sql`
+          INSERT INTO kie_tasks (job_id, avatar_id, kie_task_id, prompt_index, prompt, status, error_message)
+          VALUES (${jobId}, ${avatarId}, ${'failed-' + Date.now()}, ${promptIndex}, ${prompt.substring(0, 500)}, 'failed', ${result.error})
+        `
       }
     }
 
-    // Check if there are more chunks to process
+    // Queue next chunk if needed
     const nextStartIndex = endIndex
     if (nextStartIndex < photoCount) {
-      // Queue next chunk
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
       await publishGenerationJob(
@@ -232,91 +163,24 @@ export async function POST(request: Request) {
       )
 
       console.log(`[Jobs/Process] Queued next chunk starting at ${nextStartIndex}`)
-    } else {
-      // All chunks processed - check final result
-      const finalJob = await sql`
-        SELECT completed_photos, total_photos FROM generation_jobs WHERE id = ${jobId}
-      `.then((rows: any[]) => rows[0])
-
-      const failedPhotos = finalJob.total_photos - finalJob.completed_photos
-
-      // POLICY: If ANY photo failed, refund the entire payment
-      if (failedPhotos > 0) {
-        console.log(`[Jobs/Process] ${failedPhotos}/${finalJob.total_photos} photos failed - triggering auto-refund`)
-
-        // Get userId from avatar
-        const avatarData = await sql`
-          SELECT user_id FROM avatars WHERE id = ${avatarId}
-        `.then((rows: any[]) => rows[0])
-
-        if (avatarData?.user_id) {
-          const refundResult = await autoRefundForFailedGeneration(avatarId, avatarData.user_id)
-          console.log(`[Jobs/Process] Auto-refund result:`, refundResult)
-        }
-
-        // Mark as failed
-        await sql`
-          UPDATE generation_jobs
-          SET status = 'failed',
-              error_message = ${`${failedPhotos}/${finalJob.total_photos} photos failed - payment refunded`},
-              updated_at = NOW()
-          WHERE id = ${jobId}
-        `
-
-        await sql`
-          UPDATE avatars
-          SET status = 'draft', updated_at = NOW()
-          WHERE id = ${avatarId}
-        `
-
-        console.log(`[Jobs/Process] Job ${jobId} failed - ${failedPhotos} photos failed, payment refunded`)
-      } else {
-        // All photos successful
-        await sql`
-          UPDATE generation_jobs
-          SET status = 'completed', updated_at = NOW()
-          WHERE id = ${jobId}
-        `
-
-        await sql`
-          UPDATE avatars
-          SET status = 'ready', updated_at = NOW()
-          WHERE id = ${avatarId}
-        `
-
-        console.log(`[Jobs/Process] Job ${jobId} completed successfully - all ${finalJob.total_photos} photos generated`)
-      }
     }
 
     return NextResponse.json({
       success: true,
       jobId,
       processedChunk: { startIndex, endIndex },
-      results: results.map((r) => ({ index: r.index, success: r.success })),
+      tasksCreated: tasksCreated.length,
+      tasksFailed: tasksFailed.length,
+      message: `Created ${tasksCreated.length} Kie.ai tasks, ${tasksFailed.length} failed. Polling will complete them.`,
     })
+
   } catch (error) {
     console.error("[Jobs/Process] Critical error:", error)
 
-    // Get userId for refund
-    try {
-      const avatarData = await sql`
-        SELECT user_id FROM avatars WHERE id = ${avatarId}
-      `.then((rows: any[]) => rows[0])
-
-      if (avatarData?.user_id) {
-        console.log(`[Jobs/Process] Fatal error - triggering auto-refund for avatar ${avatarId}`)
-        const refundResult = await autoRefundForFailedGeneration(avatarId, avatarData.user_id)
-        console.log(`[Jobs/Process] Auto-refund result:`, refundResult)
-      }
-    } catch (refundError) {
-      console.error("[Jobs/Process] Auto-refund failed:", refundError)
-    }
-
-    // Mark job as failed
     const errorMessage = error instanceof Error ? error.message : "Processing failed"
     await sql`
       UPDATE generation_jobs
-      SET status = 'failed', error_message = ${`${errorMessage} - payment refunded`}, updated_at = NOW()
+      SET error_message = ${errorMessage}, updated_at = NOW()
       WHERE id = ${jobId}
     `.catch(() => {})
 

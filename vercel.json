@@ -6,16 +6,23 @@
       "maxDuration": 60
     },
     "app/api/jobs/process/route.ts": {
-      "maxDuration": 300
+      "maxDuration": 60
     },
     "app/api/cron/check-stuck-jobs/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/cron/poll-kie-tasks/route.ts": {
+      "maxDuration": 55
     }
   },
   "crons": [
     {
       "path": "/api/cron/check-stuck-jobs",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/poll-kie-tasks",
+      "schedule": "*/1 * * * *"
     }
   ]
 }

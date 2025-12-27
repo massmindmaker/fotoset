@@ -213,6 +213,164 @@ export async function generateWithKie(options: KieGenerationOptions): Promise<Ki
   }
 }
 
+// ============================================================================
+// ASYNC ARCHITECTURE - Fire and Forget + Polling
+// Avoids Cloudflare 100s timeout by separating task creation from polling
+// ============================================================================
+
+export interface KieTaskCreationResult {
+  success: boolean
+  taskId?: string
+  error?: string
+}
+
+/**
+ * Create Kie.ai task WITHOUT waiting for result (fire-and-forget)
+ * Returns taskId immediately for later polling via checkKieTaskStatus()
+ * This avoids Cloudflare 100s timeout by returning in ~2-5 seconds
+ */
+export async function createKieTask(options: KieGenerationOptions): Promise<KieTaskCreationResult> {
+  const apiKey = (process.env.KIE_AI_API_KEY || process.env.KIE_API_KEY)?.trim()
+
+  if (!apiKey) {
+    return { success: false, error: "KIE_API_KEY not configured" }
+  }
+
+  try {
+    const input: Record<string, unknown> = {
+      prompt: options.prompt,
+      output_format: options.outputFormat || "jpg",
+      image_size: options.aspectRatio || "3:4",
+    }
+
+    // Convert reference images to URLs if needed
+    if (options.referenceImages && options.referenceImages.length > 0) {
+      const refs = options.referenceImages.slice(0, 14)
+      const convertedRefs = await Promise.all(
+        refs.map((ref, i) => convertBase64ToUrl(ref, i))
+      )
+      console.log(`[Kie.ai Async] Using ${convertedRefs.length} reference images`)
+      input.image_input = convertedRefs
+    }
+
+    if (options.seed) {
+      input.seed = options.seed
+    }
+
+    console.log(`[Kie.ai Async] Creating task...`)
+
+    const createResponse = await fetch(KIE_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "nano-banana-pro",
+        input,
+      }),
+    })
+
+    if (!createResponse.ok) {
+      const errorText = await createResponse.text()
+      return { success: false, error: `Task creation failed: ${createResponse.status} - ${errorText}` }
+    }
+
+    const createData = await createResponse.json()
+    const taskId = createData.data?.taskId || createData.taskId
+
+    if (!taskId) {
+      return { success: false, error: `No taskId returned: ${JSON.stringify(createData).substring(0, 200)}` }
+    }
+
+    console.log(`[Kie.ai Async] Task created: ${taskId}`)
+    return { success: true, taskId }
+
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "Unknown error"
+    console.error(`[Kie.ai Async] Error:`, errorMsg)
+    return { success: false, error: errorMsg }
+  }
+}
+
+export interface KieTaskStatusResult {
+  status: "pending" | "processing" | "completed" | "failed"
+  url?: string
+  error?: string
+}
+
+/**
+ * Check status of a Kie.ai task (single poll, no waiting)
+ * Called by cron job to check pending tasks
+ */
+export async function checkKieTaskStatus(taskId: string): Promise<KieTaskStatusResult> {
+  const apiKey = (process.env.KIE_AI_API_KEY || process.env.KIE_API_KEY)?.trim()
+
+  if (!apiKey) {
+    return { status: "failed", error: "KIE_API_KEY not configured" }
+  }
+
+  try {
+    const statusResponse = await fetch(`${KIE_STATUS_URL}?taskId=${taskId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+      },
+    })
+
+    if (!statusResponse.ok) {
+      console.warn(`[Kie.ai Poll] Status check failed: ${statusResponse.status}`)
+      return { status: "pending" } // Treat as still pending on network errors
+    }
+
+    const statusData = await statusResponse.json()
+    const status = statusData.data?.state || statusData.data?.status || statusData.status
+
+    if (status === "success" || status === "SUCCESS" || status === "COMPLETED") {
+      // Parse resultJson if it's a string
+      let outputUrl = ""
+      if (statusData.data?.resultJson) {
+        try {
+          const resultJson = typeof statusData.data.resultJson === "string"
+            ? JSON.parse(statusData.data.resultJson)
+            : statusData.data.resultJson
+          outputUrl = resultJson.resultUrls?.[0] || resultJson.url || ""
+        } catch {
+          // Fallback
+        }
+      }
+
+      if (!outputUrl) {
+        outputUrl = statusData.data?.output?.url ||
+                    statusData.data?.output?.[0]?.url ||
+                    statusData.data?.url ||
+                    statusData.output?.url || ""
+      }
+
+      if (!outputUrl) {
+        return { status: "failed", error: "No output URL in completed task" }
+      }
+
+      console.log(`[Kie.ai Poll] Task ${taskId} completed`)
+      return { status: "completed", url: outputUrl }
+    }
+
+    if (status === "failed" || status === "FAILED" || status === "ERROR") {
+      const errorMsg = statusData.data?.failMsg || statusData.data?.error || statusData.error || "Unknown error"
+      console.error(`[Kie.ai Poll] Task ${taskId} failed: ${errorMsg}`)
+      return { status: "failed", error: errorMsg }
+    }
+
+    // Still processing
+    return { status: "processing" }
+
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "Unknown error"
+    console.error(`[Kie.ai Poll] Error checking task ${taskId}:`, errorMsg)
+    return { status: "pending" } // Treat errors as still pending
+  }
+}
+
 /**
  * Test Kie.ai connection
  */

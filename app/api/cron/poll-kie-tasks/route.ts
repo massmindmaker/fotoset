@@ -1,0 +1,233 @@
+// Cron Job: Poll pending Kie.ai tasks
+// Runs every 10 seconds to check task status and download results
+// This avoids Cloudflare 100s timeout by doing polling separately
+
+export const maxDuration = 55 // Keep under Vercel's 60s cron limit
+
+import { NextResponse } from "next/server"
+import { sql } from "@/lib/db"
+import { checkKieTaskStatus } from "@/lib/kie"
+import { uploadFromUrl, generatePromptKey, isR2Configured } from "@/lib/r2"
+import { autoRefundForFailedGeneration } from "@/lib/tbank"
+
+// Vercel cron requires GET
+export async function GET() {
+  const startTime = Date.now()
+  console.log("[Poll Kie Tasks] Starting...")
+
+  try {
+    // Get pending tasks (limit to avoid timeout)
+    const pendingTasks = await sql`
+      SELECT kt.*, gj.style_id
+      FROM kie_tasks kt
+      JOIN generation_jobs gj ON gj.id = kt.job_id
+      WHERE kt.status = 'pending'
+      ORDER BY kt.created_at ASC
+      LIMIT 10
+    `
+
+    if (pendingTasks.length === 0) {
+      console.log("[Poll Kie Tasks] No pending tasks")
+      return NextResponse.json({ success: true, processed: 0 })
+    }
+
+    console.log(`[Poll Kie Tasks] Found ${pendingTasks.length} pending tasks`)
+
+    const useR2 = isR2Configured()
+    let completed = 0
+    let failed = 0
+    let stillPending = 0
+
+    for (const task of pendingTasks) {
+      // Check if we're running out of time (leave 10s buffer)
+      if (Date.now() - startTime > 45000) {
+        console.log("[Poll Kie Tasks] Approaching timeout, stopping")
+        break
+      }
+
+      console.log(`[Poll Kie Tasks] Checking task ${task.kie_task_id} (prompt ${task.prompt_index})`)
+
+      const result = await checkKieTaskStatus(task.kie_task_id)
+
+      if (result.status === "completed" && result.url) {
+        // Upload to R2 if configured
+        let finalImageUrl = result.url
+        if (useR2) {
+          try {
+            const r2Key = generatePromptKey(
+              task.avatar_id.toString(),
+              task.style_id,
+              task.prompt_index,
+              "png"
+            )
+            const r2Result = await uploadFromUrl(result.url, r2Key)
+            finalImageUrl = r2Result.url
+          } catch (r2Error) {
+            console.warn(`[Poll Kie Tasks] R2 upload failed:`, r2Error)
+          }
+        }
+
+        // Save to generated_photos (with duplicate check)
+        const existing = await sql`
+          SELECT id FROM generated_photos
+          WHERE avatar_id = ${task.avatar_id} AND style_id = ${task.style_id} AND prompt = ${task.prompt}
+          LIMIT 1
+        `.then((rows: any[]) => rows[0])
+
+        if (!existing) {
+          await sql`
+            INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
+            VALUES (${task.avatar_id}, ${task.style_id}, ${task.prompt}, ${finalImageUrl})
+          `
+        }
+
+        // Update task status
+        await sql`
+          UPDATE kie_tasks
+          SET status = 'completed', result_url = ${finalImageUrl}, updated_at = NOW()
+          WHERE id = ${task.id}
+        `
+
+        // Update job progress
+        const actualCount = await sql`
+          SELECT COUNT(*) as count FROM generated_photos
+          WHERE avatar_id = ${task.avatar_id} AND style_id = ${task.style_id}
+        `.then((rows: any[]) => parseInt(rows[0]?.count || '0'))
+
+        await sql`
+          UPDATE generation_jobs
+          SET completed_photos = ${actualCount}, updated_at = NOW()
+          WHERE id = ${task.job_id}
+        `
+
+        console.log(`[Poll Kie Tasks] ✓ Task ${task.kie_task_id} completed`)
+        completed++
+
+      } else if (result.status === "failed") {
+        await sql`
+          UPDATE kie_tasks
+          SET status = 'failed', error_message = ${result.error || 'Unknown error'}, updated_at = NOW()
+          WHERE id = ${task.id}
+        `
+        console.log(`[Poll Kie Tasks] ✗ Task ${task.kie_task_id} failed: ${result.error}`)
+        failed++
+
+      } else {
+        // Still pending/processing - increment attempts
+        await sql`
+          UPDATE kie_tasks
+          SET attempts = attempts + 1, updated_at = NOW()
+          WHERE id = ${task.id}
+        `
+
+        // Fail tasks that have been pending too long (5 minutes = 30 attempts at 10s interval)
+        if (task.attempts >= 30) {
+          await sql`
+            UPDATE kie_tasks
+            SET status = 'failed', error_message = 'Timeout after 5 minutes', updated_at = NOW()
+            WHERE id = ${task.id}
+          `
+          console.log(`[Poll Kie Tasks] ✗ Task ${task.kie_task_id} timed out`)
+          failed++
+        } else {
+          stillPending++
+        }
+      }
+    }
+
+    // Check if any jobs are now complete
+    await checkJobCompletion()
+
+    const elapsed = Date.now() - startTime
+    console.log(`[Poll Kie Tasks] Done in ${elapsed}ms: ${completed} completed, ${failed} failed, ${stillPending} pending`)
+
+    return NextResponse.json({
+      success: true,
+      processed: pendingTasks.length,
+      completed,
+      failed,
+      stillPending,
+      elapsedMs: elapsed,
+    })
+
+  } catch (error) {
+    console.error("[Poll Kie Tasks] Error:", error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 }
+    )
+  }
+}
+
+// Check if any generation jobs are now complete
+async function checkJobCompletion() {
+  // Find jobs that are processing and have all tasks completed/failed
+  const jobs = await sql`
+    SELECT gj.id, gj.avatar_id, gj.total_photos,
+           (SELECT COUNT(*) FROM kie_tasks WHERE job_id = gj.id AND status = 'completed') as completed_tasks,
+           (SELECT COUNT(*) FROM kie_tasks WHERE job_id = gj.id AND status = 'failed') as failed_tasks,
+           (SELECT COUNT(*) FROM kie_tasks WHERE job_id = gj.id AND status = 'pending') as pending_tasks,
+           (SELECT COUNT(*) FROM kie_tasks WHERE job_id = gj.id) as total_tasks
+    FROM generation_jobs gj
+    WHERE gj.status = 'processing'
+  `
+
+  for (const job of jobs) {
+    // Skip if not all tasks are created yet (chunk processing still ongoing)
+    if (job.total_tasks < job.total_photos) {
+      continue
+    }
+
+    // Skip if there are still pending tasks
+    if (job.pending_tasks > 0) {
+      continue
+    }
+
+    // All tasks are either completed or failed
+    const failedPhotos = job.failed_tasks
+
+    if (failedPhotos > 0) {
+      console.log(`[Poll Kie Tasks] Job ${job.id}: ${failedPhotos}/${job.total_photos} photos failed - triggering refund`)
+
+      // Get user for refund
+      const avatarData = await sql`
+        SELECT user_id FROM avatars WHERE id = ${job.avatar_id}
+      `.then((rows: any[]) => rows[0])
+
+      if (avatarData?.user_id) {
+        const refundResult = await autoRefundForFailedGeneration(job.avatar_id, avatarData.user_id)
+        console.log(`[Poll Kie Tasks] Auto-refund result:`, refundResult)
+      }
+
+      await sql`
+        UPDATE generation_jobs
+        SET status = 'failed',
+            error_message = ${`${failedPhotos}/${job.total_photos} photos failed - payment refunded`},
+            updated_at = NOW()
+        WHERE id = ${job.id}
+      `
+
+      await sql`
+        UPDATE avatars
+        SET status = 'draft', updated_at = NOW()
+        WHERE id = ${job.avatar_id}
+      `
+
+    } else {
+      // All photos successful
+      await sql`
+        UPDATE generation_jobs
+        SET status = 'completed', completed_photos = ${job.completed_tasks}, updated_at = NOW()
+        WHERE id = ${job.id}
+      `
+
+      await sql`
+        UPDATE avatars
+        SET status = 'ready', updated_at = NOW()
+        WHERE id = ${job.avatar_id}
+      `
+
+      console.log(`[Poll Kie Tasks] Job ${job.id} completed successfully - all ${job.total_photos} photos generated`)
+    }
+  }
+}

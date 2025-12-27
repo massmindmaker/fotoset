@@ -106,11 +106,11 @@ export async function verifyQStashSignature(
 
 // Configuration for chunked generation
 export const GENERATION_CONFIG = {
-  // Conservative: 1 photo per chunk for reliability
-  // Kie.ai can be slow (50-95s), so process one at a time
-  CHUNK_SIZE: 1,
+  // ASYNC ARCHITECTURE: Now we just create tasks (~2-5s each)
+  // Polling is done separately by cron, so we can create more per chunk
+  CHUNK_SIZE: 7, // Create 7 tasks per QStash call (~35s total)
   // Max concurrent chunks
   MAX_CONCURRENT: 1,
   // Delay between chunks (ms)
-  CHUNK_DELAY_MS: 1000,
+  CHUNK_DELAY_MS: 500,
 }
