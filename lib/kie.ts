@@ -118,9 +118,9 @@ export async function generateWithKie(options: KieGenerationOptions): Promise<Ki
 
     console.log(`[Kie.ai] Task created: ${taskId}`)
 
-    // Poll for result (max 95 seconds - maximum under Cloudflare's 100s limit)
-    // Leaves only ~5s for R2 upload, but Kie.ai needs all the time it can get
-    const maxWaitTime = 95000  // 95 seconds (Cloudflare 524 protection)
+    // Poll for result (max 85 seconds under Cloudflare's 100s limit)
+    // Leaves ~15s buffer for R2 upload and network overhead
+    const maxWaitTime = 85000  // 85 seconds (Cloudflare 524 protection)
     const pollInterval = 2000   // Poll every 2 seconds for faster response
     let elapsed = 0
     let consecutiveErrors = 0
@@ -197,7 +197,7 @@ export async function generateWithKie(options: KieGenerationOptions): Promise<Ki
       console.log(`[Kie.ai] Status: ${status}, elapsed: ${elapsed}ms`)
     }
 
-    throw new Error("Kie.ai generation timeout (95 seconds)")
+    throw new Error("Kie.ai generation timeout (85 seconds)")
 
   } catch (error) {
     const latencyMs = Date.now() - startTime
