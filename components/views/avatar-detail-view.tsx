@@ -16,6 +16,7 @@ export interface AvatarDetailViewProps {
   onUpdateName?: (name: string) => void
   isLoading?: boolean
   telegramUserId?: number
+  isGenerating?: boolean
 }
 
 export const AvatarDetailView: React.FC<AvatarDetailViewProps> = ({
@@ -28,6 +29,7 @@ export const AvatarDetailView: React.FC<AvatarDetailViewProps> = ({
   onStartGeneration,
   onUpdateName,
   isLoading = false,
+  isGenerating = false,
 }) => {
   const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set())
   const [isUploading, setIsUploading] = useState(false)
@@ -36,7 +38,7 @@ export const AvatarDetailView: React.FC<AvatarDetailViewProps> = ({
   const MIN_PHOTOS = 5
   const MAX_PHOTOS = 20
   const hasGeneratedPhotos = persona.generatedAssets.length > 0
-  const hasActiveGeneration = persona.status === "processing"
+  const hasActiveGeneration = persona.status === "processing" || isGenerating
   const canGenerate = referencePhotos.length >= MIN_PHOTOS
   const progress = Math.min(100, (referencePhotos.length / MAX_PHOTOS) * 100)
 

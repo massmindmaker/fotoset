@@ -310,6 +310,44 @@ export default function PersonaApp() {
     }
   }, [viewState, isReady])
 
+  // Load photos from server when navigating to RESULTS view
+  useEffect(() => {
+    const loadPhotosForResults = async () => {
+      if (viewState.view !== "RESULTS" || !("personaId" in viewState)) return
+
+      const avatarId = viewState.personaId
+      const persona = personas.find((p) => p.id === avatarId)
+
+      // If persona has no photos or might be out of sync, fetch from server
+      if (persona && (!persona.generatedAssets || persona.generatedAssets.length === 0 || persona.status === "ready")) {
+        try {
+          console.log("[Results] Loading photos from server for avatar:", avatarId)
+          const res = await fetch(`/api/avatars/${avatarId}/photos`)
+          if (res.ok) {
+            const data = await res.json()
+            if (data.success && data.photos?.length > 0) {
+              const newAssets = data.photos.map((p: { id: number; image_url: string; created_at: string }) => ({
+                id: p.id.toString(),
+                url: p.image_url,
+                type: "image" as const,
+                createdAt: new Date(p.created_at).getTime(),
+              }))
+              // Only update if we have more photos than currently loaded
+              if (newAssets.length > (persona.generatedAssets?.length || 0)) {
+                console.log("[Results] Updating with", newAssets.length, "photos from server")
+                updatePersona(avatarId, { generatedAssets: newAssets })
+              }
+            }
+          }
+        } catch (err) {
+          console.error("[Results] Failed to load photos:", err)
+        }
+      }
+    }
+
+    loadPhotosForResults()
+  }, [viewState, personas, updatePersona])
+
   // Recovery: if view requires persona but it's missing, redirect to DASHBOARD
   useEffect(() => {
     if (!isReady || isGenerating || isSyncing) return
@@ -909,6 +947,7 @@ export default function PersonaApp() {
                   updatePersona={updatePersona}
                   onBack={() => setViewState({ view: "DASHBOARD" })}
                   onNext={handleUploadComplete}
+                  isLoading={isSyncing}
                 />
               ) : (
                 <div className="flex items-center justify-center py-12">
@@ -965,6 +1004,7 @@ export default function PersonaApp() {
                   onUpdateName={(name) => updatePersona(viewState.personaId, { name })}
                   isLoading={isLoadingReferences}
                   telegramUserId={telegramUserId}
+                  isGenerating={isGenerating}
                 />
               ) : (
                 <div className="flex items-center justify-center py-12">

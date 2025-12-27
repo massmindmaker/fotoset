@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useRef } from "react"
-import { ArrowLeft, Camera, Plus, Sparkles, X } from "lucide-react"
+import { ArrowLeft, Camera, Loader2, Plus, Sparkles, X } from "lucide-react"
 import type { Persona } from "./types"
 
 export interface UploadViewProps {
@@ -10,9 +10,10 @@ export interface UploadViewProps {
   updatePersona: (id: string, data: Partial<Persona>) => void
   onBack: () => void
   onNext: () => void
+  isLoading?: boolean
 }
 
-export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, onBack, onNext }) => {
+export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, onBack, onNext, isLoading }) => {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,11 +142,20 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
       <div className="fixed bottom-0 left-0 right-0 p-4 glass-strong border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
         <button
           onClick={onNext}
-          disabled={!isReady}
+          disabled={!isReady || isLoading}
           className="w-full sm:w-auto btn-premium disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          <Sparkles className="w-4 h-4" />
-          Сгенерировать фото
+          {isLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Загрузка...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4" />
+              Сгенерировать фото
+            </>
+          )}
         </button>
         {!isReady && (
           <p className="text-xs text-center text-muted-foreground mt-2 sm:hidden">
