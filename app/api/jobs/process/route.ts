@@ -137,7 +137,11 @@ export async function POST(request: Request) {
             resolution: "1K",
           }
 
-          console.log(`[Jobs/Process] Starting photo ${promptIndex + 1}`)
+          console.log(`[Jobs/Process] Starting photo ${promptIndex + 1}`, {
+            refCount: referenceImages.length,
+            refSample: referenceImages[0]?.substring(0, 60),
+            promptLen: prompt.length,
+          })
           const imageUrl = await generateImage(options)
 
           // Upload to R2 if configured
