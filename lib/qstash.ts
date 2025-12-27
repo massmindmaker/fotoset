@@ -109,9 +109,11 @@ export async function verifyQStashSignature(
 export const GENERATION_CONFIG = {
   // ASYNC ARCHITECTURE: Now we just create tasks (~2-5s each)
   // Polling is done separately by cron, so we can create more per chunk
-  CHUNK_SIZE: 7, // Create 7 tasks per QStash call (~35s total)
+  CHUNK_SIZE: 5, // Create 5 tasks per QStash call (reduced from 7 for stability)
   // Max concurrent chunks
   MAX_CONCURRENT: 1,
   // Delay between chunks (ms)
   CHUNK_DELAY_MS: 500,
+  // Delay between Kie.ai task creation (ms) - prevents rate limiting
+  TASK_CREATION_DELAY_MS: 500,
 }

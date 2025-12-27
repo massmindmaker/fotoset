@@ -99,10 +99,15 @@ export async function POST(request: Request) {
     const tasksCreated: { promptIndex: number; taskId: string }[] = []
     const tasksFailed: { promptIndex: number; error: string }[] = []
 
-    // Create Kie.ai tasks (fire-and-forget, ~2-5s each)
+    // Create Kie.ai tasks with delay to prevent rate limiting
     for (let i = 0; i < promptsToProcess.length; i++) {
       const prompt = promptsToProcess[i]
       const promptIndex = startIndex + i
+
+      // Add delay between task creations (except first one)
+      if (i > 0 && GENERATION_CONFIG.TASK_CREATION_DELAY_MS > 0) {
+        await new Promise(resolve => setTimeout(resolve, GENERATION_CONFIG.TASK_CREATION_DELAY_MS))
+      }
 
       // Check if task already exists (prevent duplicates from retries)
       const existing = await sql`
