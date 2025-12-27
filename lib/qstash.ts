@@ -35,6 +35,7 @@ export interface GenerationJobPayload {
   referenceImages: string[] // base64 encoded
   startIndex: number // For chunked processing
   chunkSize: number
+  prompts?: string[] // Explicit prompts to use (avoids duplicates)
 }
 
 export interface JobResult {

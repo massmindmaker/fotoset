@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 })
   }
 
-  const { jobId, avatarId, telegramUserId, styleId, photoCount, referenceImages, startIndex, chunkSize } = payload
+  const { jobId, avatarId, telegramUserId, styleId, photoCount, referenceImages, startIndex, chunkSize, prompts } = payload
 
   console.log("[Jobs/Process] Processing chunk:", {
     jobId,
@@ -88,9 +88,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // Get prompts for this chunk
+    // Get prompts for this chunk (use explicit prompts if provided, fallback to PHOTOSET_PROMPTS)
     const endIndex = Math.min(startIndex + chunkSize, photoCount)
-    const promptsToProcess = PHOTOSET_PROMPTS.slice(startIndex, endIndex)
+    const promptsToProcess = prompts
+      ? prompts.slice(startIndex, endIndex)
+      : PHOTOSET_PROMPTS.slice(startIndex, endIndex)
 
     console.log(`[Jobs/Process] Creating ${promptsToProcess.length} Kie.ai tasks (${startIndex} to ${endIndex - 1})`)
 
@@ -158,6 +160,7 @@ export async function POST(request: Request) {
           referenceImages,
           startIndex: nextStartIndex,
           chunkSize: GENERATION_CONFIG.CHUNK_SIZE,
+          prompts, // Pass explicit prompts to next chunk
         },
         baseUrl
       )

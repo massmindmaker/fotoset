@@ -528,7 +528,26 @@ export async function POST(request: NextRequest) {
 
     // Create generation job
     const requestedPhotos = photoCount && photoCount > 0 ? photoCount : GENERATION_CONFIG.maxPhotos
-    const totalPhotos = Math.min(requestedPhotos, PHOTOSET_PROMPTS.length, GENERATION_CONFIG.maxPhotos)
+
+    // Get already used prompts for this avatar to avoid duplicates
+    const usedPrompts = await sql`
+      SELECT DISTINCT prompt FROM generated_photos
+      WHERE avatar_id = ${dbAvatarId}
+    `.then((rows: any[]) => rows.map(r => r.prompt))
+
+    // Filter out already used prompts
+    const availablePrompts = PHOTOSET_PROMPTS.filter(prompt => {
+      // Check if this base prompt was already used (compare first 100 chars to handle merged prompts)
+      const promptStart = prompt.substring(0, 100)
+      return !usedPrompts.some(used => used && used.substring(0, 100) === promptStart)
+    })
+
+    if (availablePrompts.length === 0) {
+      logger.warn("All prompts already used for this avatar", { avatarId: dbAvatarId, usedCount: usedPrompts.length })
+      return error("NO_PROMPTS_AVAILABLE", "Все стили уже использованы для этого аватара. Создайте новый аватар для новых фото.")
+    }
+
+    const totalPhotos = Math.min(requestedPhotos, availablePrompts.length, GENERATION_CONFIG.maxPhotos)
 
     const job = await sql`
       INSERT INTO generation_jobs (avatar_id, style_id, status, total_photos)
@@ -542,10 +561,12 @@ export async function POST(request: NextRequest) {
       styleId,
       requestedPhotos,
       totalPhotos,
+      availablePrompts: availablePrompts.length,
+      usedPrompts: usedPrompts.length,
     })
 
-    // Prepare prompts with style
-    const basePrompts = PHOTOSET_PROMPTS.slice(0, totalPhotos)
+    // Prepare prompts with style (only unused prompts)
+    const basePrompts = availablePrompts.slice(0, totalPhotos)
     const mergedPrompts = basePrompts.map(basePrompt =>
       smartMergePrompt({
         basePrompt,
@@ -601,6 +622,7 @@ export async function POST(request: NextRequest) {
         referenceImages: validReferenceImages,
         startIndex: 0,
         chunkSize: QSTASH_CONFIG.CHUNK_SIZE,
+        prompts: mergedPrompts, // Pass explicit prompts to avoid duplicates
       },
       baseUrl
     )
