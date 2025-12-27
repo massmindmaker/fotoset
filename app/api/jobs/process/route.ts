@@ -1,7 +1,7 @@
 // Background Job Processor - Called by Upstash QStash
 // IMPORTANT: maxDuration is required for long-running AI generation
-// Vercel Pro plan supports up to 300s (5 min)
-export const maxDuration = 120 // 2 photos × 45s + buffer
+// Vercel Pro allows up to 300s, each Kie.ai call can take up to 95s
+export const maxDuration = 300 // Maximum for Vercel Pro
 
 import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
