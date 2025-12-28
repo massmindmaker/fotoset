@@ -899,7 +899,7 @@ export default function PersonaApp() {
       ) : (
         <>
           <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-black/5 safe-area-inset-top">
-            <div className="max-w-5xl mx-auto px-8 sm:px-12 py-4 flex items-center justify-between safe-area-inset-x">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-7 py-4 flex items-center justify-between">
               <h1 className="logo-text text-xl font-black tracking-tight">
                 Pinglass
               </h1>
@@ -929,7 +929,7 @@ export default function PersonaApp() {
               </div>
             </div>
           </header>
-          <main className="max-w-5xl mx-auto px-8 sm:px-12 py-8 safe-area-inset-x">
+          <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-7 py-8">
             {viewState.view === "DASHBOARD" && (
               <DashboardView
                 personas={personas}
@@ -1011,7 +1011,7 @@ export default function PersonaApp() {
               )
             )}
           </main>
-          <footer className="mt-auto py-6 px-8 sm:px-12 border-t border-border/50">
+          <footer className="mt-auto py-6 px-4 sm:px-6 lg:px-7 border-t border-border/50">
             <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-4">
                 <Link href="/oferta" className="hover:text-foreground transition-colors">

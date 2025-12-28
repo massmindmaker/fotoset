@@ -51,7 +51,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
   }, [onStart])
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-8 py-14 relative overflow-hidden bg-gradient-mesh">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 py-14 relative overflow-hidden bg-gradient-mesh">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-10 left-10 w-32 h-32 rounded-full bg-primary/10 blur-3xl animate-float" />
         <div
