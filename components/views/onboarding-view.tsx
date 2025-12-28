@@ -51,7 +51,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
   }, [onStart])
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden bg-gradient-mesh">
+    <div className="min-h-screen flex flex-col items-center justify-center px-8 py-14 relative overflow-hidden bg-gradient-mesh">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-10 left-10 w-32 h-32 rounded-full bg-primary/10 blur-3xl animate-float" />
         <div
@@ -155,12 +155,10 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
             (stage >= 4 ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0")
           }
         >
-          <h1 className="text-3xl sm:text-4xl font-bold mb-2">
-            <span className="text-gradient-pink-yellow drop-shadow-lg text-shadow-glow">
-              PINGLASS
-            </span>
+          <h1 className="logo-text text-4xl sm:text-5xl font-black tracking-tight mb-3">
+            Pinglass
           </h1>
-          <p className="text-muted-foreground max-w-md text-lg text-center">
+          <p className="text-muted-foreground max-w-md text-lg text-center leading-relaxed">
             Создавайте впечатляющие AI-фотографии
           </p>
         </div>

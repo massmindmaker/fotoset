@@ -156,7 +156,7 @@ export const AvatarDetailView: React.FC<AvatarDetailViewProps> = ({
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3 px-0.5">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
           {/* Add photo button */}
           {referencePhotos.length < MAX_PHOTOS && (
             <button

@@ -59,7 +59,6 @@ const AvatarDetailView = dynamic(() => import("./views/avatar-detail-view"), {
 // Lazy load heavy components
 const PaymentModal = lazy(() => import("./payment-modal").then((m) => ({ default: m.PaymentModal })))
 const ReferralPanel = lazy(() => import("./referral-panel").then((m) => ({ default: m.ReferralPanel })))
-const AnimatedLogoCompact = lazy(() => import("./animated-logo").then((m) => ({ default: m.AnimatedLogoCompact })))
 
 export default function PersonaApp() {
   // Custom hooks
@@ -414,19 +413,24 @@ export default function PersonaApp() {
     }
 
     try {
+      // FIX: Send telegramUserId (not initData) and markOnboardingComplete
+      // This triggers referral link creation if user has pending_referral_code
       const res = await fetch("/api/user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ telegramInitData: initData }),
+        body: JSON.stringify({
+          telegramUserId: tgUser.id,
+          markOnboardingComplete: true,
+        }),
       })
 
       if (!res.ok) {
-        console.error("[Onboarding] Failed to create user, status:", res.status)
+        console.error("[Onboarding] Failed to complete onboarding, status:", res.status)
       } else {
-        console.log("[Onboarding] User created successfully")
+        console.log("[Onboarding] Onboarding completed, referral link created if applicable")
       }
     } catch (err) {
-      console.error("[Onboarding] User creation error:", err)
+      console.error("[Onboarding] Onboarding completion error:", err)
     }
 
     console.log("[Onboarding] Reloading avatars after user creation...")
@@ -895,16 +899,10 @@ export default function PersonaApp() {
       ) : (
         <>
           <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-black/5 safe-area-inset-top">
-            <div className="max-w-5xl mx-auto px-7 py-3 flex items-center justify-between safe-area-inset-x">
-              <div className="flex items-center gap-2">
-                <Suspense fallback={<div className="w-10 h-10" />}>
-                  <AnimatedLogoCompact
-                    size={40}
-                    className="shadow-xl shadow-primary/30 rounded-2xl ring-2 ring-primary/20"
-                  />
-                </Suspense>
-                <span className="font-bold text-lg drop-shadow-sm">PinGlass</span>
-              </div>
+            <div className="max-w-5xl mx-auto px-8 sm:px-12 py-4 flex items-center justify-between safe-area-inset-x">
+              <h1 className="logo-text text-xl font-black tracking-tight">
+                Pinglass
+              </h1>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsReferralOpen(true)}
@@ -931,7 +929,7 @@ export default function PersonaApp() {
               </div>
             </div>
           </header>
-          <main className="max-w-5xl mx-auto px-7 py-6 safe-area-inset-x">
+          <main className="max-w-5xl mx-auto px-8 sm:px-12 py-8 safe-area-inset-x">
             {viewState.view === "DASHBOARD" && (
               <DashboardView
                 personas={personas}
@@ -1013,7 +1011,7 @@ export default function PersonaApp() {
               )
             )}
           </main>
-          <footer className="mt-auto py-6 px-6 border-t border-border/50">
+          <footer className="mt-auto py-6 px-8 sm:px-12 border-t border-border/50">
             <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-4">
                 <Link href="/oferta" className="hover:text-foreground transition-colors">

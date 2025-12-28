@@ -482,7 +482,7 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl, onGe
       </div>
 
       {/* Photo grid with memoized cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 px-0.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {assets.map((asset, index) => (
           <AssetCard
             key={asset.id}

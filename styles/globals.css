@@ -41,28 +41,32 @@
   --container-max: 1440px;
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   LIGHT THEME: "Vibrant Coral" - Clean whites with hot pink energy
+   Pure white base, dark text, vibrant coral-pink primary (#FF6B6B)
+   ═══════════════════════════════════════════════════════════════════ */
 .light {
-  --background: oklch(0.97 0.015 350);
-  --foreground: oklch(0.18 0.04 350);
-  --card: oklch(1.00 0 350);
-  --card-foreground: oklch(0.18 0.04 350);
-  --popover: oklch(0.99 0.01 350);
-  --popover-foreground: oklch(0.18 0.04 350);
-  --primary: oklch(0.55 0.20 350);
-  --primary-foreground: oklch(0.99 0.005 350);
-  --secondary: oklch(0.92 0.025 350);
-  --secondary-foreground: oklch(0.25 0.04 350);
-  --muted: oklch(0.94 0.018 350);
-  --muted-foreground: oklch(0.45 0.05 350);
-  --accent: oklch(0.75 0.14 80);
-  --accent-foreground: oklch(0.20 0.04 350);
-  --border: oklch(0.88 0.025 350);
-  --input: oklch(0.95 0.015 350);
-  --ring: oklch(0.55 0.20 350);
-  --sidebar: oklch(0.98 0.01 350);
-  --sidebar-foreground: oklch(0.18 0.04 350);
-  --sidebar-primary: oklch(0.55 0.20 350);
-  --sidebar-border: oklch(0.90 0.02 350);
+  --background: oklch(0.99 0.002 0);            /* Pure clean white */
+  --foreground: oklch(0.20 0.02 350);           /* Near-black text */
+  --card: oklch(1 0 0);                          /* Pure white cards */
+  --card-foreground: oklch(0.20 0.02 350);
+  --popover: oklch(0.995 0.002 0);
+  --popover-foreground: oklch(0.20 0.02 350);
+  --primary: oklch(0.68 0.22 15);               /* Vibrant coral-pink #FF6B6B */
+  --primary-foreground: oklch(1 0 0);           /* White text on primary */
+  --secondary: oklch(0.96 0.015 350);           /* Very light pink tint */
+  --secondary-foreground: oklch(0.30 0.03 350);
+  --muted: oklch(0.97 0.008 350);               /* Soft pink-gray */
+  --muted-foreground: oklch(0.45 0.02 350);
+  --accent: oklch(0.72 0.20 25);                /* Warm coral accent */
+  --accent-foreground: oklch(0.20 0.02 350);
+  --border: oklch(0.92 0.012 350);              /* Light pink-gray border */
+  --input: oklch(0.98 0.005 0);
+  --ring: oklch(0.68 0.22 15);
+  --sidebar: oklch(0.985 0.008 350);
+  --sidebar-foreground: oklch(0.20 0.02 350);
+  --sidebar-primary: oklch(0.68 0.22 15);
+  --sidebar-border: oklch(0.93 0.010 350);
 }
 
 @theme inline {
@@ -1078,37 +1082,145 @@
 
 /* Light theme overrides */
 .light .card-premium {
+  background: oklch(1 0 0);
   box-shadow:
-    0 0 0 1px oklch(0.90 0.02 350 / 0.3),
-    0 4px 24px oklch(0 0 0 / 0.08),
+    0 0 0 1px oklch(0.68 0.22 15 / 0.12),
+    0 4px 24px oklch(0.68 0.22 15 / 0.08),
     0 8px 40px oklch(0 0 0 / 0.04),
-    inset 0 1px 0 oklch(1 0 0 / 0.5);
+    inset 0 1px 0 oklch(1 0 0 / 0.8);
 }
 
 .light .card-premium:hover {
   box-shadow:
-    0 0 0 1px oklch(0.85 0.04 350 / 0.4),
-    0 8px 32px oklch(0 0 0 / 0.12),
+    0 0 0 1px oklch(0.68 0.22 15 / 0.20),
+    0 8px 32px oklch(0.68 0.22 15 / 0.12),
     0 12px 48px oklch(0 0 0 / 0.06),
-    inset 0 1px 0 oklch(1 0 0 / 0.6);
+    inset 0 1px 0 oklch(1 0 0 / 0.9);
 }
 
 .light .card-premium-glow {
-  background: linear-gradient(145deg, white 0%, oklch(0.98 0.015 350) 100%);
+  background: linear-gradient(145deg, white 0%, oklch(0.98 0.02 15) 100%);
   box-shadow:
-    0 0 0 1px oklch(0.55 0.20 350 / 0.15),
-    0 8px 32px oklch(0.55 0.20 350 / 0.1),
-    0 4px 16px oklch(0 0 0 / 0.08);
+    0 0 0 1px oklch(0.68 0.22 15 / 0.18),
+    0 8px 32px oklch(0.68 0.22 15 / 0.12),
+    0 4px 16px oklch(0 0 0 / 0.06);
 }
 
 .light .bottom-bar {
-  background: oklch(0.98 0.01 350 / 0.95);
+  background: oklch(0.99 0.005 350 / 0.95);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LIGHT MODE: Glass Effects - Soft white with subtle pink tint
+   ═══════════════════════════════════════════════════════════════════ */
+.light .glass {
+  background: linear-gradient(145deg, oklch(1 0 0 / 0.85) 0%, oklch(0.98 0.01 350 / 0.80) 100%);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid oklch(0.68 0.22 15 / 0.20);
+  box-shadow:
+    0 0 0 1px oklch(0.68 0.22 15 / 0.08),
+    0 8px 32px oklch(0.68 0.22 15 / 0.10),
+    0 2px 8px oklch(0 0 0 / 0.05);
+}
+
+.light .glass-strong {
+  background: linear-gradient(145deg, oklch(1 0 0 / 0.92) 0%, oklch(0.97 0.015 350 / 0.88) 100%);
+  backdrop-filter: blur(28px) saturate(1.4);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  border: 1px solid oklch(0.68 0.22 15 / 0.25);
+  box-shadow:
+    0 0 0 1px oklch(0.68 0.22 15 / 0.10),
+    0 12px 40px oklch(0.68 0.22 15 / 0.12),
+    0 4px 12px oklch(0 0 0 / 0.06);
+}
+
+.light .glass-subtle {
+  background: linear-gradient(145deg, oklch(1 0 0 / 0.70) 0%, oklch(0.98 0.008 350 / 0.60) 100%);
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  border: 1px solid oklch(0.68 0.22 15 / 0.12);
+  box-shadow:
+    0 4px 20px oklch(0.68 0.22 15 / 0.08),
+    0 1px 4px oklch(0 0 0 / 0.04);
+}
+
+/* Light mode gradient mesh background */
+.light .bg-gradient-mesh {
+  background:
+    radial-gradient(at 20% 30%, oklch(0.95 0.08 15 / 0.4) 0%, transparent 50%),
+    radial-gradient(at 80% 70%, oklch(0.92 0.06 350 / 0.3) 0%, transparent 50%),
+    radial-gradient(at 50% 90%, oklch(0.96 0.04 30 / 0.3) 0%, transparent 50%),
+    oklch(0.99 0.002 0);
 }
 
 .light .btn-premium {
+  background: linear-gradient(135deg, oklch(0.68 0.22 15) 0%, oklch(0.60 0.24 10) 100%);
   box-shadow:
-    0 4px 20px oklch(0.55 0.20 350 / 0.25),
-    0 1px 3px oklch(0 0 0 / 0.08);
+    0 4px 20px oklch(0.68 0.22 15 / 0.40),
+    0 8px 32px oklch(0.68 0.22 15 / 0.25),
+    0 1px 3px oklch(0 0 0 / 0.10),
+    inset 0 1px 0 oklch(1 0 0 / 0.30);
+}
+
+.light .btn-premium:hover {
+  box-shadow:
+    0 6px 28px oklch(0.68 0.22 15 / 0.50),
+    0 12px 40px oklch(0.68 0.22 15 / 0.30),
+    0 2px 4px oklch(0 0 0 / 0.15),
+    inset 0 1px 0 oklch(1 0 0 / 0.30);
+  transform: translateY(-2px);
+}
+
+.light .btn-premium:active {
+  transform: scale(0.98) translateY(0);
+  box-shadow:
+    0 2px 12px oklch(0.55 0.18 12 / 0.30),
+    0 1px 2px oklch(0 0 0 / 0.10),
+    inset 0 2px 4px oklch(0 0 0 / 0.08);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LOGO TEXT STYLING
+   Vibrant gradient logo with solid color fallback
+   ═══════════════════════════════════════════════════════════════════ */
+
+.logo-text {
+  /* Fallback: solid primary color */
+  color: var(--primary);
+  /* Enhancement: gradient text (where supported) */
+  background: linear-gradient(135deg, oklch(0.70 0.20 350) 0%, oklch(0.60 0.22 340) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: default;
+}
+
+/* Fallback for browsers that don't support background-clip: text */
+@supports not (background-clip: text) {
+  .logo-text {
+    background: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}
+
+.logo-text:hover {
+  filter: drop-shadow(0 0 12px oklch(0.70 0.20 350 / 0.7));
+}
+
+.light .logo-text {
+  /* Fallback: solid coral */
+  color: oklch(0.68 0.22 15);
+  /* Enhancement: gradient */
+  background: linear-gradient(135deg, oklch(0.68 0.22 15) 0%, oklch(0.58 0.24 5) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.light .logo-text:hover {
+  filter: drop-shadow(0 0 10px oklch(0.68 0.22 15 / 0.6));
 }
 
 /* ═══════════════════════════════════════════════════════════════════
