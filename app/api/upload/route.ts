@@ -18,8 +18,91 @@ import {
 
 const logger = createLogger("Upload")
 
-// Maximum file size: 10MB
-const MAX_FILE_SIZE = 10 * 1024 * 1024
+/**
+ * Compress image using Sharp if available, otherwise return original
+ * Compresses to JPEG with quality optimization based on image type
+ */
+async function compressImage(
+  buffer: Buffer,
+  imageType: ImageType,
+  contentType: string
+): Promise<{ buffer: Buffer; contentType: string; size: number }> {
+  try {
+    // Dynamically import sharp (might not be available in all environments)
+    const sharp = await import("sharp").catch(() => null)
+
+    if (!sharp) {
+      logger.warn("Sharp not available, skipping compression")
+      return { buffer, contentType, size: buffer.length }
+    }
+
+    const image = sharp.default(buffer)
+    const metadata = await image.metadata()
+
+    // Determine target size and quality based on image type
+    let quality = 85
+    let maxWidth = 2048
+    let maxHeight = 2048
+
+    if (imageType === "thumbnail") {
+      quality = 75
+      maxWidth = 512
+      maxHeight = 512
+    } else if (imageType === "reference") {
+      quality = 82
+      maxWidth = 1920
+      maxHeight = 1920
+    } else if (imageType === "generated") {
+      quality = 90
+      maxWidth = 2560
+      maxHeight = 2560
+    }
+
+    // Resize if image is too large
+    let processedImage = image
+
+    if (
+      metadata.width &&
+      metadata.height &&
+      (metadata.width > maxWidth || metadata.height > maxHeight)
+    ) {
+      processedImage = processedImage.resize(maxWidth, maxHeight, {
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+    }
+
+    // Convert to JPEG with quality compression
+    const compressedBuffer = await processedImage
+      .jpeg({ quality, mozjpeg: true })
+      .toBuffer()
+
+    logger.info("Image compressed", {
+      originalSize: buffer.length,
+      compressedSize: compressedBuffer.length,
+      reduction: `${Math.round((1 - compressedBuffer.length / buffer.length) * 100)}%`,
+      type: imageType,
+    })
+
+    return {
+      buffer: compressedBuffer,
+      contentType: "image/jpeg",
+      size: compressedBuffer.length,
+    }
+  } catch (err) {
+    logger.error("Compression failed, using original", { error: err })
+    return { buffer, contentType, size: buffer.length }
+  }
+}
+
+// Maximum file size: 30MB (optimized for reference photos)
+const MAX_FILE_SIZE = 30 * 1024 * 1024
+
+// Target size for reference photos (compressed): 5MB
+const MAX_REFERENCE_SIZE = 5 * 1024 * 1024
+
+// Target size for thumbnails: 500KB
+const MAX_THUMBNAIL_SIZE = 500 * 1024
 
 // Allowed MIME types
 const ALLOWED_TYPES = [
@@ -137,19 +220,29 @@ async function handleFormDataUpload(request: NextRequest) {
     )
   }
 
-  // Generate storage key
-  const extension = getExtensionFromContentType(file.type)
+  // Upload to R2 with compression
+  let buffer = Buffer.from(await file.arrayBuffer())
+  let finalContentType = file.type
+
+  // Compress image before upload (except for generated photos - keep original quality)
+  if (imageType !== "generated") {
+    const compressed = await compressImage(buffer, imageType, file.type)
+    buffer = compressed.buffer
+    finalContentType = compressed.contentType
+  }
+
+  // Generate storage key (always .jpg after compression)
+  const extension = imageType === "generated" ? getExtensionFromContentType(file.type) : "jpg"
   const key = generateKey(avatarId, imageType, extension)
 
-  // Upload to R2
-  const buffer = Buffer.from(await file.arrayBuffer())
-  const result = await uploadImage(buffer, key, file.type)
+  const result = await uploadImage(buffer, key, finalContentType)
 
   logger.info("File uploaded via FormData", {
     key: result.key,
     size: result.size,
     avatarId,
     type: imageType,
+    compressed: imageType !== "generated",
   })
 
   return created(result)
@@ -170,35 +263,49 @@ async function handleJsonUpload(request: NextRequest) {
     return error("BAD_REQUEST", "image (base64) is required")
   }
 
-  // Detect extension from filename or data URL
-  let extension = "jpg"
-  if (filename) {
-    const ext = filename.split(".").pop()
-    if (ext) extension = ext.toLowerCase()
-  } else if (image.startsWith("data:")) {
-    const match = image.match(/^data:image\/(\w+);base64,/)
-    if (match) extension = match[1] === "jpeg" ? "jpg" : match[1]
+  // Decode base64 to buffer first
+  let base64Data = image
+  if (image.startsWith("data:")) {
+    base64Data = image.split(",")[1]
   }
 
-  // Generate storage key
-  const key = generateKey(avatarId, imageType as ImageType, extension)
+  let buffer = Buffer.from(base64Data, "base64")
 
-  // Upload to R2
-  const result = await uploadBase64Image(image, key)
-
-  // Validate size after decoding
-  if (result.size > MAX_FILE_SIZE) {
+  // Validate original size
+  if (buffer.length > MAX_FILE_SIZE) {
     return error(
       "PAYLOAD_TOO_LARGE",
       `File too large. Maximum size: ${MAX_FILE_SIZE / 1024 / 1024}MB`
     )
   }
 
+  // Detect content type from data URL or assume JPEG
+  let contentType = "image/jpeg"
+  if (image.startsWith("data:")) {
+    const match = image.match(/^data:(image\/\w+);base64,/)
+    if (match) contentType = match[1]
+  }
+
+  // Compress image before upload (except for generated photos)
+  if (imageType !== "generated") {
+    const compressed = await compressImage(buffer, imageType as ImageType, contentType)
+    buffer = compressed.buffer
+    contentType = compressed.contentType
+  }
+
+  // Generate storage key (always .jpg after compression)
+  const extension = imageType === "generated" ? "jpg" : "jpg"
+  const key = generateKey(avatarId, imageType as ImageType, extension)
+
+  // Upload compressed buffer to R2
+  const result = await uploadImage(buffer, key, contentType)
+
   logger.info("File uploaded via Base64", {
     key: result.key,
     size: result.size,
     avatarId,
     type: imageType,
+    compressed: imageType !== "generated",
   })
 
   return created(result)

@@ -46,7 +46,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-foreground mb-1">Создать первый аватар</h3>
               <p className="text-muted-foreground text-sm">
-                Загрузите 10-20 своих фото и получите до 23 профессиональных портрета
+                Загрузите 5-8 своих фото и получите до 23 профессиональных портрета
               </p>
             </div>
             <ChevronRight className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors hidden sm:block" />

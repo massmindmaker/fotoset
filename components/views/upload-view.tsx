@@ -19,7 +19,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || typeof window === "undefined") return
     const newImages: Array<{ id: string; file: File; previewUrl: string }> = []
-    const MAX_FILE_SIZE = 10 * 1024 * 1024
+    const MAX_FILE_SIZE = 30 * 1024 * 1024
     const VALID_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]
 
     for (let i = 0; i < e.target.files.length; i++) {

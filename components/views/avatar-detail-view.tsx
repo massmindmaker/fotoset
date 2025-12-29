@@ -36,7 +36,7 @@ export const AvatarDetailView: React.FC<AvatarDetailViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const MIN_PHOTOS = 5
-  const MAX_PHOTOS = 20
+  const MAX_PHOTOS = 8
   const hasGeneratedPhotos = persona.generatedAssets.length > 0
   const hasActiveGeneration = persona.status === "processing" || isGenerating
   const canGenerate = referencePhotos.length >= MIN_PHOTOS

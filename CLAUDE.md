@@ -83,8 +83,8 @@ PinGlass/
          │
          ▼
 ┌─────────────────┐
-│     UPLOAD      │ ← Загрузка 10-20 фото (drag-n-drop)
-│  (10-20 photos) │   Progress bar, preview с удалением
+│     UPLOAD      │ ← Загрузка 5-8 фото (drag-n-drop)
+│   (5-8 photos)  │   Progress bar, preview с удалением
 └────────┬────────┘
          │
          ▼
