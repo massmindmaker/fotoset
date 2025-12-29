@@ -67,41 +67,55 @@ export async function GET() {
           }
         }
 
-        // Save to generated_photos (with duplicate check)
-        const existing = await sql`
-          SELECT id FROM generated_photos
-          WHERE avatar_id = ${task.avatar_id} AND style_id = ${task.style_id} AND prompt = ${task.prompt}
-          LIMIT 1
-        `.then((rows: any[]) => rows[0])
+        // CRITICAL: Wrap DB operations in try/catch to prevent marking task as completed without saving photo
+        try {
+          // Save to generated_photos (with duplicate check)
+          const existing = await sql`
+            SELECT id FROM generated_photos
+            WHERE avatar_id = ${task.avatar_id} AND style_id = ${task.style_id} AND prompt = ${task.prompt}
+            LIMIT 1
+          `.then((rows: any[]) => rows[0])
 
-        if (!existing) {
+          if (!existing) {
+            await sql`
+              INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
+              VALUES (${task.avatar_id}, ${task.style_id}, ${task.prompt}, ${finalImageUrl})
+            `
+            console.log(`[Poll Kie Tasks] ✓ Saved photo to generated_photos for prompt ${task.prompt_index}`)
+          }
+
+          // Update task status ONLY after successful photo save
           await sql`
-            INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
-            VALUES (${task.avatar_id}, ${task.style_id}, ${task.prompt}, ${finalImageUrl})
+            UPDATE kie_tasks
+            SET status = 'completed', result_url = ${finalImageUrl}, updated_at = NOW()
+            WHERE id = ${task.id}
           `
+
+          // Update job progress
+          const actualCount = await sql`
+            SELECT COUNT(*) as count FROM generated_photos
+            WHERE avatar_id = ${task.avatar_id} AND style_id = ${task.style_id}
+          `.then((rows: any[]) => parseInt(rows[0]?.count || '0'))
+
+          await sql`
+            UPDATE generation_jobs
+            SET completed_photos = ${actualCount}, updated_at = NOW()
+            WHERE id = ${task.job_id}
+          `
+
+          console.log(`[Poll Kie Tasks] ✓ Task ${task.kie_task_id} completed (photo ${actualCount}/${task.prompt_index + 1})`)
+          completed++
+        } catch (dbError) {
+          // DB error - do NOT mark task as completed, retry on next cron
+          console.error(`[Poll Kie Tasks] DB error for task ${task.kie_task_id}:`, dbError)
+          // Increment attempts so we don't retry forever
+          await sql`
+            UPDATE kie_tasks
+            SET attempts = attempts + 1, updated_at = NOW()
+            WHERE id = ${task.id}
+          `.catch(() => {})
+          stillPending++
         }
-
-        // Update task status
-        await sql`
-          UPDATE kie_tasks
-          SET status = 'completed', result_url = ${finalImageUrl}, updated_at = NOW()
-          WHERE id = ${task.id}
-        `
-
-        // Update job progress
-        const actualCount = await sql`
-          SELECT COUNT(*) as count FROM generated_photos
-          WHERE avatar_id = ${task.avatar_id} AND style_id = ${task.style_id}
-        `.then((rows: any[]) => parseInt(rows[0]?.count || '0'))
-
-        await sql`
-          UPDATE generation_jobs
-          SET completed_photos = ${actualCount}, updated_at = NOW()
-          WHERE id = ${task.job_id}
-        `
-
-        console.log(`[Poll Kie Tasks] ✓ Task ${task.kie_task_id} completed`)
-        completed++
 
       } else if (result.status === "failed") {
         await sql`
