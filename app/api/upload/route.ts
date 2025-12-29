@@ -227,7 +227,7 @@ async function handleFormDataUpload(request: NextRequest) {
   // Compress image before upload (except for generated photos - keep original quality)
   if (imageType !== "generated") {
     const compressed = await compressImage(buffer, imageType, file.type)
-    buffer = compressed.buffer
+    buffer = Buffer.from(compressed.buffer)
     finalContentType = compressed.contentType
   }
 
@@ -289,7 +289,7 @@ async function handleJsonUpload(request: NextRequest) {
   // Compress image before upload (except for generated photos)
   if (imageType !== "generated") {
     const compressed = await compressImage(buffer, imageType as ImageType, contentType)
-    buffer = compressed.buffer
+    buffer = Buffer.from(compressed.buffer)
     contentType = compressed.contentType
   }
 
