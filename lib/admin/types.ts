@@ -44,6 +44,115 @@ export interface SentryResponse {
 }
 
 // ============================================================================
+// Users Types (Admin Panel)
+// ============================================================================
+
+/**
+ * AdminUserListItem
+ * User data with aggregated stats for admin panel
+ * Includes photo counts and Telegram status (Task 2.2)
+ */
+export interface AdminUserListItem {
+  id: number
+  telegram_user_id: number
+  created_at: string
+  updated_at: string
+  pending_referral_code: string | null
+  pending_generation_tier: string | null
+
+  // Existing aggregates
+  avatars_count: number
+  payments_count: number
+  total_spent: number
+  is_pro: boolean
+
+  // NEW: Photo counts (Task 2.2)
+  ref_photos_total: number   // Uploaded reference photos
+  gen_photos_total: number   // Generated AI photos
+
+  // NEW: Telegram status counts (Task 2.2)
+  tg_sent_count: number      // Successfully delivered
+  tg_pending_count: number   // In queue
+  tg_failed_count: number    // Delivery failed
+}
+
+// ============================================================================
+// Payments Types (Admin Panel)
+// ============================================================================
+
+/**
+ * Payment (extended from lib/db.ts)
+ * Full payment data for admin panel with user info
+ */
+export interface AdminPayment {
+  id: number
+  tbank_payment_id: string
+  user_id: number
+  telegram_user_id: number
+  amount: number
+  currency: string
+  status: 'pending' | 'succeeded' | 'canceled' | 'refunded' | 'refunding'
+  tier_id: 'starter' | 'standard' | 'premium' | null
+  photo_count: number | null
+  refund_amount: number | null
+  refund_status: string | null
+  refund_reason: string | null
+  refund_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Payment Filters
+ * Query parameters for /api/admin/payments
+ */
+export interface PaymentFilters {
+  status?: 'pending' | 'succeeded' | 'canceled' | 'refunded'
+  dateFrom?: string
+  dateTo?: string
+  amountMin?: number
+  amountMax?: number
+  telegramUserId?: number
+  tierId?: 'starter' | 'standard' | 'premium'
+  page: number
+  limit: number
+}
+
+/**
+ * Payment Stats
+ * Aggregated revenue and conversion metrics
+ */
+export interface PaymentStats {
+  total_revenue: number
+  net_revenue: number
+  avg_order_value: number
+  conversion_rate: number
+  total_payments: number
+  refunded_count: number
+  refunded_amount: number
+}
+
+/**
+ * Daily Revenue
+ * Revenue breakdown by date
+ */
+export interface DailyRevenue {
+  date: string
+  revenue: number
+  count: number
+}
+
+/**
+ * Tier Breakdown
+ * Revenue by pricing tier
+ */
+export interface TierBreakdown {
+  tier_id: string
+  count: number
+  revenue: number
+}
+
+// ============================================================================
 // Prompt Testing Types
 // ============================================================================
 

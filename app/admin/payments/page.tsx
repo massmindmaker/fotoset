@@ -1,10 +1,16 @@
 "use client"
 
 import { DollarSign } from "lucide-react"
+import { PaymentsView } from "@/components/admin/PaymentsView"
 
 /**
- * Payments Management Page (Placeholder)
- * TODO: Implement payment history, refunds, analytics
+ * Payments Management Page
+ *
+ * Features:
+ * - Payment history with filters (status, date, tier)
+ * - Revenue statistics dashboard
+ * - Refund management via T-Bank API
+ * - Audit logging for all operations
  */
 export default function PaymentsPage() {
   return (
@@ -25,19 +31,8 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      {/* Placeholder Content */}
-      <div className="rounded-xl border border-border bg-card p-12">
-        <div className="text-center space-y-4">
-          <DollarSign className="w-16 h-16 text-muted-foreground mx-auto" />
-          <h3 className="text-xl font-semibold text-foreground">
-            В разработке
-          </h3>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Функционал управления платежами будет добавлен в следующей версии.
-            Планируется: история платежей, возвраты, статистика выручки.
-          </p>
-        </div>
-      </div>
+      {/* Payments View Component */}
+      <PaymentsView />
     </div>
   )
 }

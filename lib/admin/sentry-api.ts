@@ -59,9 +59,19 @@ function getSentryConfig() {
   const org = process.env.SENTRY_ORG
   const project = process.env.SENTRY_PROJECT
 
+  // Валидация длины токена
+  if (authToken && authToken.length < 20) {
+    throw new Error('SENTRY_AUTH_TOKEN appears invalid (too short)')
+  }
+
+  // Улучшенное сообщение об ошибке
   if (!authToken || !org || !project) {
     throw new Error(
-      'Sentry not configured. Required: SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT'
+      'Sentry not configured. Required:\n' +
+      `  SENTRY_AUTH_TOKEN: ${authToken ? 'SET' : 'MISSING'}\n` +
+      `  SENTRY_ORG: ${org ? 'SET' : 'MISSING'}\n` +
+      `  SENTRY_PROJECT: ${project ? 'SET' : 'MISSING'}\n` +
+      'Get token: https://sentry.io/settings/auth-tokens/'
     )
   }
 
@@ -92,10 +102,10 @@ export function buildSentryQuery(filters: SentryFilters): string {
     params.append('query', `level:${filters.level}`)
   }
 
-  // User ID filter (search by tag)
+  // User ID filter (search by tag - исправлено для Sentry tags)
   if (filters.userId) {
     const existingQuery = params.get('query') || ''
-    const userQuery = `user.telegram_id:${filters.userId}`
+    const userQuery = `tags[telegram_user_id]:${filters.userId}`
     params.set('query', existingQuery ? `${existingQuery} ${userQuery}` : userQuery)
   }
 
@@ -114,13 +124,17 @@ export function buildSentryQuery(filters: SentryFilters): string {
     params.append('end', filters.dateTo)
   }
 
+  // Добавить статистику по умолчанию (последние 14 дней)
+  if (!filters.dateFrom && !filters.dateTo) {
+    params.append('statsPeriod', '14d')
+  }
+
   // Pagination
   params.append('per_page', filters.limit.toString())
 
   // Sentry uses cursor-based pagination
   // For page 1, no cursor needed
   // For page 2+, we'd need to store the cursor from previous response
-  // For MVP, we'll use statSsPeriod to get recent events only
 
   return params.toString()
 }
@@ -161,9 +175,20 @@ export async function fetchSentryEvents(
     })
 
     if (!response.ok) {
+      // Специфичные сообщения для разных HTTP статусов
+      if (response.status === 401) {
+        throw new Error('Sentry authentication failed. Check SENTRY_AUTH_TOKEN.')
+      }
+      if (response.status === 403) {
+        throw new Error('Sentry access denied. Token needs "event:read" scope.')
+      }
+      if (response.status === 404) {
+        throw new Error('Sentry project not found. Check SENTRY_ORG and SENTRY_PROJECT.')
+      }
+
       const errorText = await response.text()
       console.error('[Sentry API] Error:', response.status, errorText)
-      throw new Error(`Sentry API error: ${response.status} - ${errorText}`)
+      throw new Error(`Sentry API error: ${response.status}`)
     }
 
     const data = await response.json()
@@ -184,15 +209,9 @@ export async function fetchSentryEvents(
       totalEvents,
     }
   } catch (error) {
-    console.error('[Sentry API] Failed to fetch events:', error)
-
-    // Return empty result on error
-    return {
-      events: [],
-      totalPages: 0,
-      currentPage: filters.page,
-      totalEvents: 0,
-    }
+    console.error('[Sentry API] Fatal error:', error)
+    // НЕ ПОГЛОЩАТЬ ОШИБКУ - пробросить наверх
+    throw error
   }
 }
 

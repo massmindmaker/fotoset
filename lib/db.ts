@@ -61,6 +61,17 @@ export type Payment = {
   amount: number
   currency: string
   status: "pending" | "succeeded" | "canceled" | "refunded" | "refunding"
+
+  // Tier информация (миграция 002)
+  tier_id: string | null  // 'starter' | 'standard' | 'premium'
+  photo_count: number | null
+
+  // Refund информация (миграция 016)
+  refund_amount: number | null
+  refund_status: string | null
+  refund_reason: string | null
+  refund_at: string | null
+
   created_at: string
   updated_at: string
 }

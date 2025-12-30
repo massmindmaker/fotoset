@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     `
     const total = parseInt(countResult[0].total)
 
-    // Get users with stats
+    // Get users with stats (extended with photo counts and TG status)
     const users = await sql`
       SELECT
         u.id,
@@ -35,13 +35,29 @@ export async function GET(request: NextRequest) {
         u.updated_at,
         u.pending_referral_code,
         u.pending_generation_tier,
+
+        -- Existing aggregates
         COUNT(DISTINCT a.id) as avatars_count,
         COUNT(DISTINCT p.id) as payments_count,
         SUM(CASE WHEN p.status = 'succeeded' THEN p.amount ELSE 0 END) as total_spent,
-        CASE WHEN COUNT(DISTINCT CASE WHEN p.status = 'succeeded' THEN p.id END) > 0 THEN true ELSE false END as is_pro
+        CASE WHEN COUNT(DISTINCT CASE WHEN p.status = 'succeeded' THEN p.id END) > 0
+          THEN true ELSE false END as is_pro,
+
+        -- Photo counts (Task 2.1)
+        COUNT(DISTINCT rp.id) as ref_photos_total,
+        COUNT(DISTINCT gp.id) as gen_photos_total,
+
+        -- Telegram status counts (Task 2.1)
+        COUNT(DISTINCT CASE WHEN tmq.status = 'sent' THEN tmq.id END) as tg_sent_count,
+        COUNT(DISTINCT CASE WHEN tmq.status = 'pending' THEN tmq.id END) as tg_pending_count,
+        COUNT(DISTINCT CASE WHEN tmq.status = 'failed' THEN tmq.id END) as tg_failed_count
+
       FROM users u
       LEFT JOIN avatars a ON a.user_id = u.id
       LEFT JOIN payments p ON p.user_id = u.id
+      LEFT JOIN reference_photos rp ON rp.avatar_id = a.id
+      LEFT JOIN generated_photos gp ON gp.avatar_id = a.id
+      LEFT JOIN telegram_message_queue tmq ON tmq.telegram_chat_id = u.telegram_user_id
       WHERE 1=1 ${searchCondition}
       GROUP BY u.id
       ORDER BY u.created_at DESC

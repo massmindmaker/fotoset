@@ -11,6 +11,67 @@ interface User {
   avatars_count: number
   payments_count: number
   total_spent: number
+  // NEW: Photo counts (Task 2.3)
+  ref_photos_total: number
+  gen_photos_total: number
+  // NEW: Telegram status counts (Task 2.3)
+  tg_sent_count: number
+  tg_pending_count: number
+  tg_failed_count: number
+}
+
+/**
+ * TelegramStatusIndicator
+ * Visual indicator for Telegram message delivery status
+ * Priority: failed > pending > sent > none
+ */
+function TelegramStatusIndicator({
+  sentCount,
+  pendingCount,
+  failedCount
+}: {
+  sentCount: number
+  pendingCount: number
+  failedCount: number
+}) {
+  // Приоритет: failed > pending > sent > none
+  if (failedCount > 0) {
+    return (
+      <div
+        className="flex items-center gap-1.5 text-destructive"
+        title={`${failedCount} не доставлено`}
+      >
+        <span className="text-lg">❌</span>
+        <span className="text-xs font-medium">{failedCount}</span>
+      </div>
+    )
+  }
+
+  if (pendingCount > 0) {
+    return (
+      <div
+        className="flex items-center gap-1.5 text-yellow-500"
+        title={`${pendingCount} в очереди`}
+      >
+        <span className="text-lg">⏳</span>
+        <span className="text-xs font-medium">{pendingCount}</span>
+      </div>
+    )
+  }
+
+  if (sentCount > 0) {
+    return (
+      <div
+        className="flex items-center gap-1.5 text-green-500"
+        title={`${sentCount} отправлено`}
+      >
+        <span className="text-lg">✅</span>
+        <span className="text-xs font-medium">{sentCount}</span>
+      </div>
+    )
+  }
+
+  return <span className="text-sm text-muted-foreground">—</span>
 }
 
 export function UsersView() {
@@ -121,13 +182,16 @@ export function UsersView() {
                   <th className="px-4 py-3">Avatars</th>
                   <th className="px-4 py-3">Платежи</th>
                   <th className="px-4 py-3">Потрачено</th>
+                  <th className="px-4 py-3" title="Референсные фото">Ref 📸</th>
+                  <th className="px-4 py-3" title="Сгенерированные фото">Gen ✨</th>
+                  <th className="px-4 py-3" title="Статус Telegram">TG 📱</th>
                   <th className="px-4 py-3">Создан</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
                       Пользователи не найдены
                     </td>
                   </tr>
@@ -158,6 +222,15 @@ export function UsersView() {
                       <td className="px-4 py-3 text-sm">{user.payments_count}</td>
                       <td className="px-4 py-3 text-sm font-medium">
                         {user.total_spent ? `${user.total_spent}₽` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm">{user.ref_photos_total}</td>
+                      <td className="px-4 py-3 text-sm">{user.gen_photos_total}</td>
+                      <td className="px-4 py-3">
+                        <TelegramStatusIndicator
+                          sentCount={user.tg_sent_count}
+                          pendingCount={user.tg_pending_count}
+                          failedCount={user.tg_failed_count}
+                        />
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         {new Date(user.created_at).toLocaleDateString("ru-RU")}

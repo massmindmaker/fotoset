@@ -40,6 +40,7 @@ export function LogsView({ onEventClick }: LogsViewProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorData, setErrorData] = useState<any>(null)
 
   // Fetch events from API
   const fetchEvents = async (showRefreshSpinner = false) => {
@@ -49,6 +50,7 @@ export function LogsView({ onEventClick }: LogsViewProps) {
       setIsLoading(true)
     }
     setError(null)
+    setErrorData(null)
 
     try {
       // Build query params
@@ -65,8 +67,9 @@ export function LogsView({ onEventClick }: LogsViewProps) {
       const response = await fetch(`/api/admin/logs?${params}`)
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error?.userMessage || "Ошибка загрузки логов")
+        const errorResponse = await response.json()
+        setErrorData(errorResponse.error)
+        throw new Error(errorResponse.error?.userMessage || "Ошибка загрузки логов")
       }
 
       const data = await response.json()
@@ -76,6 +79,7 @@ export function LogsView({ onEventClick }: LogsViewProps) {
         setTotalPages(data.data.totalPages)
         setTotalEvents(data.data.totalEvents)
       } else {
+        setErrorData(data.error)
         throw new Error(data.error?.userMessage || "Неизвестная ошибка")
       }
     } catch (err) {
@@ -230,11 +234,51 @@ export function LogsView({ onEventClick }: LogsViewProps) {
         <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-destructive">{error}</p>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-destructive">
+                {errorData?.userMessage || error}
+              </p>
+
+              {/* Debug информация */}
+              {errorData?.debug && (
+                <div className="mt-3 p-2 rounded bg-background/50 text-xs font-mono space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">SENTRY_ORG:</span>
+                    <span className={errorData.debug.org === 'NOT_SET' ? 'text-destructive' : 'text-green-500'}>
+                      {errorData.debug.org}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">SENTRY_PROJECT:</span>
+                    <span className={errorData.debug.project === 'NOT_SET' ? 'text-destructive' : 'text-green-500'}>
+                      {errorData.debug.project}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">SENTRY_AUTH_TOKEN:</span>
+                    <span className={!errorData.debug.hasAuthToken ? 'text-destructive' : 'text-green-500'}>
+                      {errorData.debug.hasAuthToken ? '✓ SET' : '✗ NOT SET'}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Инструкции по настройке */}
+              {errorData?.code === 'SENTRY_NOT_CONFIGURED' && (
+                <div className="mt-3 p-3 rounded bg-muted/50 text-xs space-y-2">
+                  <p className="font-medium text-foreground">Как настроить Sentry:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                    <li>Откройте Vercel → Settings → Environment Variables</li>
+                    <li>Добавьте переменные: SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT</li>
+                    <li>Получите токен: <a href="https://sentry.io/settings/auth-tokens/" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:no-underline">sentry.io/settings/auth-tokens</a></li>
+                    <li>Redeploy проект в Vercel</li>
+                  </ol>
+                </div>
+              )}
+
               <button
                 onClick={handleRefresh}
-                className="mt-2 text-sm text-destructive underline hover:no-underline"
+                className="mt-3 text-sm text-destructive underline hover:no-underline"
               >
                 Попробовать снова
               </button>
