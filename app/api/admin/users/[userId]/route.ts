@@ -37,6 +37,7 @@ export async function GET(
       SELECT
         id,
         telegram_user_id,
+        telegram_username,
         is_pro,
         referral_code,
         referred_by,
@@ -134,10 +135,10 @@ export async function GET(
       SELECT
         COUNT(DISTINCT referred.id) as referral_count,
         COUNT(DISTINCT CASE WHEN referred.is_pro THEN referred.id END) as paid_referral_count,
-        COALESCE(SUM(CASE WHEN re.type = 'referral_bonus' THEN re.amount ELSE 0 END), 0) as total_earned
+        COALESCE(SUM(CASE WHEN re.status = 'credited' THEN re.amount ELSE 0 END), 0) as total_earned
       FROM users u
       LEFT JOIN users referred ON referred.referred_by = u.referral_code
-      LEFT JOIN referral_earnings re ON re.user_id = u.id
+      LEFT JOIN referral_earnings re ON re.referrer_id = u.id
       WHERE u.id = ${userIdNum}
     `
 

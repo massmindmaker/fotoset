@@ -7,6 +7,7 @@ import { UserDetailsModal } from "./UserDetailsModal"
 interface User {
   id: number
   telegram_user_id: number
+  telegram_username: string | null
   is_pro: boolean
   created_at: string
   avatars_count: number
@@ -186,6 +187,7 @@ export function UsersView() {
                 <tr className="text-left text-sm font-medium text-muted-foreground">
                   <th className="px-4 py-3">ID</th>
                   <th className="px-4 py-3">Telegram ID</th>
+                  <th className="px-4 py-3">Username</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Avatars</th>
                   <th className="px-4 py-3">Платежи</th>
@@ -212,6 +214,20 @@ export function UsersView() {
                     >
                       <td className="px-4 py-3 text-sm font-mono">{user.id}</td>
                       <td className="px-4 py-3 text-sm font-mono">{user.telegram_user_id}</td>
+                      <td className="px-4 py-3 text-sm">
+                        {user.telegram_username ? (
+                          <a
+                            href={`https://t.me/${user.telegram_username}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 hover:underline"
+                          >
+                            @{user.telegram_username}
+                          </a>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
                           {user.is_pro ? (

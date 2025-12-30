@@ -53,11 +53,11 @@ export function DateFilter({ value, customRange, onChange }: DateFilterProps) {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-sm text-zinc-300 transition-colors"
+        className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 transition-colors shadow-sm"
       >
-        <Calendar className="w-4 h-4 text-zinc-500" />
+        <Calendar className="w-4 h-4 text-slate-500" />
         <span>{selectedPreset.label}</span>
-        <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
@@ -72,7 +72,7 @@ export function DateFilter({ value, customRange, onChange }: DateFilterProps) {
           />
 
           {/* Dropdown */}
-          <div className="absolute top-full mt-2 right-0 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl z-50 min-w-[200px] overflow-hidden">
+          <div className="absolute top-full mt-2 right-0 bg-white border border-slate-200 rounded-xl shadow-xl z-50 min-w-[200px] overflow-hidden">
             {!showCustom ? (
               <div className="py-1">
                 {PRESETS.map(preset => (
@@ -81,8 +81,8 @@ export function DateFilter({ value, customRange, onChange }: DateFilterProps) {
                     onClick={() => handlePresetClick(preset.id)}
                     className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                       value === preset.id
-                        ? 'bg-pink-500/20 text-pink-400'
-                        : 'text-zinc-300 hover:bg-zinc-700'
+                        ? 'bg-pink-50 text-pink-600 font-medium'
+                        : 'text-slate-700 hover:bg-slate-50'
                     }`}
                   >
                     {preset.label}
@@ -91,31 +91,31 @@ export function DateFilter({ value, customRange, onChange }: DateFilterProps) {
               </div>
             ) : (
               <div className="p-4 space-y-4">
-                <div className="text-sm font-medium text-white">Свой период</div>
+                <div className="text-sm font-medium text-slate-900">Свой период</div>
                 <div className="space-y-2">
                   <div>
-                    <label className="block text-xs text-zinc-500 mb-1">От</label>
+                    <label className="block text-xs text-slate-600 mb-1">От</label>
                     <input
                       type="date"
                       value={fromDate}
                       onChange={(e) => setFromDate(e.target.value)}
-                      className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:border-pink-500"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-zinc-500 mb-1">До</label>
+                    <label className="block text-xs text-slate-600 mb-1">До</label>
                     <input
                       type="date"
                       value={toDate}
                       onChange={(e) => setToDate(e.target.value)}
-                      className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:border-pink-500"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500"
                     />
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setShowCustom(false)}
-                    className="flex-1 px-3 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm text-zinc-300 transition-colors"
+                    className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm text-slate-700 transition-colors"
                   >
                     Назад
                   </button>

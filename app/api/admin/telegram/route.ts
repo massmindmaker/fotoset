@@ -99,20 +99,24 @@ export async function GET(request: NextRequest) {
     const totalMessages = parseInt(String(countQuery[0]?.count || 0), 10)
     const totalPages = Math.ceil(totalMessages / limit)
 
+    // Schema from migration 003: telegram_chat_id, message_type, photo_url, caption, status, attempts, error_message, created_at, sent_at
     const messagesQuery = await sql`
       SELECT
         tmq.id,
-        tmq.user_id,
-        u.telegram_user_id,
+        tmq.telegram_chat_id,
         tmq.message_type,
-        tmq.payload,
+        tmq.photo_url,
+        tmq.caption,
         tmq.status,
-        tmq.retry_count,
+        tmq.attempts as retry_count,
         tmq.error_message,
         tmq.created_at,
-        tmq.sent_at
+        tmq.sent_at,
+        ts.user_id,
+        u.telegram_user_id
       FROM telegram_message_queue tmq
-      LEFT JOIN users u ON u.id = tmq.user_id
+      LEFT JOIN telegram_sessions ts ON ts.telegram_chat_id = tmq.telegram_chat_id
+      LEFT JOIN users u ON u.id = ts.user_id
       WHERE (${statusFilter}::text IS NULL OR tmq.status = ${statusFilter})
       ORDER BY tmq.created_at DESC
       LIMIT ${limit}
@@ -121,12 +125,12 @@ export async function GET(request: NextRequest) {
 
     const messages: TelegramQueueMessage[] = messagesQuery.map((row) => ({
       id: row.id,
-      user_id: row.user_id,
-      telegram_user_id: String(row.telegram_user_id || ''),
+      user_id: row.user_id || null,
+      telegram_user_id: String(row.telegram_user_id || row.telegram_chat_id || ''),
       message_type: row.message_type,
-      payload: row.payload as Record<string, unknown>,
+      payload: { photo_url: row.photo_url, caption: row.caption } as Record<string, unknown>,
       status: row.status as TelegramQueueMessage['status'],
-      retry_count: row.retry_count,
+      retry_count: row.retry_count || 0,
       error_message: row.error_message,
       created_at: row.created_at,
       sent_at: row.sent_at

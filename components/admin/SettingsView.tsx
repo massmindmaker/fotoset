@@ -281,7 +281,7 @@ export function SettingsView() {
       {/* Preview */}
       <section className="mt-8">
         <h3 className="text-lg font-semibold text-slate-800 mb-4">Предпросмотр</h3>
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl border border-slate-700 p-6">
+        <div className="bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl border border-slate-300 p-6">
           <div className="flex gap-4 justify-center flex-wrap">
             {tierOrder.map(tierId => {
               const tier = pricing[tierId]
@@ -290,15 +290,15 @@ export function SettingsView() {
               return (
                 <div
                   key={tierId}
-                  className={`bg-white/10 backdrop-blur rounded-xl p-4 text-center min-w-[140px] ${
-                    tier.isPopular ? 'ring-2 ring-purple-400' : ''
+                  className={`bg-white shadow-md rounded-xl p-4 text-center min-w-[140px] ${
+                    tier.isPopular ? 'ring-2 ring-purple-500' : ''
                   }`}
                 >
-                  <p className="text-xs text-slate-300 mb-1">{tier.name}</p>
-                  <p className="text-2xl font-bold text-white">{tier.price} ₽</p>
-                  <p className="text-sm text-slate-400">{tier.photoCount} фото</p>
+                  <p className="text-xs text-slate-500 mb-1">{tier.name}</p>
+                  <p className="text-2xl font-bold text-slate-900">{tier.price} ₽</p>
+                  <p className="text-sm text-slate-600">{tier.photoCount} фото</p>
                   {tier.isPopular && (
-                    <span className="inline-block mt-2 text-xs bg-purple-500/30 text-purple-300 px-2 py-0.5 rounded-full">
+                    <span className="inline-block mt-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
                       Популярный
                     </span>
                   )}

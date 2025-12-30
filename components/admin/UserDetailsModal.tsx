@@ -30,6 +30,7 @@ interface UserDetails {
   user: {
     id: number
     telegram_user_id: string
+    telegram_username: string | null
     is_pro: boolean
     is_banned: boolean
     ban_reason: string | null
@@ -204,6 +205,16 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
               {data && (
                 <p className="text-sm text-slate-500">
                   TG: {data.user.telegram_user_id}
+                  {data.user.telegram_username && (
+                    <a
+                      href={`https://t.me/${data.user.telegram_username}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-2 text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      @{data.user.telegram_username}
+                    </a>
+                  )}
                 </p>
               )}
             </div>
@@ -300,6 +311,21 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
                       <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
                         <span className="text-slate-600">Telegram ID</span>
                         <span className="text-slate-800 font-mono font-medium">{data.user.telegram_user_id}</span>
+                      </div>
+                      <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
+                        <span className="text-slate-600">Username</span>
+                        {data.user.telegram_username ? (
+                          <a
+                            href={`https://t.me/${data.user.telegram_username}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                          >
+                            @{data.user.telegram_username}
+                          </a>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
                       </div>
                       <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
                         <span className="text-slate-600">Статус</span>
