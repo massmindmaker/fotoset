@@ -85,14 +85,17 @@ export async function POST(request: NextRequest) {
     const orderId = `u${user.id}t${timestamp}`.slice(0, 20)
 
     // Create Receipt for fiscal check (54-ФЗ)
+    // CRITICAL: Price/Amount in kopeks (rubles * 100)
+    // initPayment() already converts amount to kopeks, so Receipt must use same value
+    const amountInKopeks = amount * 100
     const receipt: Receipt = {
       Email: email.trim(),
       Taxation: "usn_income_outcome", // УСН Доходы-Расходы
       Items: [{
         Name: `PinGlass - ${tier.photos} AI фото`,
-        Price: amount * 100, // в копейках
+        Price: amountInKopeks, // в копейках (уже умножено на 100)
         Quantity: 1,
-        Amount: amount * 100, // в копейках
+        Amount: amountInKopeks, // в копейках (уже умножено на 100)
         Tax: "none", // без НДС для УСН
         PaymentMethod: "full_payment",
         PaymentObject: "service",

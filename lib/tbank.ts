@@ -377,14 +377,16 @@ export async function autoRefundForFailedGeneration(
     const payment = paymentResult[0]
     
     // Create refund receipt (54-ФЗ compliance)
+    // CRITICAL: Price/Amount in kopeks (payment.amount is in rubles from DB)
+    const amountInKopeks = Math.round(payment.amount * 100)
     const receipt: Receipt = {
       Email: "noreply@pinglass.ru",
       Taxation: "usn_income_outcome",
       Items: [{
         Name: "Возврат - PinGlass AI фото (ошибка генерации)",
-        Price: Math.round(payment.amount * 100),
+        Price: amountInKopeks, // в копейках
         Quantity: 1,
-        Amount: Math.round(payment.amount * 100),
+        Amount: amountInKopeks, // в копейках
         Tax: "none",
         PaymentMethod: "full_payment",
         PaymentObject: "service",

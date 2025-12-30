@@ -1,0 +1,78 @@
+import { type NextRequest, NextResponse } from "next/server"
+import { sql } from "@/lib/db"
+
+/**
+ * GET /api/admin/users
+ * Returns paginated list of users with stats
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "20")
+    const search = searchParams.get("search") || ""
+    const offset = (page - 1) * limit
+
+    // Build search condition
+    const searchCondition = search
+      ? sql`AND (u.telegram_user_id::text LIKE ${'%' + search + '%'} OR u.id::text LIKE ${'%' + search + '%'})`
+      : sql``
+
+    // Get total count
+    const countResult = await sql`
+      SELECT COUNT(*) as total
+      FROM users u
+      WHERE 1=1 ${searchCondition}
+    `
+    const total = parseInt(countResult[0].total)
+
+    // Get users with stats
+    const users = await sql`
+      SELECT
+        u.id,
+        u.telegram_user_id,
+        u.is_pro,
+        u.created_at,
+        u.updated_at,
+        u.pending_referral_code,
+        u.pending_generation_tier,
+        COUNT(DISTINCT a.id) as avatars_count,
+        COUNT(DISTINCT p.id) as payments_count,
+        SUM(CASE WHEN p.status = 'succeeded' THEN p.amount ELSE 0 END) as total_spent
+      FROM users u
+      LEFT JOIN avatars a ON a.user_id = u.id
+      LEFT JOIN payments p ON p.user_id = u.id
+      WHERE 1=1 ${searchCondition}
+      GROUP BY u.id
+      ORDER BY u.created_at DESC
+      LIMIT ${limit}
+      OFFSET ${offset}
+    `
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        users,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    })
+  } catch (error) {
+    console.error("[Admin API] Error fetching users:", error)
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: "FETCH_ERROR",
+          userMessage: "Ошибка загрузки пользователей",
+          devMessage: error instanceof Error ? error.message : "Unknown error",
+        },
+      },
+      { status: 500 }
+    )
+  }
+}

@@ -1,0 +1,306 @@
+/**
+ * Sentry API Client
+ *
+ * Provides functions to fetch events (errors, warnings, info) from Sentry REST API.
+ * Used by admin panel to display logs and monitor user activity.
+ *
+ * API Documentation: https://docs.sentry.io/api/events/
+ */
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface SentryEvent {
+  id: string
+  eventID: string
+  message: string
+  level: 'error' | 'warning' | 'info' | 'debug'
+  timestamp: string // ISO 8601
+  user?: {
+    id?: string
+    telegram_id?: number
+    username?: string
+    ip_address?: string
+  }
+  tags?: Record<string, string>
+  context?: Record<string, unknown>
+  platform?: string
+  culprit?: string // function/file where error occurred
+}
+
+export interface SentryFilters {
+  level: 'error' | 'warning' | 'info' | 'all'
+  dateFrom?: string | null
+  dateTo?: string | null
+  userId?: number | null // telegram_user_id
+  search?: string
+  page: number
+  limit: number
+}
+
+export interface SentryResponse {
+  events: SentryEvent[]
+  totalPages: number
+  currentPage: number
+  totalEvents: number
+}
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+/**
+ * Get Sentry configuration from environment
+ * Requires: SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT
+ */
+function getSentryConfig() {
+  const authToken = process.env.SENTRY_AUTH_TOKEN
+  const org = process.env.SENTRY_ORG
+  const project = process.env.SENTRY_PROJECT
+
+  if (!authToken || !org || !project) {
+    throw new Error(
+      'Sentry not configured. Required: SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT'
+    )
+  }
+
+  return {
+    authToken,
+    org,
+    project,
+    baseUrl: `https://sentry.io/api/0/projects/${org}/${project}/events/`,
+  }
+}
+
+// ============================================================================
+// Query Builder
+// ============================================================================
+
+/**
+ * Build Sentry API query string from filters
+ *
+ * @example
+ * buildSentryQuery({ level: 'error', page: 1, limit: 20 })
+ * // Returns: "?query=level:error&per_page=20&cursor=..."
+ */
+export function buildSentryQuery(filters: SentryFilters): string {
+  const params = new URLSearchParams()
+
+  // Level filter
+  if (filters.level !== 'all') {
+    params.append('query', `level:${filters.level}`)
+  }
+
+  // User ID filter (search by tag)
+  if (filters.userId) {
+    const existingQuery = params.get('query') || ''
+    const userQuery = `user.telegram_id:${filters.userId}`
+    params.set('query', existingQuery ? `${existingQuery} ${userQuery}` : userQuery)
+  }
+
+  // Search query (message text)
+  if (filters.search) {
+    const existingQuery = params.get('query') || ''
+    const searchQuery = `message:"${filters.search}"`
+    params.set('query', existingQuery ? `${existingQuery} ${searchQuery}` : searchQuery)
+  }
+
+  // Date range (ISO 8601 format)
+  if (filters.dateFrom) {
+    params.append('start', filters.dateFrom)
+  }
+  if (filters.dateTo) {
+    params.append('end', filters.dateTo)
+  }
+
+  // Pagination
+  params.append('per_page', filters.limit.toString())
+
+  // Sentry uses cursor-based pagination
+  // For page 1, no cursor needed
+  // For page 2+, we'd need to store the cursor from previous response
+  // For MVP, we'll use statSsPeriod to get recent events only
+
+  return params.toString()
+}
+
+// ============================================================================
+// API Client
+// ============================================================================
+
+/**
+ * Fetch events from Sentry API
+ *
+ * @param filters - Filter criteria (level, date, user, search)
+ * @returns Paginated list of Sentry events
+ *
+ * @example
+ * const result = await fetchSentryEvents({
+ *   level: 'error',
+ *   page: 1,
+ *   limit: 20
+ * })
+ */
+export async function fetchSentryEvents(
+  filters: SentryFilters
+): Promise<SentryResponse> {
+  try {
+    const config = getSentryConfig()
+    const queryString = buildSentryQuery(filters)
+    const url = `${config.baseUrl}?${queryString}`
+
+    console.log('[Sentry API] Fetching events:', url)
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${config.authToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[Sentry API] Error:', response.status, errorText)
+      throw new Error(`Sentry API error: ${response.status} - ${errorText}`)
+    }
+
+    const data = await response.json()
+    console.log(`[Sentry API] Fetched ${data.length} events`)
+
+    // Parse events
+    const events = parseSentryEvents(data)
+
+    // Calculate pagination (Sentry API doesn't provide total count easily)
+    // For MVP, we'll estimate based on results
+    const totalEvents = events.length
+    const totalPages = Math.ceil(totalEvents / filters.limit)
+
+    return {
+      events,
+      totalPages: totalPages || 1,
+      currentPage: filters.page,
+      totalEvents,
+    }
+  } catch (error) {
+    console.error('[Sentry API] Failed to fetch events:', error)
+
+    // Return empty result on error
+    return {
+      events: [],
+      totalPages: 0,
+      currentPage: filters.page,
+      totalEvents: 0,
+    }
+  }
+}
+
+/**
+ * Parse Sentry API response to typed events
+ */
+export function parseSentryEvents(data: any[]): SentryEvent[] {
+  if (!Array.isArray(data)) {
+    console.warn('[Sentry API] Invalid response format, expected array')
+    return []
+  }
+
+  return data.map((event) => ({
+    id: event.id || event.eventID,
+    eventID: event.eventID || event.id,
+    message: event.title || event.message || 'No message',
+    level: (event.level || 'error') as SentryEvent['level'],
+    timestamp: event.dateCreated || event.timestamp || new Date().toISOString(),
+    user: event.user
+      ? {
+          id: event.user.id,
+          telegram_id: event.user.telegram_id || event.tags?.telegram_user_id,
+          username: event.user.username || event.user.name,
+          ip_address: event.user.ip_address,
+        }
+      : undefined,
+    tags: event.tags || {},
+    context: event.context || {},
+    platform: event.platform,
+    culprit: event.culprit,
+  }))
+}
+
+/**
+ * Fetch single event details from Sentry
+ *
+ * @param eventId - Sentry event ID
+ * @returns Full event details including stack trace
+ */
+export async function fetchSentryEventDetails(eventId: string): Promise<any> {
+  try {
+    const config = getSentryConfig()
+    const url = `https://sentry.io/api/0/projects/${config.org}/${config.project}/events/${eventId}/`
+
+    console.log('[Sentry API] Fetching event details:', eventId)
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${config.authToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[Sentry API] Error:', response.status, errorText)
+      throw new Error(`Sentry API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    console.log('[Sentry API] Fetched event details')
+
+    return data
+  } catch (error) {
+    console.error('[Sentry API] Failed to fetch event details:', error)
+    throw error
+  }
+}
+
+/**
+ * Test Sentry API connection
+ * Used to verify auth token and configuration
+ */
+export async function testSentryConnection(): Promise<{
+  success: boolean
+  message: string
+}> {
+  try {
+    const config = getSentryConfig()
+
+    const response = await fetch(
+      `https://sentry.io/api/0/projects/${config.org}/${config.project}/`,
+      {
+        headers: {
+          'Authorization': `Bearer ${config.authToken}`,
+        },
+      }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      return {
+        success: true,
+        message: `Connected to Sentry project: ${data.name || config.project}`,
+      }
+    }
+
+    const errorText = await response.text()
+    return {
+      success: false,
+      message: `Sentry API returned ${response.status}: ${errorText.substring(0, 200)}`,
+    }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Unknown error'
+    return {
+      success: false,
+      message: msg,
+    }
+  }
+}
