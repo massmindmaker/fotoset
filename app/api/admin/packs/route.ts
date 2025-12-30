@@ -1,0 +1,143 @@
+/**
+ * GET/POST /api/admin/packs
+ * Photo packs management
+ */
+
+import { NextRequest, NextResponse } from 'next/server'
+import { neon } from '@neondatabase/serverless'
+import { getCurrentSession } from '@/lib/admin/session'
+
+function getSql() {
+  const url = process.env.DATABASE_URL
+  if (!url) throw new Error('DATABASE_URL not set')
+  return neon(url)
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getCurrentSession()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const activeOnly = searchParams.get('active') === 'true'
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10))
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)))
+    const offset = (page - 1) * limit
+
+    const sql = getSql()
+
+    // Get total count
+    const countResult = activeOnly
+      ? await sql`SELECT COUNT(*) as total FROM photo_packs WHERE is_active = true`
+      : await sql`SELECT COUNT(*) as total FROM photo_packs`
+    const total = parseInt(countResult[0]?.total || '0', 10)
+
+    // Get packs with item counts
+    const packs = activeOnly
+      ? await sql`
+          SELECT
+            pp.id,
+            pp.admin_id,
+            pp.name,
+            pp.description,
+            pp.cover_url,
+            pp.is_active,
+            pp.created_at,
+            pp.updated_at,
+            au.email as admin_email,
+            COUNT(pi.id) as items_count
+          FROM photo_packs pp
+          LEFT JOIN admin_users au ON au.id = pp.admin_id
+          LEFT JOIN pack_items pi ON pi.pack_id = pp.id
+          WHERE pp.is_active = true
+          GROUP BY pp.id, au.email
+          ORDER BY pp.created_at DESC
+          LIMIT ${limit}
+          OFFSET ${offset}
+        `
+      : await sql`
+          SELECT
+            pp.id,
+            pp.admin_id,
+            pp.name,
+            pp.description,
+            pp.cover_url,
+            pp.is_active,
+            pp.created_at,
+            pp.updated_at,
+            au.email as admin_email,
+            COUNT(pi.id) as items_count
+          FROM photo_packs pp
+          LEFT JOIN admin_users au ON au.id = pp.admin_id
+          LEFT JOIN pack_items pi ON pi.pack_id = pp.id
+          GROUP BY pp.id, au.email
+          ORDER BY pp.created_at DESC
+          LIMIT ${limit}
+          OFFSET ${offset}
+        `
+
+    return NextResponse.json({
+      packs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    })
+  } catch (error) {
+    console.error('[Admin Packs] GET Error:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch packs' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getCurrentSession()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { name, description, cover_url, is_active } = body
+
+    if (!name) {
+      return NextResponse.json(
+        { error: 'Name is required' },
+        { status: 400 }
+      )
+    }
+
+    const sql = getSql()
+
+    const [newPack] = await sql`
+      INSERT INTO photo_packs (
+        admin_id,
+        name,
+        description,
+        cover_url,
+        is_active
+      ) VALUES (
+        ${session.adminId},
+        ${name},
+        ${description || null},
+        ${cover_url || null},
+        ${is_active !== false}
+      )
+      RETURNING *
+    `
+
+    return NextResponse.json({ pack: newPack }, { status: 201 })
+  } catch (error) {
+    console.error('[Admin Packs] POST Error:', error)
+    return NextResponse.json(
+      { error: 'Failed to create pack' },
+      { status: 500 }
+    )
+  }
+}

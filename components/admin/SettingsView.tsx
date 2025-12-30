@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, Loader2, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react'
+import { Save, Loader2, AlertCircle, CheckCircle, RefreshCw, CreditCard, ToggleLeft, ToggleRight, Eye, EyeOff, Shield, TestTube } from 'lucide-react'
 
 interface PricingTier {
   name: string
@@ -23,6 +23,22 @@ const DEFAULT_PRICING: PricingTiers = {
   premium: { name: 'Premium', price: 1499, photoCount: 23, isActive: true }
 }
 
+interface TBankSettings {
+  mode: 'test' | 'production'
+  testTerminalKey: string
+  testPassword: string
+  prodTerminalKey: string
+  prodPassword: string
+}
+
+const DEFAULT_TBANK: TBankSettings = {
+  mode: 'test',
+  testTerminalKey: '',
+  testPassword: '',
+  prodTerminalKey: '',
+  prodPassword: ''
+}
+
 export function SettingsView() {
   const [pricing, setPricing] = useState<PricingTiers>(DEFAULT_PRICING)
   const [originalPricing, setOriginalPricing] = useState<PricingTiers>(DEFAULT_PRICING)
@@ -31,6 +47,16 @@ export function SettingsView() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
+
+  // T-Bank settings
+  const [tbank, setTbank] = useState<TBankSettings>(DEFAULT_TBANK)
+  const [originalTbank, setOriginalTbank] = useState<TBankSettings>(DEFAULT_TBANK)
+  const [tbankLoading, setTbankLoading] = useState(true)
+  const [tbankSaving, setTbankSaving] = useState(false)
+  const [tbankError, setTbankError] = useState<string | null>(null)
+  const [tbankSuccess, setTbankSuccess] = useState<string | null>(null)
+  const [tbankHasChanges, setTbankHasChanges] = useState(false)
+  const [showPasswords, setShowPasswords] = useState(false)
 
   const fetchPricing = async () => {
     try {
@@ -53,14 +79,41 @@ export function SettingsView() {
     }
   }
 
+  const fetchTbank = async () => {
+    try {
+      setTbankLoading(true)
+      setTbankError(null)
+
+      const response = await fetch('/api/admin/settings/tbank')
+      if (!response.ok) {
+        throw new Error('Failed to fetch T-Bank settings')
+      }
+
+      const data = await response.json()
+      setTbank(data.settings || DEFAULT_TBANK)
+      setOriginalTbank(data.settings || DEFAULT_TBANK)
+      setTbankHasChanges(false)
+    } catch (err) {
+      setTbankError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setTbankLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchPricing()
+    fetchTbank()
   }, [])
 
   useEffect(() => {
     const changed = JSON.stringify(pricing) !== JSON.stringify(originalPricing)
     setHasChanges(changed)
   }, [pricing, originalPricing])
+
+  useEffect(() => {
+    const changed = JSON.stringify(tbank) !== JSON.stringify(originalTbank)
+    setTbankHasChanges(changed)
+  }, [tbank, originalTbank])
 
   const updateTier = (tierId: keyof PricingTiers, field: keyof PricingTier, value: unknown) => {
     setPricing(prev => ({
@@ -106,6 +159,52 @@ export function SettingsView() {
     setPricing(originalPricing)
     setSuccess(null)
     setError(null)
+  }
+
+  const handleTbankSave = async () => {
+    try {
+      setTbankSaving(true)
+      setTbankError(null)
+      setTbankSuccess(null)
+
+      const response = await fetch('/api/admin/settings/tbank', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: tbank })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to save')
+      }
+
+      setOriginalTbank(tbank)
+      setTbankHasChanges(false)
+      setTbankSuccess('Настройки T-Bank сохранены!')
+
+      setTimeout(() => setTbankSuccess(null), 3000)
+    } catch (err) {
+      setTbankError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setTbankSaving(false)
+    }
+  }
+
+  const handleTbankReset = () => {
+    setTbank(originalTbank)
+    setTbankSuccess(null)
+    setTbankError(null)
+  }
+
+  const updateTbankField = (field: keyof TBankSettings, value: string) => {
+    setTbank(prev => ({ ...prev, [field]: value }))
+    setTbankSuccess(null)
+  }
+
+  const maskValue = (value: string) => {
+    if (!value) return ''
+    if (value.length <= 4) return '••••'
+    return '••••••••' + value.slice(-4)
   }
 
   if (loading) {
@@ -307,6 +406,234 @@ export function SettingsView() {
             })}
           </div>
         </div>
+      </section>
+
+      {/* T-Bank Settings Section */}
+      <section className="mt-8 pt-8 border-t border-slate-200">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-yellow-100 rounded-lg">
+              <CreditCard className="w-5 h-5 text-yellow-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-slate-800">Платёжная система T-Bank</h3>
+              <p className="text-sm text-slate-500">Настройки терминала и режима работы</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {tbankHasChanges && (
+              <button
+                onClick={handleTbankReset}
+                disabled={tbankSaving}
+                className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-slate-700 transition-colors disabled:opacity-50"
+              >
+                Отменить
+              </button>
+            )}
+            <button
+              onClick={handleTbankSave}
+              disabled={!tbankHasChanges || tbankSaving}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 rounded-lg text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-yellow-500/25"
+            >
+              {tbankSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              Сохранить
+            </button>
+          </div>
+        </div>
+
+        {/* T-Bank Alerts */}
+        {tbankError && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 mb-6">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <p className="text-red-600 text-sm">{tbankError}</p>
+          </div>
+        )}
+
+        {tbankSuccess && (
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3 mb-6">
+            <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+            <p className="text-emerald-600 text-sm">{tbankSuccess}</p>
+          </div>
+        )}
+
+        {tbankLoading ? (
+          <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
+            <p className="text-slate-500 mt-2">Загрузка настроек...</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            {/* Mode Toggle */}
+            <div className="p-6 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium text-slate-900">Режим работы</h4>
+                  <p className="text-sm text-slate-500 mt-1">
+                    {tbank.mode === 'test'
+                      ? 'Тестовый режим — платежи не списываются'
+                      : 'Боевой режим — реальные платежи'
+                    }
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => updateTbankField('mode', 'test')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                      tbank.mode === 'test'
+                        ? 'bg-amber-100 text-amber-800 ring-2 ring-amber-400'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <TestTube className="w-4 h-4" />
+                    Test
+                  </button>
+                  <button
+                    onClick={() => updateTbankField('mode', 'production')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                      tbank.mode === 'production'
+                        ? 'bg-emerald-100 text-emerald-800 ring-2 ring-emerald-400'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <Shield className="w-4 h-4" />
+                    Production
+                  </button>
+                </div>
+              </div>
+
+              {/* Current Mode Indicator */}
+              <div className={`mt-4 p-3 rounded-lg flex items-center gap-2 ${
+                tbank.mode === 'test'
+                  ? 'bg-amber-50 border border-amber-200'
+                  : 'bg-emerald-50 border border-emerald-200'
+              }`}>
+                {tbank.mode === 'test' ? (
+                  <>
+                    <TestTube className="w-4 h-4 text-amber-600" />
+                    <span className="text-sm text-amber-800">
+                      Сейчас активен <strong>тестовый режим</strong>. Используются тестовые ключи.
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Shield className="w-4 h-4 text-emerald-600" />
+                    <span className="text-sm text-emerald-800">
+                      Сейчас активен <strong>боевой режим</strong>. Используются production ключи.
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Credentials */}
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-medium text-slate-900">Ключи доступа</h4>
+                <button
+                  onClick={() => setShowPasswords(!showPasswords)}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  {showPasswords ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPasswords ? 'Скрыть' : 'Показать'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Test Credentials */}
+                <div className={`p-4 rounded-xl border-2 ${
+                  tbank.mode === 'test' ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200 bg-slate-50'
+                }`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <TestTube className="w-4 h-4 text-amber-600" />
+                    <span className="font-medium text-slate-800">Test</span>
+                    {tbank.mode === 'test' && (
+                      <span className="ml-auto text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">
+                        Активен
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Terminal Key</label>
+                      <input
+                        type={showPasswords ? 'text' : 'password'}
+                        value={showPasswords ? tbank.testTerminalKey : maskValue(tbank.testTerminalKey)}
+                        onChange={(e) => updateTbankField('testTerminalKey', e.target.value)}
+                        disabled={!showPasswords}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100"
+                        placeholder="Terminal Key"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Password</label>
+                      <input
+                        type={showPasswords ? 'text' : 'password'}
+                        value={showPasswords ? tbank.testPassword : maskValue(tbank.testPassword)}
+                        onChange={(e) => updateTbankField('testPassword', e.target.value)}
+                        disabled={!showPasswords}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100"
+                        placeholder="Password"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Production Credentials */}
+                <div className={`p-4 rounded-xl border-2 ${
+                  tbank.mode === 'production' ? 'border-emerald-300 bg-emerald-50/50' : 'border-slate-200 bg-slate-50'
+                }`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Shield className="w-4 h-4 text-emerald-600" />
+                    <span className="font-medium text-slate-800">Production</span>
+                    {tbank.mode === 'production' && (
+                      <span className="ml-auto text-xs bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full">
+                        Активен
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Terminal Key</label>
+                      <input
+                        type={showPasswords ? 'text' : 'password'}
+                        value={showPasswords ? tbank.prodTerminalKey : maskValue(tbank.prodTerminalKey)}
+                        onChange={(e) => updateTbankField('prodTerminalKey', e.target.value)}
+                        disabled={!showPasswords}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100"
+                        placeholder="Terminal Key"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Password</label>
+                      <input
+                        type={showPasswords ? 'text' : 'password'}
+                        value={showPasswords ? tbank.prodPassword : maskValue(tbank.prodPassword)}
+                        onChange={(e) => updateTbankField('prodPassword', e.target.value)}
+                        disabled={!showPasswords}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100"
+                        placeholder="Password"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Warning */}
+              <div className="mt-4 p-3 bg-slate-100 rounded-lg">
+                <p className="text-xs text-slate-600">
+                  ⚠️ Ключи хранятся в зашифрованном виде в базе данных. При переключении режима
+                  автоматически используются соответствующие ключи.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   )

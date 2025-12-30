@@ -181,8 +181,75 @@ export function UsersView() {
         </div>
       ) : (
         <>
-          <div className="rounded-xl border border-border overflow-hidden">
-            <table className="w-full">
+          <div className="rounded-xl border border-border overflow-hidden overflow-x-auto">
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-border">
+              {users.length === 0 ? (
+                <div className="px-4 py-8 text-center text-muted-foreground">
+                  Пользователи не найдены
+                </div>
+              ) : (
+                users.map((user) => (
+                  <div key={user.id} className="p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-mono text-slate-500">#{user.id}</span>
+                        {user.is_pro ? (
+                          <span className="px-2 py-0.5 bg-pink-100 text-pink-700 text-xs rounded-full font-medium flex items-center gap-1">
+                            <Shield className="w-3 h-3" />
+                            Pro
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs rounded-full">
+                            Free
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedUserId(user.id)
+                          setIsModalOpen(true)
+                        }}
+                        className="p-2 hover:bg-slate-100 rounded-lg"
+                      >
+                        <Eye className="w-4 h-4 text-slate-500" />
+                      </button>
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-slate-500">TG:</span>{' '}
+                      <span className="font-mono">{user.telegram_user_id}</span>
+                      {user.telegram_username && (
+                        <a
+                          href={`https://t.me/${user.telegram_username}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-2 text-blue-600 hover:underline"
+                        >
+                          @{user.telegram_username}
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+                      <span>👤 {user.avatars_count}</span>
+                      <span>💳 {user.payments_count}</span>
+                      {user.total_spent > 0 && <span className="font-medium text-slate-700">{user.total_spent}₽</span>}
+                      <span>📸 {user.ref_photos_total}/{user.gen_photos_total}</span>
+                      <TelegramStatusIndicator
+                        sentCount={user.tg_sent_count}
+                        pendingCount={user.tg_pending_count}
+                        failedCount={user.tg_failed_count}
+                      />
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      Создан: {new Date(user.created_at).toLocaleDateString("ru-RU")}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop Table View */}
+            <table className="w-full hidden md:table">
               <thead className="bg-muted/50">
                 <tr className="text-left text-sm font-medium text-muted-foreground">
                   <th className="px-4 py-3">ID</th>
@@ -202,7 +269,7 @@ export function UsersView() {
               <tbody className="divide-y divide-border">
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={12} className="px-4 py-8 text-center text-muted-foreground">
                       Пользователи не найдены
                     </td>
                   </tr>
