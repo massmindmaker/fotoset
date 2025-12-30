@@ -1,18 +1,20 @@
-import { headers } from "next/headers"
 import { redirect } from "next/navigation"
+import { cookies } from "next/headers"
 import { Shield } from "lucide-react"
-import { getUserIdentifier } from "@/lib/auth-utils"
-import { checkAdminAccess } from "@/lib/admin/auth"
 import { AdminNavigation } from "@/components/admin/AdminNavigation"
+import { AdminClientProviders } from "@/components/admin/AdminClientProviders"
+import { AdminHeaderActions } from "@/components/admin/AdminHeaderActions"
+import { getCurrentSession } from "@/lib/admin/session"
+import { getRoleDisplayName } from "@/lib/admin/permissions"
 
 /**
  * Admin Panel Layout
  *
  * Features:
- * - Server-side authentication check (redundant with middleware, but safer)
- * - Two-tab navigation: Logs & Monitoring | Prompt Testing
- * - User info display (Telegram user ID)
- * - Desktop-first responsive design
+ * - Server-side session authentication
+ * - Email/Google OAuth based auth
+ * - Role display
+ * - Logout button
  */
 
 interface AdminLayoutProps {
@@ -20,70 +22,58 @@ interface AdminLayoutProps {
 }
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
-  // Server-side auth check (TEMPORARILY DISABLED FOR TESTING)
-  // TODO: Re-enable before production deployment
+  // Server-side session check
+  const session = await getCurrentSession()
 
-  const headersList = await headers()
-  const telegramUserId = headersList.get("x-telegram-user-id") || "test-user"
-
-  /* COMMENTED OUT - Re-enable for production:
-  if (!telegramUserId) {
-    redirect("/")
-  }
-
-  const parsedUserId = parseInt(telegramUserId)
-  if (isNaN(parsedUserId) || !checkAdminAccess(parsedUserId)) {
-    redirect("/")
-  }
-  */
+  // Allow login page without auth
+  // Check is done in page components
 
   return (
-    <div className="min-h-screen bg-background">
+    <AdminClientProviders>
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container-max px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Logo + Title */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Shield className="w-5 h-5 text-primary" />
+              <div className="w-10 h-10 rounded-xl bg-pink-100 flex items-center justify-center">
+                <Shield className="w-5 h-5 text-pink-600" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-foreground">
+                <h1 className="text-lg font-semibold text-slate-800">
                   PinGlass Admin Panel
                 </h1>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-slate-500">
                   Управление и мониторинг
                 </p>
               </div>
             </div>
 
-            {/* User Info */}
-            <div className="flex items-center gap-3 px-4 py-2 rounded-xl glass">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <span className="text-sm font-medium text-primary">
-                  {telegramUserId.charAt(0)}
-                </span>
-              </div>
-              <div className="hidden sm:block">
-                <p className="text-xs text-muted-foreground">Admin</p>
-                <p className="text-sm font-medium text-foreground">
-                  ID: {telegramUserId}
-                </p>
-              </div>
-            </div>
+            {/* User Info + Actions */}
+            {session && (
+              <AdminHeaderActions
+                session={{
+                  firstName: session.firstName,
+                  email: session.email,
+                  role: session.role,
+                  avatarUrl: session.avatarUrl
+                }}
+                roleDisplayName={getRoleDisplayName(session.role as 'super_admin' | 'admin' | 'viewer')}
+              />
+            )}
           </div>
         </div>
       </header>
 
-      {/* Tab Navigation */}
-      <AdminNavigation />
+      {/* Tab Navigation - only show if authenticated */}
+      {session && <AdminNavigation />}
 
       {/* Main Content */}
       <main className="container-max px-6 py-8">
         {children}
       </main>
     </div>
+    </AdminClientProviders>
   )
 }
-

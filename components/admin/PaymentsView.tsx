@@ -1,8 +1,12 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { RefreshCw, Loader2, ChevronLeft, ChevronRight, DollarSign, TrendingUp } from "lucide-react"
+import { RefreshCw, Loader2, ChevronLeft, ChevronRight, DollarSign, TrendingUp, Eye } from "lucide-react"
 import type { AdminPayment, PaymentStats } from "@/lib/admin/types"
+import { DateFilter, type DateFilterPreset, getDateRangeFromPreset } from "./DateFilter"
+import { ExportButton, type ExportFormat } from "./ExportButton"
+import { PaymentDetailsModal } from "./PaymentDetailsModal"
+import { exportData, formatPaymentForExport } from "@/lib/admin/export"
 
 /**
  * PaymentsView Component
@@ -42,6 +46,12 @@ export function PaymentsView() {
   const [selectedPayment, setSelectedPayment] = useState<AdminPayment | null>(null)
   const [refundReason, setRefundReason] = useState('')
   const [isRefunding, setIsRefunding] = useState(false)
+
+  // Date filter and details modal
+  const [datePreset, setDatePreset] = useState<DateFilterPreset>('all')
+  const [customDateRange, setCustomDateRange] = useState<{ from: Date | null; to: Date | null }>({ from: null, to: null })
+  const [detailsPaymentId, setDetailsPaymentId] = useState<number | null>(null)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
 
   // Fetch payments
   const fetchPayments = useCallback(async () => {
@@ -95,6 +105,45 @@ export function PaymentsView() {
   useEffect(() => {
     fetchStats()
   }, [fetchStats])
+
+  // Handle date filter change
+  const handleDateFilterChange = (preset: DateFilterPreset, range?: { from: Date | null; to: Date | null }) => {
+    setDatePreset(preset)
+    if (preset === 'custom' && range) {
+      setCustomDateRange(range)
+      setFilters(f => ({
+        ...f,
+        dateFrom: range.from?.toISOString().split('T')[0] || '',
+        dateTo: range.to?.toISOString().split('T')[0] || '',
+        page: 1
+      }))
+    } else {
+      const dateRange = getDateRangeFromPreset(preset)
+      setFilters(f => ({
+        ...f,
+        dateFrom: dateRange.from?.toISOString().split('T')[0] || '',
+        dateTo: dateRange.to?.toISOString().split('T')[0] || '',
+        page: 1
+      }))
+    }
+  }
+
+  // Handle export
+  const handleExport = async (format: ExportFormat) => {
+    const exportPayments = payments.map(p => formatPaymentForExport({
+      id: p.id,
+      tbank_payment_id: p.tbank_payment_id || '',
+      user_id: p.user_id,
+      telegram_user_id: String(p.telegram_user_id || ''),
+      amount: p.amount,
+      tier_id: p.tier_id || 'unknown',
+      photo_count: p.photo_count || 0,
+      status: p.status,
+      created_at: p.created_at
+    }))
+
+    await exportData(exportPayments, format, { filename: `payments-${datePreset}` })
+  }
 
   // Handle refund
   const handleRefund = async () => {
@@ -177,7 +226,7 @@ export function PaymentsView() {
       )}
 
       {/* Filters */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap items-center">
         <select
           value={filters.status}
           onChange={(e) => setFilters(f => ({ ...f, status: e.target.value, page: 1 }))}
@@ -199,6 +248,19 @@ export function PaymentsView() {
           <option value="standard">Standard (15 фото)</option>
           <option value="premium">Premium (23 фото)</option>
         </select>
+
+        <DateFilter
+          value={datePreset}
+          customRange={customDateRange}
+          onChange={handleDateFilterChange}
+        />
+
+        <div className="flex-1" />
+
+        <ExportButton
+          onExport={handleExport}
+          disabled={payments.length === 0}
+        />
 
         <button
           onClick={() => fetchPayments()}
@@ -261,15 +323,27 @@ export function PaymentsView() {
                         {new Date(payment.created_at).toLocaleDateString('ru-RU')}
                       </td>
                       <td className="px-4 py-3">
-                        {payment.status === 'succeeded' &&
-                         (payment.refund_amount || 0) < payment.amount && (
+                        <div className="flex items-center gap-2">
                           <button
-                            onClick={() => setSelectedPayment(payment)}
-                            className="text-sm text-primary hover:underline"
+                            onClick={() => {
+                              setDetailsPaymentId(payment.id)
+                              setIsDetailsOpen(true)
+                            }}
+                            className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
+                            title="Детали"
                           >
-                            💸 Возврат
+                            <Eye className="w-4 h-4" />
                           </button>
-                        )}
+                          {payment.status === 'succeeded' &&
+                           (payment.refund_amount || 0) < payment.amount && (
+                            <button
+                              onClick={() => setSelectedPayment(payment)}
+                              className="text-sm text-primary hover:underline"
+                            >
+                              💸 Возврат
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -359,6 +433,20 @@ export function PaymentsView() {
           </div>
         </div>
       )}
+
+      {/* Payment Details Modal */}
+      <PaymentDetailsModal
+        paymentId={detailsPaymentId}
+        isOpen={isDetailsOpen}
+        onClose={() => {
+          setIsDetailsOpen(false)
+          setDetailsPaymentId(null)
+        }}
+        onRefund={() => {
+          fetchPayments()
+          fetchStats()
+        }}
+      />
     </div>
   )
 }

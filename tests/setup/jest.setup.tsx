@@ -6,6 +6,50 @@
 
 import '@testing-library/jest-dom';
 
+// Polyfills for Next.js API route testing (Request/Response)
+import { TextEncoder, TextDecoder } from 'util';
+
+// Set up Web API globals for Next.js server components
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder as typeof global.TextDecoder;
+
+// Add Web Streams API if available
+try {
+  const { ReadableStream, TransformStream, WritableStream } = require('stream/web');
+  global.ReadableStream = ReadableStream;
+  global.TransformStream = TransformStream;
+  global.WritableStream = WritableStream;
+} catch {
+  // stream/web may not be available in all Node versions
+}
+
+// Add MessageChannel for undici
+if (typeof MessageChannel === 'undefined') {
+  const { MessageChannel } = require('worker_threads');
+  (global as any).MessageChannel = MessageChannel;
+}
+
+// Add MessagePort for undici
+if (typeof MessagePort === 'undefined') {
+  const { MessagePort } = require('worker_threads');
+  (global as any).MessagePort = MessagePort;
+}
+
+// Request and Response polyfills from undici (Node.js built-in)
+try {
+  const { Request, Response, Headers, FormData, Blob } = require('undici');
+  global.Request = Request;
+  global.Response = Response;
+  global.Headers = Headers;
+  global.FormData = FormData;
+  global.Blob = Blob;
+} catch (err) {
+  // undici not available, check if globals exist from Node.js 18+
+  if (typeof Request === 'undefined') {
+    console.warn('Warning: Request polyfill not available');
+  }
+}
+
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
   useRouter: () => ({

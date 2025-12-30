@@ -4,12 +4,16 @@ import type React from "react"
 import { Plus, X, ChevronRight, Zap, Shield, Star } from "lucide-react"
 import Link from "next/link"
 import type { Persona, PricingTier } from "./types"
+import { DEFAULT_PRICING, TIER_IDS } from "@/lib/pricing"
 
-export const PRICING_TIERS: PricingTier[] = [
-  { id: "starter", photos: 7, price: 499 },
-  { id: "standard", photos: 15, price: 999, popular: true },
-  { id: "premium", photos: 23, price: 1499 },
-]
+// Default pricing tiers - loaded from lib/pricing.ts
+// These are defaults; dynamic pricing is fetched via usePricing hook in persona-app
+export const PRICING_TIERS: PricingTier[] = TIER_IDS.map(id => ({
+  id,
+  photos: DEFAULT_PRICING[id].photoCount,
+  price: DEFAULT_PRICING[id].price,
+  popular: DEFAULT_PRICING[id].isPopular
+}))
 
 export interface DashboardViewProps {
   personas: Persona[]

@@ -1,9 +1,17 @@
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
+import { getCurrentSession } from '@/lib/admin/session'
+import { Dashboard } from '@/components/admin/Dashboard'
 
 /**
  * Admin Panel Index Page
- * Redirects to /admin/logs (default view)
+ * Shows Dashboard with KPIs and charts
  */
-export default function AdminPage() {
-  redirect("/admin/logs")
+export default async function AdminPage() {
+  const session = await getCurrentSession()
+
+  if (!session) {
+    redirect('/admin/login')
+  }
+
+  return <Dashboard />
 }

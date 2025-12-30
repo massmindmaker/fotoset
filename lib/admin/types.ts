@@ -224,6 +224,213 @@ export interface AdminUser {
 }
 
 // ============================================================================
+// Generation Types (Admin Panel)
+// ============================================================================
+
+/**
+ * Generation Job Status
+ */
+export type GenerationStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
+
+/**
+ * AdminGenerationJob
+ * Full generation job data for admin panel
+ */
+export interface AdminGenerationJob {
+  id: number
+  avatar_id: number
+  avatar_name: string | null
+  style_id: string | null
+  status: GenerationStatus
+  total_photos: number
+  completed_photos: number
+  error_message: string | null
+  payment_id: number | null
+  created_at: string
+  updated_at: string
+  // Related user data
+  user_id: number
+  telegram_user_id: number
+  // Progress percentage
+  progress: number
+  // Duration in seconds (if completed or failed)
+  duration: number | null
+}
+
+/**
+ * Generation Filters
+ */
+export interface GenerationFilters {
+  status?: GenerationStatus
+  dateFrom?: string
+  dateTo?: string
+  avatarId?: number
+  userId?: number
+  page: number
+  limit: number
+}
+
+/**
+ * Generation Stats
+ */
+export interface GenerationStats {
+  total_jobs: number
+  completed_jobs: number
+  failed_jobs: number
+  processing_jobs: number
+  pending_jobs: number
+  total_photos: number
+  avg_completion_time: number // in seconds
+  success_rate: number // percentage
+}
+
+/**
+ * Generation Details (for modal)
+ */
+export interface GenerationDetails extends AdminGenerationJob {
+  photos: GeneratedPhoto[]
+  kie_tasks: KieTask[]
+  avatar: {
+    id: number
+    name: string
+    status: string
+    reference_photos_count: number
+  } | null
+}
+
+/**
+ * Generated Photo
+ */
+export interface GeneratedPhoto {
+  id: number
+  style_id: string | null
+  prompt: string | null
+  image_url: string
+  created_at: string
+}
+
+/**
+ * KIE Task (for tracking generation progress)
+ */
+export interface KieTask {
+  id: number
+  job_id: number
+  style_id: string | null
+  status: string
+  task_id: string | null
+  image_url: string | null
+  error_message: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ============================================================================
+// Referral Types (Admin Panel)
+// ============================================================================
+
+/**
+ * Referral Stats
+ */
+export interface ReferralStats {
+  total_codes: number
+  total_referrals: number
+  total_earnings: number
+  pending_balance: number
+  total_withdrawn: number
+  pending_withdrawals: number
+  funnel: {
+    registered: number
+    paid: number
+  }
+}
+
+/**
+ * Top Referrer
+ */
+export interface TopReferrer {
+  user_id: number
+  telegram_user_id: string
+  referrals_count: number
+  balance: number
+  total_earned: number
+  total_withdrawn: number
+  referral_code: string | null
+  conversions: number
+}
+
+/**
+ * Recent Earning
+ */
+export interface ReferralEarning {
+  id: number
+  referrer_id: number
+  referrer_telegram_id: string
+  referred_id: number
+  referred_telegram_id: string
+  amount: number
+  status: string
+  created_at: string
+  payment_id: string | null
+}
+
+/**
+ * Withdrawal Request
+ */
+export interface WithdrawalRequest {
+  id: number
+  user_id: number
+  telegram_user_id: string
+  amount: number
+  ndfl_amount: number
+  payout_amount: number
+  method: string
+  card_number: string | null
+  phone: string | null
+  status: 'pending' | 'approved' | 'rejected' | 'processing' | 'completed'
+  created_at: string
+  processed_at: string | null
+  current_balance: number
+  total_earned: number
+}
+
+// ============================================================================
+// Telegram Queue Types (Admin Panel)
+// ============================================================================
+
+/**
+ * Telegram Message Status
+ */
+export type TelegramMessageStatus = 'pending' | 'sent' | 'failed' | 'retry'
+
+/**
+ * Telegram Queue Message
+ */
+export interface TelegramQueueMessage {
+  id: number
+  user_id: number
+  telegram_user_id: string
+  message_type: string
+  payload: Record<string, unknown>
+  status: TelegramMessageStatus
+  retry_count: number
+  error_message: string | null
+  created_at: string
+  sent_at: string | null
+}
+
+/**
+ * Telegram Queue Stats
+ */
+export interface TelegramQueueStats {
+  pending: number
+  sent: number
+  failed: number
+  retry: number
+  total: number
+  success_rate: number
+}
+
+// ============================================================================
 // Error Types
 // ============================================================================
 

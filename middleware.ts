@@ -69,6 +69,32 @@ export async function middleware(request: NextRequest) {
     response.headers.set(key, value);
   });
 
+  // Admin panel authentication check
+  // Skip login page and auth API routes
+  if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
+    const sessionCookie = request.cookies.get('admin_session');
+
+    if (!sessionCookie?.value) {
+      // Redirect to login if no session
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
+
+    // Note: Full session validation happens in layout/API routes
+    // Middleware just checks for cookie presence for performance
+  }
+
+  // Protect admin API routes (except auth routes)
+  if (pathname.startsWith('/api/admin') && !pathname.startsWith('/api/admin/auth')) {
+    const sessionCookie = request.cookies.get('admin_session');
+
+    if (!sessionCookie?.value) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+  }
+
   // Additional security checks for specific routes
   if (pathname.startsWith('/api/generate')) {
     // Ensure POST method only

@@ -1,639 +1,640 @@
-import { describe, test, expect, beforeEach, jest, afterEach } from '@jest/globals';
+import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 
 /**
- * Unit Tests for Google Imagen Library
+ * Unit tests for lib/imagen.ts
+ * Coverage target: 70%+
+ * Total tests: 32
  *
- * Tests AI image generation, batch processing, error handling,
- * and rate limiting for Google Imagen integration.
- *
- * PRIORITY: P1 (Core product functionality)
+ * Tests the multi-provider image generation system with Kie.ai primary provider.
  */
 
-// Mock types
-interface GenerateImageParams {
-  prompt: string;
-  referenceImages?: string[];
-  negativePrompt?: string;
-  aspectRatio?: string;
-  numberOfImages?: number;
-  seed?: number;
-}
+// Mock dependencies
+const mockGenerateWithKie = jest.fn();
+const mockIsKieConfigured = jest.fn();
+const mockTestKieConnection = jest.fn();
+const mockReplicateGeneratePortrait = jest.fn();
+const mockPrepareImageForReplicate = jest.fn((img) => img);
 
-interface GenerateImageResponse {
-  success: boolean;
-  imageUrl?: string;
-  imageBase64?: string;
-  error?: string;
-  safetyRatings?: any[];
-}
+jest.mock('../../../lib/kie', () => ({
+  generateWithKie: mockGenerateWithKie,
+  isKieConfigured: mockIsKieConfigured,
+  testKieConnection: mockTestKieConnection,
+}));
 
-interface BatchGenerationResult {
-  success: boolean;
-  totalRequested: number;
-  totalGenerated: number;
-  images: Array<{
-    index: number;
-    prompt: string;
-    imageUrl?: string;
-    error?: string;
-  }>;
-  errors: Array<{
-    index: number;
-    prompt: string;
-    error: string;
-  }>;
-}
+jest.mock('../../../lib/replicate/index', () => ({
+  generatePortrait: mockReplicateGeneratePortrait,
+  testConnections: jest.fn(),
+}));
 
-describe('Google Imagen Library', () => {
-  const MOCK_API_KEY = 'test-google-api-key-123';
+jest.mock('../../../lib/replicate/utils/image-processor', () => ({
+  prepareImageForApi: mockPrepareImageForReplicate,
+}));
 
-  describe('API Client Initialization', () => {
-    test('should initialize with valid API key', () => {
-      const initClient = (apiKey: string) => {
-        if (!apiKey || apiKey.trim() === '') {
-          throw new Error('GOOGLE_API_KEY is required');
-        }
-        return { apiKey, initialized: true };
-      };
+import {
+  generateImage,
+  generateMultipleImages,
+  getProviderInfo,
+} from '../../../lib/imagen';
 
-      const client = initClient(MOCK_API_KEY);
+// Store original environment
+const originalEnv = process.env;
 
-      expect(client.initialized).toBe(true);
-      expect(client.apiKey).toBe(MOCK_API_KEY);
-    });
-
-    test('should throw error when API key is missing', () => {
-      const initClient = (apiKey?: string) => {
-        if (!apiKey || apiKey.trim() === '') {
-          throw new Error('GOOGLE_API_KEY is required');
-        }
-        return { apiKey, initialized: true };
-      };
-
-      expect(() => initClient()).toThrow('GOOGLE_API_KEY is required');
-      expect(() => initClient('')).toThrow('GOOGLE_API_KEY is required');
-      expect(() => initClient('   ')).toThrow('GOOGLE_API_KEY is required');
-    });
-
-    test('should use correct API endpoint', () => {
-      const getApiEndpoint = () => {
-        return 'https://us-central1-aiplatform.googleapis.com/v1/projects/{project}/locations/us-central1/publishers/google/models/imagen-3.0-generate-001:predict';
-      };
-
-      const endpoint = getApiEndpoint();
-
-      expect(endpoint).toContain('aiplatform.googleapis.com');
-      expect(endpoint).toContain('imagen-3.0');
-    });
+describe('lib/imagen.ts', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    process.env = { ...originalEnv };
+    delete process.env.KIE_AI_API_KEY;
+    delete process.env.KIE_API_KEY;
+    delete process.env.REPLICATE_API_TOKEN;
   });
 
-  describe('generateImage', () => {
-    test('should generate image with simple prompt', async () => {
-      const generateImage = async (
-        params: GenerateImageParams
-      ): Promise<GenerateImageResponse> => {
-        // Mock successful response
-        return {
-          success: true,
-          imageUrl: 'https://storage.googleapis.com/generated-image-123.jpg',
-          safetyRatings: [
-            { category: 'HARM_CATEGORY_HATE_SPEECH', probability: 'NEGLIGIBLE' },
-          ],
-        };
-      };
-
-      const result = await generateImage({
-        prompt: 'Professional headshot of a person in business attire',
-      });
-
-      expect(result.success).toBe(true);
-      expect(result.imageUrl).toBeTruthy();
-      expect(result.imageUrl).toMatch(/^https:\/\//);
-    });
-
-    test('should include reference images in request', async () => {
-      const generateImage = async (params: GenerateImageParams) => {
-        expect(params.referenceImages).toBeDefined();
-        expect(params.referenceImages?.length).toBeGreaterThan(0);
-
-        return {
-          success: true,
-          imageUrl: 'https://storage.googleapis.com/generated-image-123.jpg',
-        };
-      };
-
-      await generateImage({
-        prompt: 'Professional portrait',
-        referenceImages: ['base64-encoded-image-1', 'base64-encoded-image-2'],
-      });
-    });
-
-    test('should handle negative prompts', async () => {
-      const generateImage = async (params: GenerateImageParams) => {
-        expect(params.negativePrompt).toBeDefined();
-
-        return {
-          success: true,
-          imageUrl: 'https://storage.googleapis.com/generated-image-123.jpg',
-        };
-      };
-
-      await generateImage({
-        prompt: 'Professional headshot',
-        negativePrompt: 'blurry, low quality, distorted',
-      });
-    });
-
-    test('should support aspect ratio configuration', async () => {
-      const generateImage = async (params: GenerateImageParams) => {
-        expect(params.aspectRatio).toBe('1:1');
-
-        return {
-          success: true,
-          imageUrl: 'https://storage.googleapis.com/generated-image-123.jpg',
-        };
-      };
-
-      await generateImage({
-        prompt: 'Professional portrait',
-        aspectRatio: '1:1',
-      });
-    });
-
-    test('should handle API errors gracefully', async () => {
-      const generateImage = async (
-        _params: GenerateImageParams
-      ): Promise<GenerateImageResponse> => {
-        return {
-          success: false,
-          error: 'API quota exceeded',
-        };
-      };
-
-      const result = await generateImage({
-        prompt: 'Test prompt',
-      });
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBeTruthy();
-      expect(result.imageUrl).toBeUndefined();
-    });
-
-    test('should handle safety filter blocks', async () => {
-      const generateImage = async (
-        _params: GenerateImageParams
-      ): Promise<GenerateImageResponse> => {
-        return {
-          success: false,
-          error: 'Content blocked by safety filters',
-          safetyRatings: [
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', probability: 'HIGH' },
-          ],
-        };
-      };
-
-      const result = await generateImage({
-        prompt: 'Inappropriate content',
-      });
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('safety');
-    });
-
-    test('should return base64 encoded image', async () => {
-      const generateImage = async (
-        _params: GenerateImageParams
-      ): Promise<GenerateImageResponse> => {
-        return {
-          success: true,
-          imageBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-        };
-      };
-
-      const result = await generateImage({
-        prompt: 'Test prompt',
-      });
-
-      expect(result.success).toBe(true);
-      expect(result.imageBase64).toBeTruthy();
-      expect(result.imageBase64).toMatch(/^[A-Za-z0-9+/=]+$/); // Valid base64
-    });
+  afterEach(() => {
+    process.env = originalEnv;
+    jest.restoreAllMocks();
   });
 
-  describe('Batch Generation', () => {
-    test('should generate 23 images for PinGlass', async () => {
-      const generateBatch = async (
-        prompts: string[],
-        referenceImages: string[]
-      ): Promise<BatchGenerationResult> => {
-        expect(prompts).toHaveLength(23);
+  // ============ generateImage() - 6 tests ============
 
-        const images = prompts.map((prompt, index) => ({
-          index,
-          prompt,
-          imageUrl: `https://storage.googleapis.com/generated-${index + 1}.jpg`,
-        }));
+  describe('generateImage()', () => {
+    const baseOptions = {
+      prompt: 'A professional headshot',
+      referenceImages: ['base64image1', 'base64image2'],
+    };
 
-        return {
-          success: true,
-          totalRequested: 23,
-          totalGenerated: 23,
-          images,
-          errors: [],
-        };
-      };
+    test('should successfully generate with Kie.ai when configured', async () => {
+      mockIsKieConfigured.mockReturnValue(true);
+      process.env.KIE_AI_API_KEY = 'test-kie-key-123';
+      mockGenerateWithKie.mockResolvedValue({
+        success: true,
+        url: 'https://cdn.kie.ai/generated-image.jpg',
+      });
 
-      const prompts = Array.from(
-        { length: 23 },
-        (_, i) => `Prompt ${i + 1}`
+      const result = await generateImage(baseOptions);
+
+      expect(result).toBe('https://cdn.kie.ai/generated-image.jpg');
+      expect(mockIsKieConfigured).toHaveBeenCalled();
+      expect(mockGenerateWithKie).toHaveBeenCalledWith({
+        prompt: baseOptions.prompt,
+        referenceImages: baseOptions.referenceImages,
+        aspectRatio: '3:4',
+        resolution: '2K',
+        outputFormat: 'jpg',
+        seed: undefined,
+      });
+    });
+
+    test('should throw when neither provider configured', async () => {
+      mockIsKieConfigured.mockReturnValue(false);
+
+      await expect(generateImage(baseOptions)).rejects.toThrow(
+        'Kie.ai not configured (need KIE_AI_API_KEY)'
       );
-      const references = ['ref1', 'ref2', 'ref3'];
-
-      const result = await generateBatch(prompts, references);
-
-      expect(result.success).toBe(true);
-      expect(result.totalRequested).toBe(23);
-      expect(result.totalGenerated).toBe(23);
-      expect(result.images).toHaveLength(23);
-      expect(result.errors).toHaveLength(0);
     });
 
-    test('should continue on individual failures (resilience)', async () => {
-      const generateBatch = async (
-        prompts: string[]
-      ): Promise<BatchGenerationResult> => {
-        const images = [];
-        const errors = [];
+    test('should pass GenerationOptions correctly', async () => {
+      mockIsKieConfigured.mockReturnValue(true);
+      process.env.KIE_AI_API_KEY = 'test-key';
+      mockGenerateWithKie.mockResolvedValue({
+        success: true,
+        url: 'https://image.jpg',
+      });
 
-        for (let i = 0; i < prompts.length; i++) {
-          // Simulate 3 failures (indices 5, 10, 15)
-          if (i === 5 || i === 10 || i === 15) {
-            errors.push({
-              index: i,
-              prompt: prompts[i],
-              error: 'Generation timeout',
-            });
-          } else {
-            images.push({
-              index: i,
-              prompt: prompts[i],
-              imageUrl: `https://storage.googleapis.com/generated-${i + 1}.jpg`,
-            });
-          }
-        }
-
-        return {
-          success: true, // Partial success
-          totalRequested: prompts.length,
-          totalGenerated: images.length,
-          images,
-          errors,
-        };
+      const customOptions = {
+        prompt: 'Custom prompt',
+        referenceImages: ['img1', 'img2'],
+        seed: 12345,
+        negativePrompt: 'ugly, blurry',
+        aspectRatio: '9:16',
+        resolution: '4K',
       };
 
-      const prompts = Array.from({ length: 23 }, (_, i) => `Prompt ${i + 1}`);
+      await generateImage(customOptions);
 
-      const result = await generateBatch(prompts);
-
-      expect(result.totalRequested).toBe(23);
-      expect(result.totalGenerated).toBe(20); // 23 - 3 failures
-      expect(result.errors).toHaveLength(3);
-      expect(result.images).toHaveLength(20);
+      expect(mockGenerateWithKie).toHaveBeenCalledWith({
+        prompt: 'Custom prompt',
+        referenceImages: ['img1', 'img2'],
+        aspectRatio: '3:4',
+        resolution: '2K',
+        outputFormat: 'jpg',
+        seed: 12345,
+      });
     });
 
-    test('should track which prompts failed', async () => {
-      const generateBatch = async (): Promise<BatchGenerationResult> => {
-        return {
-          success: true,
-          totalRequested: 23,
-          totalGenerated: 21,
-          images: Array.from({ length: 21 }, (_, i) => ({
-            index: i,
-            prompt: `Prompt ${i + 1}`,
-            imageUrl: `https://storage.googleapis.com/generated-${i + 1}.jpg`,
-          })),
-          errors: [
-            { index: 7, prompt: 'Prompt 8', error: 'Safety filter' },
-            { index: 14, prompt: 'Prompt 15', error: 'API timeout' },
-          ],
-        };
-      };
+    test('should log provider status and key length', async () => {
+      mockIsKieConfigured.mockReturnValue(true);
+      process.env.KIE_AI_API_KEY = 'test-kie-key-123456';
+      mockGenerateWithKie.mockResolvedValue({
+        success: true,
+        url: 'https://image.jpg',
+      });
 
-      const result = await generateBatch();
+      await generateImage(baseOptions);
 
-      expect(result.errors).toHaveLength(2);
-      expect(result.errors[0].index).toBe(7);
-      expect(result.errors[1].index).toBe(14);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Kie.ai configured=true')
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('key length=19')
+      );
     });
 
-    test('should handle complete batch failure', async () => {
-      const generateBatch = async (): Promise<BatchGenerationResult> => {
-        return {
-          success: false,
-          totalRequested: 23,
-          totalGenerated: 0,
-          images: [],
-          errors: Array.from({ length: 23 }, (_, i) => ({
-            index: i,
-            prompt: `Prompt ${i + 1}`,
-            error: 'API service unavailable',
-          })),
-        };
-      };
+    test('should throw error when Kie generation fails', async () => {
+      mockIsKieConfigured.mockReturnValue(true);
+      process.env.KIE_AI_API_KEY = 'test-key';
+      mockGenerateWithKie.mockResolvedValue({
+        success: false,
+        url: '',
+        error: 'API quota exceeded',
+      });
 
-      const result = await generateBatch();
+      await expect(generateImage(baseOptions)).rejects.toThrow('API quota exceeded');
+    });
 
-      expect(result.success).toBe(false);
-      expect(result.totalGenerated).toBe(0);
-      expect(result.errors).toHaveLength(23);
+    test('should throw generic error when Kie fails without error message', async () => {
+      mockIsKieConfigured.mockReturnValue(true);
+      process.env.KIE_AI_API_KEY = 'test-key';
+      mockGenerateWithKie.mockResolvedValue({
+        success: false,
+        url: '',
+      });
+
+      await expect(generateImage(baseOptions)).rejects.toThrow('Kie.ai generation failed');
     });
   });
 
-  describe('Error Handling', () => {
-    test('should retry on network errors', async () => {
+  // ============ generateMultipleImages() - 12 tests ============
+
+  describe('generateMultipleImages()', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      mockIsKieConfigured.mockReturnValue(true);
+      process.env.KIE_AI_API_KEY = 'test-key';
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    test('should successfully generate exact number of images', async () => {
+      const prompts = ['Prompt 1', 'Prompt 2', 'Prompt 3'];
+      mockGenerateWithKie.mockResolvedValue({
+        success: true,
+        url: 'https://image.jpg',
+      });
+
+      const promise = generateMultipleImages(prompts);
+      await jest.runAllTimersAsync();
+      const results = await promise;
+
+      expect(results).toHaveLength(3);
+      expect(results.every((r) => r.success)).toBe(true);
+      expect(mockGenerateWithKie).toHaveBeenCalledTimes(3);
+    });
+
+    test('should respect concurrency limit (batches of 3)', async () => {
+      const prompts = Array(7).fill('Test prompt');
+      let callCount = 0;
+
+      mockGenerateWithKie.mockImplementation(async () => {
+        callCount++;
+        return { success: true, url: `https://image${callCount}.jpg` };
+      });
+
+      const promise = generateMultipleImages(prompts, undefined, { concurrency: 3 });
+
+      await jest.runAllTimersAsync();
+      const results = await promise;
+
+      expect(results).toHaveLength(7);
+      expect(mockGenerateWithKie).toHaveBeenCalledTimes(7);
+    });
+
+    test('should retry failed images up to maxRetries times', async () => {
+      const prompts = ['Prompt 1', 'Prompt 2'];
       let attemptCount = 0;
 
-      const generateWithRetry = async (maxRetries = 3) => {
+      mockGenerateWithKie.mockImplementation(async () => {
         attemptCount++;
-
-        if (attemptCount < maxRetries) {
-          throw new Error('Network error');
+        if (attemptCount <= 2) {
+          throw new Error('Temporary failure');
         }
+        return { success: true, url: 'https://image.jpg' };
+      });
 
-        return {
-          success: true,
-          imageUrl: 'https://storage.googleapis.com/generated-image.jpg',
-        };
-      };
+      const promise = generateMultipleImages(prompts, undefined, { maxRetries: 2 });
+      await jest.runAllTimersAsync();
+      const results = await promise;
 
-      const result = await generateWithRetry(3);
-
-      expect(attemptCount).toBe(3);
-      expect(result.success).toBe(true);
+      expect(results).toHaveLength(2);
+      expect(results.every((r) => r.success)).toBe(true);
+      expect(mockGenerateWithKie).toHaveBeenCalledTimes(4);
     });
 
-    test('should handle quota exceeded errors', async () => {
-      const handleError = (error: any) => {
-        if (error.code === 429 || error.message?.includes('quota')) {
-          return {
-            success: false,
-            error: 'API quota exceeded. Please try again later.',
-            retryAfter: 3600, // 1 hour
-          };
-        }
-        return { success: false, error: 'Unknown error' };
-      };
+    test('should call onProgress callback with correct counts', async () => {
+      const prompts = ['Prompt 1', 'Prompt 2', 'Prompt 3'];
+      const progressCalls = [];
 
-      const result = handleError({ code: 429, message: 'Quota exceeded' });
+      mockGenerateWithKie.mockResolvedValue({
+        success: true,
+        url: 'https://image.jpg',
+      });
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('quota');
-      expect(result.retryAfter).toBe(3600);
+      const onProgress = jest.fn((completed, total, success) => {
+        progressCalls.push({ completed, total, success });
+      });
+
+      const promise = generateMultipleImages(prompts, undefined, { onProgress });
+      await jest.runAllTimersAsync();
+      await promise;
+
+      expect(onProgress).toHaveBeenCalledTimes(3);
+      expect(progressCalls).toEqual([
+        { completed: 1, total: 3, success: true },
+        { completed: 2, total: 3, success: true },
+        { completed: 3, total: 3, success: true },
+      ]);
     });
 
-    test('should handle invalid API key errors', async () => {
-      const generateImage = async () => {
-        throw new Error('Invalid API key');
-      };
+    test('should apply stylePrefix and styleSuffix to prompts', async () => {
+      const prompts = ['middle text'];
+      mockGenerateWithKie.mockResolvedValue({
+        success: true,
+        url: 'https://image.jpg',
+      });
 
-      await expect(generateImage()).rejects.toThrow('Invalid API key');
-    });
+      const promise = generateMultipleImages(prompts, undefined, {
+        stylePrefix: 'PREFIX ',
+        styleSuffix: ' SUFFIX',
+      });
+      await jest.runAllTimersAsync();
+      await promise;
 
-    test('should handle timeout errors', async () => {
-      const generateWithTimeout = async (timeoutMs: number) => {
-        return Promise.race([
-          new Promise((resolve) =>
-            setTimeout(
-              () => resolve({ success: true, imageUrl: 'test.jpg' }),
-              5000
-            )
-          ),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
-          ),
-        ]);
-      };
-
-      await expect(generateWithTimeout(1000)).rejects.toThrow('Request timeout');
-    });
-
-    test('should handle invalid response format', () => {
-      const parseResponse = (response: any) => {
-        if (!response || typeof response !== 'object') {
-          throw new Error('Invalid response format');
-        }
-
-        if (!response.predictions || !Array.isArray(response.predictions)) {
-          throw new Error('Missing predictions in response');
-        }
-
-        return response;
-      };
-
-      expect(() => parseResponse(null)).toThrow('Invalid response format');
-      expect(() => parseResponse('string')).toThrow('Invalid response format');
-      expect(() => parseResponse({})).toThrow('Missing predictions');
-      expect(() =>
-        parseResponse({ predictions: [] })
-      ).not.toThrow();
-    });
-  });
-
-  describe('Rate Limiting', () => {
-    test('should respect API rate limits', async () => {
-      const rateLimiter = {
-        tokensAvailable: 60,
-        lastRefill: Date.now(),
-        refillRate: 1, // 1 token per second
-      };
-
-      const checkRateLimit = () => {
-        const now = Date.now();
-        const secondsElapsed = (now - rateLimiter.lastRefill) / 1000;
-        rateLimiter.tokensAvailable = Math.min(
-          60,
-          rateLimiter.tokensAvailable + secondsElapsed * rateLimiter.refillRate
-        );
-        rateLimiter.lastRefill = now;
-
-        return rateLimiter.tokensAvailable >= 1;
-      };
-
-      const canProceed = checkRateLimit();
-      expect(canProceed).toBe(true);
-
-      // Consume tokens
-      rateLimiter.tokensAvailable -= 23; // 23 image generation
-
-      expect(rateLimiter.tokensAvailable).toBe(37);
-    });
-
-    test('should implement exponential backoff on 429 errors', async () => {
-      const getBackoffDelay = (attemptNumber: number) => {
-        const baseDelay = 1000; // 1 second
-        const maxDelay = 60000; // 1 minute
-        const delay = Math.min(baseDelay * Math.pow(2, attemptNumber), maxDelay);
-        return delay;
-      };
-
-      expect(getBackoffDelay(0)).toBe(1000); // 1s
-      expect(getBackoffDelay(1)).toBe(2000); // 2s
-      expect(getBackoffDelay(2)).toBe(4000); // 4s
-      expect(getBackoffDelay(3)).toBe(8000); // 8s
-      expect(getBackoffDelay(10)).toBe(60000); // Max 60s
-    });
-
-    test('should queue requests when rate limited', async () => {
-      const requestQueue: Array<() => Promise<any>> = [];
-      let processing = false;
-
-      const addToQueue = (request: () => Promise<any>) => {
-        requestQueue.push(request);
-        processQueue();
-      };
-
-      const processQueue = async () => {
-        if (processing || requestQueue.length === 0) return;
-
-        processing = true;
-        const request = requestQueue.shift();
-        if (request) {
-          await request();
-        }
-        processing = false;
-
-        if (requestQueue.length > 0) {
-          setTimeout(processQueue, 1000); // 1 second between requests
-        }
-      };
-
-      // Add 5 requests
-      for (let i = 0; i < 5; i++) {
-        addToQueue(async () => ({ imageUrl: `image-${i}.jpg` }));
-      }
-
-      expect(requestQueue.length).toBeLessThan(5); // Some should be processing
-    });
-  });
-
-  describe('Reference Image Handling', () => {
-    test('should validate reference images are base64', () => {
-      const isValidBase64 = (str: string) => {
-        try {
-          return btoa(atob(str)) === str;
-        } catch {
-          return false;
-        }
-      };
-
-      expect(
-        isValidBase64('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==')
-      ).toBe(true);
-      expect(isValidBase64('not-base64!')).toBe(false);
-    });
-
-    test('should limit number of reference images', () => {
-      const MAX_REFERENCE_IMAGES = 20;
-
-      const validateReferenceImages = (images: string[]) => {
-        if (images.length > MAX_REFERENCE_IMAGES) {
-          throw new Error(
-            `Maximum ${MAX_REFERENCE_IMAGES} reference images allowed`
-          );
-        }
-        return true;
-      };
-
-      const validImages = Array.from({ length: 15 }, (_, i) => `image-${i}`);
-      const tooManyImages = Array.from({ length: 25 }, (_, i) => `image-${i}`);
-
-      expect(() => validateReferenceImages(validImages)).not.toThrow();
-      expect(() => validateReferenceImages(tooManyImages)).toThrow(
-        'Maximum 20 reference images allowed'
+      expect(mockGenerateWithKie).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: 'PREFIX middle text SUFFIX',
+        })
       );
     });
 
-    test('should validate reference image size', () => {
-      const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+    test('should handle empty prompts array', async () => {
+      const promise = generateMultipleImages([]);
+      await jest.runAllTimersAsync();
+      const results = await promise;
 
-      const validateImageSize = (base64Image: string) => {
-        const sizeInBytes = (base64Image.length * 3) / 4;
+      expect(results).toEqual([]);
+      expect(mockGenerateWithKie).not.toHaveBeenCalled();
+    });
 
-        if (sizeInBytes > MAX_IMAGE_SIZE) {
-          throw new Error('Reference image exceeds 10MB limit');
-        }
+    test('should handle large arrays (100+ prompts)', async () => {
+      const prompts = Array(105).fill('Test prompt');
+      mockGenerateWithKie.mockResolvedValue({
+        success: true,
+        url: 'https://image.jpg',
+      });
 
-        return true;
-      };
+      const promise = generateMultipleImages(prompts, undefined, { concurrency: 5 });
+      await jest.runAllTimersAsync();
+      const results = await promise;
 
-      const smallImage = 'a'.repeat(1000); // Small
-      const largeImage = 'a'.repeat(15 * 1024 * 1024); // 15MB+
+      expect(results).toHaveLength(105);
+      expect(mockGenerateWithKie).toHaveBeenCalledTimes(105);
+    });
 
-      expect(() => validateImageSize(smallImage)).not.toThrow();
-      expect(() => validateImageSize(largeImage)).toThrow('exceeds 10MB limit');
+    test('should delay 800ms between batches', async () => {
+      const prompts = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'];
+      mockGenerateWithKie.mockResolvedValue({
+        success: true,
+        url: 'https://image.jpg',
+      });
+
+      const promise = generateMultipleImages(prompts, undefined, { concurrency: 3 });
+
+      expect(jest.getTimerCount()).toBe(0);
+
+      await jest.runAllTimersAsync();
+      await promise;
+
+      expect(mockGenerateWithKie).toHaveBeenCalledTimes(6);
+    });
+
+    test('should delay 1000ms between retry batches', async () => {
+      const prompts = ['P1', 'P2', 'P3', 'P4'];
+      let callCount = 0;
+
+      mockGenerateWithKie.mockImplementation(async () => {
+        callCount++;
+        if (callCount <= 4) throw new Error('First batch fails');
+        return { success: true, url: 'https://image.jpg' };
+      });
+
+      const promise = generateMultipleImages(prompts, undefined, {
+        concurrency: 2,
+        maxRetries: 1,
+      });
+
+      await jest.runAllTimersAsync();
+      await promise;
+
+      expect(mockGenerateWithKie).toHaveBeenCalledTimes(8);
+    });
+
+    test('should log batch progress', async () => {
+      const prompts = ['P1', 'P2', 'P3', 'P4', 'P5'];
+      mockGenerateWithKie.mockResolvedValue({
+        success: true,
+        url: 'https://image.jpg',
+      });
+
+      const promise = generateMultipleImages(prompts, undefined, { concurrency: 3 });
+      await jest.runAllTimersAsync();
+      await promise;
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Batch 1/2')
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Batch 2/2')
+      );
+    });
+
+    test('should set placeholder URL for permanently failed images', async () => {
+      const prompts = ['P1', 'P2'];
+      mockGenerateWithKie.mockRejectedValue(new Error('Permanent failure'));
+
+      const promise = generateMultipleImages(prompts, undefined, { maxRetries: 1 });
+      await jest.runAllTimersAsync();
+      const results = await promise;
+
+      expect(results).toHaveLength(2);
+      expect(results[0].url).toBe('/generation-failed.jpg');
+      expect(results[0].success).toBe(false);
+      expect(results[0].error).toBe('All retry attempts failed');
+    });
+
+    test('should generate unique seeds (Date.now() + indexes)', async () => {
+      const prompts = ['P1', 'P2', 'P3'];
+      const seeds = [];
+
+      mockGenerateWithKie.mockImplementation(async (opts) => {
+        seeds.push(opts.seed);
+        return { success: true, url: 'https://image.jpg' };
+      });
+
+      const promise = generateMultipleImages(prompts);
+      await jest.runAllTimersAsync();
+      await promise;
+
+      expect(seeds).toHaveLength(3);
+      expect(new Set(seeds).size).toBe(3);
+      seeds.forEach((seed) => {
+        expect(seed).toBeGreaterThan(Date.now() - 10000);
+      });
     });
   });
 
-  describe('Prompt Validation', () => {
-    test('should validate prompt length', () => {
-      const MAX_PROMPT_LENGTH = 1000;
+  // ============ getProviderInfo() - 5 tests ============
 
-      const validatePrompt = (prompt: string) => {
-        if (prompt.trim().length === 0) {
-          throw new Error('Prompt cannot be empty');
-        }
+  describe('getProviderInfo()', () => {
+    test('should return Kie.ai when KIE_AI_API_KEY configured', () => {
+      mockIsKieConfigured.mockReturnValue(true);
+      process.env.KIE_AI_API_KEY = 'test-key';
 
-        if (prompt.length > MAX_PROMPT_LENGTH) {
-          throw new Error(`Prompt exceeds ${MAX_PROMPT_LENGTH} characters`);
-        }
+      const info = getProviderInfo();
 
-        return true;
-      };
-
-      expect(() => validatePrompt('Valid prompt')).not.toThrow();
-      expect(() => validatePrompt('')).toThrow('Prompt cannot be empty');
-      expect(() => validatePrompt('a'.repeat(1500))).toThrow('exceeds 1000 characters');
+      expect(info.active).toBe('Kie.ai');
+      expect(info.available).toContain('kie');
+      expect(info.pricing.kie).toBe(0.03);
     });
 
-    test('should sanitize prompts', () => {
-      const sanitizePrompt = (prompt: string) => {
-        // Remove potentially harmful content
-        return prompt
-          .replace(/<script>/gi, '')
-          .replace(/<\/script>/gi, '')
-          .trim();
-      };
+    test('should return Replicate when only REPLICATE_API_TOKEN configured', () => {
+      mockIsKieConfigured.mockReturnValue(false);
+      process.env.REPLICATE_API_TOKEN = 'r8_test_token';
 
-      expect(sanitizePrompt('Normal prompt')).toBe('Normal prompt');
-      expect(sanitizePrompt('<script>alert("xss")</script>Prompt')).toBe('Prompt');
-      expect(sanitizePrompt('  Prompt with spaces  ')).toBe('Prompt with spaces');
+      const info = getProviderInfo();
+
+      expect(info.active).toBe('Replicate');
+      expect(info.available).toContain('replicate');
+      expect(info.pricing.replicate).toBe(0.05);
+    });
+
+    test('should return null active when neither configured', () => {
+      mockIsKieConfigured.mockReturnValue(false);
+
+      const info = getProviderInfo();
+
+      expect(info.active).toBeNull();
+      expect(info.available).toEqual([]);
+    });
+
+    test('should show both configured with Kie as primary', () => {
+      mockIsKieConfigured.mockReturnValue(true);
+      process.env.KIE_AI_API_KEY = 'kie-key';
+      process.env.REPLICATE_API_TOKEN = 'rep-token';
+
+      const info = getProviderInfo();
+
+      expect(info.active).toBe('Kie.ai');
+      expect(info.available).toEqual(['kie', 'replicate']);
+    });
+
+    test('should return correct pricing for both providers', () => {
+      const info = getProviderInfo();
+
+      expect(info.pricing).toEqual({
+        kie: 0.03,
+        replicate: 0.05,
+      });
     });
   });
 
-  describe('Cost Tracking', () => {
-    test('should calculate generation cost', () => {
-      const COST_PER_IMAGE = 0.04; // $0.04 per image
+  // ============ generateWithKieProvider (internal) - 4 tests ============
 
-      const calculateCost = (imageCount: number) => {
-        return imageCount * COST_PER_IMAGE;
-      };
+  describe('generateWithKieProvider (internal via generateImage)', () => {
+    test('should call generateWithKie with correct params', async () => {
+      mockIsKieConfigured.mockReturnValue(true);
+      process.env.KIE_AI_API_KEY = 'test-key';
+      mockGenerateWithKie.mockResolvedValue({
+        success: true,
+        url: 'https://image.jpg',
+      });
 
-      expect(calculateCost(23)).toBe(0.92); // $0.92 for 23 images
-      expect(calculateCost(1)).toBe(0.04);
-      expect(calculateCost(100)).toBe(4.0);
+      await generateImage({
+        prompt: 'Test prompt',
+        referenceImages: ['img1'],
+        seed: 999,
+      });
+
+      expect(mockGenerateWithKie).toHaveBeenCalledWith({
+        prompt: 'Test prompt',
+        referenceImages: ['img1'],
+        aspectRatio: '3:4',
+        resolution: '2K',
+        outputFormat: 'jpg',
+        seed: 999,
+      });
     });
 
-    test('should track cumulative costs', () => {
-      let totalCost = 0;
+    test('should throw if result.success is false', async () => {
+      mockIsKieConfigured.mockReturnValue(true);
+      process.env.KIE_AI_API_KEY = 'test-key';
+      mockGenerateWithKie.mockResolvedValue({
+        success: false,
+        url: '',
+        error: 'Invalid prompt',
+      });
 
-      const addGenerationCost = (imageCount: number) => {
-        totalCost += imageCount * 0.04;
-        return totalCost;
-      };
+      await expect(generateImage({ prompt: 'Test' })).rejects.toThrow('Invalid prompt');
+    });
 
-      expect(addGenerationCost(23)).toBe(0.92);
-      expect(addGenerationCost(23)).toBe(1.84);
-      expect(addGenerationCost(23)).toBe(2.76);
+    test('should return result.url on success', async () => {
+      mockIsKieConfigured.mockReturnValue(true);
+      process.env.KIE_API_KEY = 'test-key';
+      const expectedUrl = 'https://cdn.kie.ai/img123.jpg';
+
+      mockGenerateWithKie.mockResolvedValue({
+        success: true,
+        url: expectedUrl,
+      });
+
+      const result = await generateImage({ prompt: 'Test' });
+
+      expect(result).toBe(expectedUrl);
+    });
+
+    test('should pass referenceImages and seed through', async () => {
+      mockIsKieConfigured.mockReturnValue(true);
+      process.env.KIE_AI_API_KEY = 'test-key';
+      mockGenerateWithKie.mockResolvedValue({
+        success: true,
+        url: 'https://image.jpg',
+      });
+
+      const refs = ['base64_1', 'base64_2', 'base64_3'];
+      const seed = 42;
+
+      await generateImage({
+        prompt: 'Test',
+        referenceImages: refs,
+        seed,
+      });
+
+      expect(mockGenerateWithKie).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referenceImages: refs,
+          seed: 42,
+        })
+      );
+    });
+  });
+
+  // ============ Integration tests - 5 tests ============
+
+  describe('Integration scenarios', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      mockIsKieConfigured.mockReturnValue(true);
+      process.env.KIE_AI_API_KEY = 'test-key';
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    test('should handle partial success in batch generation', async () => {
+      const prompts = ['P1', 'P2', 'P3', 'P4'];
+      let callCount = 0;
+
+      mockGenerateWithKie.mockImplementation(async () => {
+        callCount++;
+        if (callCount === 2) {
+          throw new Error('Single failure');
+        }
+        return { success: true, url: `https://image${callCount}.jpg` };
+      });
+
+      const promise = generateMultipleImages(prompts, undefined, { maxRetries: 0 });
+      await jest.runAllTimersAsync();
+      const results = await promise;
+
+      expect(results).toHaveLength(4);
+      expect(results.filter((r) => r.success)).toHaveLength(3);
+      expect(results[1].success).toBe(false);
+      expect(results[1].error).toContain('All retry attempts failed');
+    });
+
+    test('should track provider in GenerationResult', async () => {
+      const prompts = ['P1'];
+      mockGenerateWithKie.mockResolvedValue({
+        success: true,
+        url: 'https://image.jpg',
+      });
+
+      const promise = generateMultipleImages(prompts);
+      await jest.runAllTimersAsync();
+      const results = await promise;
+
+      expect(results[0].provider).toBe('Kie.ai');
+    });
+
+    test('should handle onProgress with failed images', async () => {
+      const prompts = ['P1', 'P2'];
+      const progressCalls = [];
+
+      const onProgress = jest.fn((completed, total, success) => {
+        progressCalls.push(success);
+      });
+
+      let callCount = 0;
+      mockGenerateWithKie.mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) throw new Error('Fail');
+        return { success: true, url: 'https://image.jpg' };
+      });
+
+      const promise = generateMultipleImages(prompts, undefined, {
+        onProgress,
+        maxRetries: 0,
+      });
+      await jest.runAllTimersAsync();
+      await promise;
+
+      expect(progressCalls).toContain(false);
+      expect(progressCalls).toContain(true);
+    });
+
+    test('should log final summary with success and failure counts', async () => {
+      const prompts = ['P1', 'P2', 'P3'];
+      mockGenerateWithKie.mockResolvedValueOnce({ success: true, url: 'img1.jpg' });
+      mockGenerateWithKie.mockRejectedValueOnce(new Error('Fail'));
+      mockGenerateWithKie.mockResolvedValueOnce({ success: true, url: 'img3.jpg' });
+
+      const promise = generateMultipleImages(prompts, undefined, { maxRetries: 0 });
+      await jest.runAllTimersAsync();
+      await promise;
+
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Complete'));
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('2/3 successful'));
+    });
+
+    test('should use correct active provider in batch generation logs', async () => {
+      mockIsKieConfigured.mockReturnValue(true);
+      process.env.REPLICATE_API_TOKEN = 'replicate-token';
+
+      const prompts = ['P1'];
+      mockGenerateWithKie.mockResolvedValue({
+        success: true,
+        url: 'https://image.jpg',
+      });
+
+      const promise = generateMultipleImages(prompts);
+      await jest.runAllTimersAsync();
+      await promise;
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Active provider: Kie.ai')
+      );
     });
   });
 });

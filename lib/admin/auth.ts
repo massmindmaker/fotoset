@@ -1,119 +1,389 @@
-import { type NextRequest } from "next/server"
-import { getUserIdentifier } from "@/lib/auth-utils"
-
 /**
- * Admin Authentication Utilities
+ * Admin Authentication
  *
- * Provides whitelist-based authentication for admin panel access.
- * Only Telegram users listed in ADMIN_TELEGRAM_IDS env variable can access /admin routes.
+ * Email/Password + Google OAuth authentication system
+ * Replaces old Telegram whitelist-based auth
  */
 
-/**
- * Get admin whitelist from environment variable
- * Parses comma-separated Telegram user IDs
- *
- * @returns Array of whitelisted Telegram user IDs
- *
- * @example
- * // .env: ADMIN_TELEGRAM_IDS=123456789,987654321
- * getAdminWhitelist() // [123456789, 987654321]
- */
-export function getAdminWhitelist(): number[] {
-  const env = process.env.ADMIN_TELEGRAM_IDS || ''
+import bcrypt from 'bcryptjs'
+import { neon } from '@neondatabase/serverless'
+import type { AdminRole } from './permissions'
 
-  if (!env) {
-    console.warn('[Admin Auth] ADMIN_TELEGRAM_IDS not configured - admin panel will be inaccessible')
-    return []
-  }
+export interface AdminUser {
+  id: number
+  email: string
+  passwordHash: string | null
+  googleId: string | null
+  firstName: string | null
+  lastName: string | null
+  avatarUrl: string | null
+  role: AdminRole
+  isActive: boolean
+  lastLoginAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
 
-  const whitelist = env
-    .split(',')
-    .map(id => parseInt(id.trim()))
-    .filter(id => !isNaN(id))
+export interface CreateAdminInput {
+  email: string
+  password?: string
+  googleId?: string
+  firstName?: string
+  lastName?: string
+  avatarUrl?: string
+  role?: AdminRole
+}
 
-  if (whitelist.length === 0) {
-    console.warn('[Admin Auth] No valid admin IDs found in ADMIN_TELEGRAM_IDS')
-  } else {
-    console.log(`[Admin Auth] Loaded ${whitelist.length} admin user(s)`)
-  }
-
-  return whitelist
+function getSql() {
+  const url = process.env.DATABASE_URL
+  if (!url) throw new Error('DATABASE_URL not set')
+  return neon(url)
 }
 
 /**
- * Check if a Telegram user ID is in the admin whitelist
- *
- * @param telegramUserId - Telegram user ID to check
- * @returns true if user is admin, false otherwise
- *
- * @example
- * checkAdminAccess(123456789) // true if 123456789 in whitelist
+ * Get super admin email from environment
  */
-export function checkAdminAccess(telegramUserId: number): boolean {
-  // NaN validation
-  if (isNaN(telegramUserId)) {
-    console.warn('[Admin Auth] Invalid telegramUserId (NaN)')
-    return false
-  }
-
-  const whitelist = getAdminWhitelist()
-  const hasAccess = whitelist.includes(telegramUserId)
-
-  console.log(`[Admin Auth] User ${telegramUserId} access: ${hasAccess}`)
-  return hasAccess
+export function getSuperAdminEmail(): string | null {
+  return process.env.ADMIN_SUPER_EMAIL || null
 }
 
 /**
- * Verify admin access from Next.js request
- * Extracts Telegram user ID and checks whitelist
- *
- * @param request - Next.js request object
- * @returns Object with authorized status and telegramUserId
- *
- * @example
- * const { authorized, telegramUserId } = verifyAdminAccess(request)
- * if (!authorized) {
- *   return new NextResponse('Forbidden', { status: 403 })
- * }
+ * Find admin by email
  */
-export function verifyAdminAccess(request: NextRequest): {
-  authorized: boolean
-  telegramUserId?: number
-} {
-  // Extract user identifier from request
-  const identifier = getUserIdentifier(request)
+export async function findAdminByEmail(email: string): Promise<AdminUser | null> {
+  const sql = getSql()
 
-  if (!identifier.telegramUserId) {
-    console.log('[Admin Auth] No Telegram user ID found in request')
-    return { authorized: false }
+  const [admin] = await sql`
+    SELECT
+      id,
+      email,
+      password_hash,
+      google_id,
+      first_name,
+      last_name,
+      avatar_url,
+      role,
+      is_active,
+      last_login_at,
+      created_at,
+      updated_at
+    FROM admin_users
+    WHERE email = ${email.toLowerCase()}
+    LIMIT 1
+  `
+
+  if (!admin) return null
+
+  return mapAdminFromDb(admin)
+}
+
+/**
+ * Find admin by Google ID
+ */
+export async function findAdminByGoogleId(googleId: string): Promise<AdminUser | null> {
+  const sql = getSql()
+
+  const [admin] = await sql`
+    SELECT
+      id,
+      email,
+      password_hash,
+      google_id,
+      first_name,
+      last_name,
+      avatar_url,
+      role,
+      is_active,
+      last_login_at,
+      created_at,
+      updated_at
+    FROM admin_users
+    WHERE google_id = ${googleId}
+    LIMIT 1
+  `
+
+  if (!admin) return null
+
+  return mapAdminFromDb(admin)
+}
+
+/**
+ * Find admin by ID
+ */
+export async function findAdminById(id: number): Promise<AdminUser | null> {
+  const sql = getSql()
+
+  const [admin] = await sql`
+    SELECT
+      id,
+      email,
+      password_hash,
+      google_id,
+      first_name,
+      last_name,
+      avatar_url,
+      role,
+      is_active,
+      last_login_at,
+      created_at,
+      updated_at
+    FROM admin_users
+    WHERE id = ${id}
+    LIMIT 1
+  `
+
+  if (!admin) return null
+
+  return mapAdminFromDb(admin)
+}
+
+/**
+ * Create a new admin user
+ */
+export async function createAdmin(input: CreateAdminInput): Promise<AdminUser> {
+  const sql = getSql()
+
+  const email = input.email.toLowerCase()
+  const superEmail = getSuperAdminEmail()?.toLowerCase()
+
+  // First user with super admin email gets super_admin role
+  const isSuperAdmin = superEmail && email === superEmail
+  const role = isSuperAdmin ? 'super_admin' : (input.role || 'viewer')
+
+  let passwordHash: string | null = null
+  if (input.password) {
+    passwordHash = await bcrypt.hash(input.password, 12)
   }
 
-  const authorized = checkAdminAccess(identifier.telegramUserId)
+  const [admin] = await sql`
+    INSERT INTO admin_users (
+      email,
+      password_hash,
+      google_id,
+      first_name,
+      last_name,
+      avatar_url,
+      role
+    )
+    VALUES (
+      ${email},
+      ${passwordHash},
+      ${input.googleId || null},
+      ${input.firstName || null},
+      ${input.lastName || null},
+      ${input.avatarUrl || null},
+      ${role}
+    )
+    RETURNING
+      id,
+      email,
+      password_hash,
+      google_id,
+      first_name,
+      last_name,
+      avatar_url,
+      role,
+      is_active,
+      last_login_at,
+      created_at,
+      updated_at
+  `
 
+  return mapAdminFromDb(admin)
+}
+
+/**
+ * Update admin user
+ */
+export async function updateAdmin(
+  id: number,
+  updates: {
+    firstName?: string
+    lastName?: string
+    avatarUrl?: string
+    googleId?: string
+    role?: AdminRole
+    isActive?: boolean
+    password?: string
+  }
+): Promise<AdminUser | null> {
+  const sql = getSql()
+
+  let passwordHash: string | undefined
+  if (updates.password) {
+    passwordHash = await bcrypt.hash(updates.password, 12)
+  }
+
+  const [admin] = await sql`
+    UPDATE admin_users
+    SET
+      first_name = COALESCE(${updates.firstName ?? null}, first_name),
+      last_name = COALESCE(${updates.lastName ?? null}, last_name),
+      avatar_url = COALESCE(${updates.avatarUrl ?? null}, avatar_url),
+      google_id = COALESCE(${updates.googleId ?? null}, google_id),
+      role = COALESCE(${updates.role ?? null}, role),
+      is_active = COALESCE(${updates.isActive ?? null}, is_active),
+      password_hash = COALESCE(${passwordHash ?? null}, password_hash),
+      updated_at = NOW()
+    WHERE id = ${id}
+    RETURNING
+      id,
+      email,
+      password_hash,
+      google_id,
+      first_name,
+      last_name,
+      avatar_url,
+      role,
+      is_active,
+      last_login_at,
+      created_at,
+      updated_at
+  `
+
+  if (!admin) return null
+
+  return mapAdminFromDb(admin)
+}
+
+/**
+ * Verify password for email login
+ */
+export async function verifyPassword(email: string, password: string): Promise<AdminUser | null> {
+  const admin = await findAdminByEmail(email)
+
+  if (!admin) {
+    return null
+  }
+
+  if (!admin.passwordHash) {
+    // Admin uses OAuth only
+    return null
+  }
+
+  if (!admin.isActive) {
+    return null
+  }
+
+  const isValid = await bcrypt.compare(password, admin.passwordHash)
+
+  if (!isValid) {
+    return null
+  }
+
+  return admin
+}
+
+/**
+ * Find or create admin from Google OAuth
+ */
+export async function findOrCreateGoogleAdmin(profile: {
+  googleId: string
+  email: string
+  firstName?: string
+  lastName?: string
+  avatarUrl?: string
+}): Promise<{ admin: AdminUser; isNew: boolean }> {
+  // First check by Google ID
+  let admin = await findAdminByGoogleId(profile.googleId)
+  if (admin) {
+    // Update profile info if changed
+    if (profile.avatarUrl && profile.avatarUrl !== admin.avatarUrl) {
+      admin = await updateAdmin(admin.id, { avatarUrl: profile.avatarUrl }) || admin
+    }
+    return { admin, isNew: false }
+  }
+
+  // Check by email
+  admin = await findAdminByEmail(profile.email)
+  if (admin) {
+    // Link Google account
+    admin = await updateAdmin(admin.id, {
+      googleId: profile.googleId,
+      avatarUrl: profile.avatarUrl
+    }) || admin
+    return { admin, isNew: false }
+  }
+
+  // Check if email is allowed (super admin or needs manual creation)
+  const superEmail = getSuperAdminEmail()?.toLowerCase()
+  if (!superEmail || profile.email.toLowerCase() !== superEmail) {
+    // For non-super-admin, check if registration is allowed
+    // Default: only allow if ADMIN_ALLOW_GOOGLE_REGISTRATION is true
+    const allowRegistration = process.env.ADMIN_ALLOW_GOOGLE_REGISTRATION === 'true'
+    if (!allowRegistration) {
+      throw new Error('ADMIN_NOT_ALLOWED')
+    }
+  }
+
+  // Create new admin
+  admin = await createAdmin({
+    email: profile.email,
+    googleId: profile.googleId,
+    firstName: profile.firstName,
+    lastName: profile.lastName,
+    avatarUrl: profile.avatarUrl
+  })
+
+  return { admin, isNew: true }
+}
+
+/**
+ * Get all admin users
+ */
+export async function getAllAdmins(): Promise<AdminUser[]> {
+  const sql = getSql()
+
+  const admins = await sql`
+    SELECT
+      id,
+      email,
+      password_hash,
+      google_id,
+      first_name,
+      last_name,
+      avatar_url,
+      role,
+      is_active,
+      last_login_at,
+      created_at,
+      updated_at
+    FROM admin_users
+    ORDER BY created_at ASC
+  `
+
+  return admins.map(mapAdminFromDb)
+}
+
+/**
+ * Delete admin user (soft delete - set is_active = false)
+ */
+export async function deactivateAdmin(id: number): Promise<void> {
+  const sql = getSql()
+
+  await sql`
+    UPDATE admin_users
+    SET is_active = false, updated_at = NOW()
+    WHERE id = ${id}
+  `
+}
+
+/**
+ * Map database row to AdminUser
+ */
+function mapAdminFromDb(row: Record<string, unknown>): AdminUser {
   return {
-    authorized,
-    telegramUserId: identifier.telegramUserId
+    id: row.id as number,
+    email: row.email as string,
+    passwordHash: row.password_hash as string | null,
+    googleId: row.google_id as string | null,
+    firstName: row.first_name as string | null,
+    lastName: row.last_name as string | null,
+    avatarUrl: row.avatar_url as string | null,
+    role: row.role as AdminRole,
+    isActive: row.is_active as boolean,
+    lastLoginAt: row.last_login_at ? new Date(row.last_login_at as string) : null,
+    createdAt: new Date(row.created_at as string),
+    updatedAt: new Date(row.updated_at as string)
   }
-}
-
-/**
- * Check if User-Agent indicates Telegram WebView
- * Used to block admin panel access from Telegram app
- *
- * @param userAgent - User-Agent string from request headers
- * @returns true if Telegram WebView detected
- *
- * @example
- * isTelegramWebView('Mozilla/5.0... Telegram/9.0') // true
- * isTelegramWebView('Mozilla/5.0... Chrome/120.0') // false
- */
-export function isTelegramWebView(userAgent: string): boolean {
-  const ua = userAgent.toLowerCase()
-  const isTelegram = ua.includes('telegram')
-
-  if (isTelegram) {
-    console.log('[Admin Auth] Telegram WebView detected, blocking access')
-  }
-
-  return isTelegram
 }

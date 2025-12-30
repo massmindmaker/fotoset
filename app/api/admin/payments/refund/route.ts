@@ -172,17 +172,19 @@ export async function POST(request: NextRequest) {
     `
 
     // Audit log
-    await logAdminAction(
-      'REFUND_CREATED',
-      paymentId,
-      {
+    await logAdminAction({
+      adminId: 0, // Will be filled from session in the future
+      action: 'REFUND_CREATED',
+      targetType: 'payment',
+      targetId: paymentId,
+      metadata: {
         amount: refundAmount,
         reason,
         isPartial: refundAmount < maxRefund,
         tbankStatus: tbankResult.Status,
       },
-      request
-    )
+      ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined
+    })
 
     console.log('[Admin Refund] Success:', {
       paymentId,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { verifyAdminAccess } from "@/lib/admin/auth"
 import { fetchSentryEvents, type SentryFilters } from "@/lib/admin/sentry-api"
+import { getCurrentSession } from "@/lib/admin/session"
 
 /**
  * GET /api/admin/logs
@@ -31,16 +31,10 @@ import { fetchSentryEvents, type SentryFilters } from "@/lib/admin/sentry-api"
 export async function GET(request: NextRequest) {
   try {
     // ========================================================================
-    // 1. AUTHENTICATION CHECK (TEMPORARILY DISABLED FOR TESTING)
+    // 1. AUTHENTICATION CHECK
     // ========================================================================
-    // TODO: Re-enable before production deployment
-    console.log('[API /admin/logs] Admin access granted (auth disabled for testing)')
-
-    /* COMMENTED OUT - Re-enable for production:
-    const { authorized, telegramUserId } = verifyAdminAccess(request)
-
-    if (!authorized) {
-      console.log(`[API /admin/logs] Unauthorized access: ${telegramUserId || 'no user ID'}`)
+    const session = await getCurrentSession()
+    if (!session) {
       return NextResponse.json(
         {
           success: false,
@@ -51,12 +45,11 @@ export async function GET(request: NextRequest) {
             retryable: false,
           },
         },
-        { status: 403 }
+        { status: 401 }
       )
     }
 
-    console.log(`[API /admin/logs] Admin access granted: ${telegramUserId}`)
-    */
+    console.log(`[API /admin/logs] Admin access granted: ${session.email}`)
 
     // ========================================================================
     // 2. PARSE QUERY PARAMETERS

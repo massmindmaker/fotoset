@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { RefreshCw, Loader2, ChevronLeft, ChevronRight, Shield, ShieldOff } from "lucide-react"
+import { RefreshCw, Loader2, ChevronLeft, ChevronRight, Shield, ShieldOff, MoreHorizontal, Eye, Crown, Ban, RefreshCcw } from "lucide-react"
+import { UserDetailsModal } from "./UserDetailsModal"
 
 interface User {
   id: number
@@ -83,6 +84,13 @@ export function UsersView() {
   const [isLoading, setIsLoading] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // User Details Modal state
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // Actions dropdown state
+  const [openDropdown, setOpenDropdown] = useState<number | null>(null)
 
   const fetchUsers = async (showRefreshSpinner = false) => {
     if (showRefreshSpinner) {
@@ -186,12 +194,13 @@ export function UsersView() {
                   <th className="px-4 py-3" title="Сгенерированные фото">Gen ✨</th>
                   <th className="px-4 py-3" title="Статус Telegram">TG 📱</th>
                   <th className="px-4 py-3">Создан</th>
+                  <th className="px-4 py-3 text-right">Действия</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={11} className="px-4 py-8 text-center text-muted-foreground">
                       Пользователи не найдены
                     </td>
                   </tr>
@@ -235,6 +244,63 @@ export function UsersView() {
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         {new Date(user.created_at).toLocaleDateString("ru-RU")}
                       </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="relative inline-block">
+                          <button
+                            onClick={() => setOpenDropdown(openDropdown === user.id ? null : user.id)}
+                            className="p-2 hover:bg-muted rounded-lg transition-colors"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
+                          {openDropdown === user.id && (
+                            <div className="absolute right-0 mt-1 w-48 bg-card border border-border rounded-lg shadow-xl z-10">
+                              <button
+                                onClick={() => {
+                                  setSelectedUserId(user.id)
+                                  setIsModalOpen(true)
+                                  setOpenDropdown(null)
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted transition-colors text-left"
+                              >
+                                <Eye className="w-4 h-4" />
+                                Детали
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  setOpenDropdown(null)
+                                  await fetch(`/api/admin/users/${user.id}/pro`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ isPro: !user.is_pro })
+                                  })
+                                  fetchUsers(true)
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted transition-colors text-left"
+                              >
+                                <Crown className="w-4 h-4" />
+                                {user.is_pro ? 'Отозвать Pro' : 'Дать Pro'}
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  const reason = prompt('Причина бана:')
+                                  if (!reason) return
+                                  setOpenDropdown(null)
+                                  await fetch(`/api/admin/users/${user.id}/ban`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ isBanned: true, reason })
+                                  })
+                                  fetchUsers(true)
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted transition-colors text-left text-destructive"
+                              >
+                                <Ban className="w-4 h-4" />
+                                Забанить
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -268,6 +334,17 @@ export function UsersView() {
           )}
         </>
       )}
+
+      {/* User Details Modal */}
+      <UserDetailsModal
+        userId={selectedUserId}
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false)
+          setSelectedUserId(null)
+        }}
+        onAction={() => fetchUsers(true)}
+      />
     </div>
   )
 }
