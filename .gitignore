@@ -1,6 +1,9 @@
 # Logs
 logs
 *.log
+
+# Exception: Admin logs API route
+!app/api/admin/logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
