@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Create payment via T-Bank API (real API for test terminals too)
+    // CRITICAL: Don't pass email as customerEmail when Receipt.Email is present (causes 501)
     const payment = await initPayment(
       amount, // dynamic amount based on tier
       orderId,
@@ -124,7 +125,7 @@ export async function POST(request: NextRequest) {
       successUrl,
       failUrl,
       notificationUrl,
-      email,
+      undefined, // customerEmail - не нужен, т.к. есть Receipt.Email
       paymentMethod,
       receipt, // Receipt for fiscal check
     )

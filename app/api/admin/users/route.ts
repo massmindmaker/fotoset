@@ -31,14 +31,14 @@ export async function GET(request: NextRequest) {
       SELECT
         u.id,
         u.telegram_user_id,
-        u.is_pro,
         u.created_at,
         u.updated_at,
         u.pending_referral_code,
         u.pending_generation_tier,
         COUNT(DISTINCT a.id) as avatars_count,
         COUNT(DISTINCT p.id) as payments_count,
-        SUM(CASE WHEN p.status = 'succeeded' THEN p.amount ELSE 0 END) as total_spent
+        SUM(CASE WHEN p.status = 'succeeded' THEN p.amount ELSE 0 END) as total_spent,
+        CASE WHEN COUNT(DISTINCT CASE WHEN p.status = 'succeeded' THEN p.id END) > 0 THEN true ELSE false END as is_pro
       FROM users u
       LEFT JOIN avatars a ON a.user_id = u.id
       LEFT JOIN payments p ON p.user_id = u.id

@@ -911,12 +911,7 @@ export default function PersonaApp() {
                 >
                   <Gift className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={toggleTheme}
-                  className="p-2.5 rounded-xl bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-all shadow-md shadow-black/5"
-                >
-                  {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                </button>
+                {/* Theme toggle removed - light theme is default */}
                 {viewState.view === "DASHBOARD" && (
                   <button
                     onClick={handleCreatePersona}
