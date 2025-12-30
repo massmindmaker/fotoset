@@ -55,9 +55,10 @@ export interface SentryResponse {
  * Requires: SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT
  */
 function getSentryConfig() {
-  const authToken = process.env.SENTRY_AUTH_TOKEN
-  const org = process.env.SENTRY_ORG
-  const project = process.env.SENTRY_PROJECT
+  // Try with fotoset_ prefix first (Vercel env vars), then fallback to unprefixed
+  const authToken = process.env.fotoset_SENTRY_AUTH_TOKEN || process.env.SENTRY_AUTH_TOKEN
+  const org = process.env.fotoset_SENTRY_ORG || process.env.SENTRY_ORG
+  const project = process.env.fotoset_SENTRY_PROJECT || process.env.SENTRY_PROJECT
 
   // Валидация длины токена
   if (authToken && authToken.length < 20) {
