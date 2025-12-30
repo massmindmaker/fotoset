@@ -181,16 +181,19 @@ export async function initPayment(
 
     if (!data.Success) {
       // Enhanced error logging with full request/response context
+      const receiptData = requestBody.Receipt as Receipt | undefined
+      const dataField = requestBody.DATA as { Email?: string } | undefined
+
       log.error("Payment init failed - Full diagnostic", {
         errorCode: data.ErrorCode,
         message: data.Message,
         terminalKey: TBANK_TERMINAL_KEY?.substring(0, 8) + "...",
         hasReceipt: !!requestBody.Receipt,
         hasDATA: !!requestBody.DATA,
-        receiptEmail: requestBody.Receipt?.Email ? "present" : "missing",
-        dataEmail: requestBody.DATA?.Email ? "present" : "missing",
+        receiptEmail: receiptData?.Email ? "present" : "missing",
+        dataEmail: dataField?.Email ? "present" : "missing",
         amountInRequest: requestBody.Amount,
-        receiptAmount: requestBody.Receipt?.Items?.[0]?.Amount,
+        receiptAmount: receiptData?.Items?.[0]?.Amount,
       })
       throw new Error(`T-Bank error ${data.ErrorCode}: ${data.Message || "Unknown error"}`)
     }
