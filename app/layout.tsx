@@ -29,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ru" className={fontVariables}>
+    <html lang="ru" className={fontVariables} suppressHydrationWarning>
       <head>
         <script src="https://telegram.org/js/telegram-web-app.js" />
       </head>
