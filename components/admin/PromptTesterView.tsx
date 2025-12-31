@@ -99,12 +99,12 @@ export function PromptTesterView() {
       {isReady && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-foreground">
+            <h3 className="text-sm font-semibold text-slate-800">
               Тестовые блоки
             </h3>
             <button
               onClick={addTestBlock}
-              className="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+              className="px-3 py-1.5 bg-pink-50 hover:bg-pink-100 text-pink-600 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
             >
               <Plus className="w-4 h-4" />
               Добавить блок
@@ -126,15 +126,15 @@ export function PromptTesterView() {
 
       {/* Placeholder when no images */}
       {!isReady && referenceImages.length === 0 && (
-        <div className="glass rounded-2xl p-12 text-center border border-border">
+        <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 shadow-sm">
           <div className="max-w-md mx-auto">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Plus className="w-8 h-8 text-primary" />
+            <div className="w-16 h-16 rounded-2xl bg-pink-50 flex items-center justify-center mx-auto mb-4">
+              <Plus className="w-8 h-8 text-pink-600" />
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">
+            <h3 className="text-lg font-semibold text-slate-800 mb-2">
               Начните с загрузки изображений
             </h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-slate-500">
               Загрузите 5-10 референсных фото, чтобы начать тестирование промптов через KIE AI
             </p>
           </div>
@@ -143,8 +143,8 @@ export function PromptTesterView() {
 
       {/* Instruction when images uploaded but < 5 */}
       {!isReady && referenceImages.length > 0 && (
-        <div className="glass rounded-xl p-4 border border-primary/20 bg-primary/5">
-          <p className="text-sm text-foreground text-center">
+        <div className="bg-pink-50 rounded-xl p-4 border border-pink-200">
+          <p className="text-sm text-slate-700 text-center">
             📸 Загрузите ещё {5 - referenceImages.length} фото, чтобы начать тестирование
           </p>
         </div>

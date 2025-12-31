@@ -107,7 +107,7 @@ export function TestBlock({
   const avgLatency = block.results ? totalLatency / block.results.length : 0
 
   return (
-    <div className="glass rounded-2xl p-6 border border-border relative">
+    <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative">
       {/* Remove button */}
       {!isOnlyBlock && (
         <button
@@ -122,7 +122,7 @@ export function TestBlock({
       <div className="space-y-4">
         {/* Prompt input */}
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
+          <label className="block text-sm font-medium text-slate-700 mb-2">
             Промпт
           </label>
           <textarea
@@ -130,14 +130,14 @@ export function TestBlock({
             onChange={handlePromptChange}
             disabled={block.status === "generating"}
             rows={4}
-            className="w-full px-3 py-2 rounded-lg bg-card border border-border text-foreground text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 text-sm placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500 focus:border-transparent resize-none disabled:opacity-50 disabled:cursor-not-allowed"
             placeholder="Например: Portrait of a person in natural lighting, professional photography"
           />
         </div>
 
         {/* Photo count selector */}
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
+          <label className="block text-sm font-medium text-slate-700 mb-2">
             Количество фото
           </label>
           <div className="flex gap-2">
@@ -149,8 +149,8 @@ export function TestBlock({
                 className={
                   "flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed " +
                   (block.photoCount === count
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted hover:bg-muted/80 text-foreground")
+                    ? "bg-pink-600 text-white"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-700")
                 }
               >
                 {count}
@@ -206,10 +206,10 @@ export function TestBlock({
         {block.status === "completed" && block.results && block.results.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-foreground">
+              <p className="text-sm font-medium text-slate-800">
                 Результаты ({block.results.length} фото)
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-slate-500">
                 ⏱️ Среднее время: {(avgLatency / 1000).toFixed(1)}s
               </p>
             </div>
@@ -217,7 +217,7 @@ export function TestBlock({
               {block.results.map((result, index) => (
                 <div
                   key={index}
-                  className="aspect-[3/4] rounded-lg bg-muted overflow-hidden relative group hover-scale"
+                  className="aspect-[3/4] rounded-lg bg-slate-100 overflow-hidden relative group hover-scale"
                 >
                   <img
                     src={result.imageUrl}

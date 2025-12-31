@@ -97,16 +97,16 @@ export function ReferenceUploader({
       {/* Header with progress */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">
+          <h3 className="text-sm font-semibold text-slate-800">
             Референсные изображения
           </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5">
             Загрузите {minPhotos}-{maxPhotos} фото для генерации
           </p>
         </div>
         <div className="flex items-center gap-2">
           <div
-            className="w-24 h-1.5 bg-muted rounded-full overflow-hidden"
+            className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden"
             role="progressbar"
             aria-valuenow={images.length}
             aria-valuemin={0}
@@ -115,7 +115,7 @@ export function ReferenceUploader({
             <div
               className={
                 "h-full transition-all duration-500 " +
-                (isReady ? "bg-green-500" : "bg-primary")
+                (isReady ? "bg-green-500" : "bg-pink-500")
               }
               style={{ width: `${progress}%` }}
             />
@@ -123,7 +123,7 @@ export function ReferenceUploader({
           <span
             className={
               "text-xs font-medium " +
-              (isReady ? "text-green-600" : "text-muted-foreground")
+              (isReady ? "text-green-600" : "text-slate-500")
             }
           >
             {images.length}/{maxPhotos}
@@ -132,16 +132,16 @@ export function ReferenceUploader({
       </div>
 
       {/* Tips */}
-      <div className="p-3 glass rounded-xl border border-border">
+      <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
         <div className="flex gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <ImageIcon className="w-4 h-4 text-primary" aria-hidden="true" />
+          <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center shrink-0">
+            <ImageIcon className="w-4 h-4 text-pink-600" aria-hidden="true" />
           </div>
           <div>
-            <p className="text-xs font-medium text-foreground mb-1">
+            <p className="text-xs font-medium text-slate-800 mb-1">
               Советы для лучшего результата
             </p>
-            <ul className="text-xs text-muted-foreground space-y-0.5">
+            <ul className="text-xs text-slate-500 space-y-0.5">
               <li>• Хорошее освещение лица</li>
               <li>• Разные ракурсы и выражения</li>
               <li>• Без солнечных очков и головных уборов</li>
@@ -157,11 +157,11 @@ export function ReferenceUploader({
         {!isFull && (
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 active:border-primary/60 hover:bg-muted/50 active:bg-muted/70 transition-all flex flex-col items-center justify-center gap-1.5 group touch-manipulation min-h-[100px] hover-lift active-press"
+            className="aspect-square rounded-xl border-2 border-dashed border-slate-300 hover:border-pink-400 active:border-pink-500 hover:bg-slate-50 active:bg-slate-100 transition-all flex flex-col items-center justify-center gap-1.5 group touch-manipulation min-h-[100px] hover-lift active-press"
             aria-label="Добавить фото"
           >
-            <Plus className="w-6 h-6 text-muted-foreground group-hover:text-primary" />
-            <span className="text-xs text-muted-foreground font-medium">
+            <Plus className="w-6 h-6 text-slate-400 group-hover:text-pink-600" />
+            <span className="text-xs text-slate-500 font-medium">
               Добавить
             </span>
           </button>
@@ -181,7 +181,7 @@ export function ReferenceUploader({
         {images.map((img) => (
           <div
             key={img.id}
-            className="aspect-square rounded-xl bg-muted overflow-hidden relative group min-h-[100px] hover-scale transition-all"
+            className="aspect-square rounded-xl bg-slate-100 overflow-hidden relative group min-h-[100px] hover-scale transition-all"
           >
             <img
               src={img.previewUrl}
@@ -202,7 +202,7 @@ export function ReferenceUploader({
 
       {/* Status message */}
       {!isReady && images.length > 0 && (
-        <p className="text-xs text-center text-muted-foreground">
+        <p className="text-xs text-center text-slate-500">
           Нужно ещё {minPhotos - images.length} фото для начала тестирования
         </p>
       )}
