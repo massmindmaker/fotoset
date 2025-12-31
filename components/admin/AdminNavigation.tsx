@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Activity, Sparkles, Users, DollarSign, Settings, Zap, Gift, MessageSquare, Percent, Menu, X } from "lucide-react"
+import { LayoutDashboard, Activity, Sparkles, Users, DollarSign, Settings, Zap, Gift, MessageSquare, Menu, X } from "lucide-react"
 
 /**
  * Admin Panel Navigation with Active State
@@ -55,11 +55,6 @@ export function AdminNavigation() {
       href: "/admin/telegram",
       icon: <MessageSquare className="w-4 h-4" />,
       label: "Telegram",
-    },
-    {
-      href: "/admin/discounts",
-      icon: <Percent className="w-4 h-4" />,
-      label: "Discounts",
     },
     {
       href: "/admin/settings",

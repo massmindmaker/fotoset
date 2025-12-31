@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
+import { getCurrentMode } from "@/lib/admin/mode"
 
 /**
  * GET /api/admin/payments
@@ -79,6 +80,12 @@ export async function GET(request: NextRequest) {
       conditions.push(`p.tier_id = $${params.length + 1}`)
       params.push(tierId)
     }
+
+    // Filter by current mode (test vs production)
+    const mode = await getCurrentMode()
+    const isTestMode = mode === 'test'
+    conditions.push(`COALESCE(p.is_test_mode, false) = $${params.length + 1}`)
+    params.push(isTestMode)
 
     const whereClause = conditions.length > 0
       ? `WHERE ${conditions.join(' AND ')}`

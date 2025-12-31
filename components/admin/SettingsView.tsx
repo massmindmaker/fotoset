@@ -9,6 +9,7 @@ interface PricingTier {
   photoCount: number
   isActive: boolean
   isPopular?: boolean
+  discount?: number
 }
 
 interface PricingTiers {
@@ -18,9 +19,9 @@ interface PricingTiers {
 }
 
 const DEFAULT_PRICING: PricingTiers = {
-  starter: { name: 'Starter', price: 499, photoCount: 7, isActive: true },
-  standard: { name: 'Standard', price: 999, photoCount: 15, isActive: true, isPopular: true },
-  premium: { name: 'Premium', price: 1499, photoCount: 23, isActive: true }
+  starter: { name: 'Starter', price: 499, photoCount: 7, isActive: true, discount: 0 },
+  standard: { name: 'Standard', price: 999, photoCount: 15, isActive: true, isPopular: true, discount: 0 },
+  premium: { name: 'Premium', price: 1499, photoCount: 23, isActive: true, discount: 0 }
 }
 
 interface TBankSettings {
@@ -335,6 +336,36 @@ export function SettingsView() {
                     </div>
                   </div>
 
+                  {/* Discount */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Скидка (%)</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={tier.discount || 0}
+                        onChange={e => updateTier(tierId, 'discount', Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 text-slate-800 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 focus:bg-white"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+                    </div>
+                    {/* Discounted Price Preview */}
+                    {(tier.discount || 0) > 0 && (
+                      <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+                        <p className="text-sm text-emerald-700">
+                          <span className="font-medium">Итого: </span>
+                          <span className="font-bold text-emerald-800">
+                            {Math.round(tier.price * (1 - (tier.discount || 0) / 100))} ₽
+                          </span>
+                          <span className="ml-2 text-slate-400 line-through text-xs">
+                            {tier.price} ₽
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Photo Count */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">Количество фото</label>
@@ -386,6 +417,10 @@ export function SettingsView() {
               const tier = pricing[tierId]
               if (!tier.isActive) return null
 
+              const discountedPrice = (tier.discount || 0) > 0
+                ? Math.round(tier.price * (1 - (tier.discount || 0) / 100))
+                : tier.price
+
               return (
                 <div
                   key={tierId}
@@ -394,8 +429,18 @@ export function SettingsView() {
                   }`}
                 >
                   <p className="text-xs text-slate-500 mb-1">{tier.name}</p>
-                  <p className="text-2xl font-bold text-slate-900">{tier.price} ₽</p>
-                  <p className="text-sm text-slate-600">{tier.photoCount} фото</p>
+                  {(tier.discount || 0) > 0 ? (
+                    <div>
+                      <p className="text-2xl font-bold text-emerald-600">{discountedPrice} ₽</p>
+                      <p className="text-sm text-slate-400 line-through">{tier.price} ₽</p>
+                      <span className="inline-block mt-1 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                        -{tier.discount}%
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-2xl font-bold text-slate-900">{tier.price} ₽</p>
+                  )}
+                  <p className="text-sm text-slate-600 mt-1">{tier.photoCount} фото</p>
                   {tier.isPopular && (
                     <span className="inline-block mt-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
                       Популярный

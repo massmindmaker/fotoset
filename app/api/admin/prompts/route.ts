@@ -22,29 +22,26 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const styleId = searchParams.get('style_id')
-    const favorite = searchParams.get('favorite')
+    const favorite = searchParams.get('favorite') === 'true'
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10))
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)))
     const offset = (page - 1) * limit
 
     const sql = getSql()
 
-    // Build filters
-    let whereClause = 'WHERE 1=1'
-    if (styleId) {
-      whereClause += ` AND style_id = '${styleId}'`
-    }
-    if (favorite === 'true') {
-      whereClause += ' AND is_favorite = true'
-    }
+    // FIXED: Use Neon template literals with conditional fragments (secure parameterization)
+    // Build optional WHERE conditions
+    const styleCondition = styleId ? sql`AND sp.style_id = ${styleId}` : sql``
+    const favoriteCondition = favorite ? sql`AND sp.is_favorite = true` : sql``
 
-    // Get total count
+    // Get total count WITH FILTERS
     const countResult = await sql`
-      SELECT COUNT(*) as total FROM saved_prompts
+      SELECT COUNT(*) as total FROM saved_prompts sp
+      WHERE 1=1 ${styleCondition} ${favoriteCondition}
     `
     const total = parseInt(countResult[0]?.total || '0', 10)
 
-    // Get prompts
+    // Get prompts WITH FILTERS
     const prompts = await sql`
       SELECT
         sp.id,
@@ -61,6 +58,7 @@ export async function GET(request: NextRequest) {
         au.email as admin_email
       FROM saved_prompts sp
       LEFT JOIN admin_users au ON au.id = sp.admin_id
+      WHERE 1=1 ${styleCondition} ${favoriteCondition}
       ORDER BY sp.is_favorite DESC, sp.created_at DESC
       LIMIT ${limit}
       OFFSET ${offset}

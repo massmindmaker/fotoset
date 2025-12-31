@@ -4,8 +4,8 @@ import { initPayment, IS_TEST_MODE, HAS_CREDENTIALS, type PaymentMethod, type Re
 import { findOrCreateUser } from "@/lib/user-identity"
 import { paymentLogger as log } from "@/lib/logger"
 
-// Pricing tiers matching frontend (components/views/dashboard-view.tsx)
-const TIER_PRICES: Record<string, { price: number; photos: number }> = {
+// Default pricing tiers (fallback if admin settings not configured)
+const DEFAULT_TIER_PRICES: Record<string, { price: number; photos: number; discount?: number }> = {
   starter: { price: 499, photos: 7 },
   standard: { price: 999, photos: 15 },
   premium: { price: 1499, photos: 23 },
@@ -57,14 +57,47 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Fetch dynamic pricing from admin settings
+    let TIER_PRICES = DEFAULT_TIER_PRICES
+    try {
+      const pricingResult = await sql<{ value: any }>`
+        SELECT value FROM admin_settings WHERE key = 'pricing_tiers'
+      `
+      if (pricingResult.length > 0 && pricingResult[0].value) {
+        const storedPricing = pricingResult[0].value
+        // Merge with defaults (in case admin didn't configure all tiers)
+        TIER_PRICES = { ...DEFAULT_TIER_PRICES, ...storedPricing }
+        log.debug("Using dynamic pricing from admin settings:", TIER_PRICES)
+      } else {
+        log.debug("No admin pricing found, using defaults:", DEFAULT_TIER_PRICES)
+      }
+    } catch (error) {
+      log.warn("Failed to fetch admin pricing, using defaults:", error)
+    }
+
     // Validate and get tier pricing
-    const tier = TIER_PRICES[tierId || 'premium']
-    if (!tier) {
+    const tierConfig = TIER_PRICES[tierId || 'premium']
+    if (!tierConfig) {
       return NextResponse.json({
         error: "Invalid tier. Use: starter, standard, or premium"
       }, { status: 400 })
     }
-    const amount = tier.price
+
+    // Apply discount if configured
+    const basePrice = tierConfig.price
+    const discount = tierConfig.discount || 0
+    const amount = discount > 0
+      ? Math.round(basePrice * (1 - discount / 100))
+      : basePrice
+    const tier = { price: amount, photos: tierConfig.photos }
+
+    log.debug("Calculated pricing:", {
+      tierId: tierId || 'premium',
+      basePrice,
+      discount,
+      finalPrice: amount,
+      photos: tier.photos,
+    })
 
     // Определяем return URLs
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.headers.get("origin") || "http://localhost:3000"
@@ -133,8 +166,8 @@ export async function POST(request: NextRequest) {
     // Save payment to DB for callback lookup
     // NOTE: Using tbank_payment_id column for backward compatibility (stores T-Bank payment ID)
     await sql`
-      INSERT INTO payments (user_id, tbank_payment_id, amount, status)
-      VALUES (${user.id}, ${payment.PaymentId}, ${amount}, 'pending')
+      INSERT INTO payments (user_id, tbank_payment_id, amount, status, is_test_mode)
+      VALUES (${user.id}, ${payment.PaymentId}, ${amount}, 'pending', ${IS_TEST_MODE})
     `
 
     // CRITICAL: Save pending generation params to user record

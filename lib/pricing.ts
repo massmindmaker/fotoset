@@ -6,10 +6,19 @@
 export interface PricingTier {
   id: string
   name: string
-  price: number
+  price: number           // Original price in RUB
   photoCount: number
+  discount?: number       // 0-100 percentage discount
   isActive: boolean
   isPopular?: boolean
+}
+
+/**
+ * Calculate discounted price
+ */
+export function getDiscountedPrice(tier: PricingTier): number {
+  if (!tier.discount || tier.discount <= 0) return tier.price
+  return Math.round(tier.price * (1 - tier.discount / 100))
 }
 
 export interface PricingTiers {
@@ -25,6 +34,7 @@ export const DEFAULT_PRICING: PricingTiers = {
     name: 'Starter',
     price: 499,
     photoCount: 7,
+    discount: 0,
     isActive: true
   },
   standard: {
@@ -32,6 +42,7 @@ export const DEFAULT_PRICING: PricingTiers = {
     name: 'Standard',
     price: 999,
     photoCount: 15,
+    discount: 0,
     isActive: true,
     isPopular: true
   },
@@ -40,6 +51,7 @@ export const DEFAULT_PRICING: PricingTiers = {
     name: 'Premium',
     price: 1499,
     photoCount: 23,
+    discount: 0,
     isActive: true
   }
 }

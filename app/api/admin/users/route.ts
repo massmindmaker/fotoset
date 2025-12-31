@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN generated_photos gp ON gp.avatar_id = a.id
       LEFT JOIN telegram_message_queue tmq ON tmq.telegram_chat_id = u.telegram_user_id
       WHERE 1=1 ${searchCondition}
-      GROUP BY u.id, u.telegram_username
+      GROUP BY u.id, u.telegram_user_id, u.telegram_username, u.created_at, u.updated_at, u.pending_referral_code, u.pending_generation_tier
       ORDER BY u.created_at DESC
       LIMIT ${limit}
       OFFSET ${offset}

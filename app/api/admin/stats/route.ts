@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { getCurrentSession } from '@/lib/admin/session'
+import { getCurrentMode } from '@/lib/admin/mode'
 
 function getSql() {
   const url = process.env.DATABASE_URL
@@ -21,6 +22,10 @@ export async function GET() {
     }
 
     const sql = getSql()
+
+    // Get current mode for filtering
+    const mode = await getCurrentMode()
+    const isTestMode = mode === 'test'
 
     // Run all queries in parallel
     const [
@@ -40,32 +45,34 @@ export async function GET() {
       // Total users
       sql`SELECT COUNT(*) as count FROM users`,
 
-      // Pro users (unique with succeeded payment)
-      sql`SELECT COUNT(DISTINCT user_id) as count FROM payments WHERE status = 'succeeded'`,
+      // Pro users (unique with succeeded payment, filtered by mode)
+      sql`SELECT COUNT(DISTINCT user_id) as count FROM payments WHERE status = 'succeeded' AND COALESCE(is_test_mode, false) = ${isTestMode}`,
 
-      // Revenue MTD
+      // Revenue MTD (filtered by mode)
       sql`
         SELECT COALESCE(SUM(amount), 0) as total
         FROM payments
         WHERE status = 'succeeded'
+        AND COALESCE(is_test_mode, false) = ${isTestMode}
         AND created_at >= DATE_TRUNC('month', NOW())
       `,
 
-      // Revenue today
+      // Revenue today (filtered by mode)
       sql`
         SELECT COALESCE(SUM(amount), 0) as total
         FROM payments
         WHERE status = 'succeeded'
+        AND COALESCE(is_test_mode, false) = ${isTestMode}
         AND created_at >= DATE_TRUNC('day', NOW())
       `,
 
-      // Total completed generations
-      sql`SELECT COUNT(*) as count FROM generation_jobs WHERE status = 'completed'`,
+      // Total completed generations (filtered by mode)
+      sql`SELECT COUNT(*) as count FROM generation_jobs WHERE status = 'completed' AND COALESCE(is_test_mode, false) = ${isTestMode}`,
 
-      // Pending generations
-      sql`SELECT COUNT(*) as count FROM generation_jobs WHERE status IN ('pending', 'processing')`,
+      // Pending generations (filtered by mode)
+      sql`SELECT COUNT(*) as count FROM generation_jobs WHERE status IN ('pending', 'processing') AND COALESCE(is_test_mode, false) = ${isTestMode}`,
 
-      // Tier distribution (tier_id column, not tier)
+      // Tier distribution (tier_id column, filtered by mode)
       sql`
         SELECT
           tier_id as tier,
@@ -73,10 +80,11 @@ export async function GET() {
           SUM(amount) as revenue
         FROM payments
         WHERE status = 'succeeded'
+        AND COALESCE(is_test_mode, false) = ${isTestMode}
         GROUP BY tier_id
       `,
 
-      // Revenue by day (last 30 days)
+      // Revenue by day (last 30 days, filtered by mode)
       sql`
         SELECT
           DATE(created_at) as date,
@@ -84,6 +92,7 @@ export async function GET() {
           COUNT(*) as transactions
         FROM payments
         WHERE status = 'succeeded'
+        AND COALESCE(is_test_mode, false) = ${isTestMode}
         AND created_at >= NOW() - INTERVAL '30 days'
         GROUP BY DATE(created_at)
         ORDER BY date ASC
@@ -100,7 +109,7 @@ export async function GET() {
         ORDER BY date ASC
       `,
 
-      // Recent payments (last 10)
+      // Recent payments (last 10, filtered by mode)
       sql`
         SELECT
           p.id,
@@ -111,6 +120,7 @@ export async function GET() {
           u.telegram_user_id
         FROM payments p
         LEFT JOIN users u ON u.id = p.user_id
+        WHERE COALESCE(p.is_test_mode, false) = ${isTestMode}
         ORDER BY p.created_at DESC
         LIMIT 10
       `,
@@ -126,7 +136,7 @@ export async function GET() {
         LIMIT 10
       `,
 
-      // Recent generations (last 10)
+      // Recent generations (last 10, filtered by mode)
       sql`
         SELECT
           gj.id,
@@ -139,6 +149,7 @@ export async function GET() {
         FROM generation_jobs gj
         LEFT JOIN avatars a ON a.id = gj.avatar_id
         LEFT JOIN users u ON u.id = a.user_id
+        WHERE COALESCE(gj.is_test_mode, false) = ${isTestMode}
         ORDER BY gj.created_at DESC
         LIMIT 10
       `

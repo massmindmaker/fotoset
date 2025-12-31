@@ -4,6 +4,7 @@ import { Shield } from "lucide-react"
 import { AdminNavigation } from "@/components/admin/AdminNavigation"
 import { AdminClientProviders } from "@/components/admin/AdminClientProviders"
 import { AdminHeaderActions } from "@/components/admin/AdminHeaderActions"
+import { AdminModeIndicator } from "@/components/admin/AdminModeIndicator"
 import { getCurrentSession } from "@/lib/admin/session"
 import { getRoleDisplayName } from "@/lib/admin/permissions"
 
@@ -41,9 +42,12 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
                 <Shield className="w-5 h-5 text-pink-600" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-slate-800">
-                  PinGlass Admin Panel
-                </h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg font-semibold text-slate-800">
+                    PinGlass Admin Panel
+                  </h1>
+                  <AdminModeIndicator />
+                </div>
                 <p className="text-xs text-slate-500">
                   Управление и мониторинг
                 </p>

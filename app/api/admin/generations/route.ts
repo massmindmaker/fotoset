@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { getCurrentSession } from '@/lib/admin/session'
+import { getCurrentMode } from '@/lib/admin/mode'
 import type { AdminGenerationJob, GenerationStats } from '@/lib/admin/types'
 
 function getSql() {
@@ -40,6 +41,10 @@ export async function GET(request: NextRequest) {
     const userIdFilter = userId ? parseInt(userId, 10) : null
     const avatarIdFilter = avatarId ? parseInt(avatarId, 10) : null
 
+    // Get current mode (test vs production)
+    const mode = await getCurrentMode()
+    const isTestMode = mode === 'test'
+
     // Get total count with filters
     const [countResult] = await sql`
       SELECT COUNT(*) as count
@@ -47,7 +52,8 @@ export async function GET(request: NextRequest) {
       LEFT JOIN avatars a ON a.id = gj.avatar_id
       LEFT JOIN users u ON u.id = a.user_id
       WHERE
-        (${statusFilter}::text IS NULL OR gj.status = ${statusFilter})
+        COALESCE(gj.is_test_mode, false) = ${isTestMode}
+        AND (${statusFilter}::text IS NULL OR gj.status = ${statusFilter})
         AND (${dateFromFilter}::date IS NULL OR gj.created_at >= ${dateFromFilter}::date)
         AND (${dateToFilter}::date IS NULL OR gj.created_at <= ${dateToFilter}::date + interval '1 day')
         AND (${userIdFilter}::int IS NULL OR u.id = ${userIdFilter})
@@ -84,7 +90,8 @@ export async function GET(request: NextRequest) {
       LEFT JOIN avatars a ON a.id = gj.avatar_id
       LEFT JOIN users u ON u.id = a.user_id
       WHERE
-        (${statusFilter}::text IS NULL OR gj.status = ${statusFilter})
+        COALESCE(gj.is_test_mode, false) = ${isTestMode}
+        AND (${statusFilter}::text IS NULL OR gj.status = ${statusFilter})
         AND (${dateFromFilter}::date IS NULL OR gj.created_at >= ${dateFromFilter}::date)
         AND (${dateToFilter}::date IS NULL OR gj.created_at <= ${dateToFilter}::date + interval '1 day')
         AND (${userIdFilter}::int IS NULL OR u.id = ${userIdFilter})
@@ -93,7 +100,7 @@ export async function GET(request: NextRequest) {
       LIMIT ${limit} OFFSET ${offset}
     `
 
-    // Get stats
+    // Get stats (filtered by mode)
     const [statsResult] = await sql`
       SELECT
         COUNT(*) as total_jobs,
@@ -110,6 +117,7 @@ export async function GET(request: NextRequest) {
           END
         ) as avg_completion_time
       FROM generation_jobs
+      WHERE COALESCE(is_test_mode, false) = ${isTestMode}
     `
 
     const totalJobs = parseInt(String(statsResult?.total_jobs || 0), 10)
