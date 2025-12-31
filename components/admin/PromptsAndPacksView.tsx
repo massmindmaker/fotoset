@@ -247,6 +247,29 @@ function SavedPromptsTab() {
     navigator.clipboard.writeText(text)
   }
 
+  const [isImporting, setIsImporting] = useState(false)
+
+  const importDreamPack = async () => {
+    if (!confirm('Импортировать DREAM PACK (17 промптов)?')) return
+
+    setIsImporting(true)
+    try {
+      const response = await fetch('/api/admin/packs/dreampack/import', {
+        method: 'POST'
+      })
+
+      if (!response.ok) throw new Error('Import failed')
+
+      const data = await response.json()
+      alert(`Импортировано: ${data.imported}, пропущено: ${data.skipped}`)
+      fetchPrompts(1)
+    } catch (err) {
+      alert('Ошибка импорта: ' + (err instanceof Error ? err.message : 'Unknown'))
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -255,6 +278,14 @@ function SavedPromptsTab() {
           Сохранённые промпты ({pagination.total})
         </h3>
         <div className="flex gap-2">
+          <button
+            onClick={importDreamPack}
+            disabled={isImporting}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50"
+          >
+            {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
+            DREAM PACK
+          </button>
           <button
             onClick={() => fetchPrompts(pagination.page)}
             disabled={isLoading}
