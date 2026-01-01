@@ -260,7 +260,11 @@ export default function PersonaApp() {
               } else {
                 console.error("[Init] Generation failed:", genData.error)
                 setIsGenerating(false)
-                showMessage("Ошибка запуска генерации: " + (genData.error || "Попробуйте позже"))
+                // Extract error message properly - genData.error can be string or object
+                const errorMsg = typeof genData.error === 'string'
+                  ? genData.error
+                  : (genData.error?.message || genData.error?.userMessage || "Попробуйте позже")
+                showMessage("Ошибка запуска генерации: " + errorMsg)
               }
 
               return // Exit early - generation started
@@ -510,13 +514,13 @@ export default function PersonaApp() {
     const currentTelegramUserId = telegramUserId // Capture for async closure
 
     const performDelete = async () => {
-      const success = await deletePersona(id, currentTelegramUserId)
-      if (success) {
+      const result = await deletePersona(id, currentTelegramUserId)
+      if (result.success) {
         if ("personaId" in viewState && viewState.personaId === id) {
           setViewState({ view: "DASHBOARD" })
         }
       } else {
-        showMessage("Не удалось удалить аватар")
+        showMessage(result.error || "Не удалось удалить аватар")
       }
     }
 

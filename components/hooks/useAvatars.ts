@@ -85,11 +85,12 @@ export function useAvatars() {
   }, [])
 
   // Delete persona - calls API and removes from state
-  const deletePersona = useCallback(async (id: string, telegramUserId?: number): Promise<boolean> => {
+  // Returns { success: boolean, error?: string } for proper error handling
+  const deletePersona = useCallback(async (id: string, telegramUserId?: number): Promise<{ success: boolean; error?: string }> => {
     // Skip API for temp IDs (not yet saved to DB)
     if (id.startsWith("temp_")) {
       setPersonas((prev) => prev.filter((p) => p.id !== id))
-      return true
+      return { success: true }
     }
 
     try {
@@ -100,15 +101,25 @@ export function useAvatars() {
       const res = await fetch(url, { method: "DELETE" })
 
       if (!res.ok) {
-        console.error("[Avatars] Delete failed:", res.status)
-        return false
+        // Try to extract error message from response
+        let errorMsg = "Ошибка удаления"
+        try {
+          const data = await res.json()
+          errorMsg = data.error?.message || data.error?.userMessage || data.message || errorMsg
+        } catch {
+          // Response not JSON, use status text
+          errorMsg = res.status === 403 ? "Нет доступа к этому аватару" : `Ошибка ${res.status}`
+        }
+        console.error("[Avatars] Delete failed:", res.status, errorMsg)
+        return { success: false, error: errorMsg }
       }
 
       setPersonas((prev) => prev.filter((p) => p.id !== id))
-      return true
+      return { success: true }
     } catch (err) {
-      console.error("[Avatars] Delete error:", err)
-      return false
+      const errorMsg = err instanceof Error ? err.message : "Ошибка сети"
+      console.error("[Avatars] Delete error:", errorMsg)
+      return { success: false, error: errorMsg }
     }
   }, [])
 
