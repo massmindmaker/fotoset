@@ -37,7 +37,6 @@ export async function GET(
       SELECT
         id,
         telegram_user_id,
-        telegram_username,
         is_pro,
         referral_code,
         referred_by,

@@ -67,6 +67,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Insert new prompt
+      // Convert tags array to PostgreSQL array format
+      const tagsArray = prompt.tags && prompt.tags.length > 0 ? prompt.tags : null
       const [savedPrompt] = await sql`
         INSERT INTO saved_prompts (
           admin_id,
@@ -84,7 +86,7 @@ export async function POST(request: NextRequest) {
           ${prompt.negativePrompt || null},
           ${'dreampack'},
           ${false},
-          ${JSON.stringify(prompt.tags)}
+          ${tagsArray}
         )
         RETURNING id
       `
