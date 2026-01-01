@@ -12,7 +12,7 @@ import { getErrorMessage } from "@/lib/error-utils"
 import { PRICING_TIERS } from "./views/dashboard-view"
 
 // Import custom hooks
-import { useAuth, useAvatars, useGeneration, usePayment, usePolling, useSync } from "./hooks"
+import { useAuth, useAvatars, useGeneration, usePayment, usePolling, useSync, usePricing } from "./hooks"
 import { useNetworkStatus } from "@/lib/network-status"
 
 // Import error handling components
@@ -66,6 +66,7 @@ export default function PersonaApp() {
   const { personas, setPersonas, loadAvatarsFromServer, createPersona, updatePersona, deletePersona, getPersona } = useAvatars()
   const { isGenerating, setIsGenerating, generationProgress, setGenerationProgress, fileToBase64 } = useGeneration()
   const { isPaymentOpen, setIsPaymentOpen, selectedTier, setSelectedTier } = usePayment()
+  const { tiers: dynamicPricingTiers } = usePricing()
   const { startPolling, stopPolling } = usePolling()
   const { isSyncing, setIsSyncing, syncPersonaToServer } = useSync()
   const { isOnline } = useNetworkStatus()
@@ -935,6 +936,7 @@ export default function PersonaApp() {
                 onCreate={handleCreatePersona}
                 onSelect={handleSelectAvatar}
                 onDelete={handleDeletePersona}
+                pricingTiers={dynamicPricingTiers}
               />
             )}
             {viewState.view === "CREATE_PERSONA_UPLOAD" && (
@@ -964,8 +966,9 @@ export default function PersonaApp() {
                     setSelectedTier(t)
                     setIsPaymentOpen(true)
                   }}
-                  selectedTier={selectedTier || PRICING_TIERS[1]}
+                  selectedTier={selectedTier || dynamicPricingTiers[1] || PRICING_TIERS[1]}
                   onSelectTier={setSelectedTier}
+                  pricingTiers={dynamicPricingTiers.length > 0 ? dynamicPricingTiers : PRICING_TIERS}
                 />
               ) : (
                 <div className="flex items-center justify-center py-12">

@@ -71,13 +71,14 @@ export async function GET(request: NextRequest) {
     `
     const total = parseInt(countResult[0].total)
 
-    // Get payments with user info
+    // Get payments with user info and telegram delivery stats
     const payments = await sql`
       SELECT
         p.id,
         p.tbank_payment_id,
         p.user_id,
         u.telegram_user_id,
+        u.telegram_username,
         p.amount,
         p.currency,
         p.status,
@@ -88,9 +89,26 @@ export async function GET(request: NextRequest) {
         p.refund_reason,
         p.refund_at,
         p.created_at,
-        p.updated_at
+        p.updated_at,
+        -- Count photos sent to Telegram for this payment's generation job
+        COALESCE(tg_stats.tg_sent_count, 0) as tg_sent_count,
+        COALESCE(tg_stats.gen_photos_count, 0) as gen_photos_count
       FROM payments p
       LEFT JOIN users u ON u.id = p.user_id
+      LEFT JOIN LATERAL (
+        -- Get telegram delivery stats for generation jobs linked to this payment
+        SELECT
+          COUNT(CASE WHEN tq.status = 'sent' AND tq.message_type = 'photo' THEN 1 END)::int as tg_sent_count,
+          (SELECT COUNT(*) FROM generated_photos gp2
+           JOIN avatars a2 ON a2.id = gp2.avatar_id
+           WHERE a2.user_id = p.user_id
+           AND gp2.created_at >= p.created_at
+           AND gp2.created_at <= p.created_at + interval '1 day')::int as gen_photos_count
+        FROM telegram_queue tq
+        WHERE tq.user_id = p.user_id
+          AND tq.created_at >= p.created_at
+          AND tq.created_at <= p.created_at + interval '1 day'
+      ) tg_stats ON true
       WHERE 1=1
         ${statusCondition}
         ${dateFromCondition}

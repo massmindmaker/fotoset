@@ -1,9 +1,8 @@
 "use client"
 
 import type React from "react"
-import { ArrowLeft, Sparkles, CheckCircle2, Loader2, Star } from "lucide-react"
+import { ArrowLeft, Sparkles, CheckCircle2, Loader2, Star, Percent } from "lucide-react"
 import type { Persona, PricingTier } from "./types"
-import { PRICING_TIERS } from "./dashboard-view"
 
 export interface TierSelectViewProps {
   persona: Persona
@@ -14,6 +13,7 @@ export interface TierSelectViewProps {
   onUpgrade: (tier: PricingTier) => void
   selectedTier: PricingTier
   onSelectTier: (tier: PricingTier) => void
+  pricingTiers: PricingTier[]  // Dynamic pricing from usePricing hook
 }
 
 export const TierSelectView: React.FC<TierSelectViewProps> = ({
@@ -24,6 +24,7 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
   onUpgrade,
   selectedTier,
   onSelectTier,
+  pricingTiers,
 }) => (
   <div className="space-y-6 pb-24 sm:pb-6">
     <div className="flex items-center gap-3">
@@ -40,7 +41,7 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
       </div>
     </div>
     <div className="space-y-3" role="radiogroup" aria-label="Выберите пакет фотографий">
-      {PRICING_TIERS.map((tier, index) => (
+      {pricingTiers.map((tier, index) => (
         <button
           key={tier.id}
           onClick={() => onSelectTier(tier)}
@@ -83,7 +84,19 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
               </p>
             </div>
             <div className="text-right shrink-0">
-              <div className="text-2xl font-bold text-foreground">{tier.price} ₽</div>
+              {tier.discount && tier.discount > 0 && tier.originalPrice ? (
+                <>
+                  <div className="flex items-center gap-2 justify-end">
+                    <span className="text-sm line-through text-muted-foreground">{tier.originalPrice} ₽</span>
+                    <span className="px-1.5 py-0.5 bg-green-500/20 text-green-600 text-xs font-medium rounded-md flex items-center gap-0.5">
+                      <Percent className="w-3 h-3" />-{tier.discount}%
+                    </span>
+                  </div>
+                  <div className="text-2xl font-bold text-green-600">{tier.price} ₽</div>
+                </>
+              ) : (
+                <div className="text-2xl font-bold text-foreground">{tier.price} ₽</div>
+              )}
               <div className="text-xs text-muted-foreground">{Math.round(tier.price / tier.photos)} ₽/фото</div>
             </div>
           </div>

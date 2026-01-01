@@ -1,17 +1,19 @@
 "use client"
 
 import type React from "react"
-import { Plus, X, ChevronRight, Zap, Shield, Star } from "lucide-react"
+import { Plus, X, ChevronRight, Zap, Shield, Star, Percent } from "lucide-react"
 import Link from "next/link"
 import type { Persona, PricingTier } from "./types"
-import { DEFAULT_PRICING, TIER_IDS } from "@/lib/pricing"
+import { DEFAULT_PRICING, TIER_IDS, getDiscountedPrice } from "@/lib/pricing"
 
 // Default pricing tiers - loaded from lib/pricing.ts
 // These are defaults; dynamic pricing is fetched via usePricing hook in persona-app
 export const PRICING_TIERS: PricingTier[] = TIER_IDS.map(id => ({
   id,
   photos: DEFAULT_PRICING[id].photoCount,
-  price: DEFAULT_PRICING[id].price,
+  price: getDiscountedPrice(DEFAULT_PRICING[id]),
+  originalPrice: DEFAULT_PRICING[id].discount ? DEFAULT_PRICING[id].price : undefined,
+  discount: DEFAULT_PRICING[id].discount,
   popular: DEFAULT_PRICING[id].isPopular
 }))
 
@@ -21,9 +23,13 @@ export interface DashboardViewProps {
   onSelect: (id: string) => void
   onDelete: (id: string, e: React.MouseEvent) => void
   isLoading?: boolean
+  pricingTiers?: PricingTier[]  // Dynamic pricing from usePricing hook
 }
 
-export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate, onSelect, onDelete, isLoading = false }) => (
+export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate, onSelect, onDelete, isLoading = false, pricingTiers }) => {
+  const displayTiers = pricingTiers && pricingTiers.length > 0 ? pricingTiers : PRICING_TIERS
+
+  return (
   <div className="space-y-6 view-transition-name-main">
     <div>
       <h1 className="text-2xl font-bold text-foreground">Мои аватары</h1>
@@ -59,7 +65,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate
         <div>
           <h3 className="text-sm font-medium text-muted-foreground mb-3">Тарифы</h3>
           <div className="grid grid-cols-3 gap-3">
-            {PRICING_TIERS.map((tier) => (
+            {displayTiers.map((tier) => (
               <div
                 key={tier.id}
                 className={
@@ -74,11 +80,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate
                     <Star className="w-3 h-3" /> Хит
                   </div>
                 )}
+                {tier.discount && tier.discount > 0 && (
+                  <div className="text-[10px] sm:text-xs text-green-600 font-medium mb-1 flex items-center gap-0.5">
+                    <Percent className="w-3 h-3" /> -{tier.discount}%
+                  </div>
+                )}
                 <div className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
                   {tier.photos}
                 </div>
                 <div className="text-[10px] sm:text-xs text-muted-foreground">фото</div>
-                <div className="text-xs sm:text-sm font-semibold mt-1.5 sm:mt-2">{tier.price} ₽</div>
+                {tier.discount && tier.discount > 0 && tier.originalPrice ? (
+                  <div className="mt-1.5 sm:mt-2">
+                    <span className="text-[10px] line-through text-muted-foreground">{tier.originalPrice} ₽</span>
+                    <div className="text-xs sm:text-sm font-semibold text-green-600">{tier.price} ₽</div>
+                  </div>
+                ) : (
+                  <div className="text-xs sm:text-sm font-semibold mt-1.5 sm:mt-2">{tier.price} ₽</div>
+                )}
               </div>
             ))}
           </div>
@@ -158,6 +176,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate
       </div>
     )}
   </div>
-)
+  )
+}
 
 export default DashboardView

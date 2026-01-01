@@ -5,7 +5,9 @@
 export interface PricingTier {
   id: string
   photos: number
-  price: number
+  price: number           // Current price (after discount)
+  originalPrice?: number  // Original price before discount
+  discount?: number       // Discount percentage (0-100)
   popular?: boolean
 }
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { RefreshCw, Loader2, ChevronLeft, ChevronRight, DollarSign, TrendingUp, Eye } from "lucide-react"
+import { RefreshCw, Loader2, ChevronLeft, ChevronRight, DollarSign, TrendingUp, Eye, Send, MessageCircle } from "lucide-react"
 import type { AdminPayment, PaymentStats } from "@/lib/admin/types"
 import { DateFilter, type DateFilterPreset, getDateRangeFromPreset } from "./DateFilter"
 import { ExportButton, type ExportFormat } from "./ExportButton"
@@ -290,10 +290,11 @@ export function PaymentsView() {
               <thead className="bg-muted/50">
                 <tr className="text-left text-sm font-medium text-muted-foreground">
                   <th className="px-4 py-3">ID</th>
-                  <th className="px-4 py-3">User ID</th>
+                  <th className="px-4 py-3">Пользователь</th>
                   <th className="px-4 py-3">Сумма</th>
                   <th className="px-4 py-3">Тариф</th>
                   <th className="px-4 py-3">Статус</th>
+                  <th className="px-4 py-3">TG фото</th>
                   <th className="px-4 py-3">Возврат</th>
                   <th className="px-4 py-3">Дата</th>
                   <th className="px-4 py-3">Действия</th>
@@ -302,7 +303,7 @@ export function PaymentsView() {
               <tbody className="divide-y divide-border">
                 {payments.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
                       Платежи не найдены
                     </td>
                   </tr>
@@ -310,11 +311,30 @@ export function PaymentsView() {
                   payments.map((payment) => (
                     <tr key={payment.id} className="hover:bg-muted/30">
                       <td className="px-4 py-3 text-sm font-mono">{payment.id}</td>
-                      <td className="px-4 py-3 text-sm font-mono">{payment.telegram_user_id}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col">
+                          {payment.telegram_username ? (
+                            <span className="text-sm font-medium text-foreground">@{payment.telegram_username}</span>
+                          ) : null}
+                          <span className="text-xs text-muted-foreground font-mono">{payment.telegram_user_id}</span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-sm font-medium">{payment.amount}₽</td>
                       <td className="px-4 py-3 text-sm">{payment.tier_id || '—'}</td>
                       <td className="px-4 py-3">
                         <StatusBadge status={payment.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        {payment.status === 'succeeded' ? (
+                          <div className="flex items-center gap-1.5">
+                            <Send className="w-3.5 h-3.5 text-blue-500" />
+                            <span className="text-sm">
+                              {payment.tg_sent_count || 0}/{payment.gen_photos_count || payment.photo_count || 0}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm">
                         {payment.refund_amount ? `${payment.refund_amount}₽` : '—'}
