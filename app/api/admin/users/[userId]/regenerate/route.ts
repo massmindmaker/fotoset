@@ -48,7 +48,7 @@ export async function POST(
 
     // Check if user and avatar exist
     const [avatar] = await sql`
-      SELECT a.id, a.user_id, u.telegram_user_id, u.is_pro
+      SELECT a.id, a.user_id, u.telegram_user_id, u.telegram_username
       FROM avatars a
       JOIN users u ON u.id = a.user_id
       WHERE a.id = ${avatarId} AND a.user_id = ${userIdNum}

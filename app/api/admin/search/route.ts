@@ -54,24 +54,26 @@ export async function GET(request: NextRequest) {
         SELECT
           u.id,
           u.telegram_user_id,
-          u.is_pro,
+          u.telegram_username,
           u.created_at,
           COUNT(DISTINCT p.id) as payments_count
         FROM users u
         LEFT JOIN payments p ON p.user_id = u.id AND p.status = 'succeeded'
         WHERE u.telegram_user_id::text LIKE ${safeQuery + '%'}
-        GROUP BY u.id
+        GROUP BY u.id, u.telegram_user_id, u.telegram_username, u.created_at
         LIMIT ${limit}
       `
 
       for (const user of users) {
+        const hasPaid = user.payments_count > 0
+        const displayName = user.telegram_username ? `@${user.telegram_username}` : `User ${user.telegram_user_id}`
         results.push({
           type: 'user',
           id: user.id,
-          title: `User ${user.telegram_user_id}`,
-          subtitle: `${user.is_pro ? 'Pro' : 'Free'} · ${user.payments_count} платежей`,
+          title: displayName,
+          subtitle: `${hasPaid ? 'Оплачено' : 'Бесплатно'} · ${user.payments_count} платежей`,
           url: `/admin/users?user=${user.id}`,
-          meta: { telegram_user_id: user.telegram_user_id, is_pro: user.is_pro }
+          meta: { telegram_user_id: user.telegram_user_id, telegram_username: user.telegram_username }
         })
       }
 

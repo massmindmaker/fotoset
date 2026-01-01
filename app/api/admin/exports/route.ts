@@ -47,18 +47,20 @@ export async function GET(request: NextRequest) {
           SELECT
             u.id,
             u.telegram_user_id,
+            u.telegram_username,
+            u.is_banned,
             u.created_at,
-            u.is_pro,
             COUNT(DISTINCT a.id) as avatars_count,
             COUNT(DISTINCT p.id) as payments_count,
-            COALESCE(SUM(CASE WHEN p.status = 'succeeded' THEN p.amount ELSE 0 END), 0) as total_spent
+            COALESCE(SUM(CASE WHEN p.status = 'succeeded' THEN p.amount ELSE 0 END), 0) as total_spent,
+            CASE WHEN COUNT(DISTINCT CASE WHEN p.status = 'succeeded' THEN p.id END) > 0 THEN true ELSE false END as has_paid
           FROM users u
           LEFT JOIN avatars a ON a.user_id = u.id
           LEFT JOIN payments p ON p.user_id = u.id
           WHERE
             (${dateFrom}::date IS NULL OR u.created_at >= ${dateFrom}::date)
             AND (${dateTo}::date IS NULL OR u.created_at <= ${dateTo}::date + INTERVAL '1 day')
-          GROUP BY u.id
+          GROUP BY u.id, u.telegram_user_id, u.telegram_username, u.is_banned, u.created_at
           ORDER BY u.created_at DESC
           LIMIT ${MAX_EXPORT_ROWS}
         `

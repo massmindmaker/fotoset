@@ -32,14 +32,15 @@ export async function GET(
 
     const sql = getSql()
 
-    // Get basic user info first (without optional columns)
+    // Get basic user info (actual columns in DB)
     const [user] = await sql`
       SELECT
         id,
         telegram_user_id,
-        is_pro,
-        referral_code,
-        referred_by,
+        telegram_username,
+        is_banned,
+        ban_reason,
+        banned_at,
         pending_referral_code,
         created_at,
         updated_at
@@ -51,12 +52,30 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Ban info defaults (columns may not exist yet)
-    const banInfo = {
-      is_banned: false,
-      ban_reason: null as string | null,
-      banned_at: null as string | null,
-      total_earnings: 0
+    // Get referral code for this user
+    let referralCode = null
+    try {
+      const [code] = await sql`
+        SELECT code FROM referral_codes WHERE user_id = ${userIdNum} AND is_active = true LIMIT 1
+      `
+      if (code) referralCode = code.code
+    } catch {
+      // referral_codes table may not exist
+    }
+
+    // Get who referred this user
+    let referredBy = null
+    try {
+      const [ref] = await sql`
+        SELECT u.telegram_username, u.telegram_user_id
+        FROM referrals r
+        JOIN users u ON u.id = r.referrer_id
+        WHERE r.referred_id = ${userIdNum}
+        LIMIT 1
+      `
+      if (ref) referredBy = ref.telegram_username || ref.telegram_user_id?.toString()
+    } catch {
+      // referrals table may not exist
     }
 
     // Get avatars
@@ -108,32 +127,35 @@ export async function GET(
       LIMIT 20
     `
 
-    // Get referral stats (simplified - no referral_earnings table dependency)
-    let referralStats = { referral_count: 0, paid_referral_count: 0, total_earned: 0 }
+    // Get referral stats from referrals table
+    let referralStats = { referral_count: 0, total_earned: 0 }
     try {
       const [stats] = await sql`
-        SELECT
-          COUNT(DISTINCT referred.id) as referral_count,
-          COUNT(DISTINCT CASE WHEN referred.is_pro THEN referred.id END) as paid_referral_count
-        FROM users u
-        LEFT JOIN users referred ON referred.referred_by = u.referral_code
-        WHERE u.id = ${userIdNum}
+        SELECT COUNT(*) as referral_count
+        FROM referrals
+        WHERE referrer_id = ${userIdNum}
       `
       if (stats) {
-        referralStats = {
-          referral_count: parseInt(String(stats.referral_count)) || 0,
-          paid_referral_count: parseInt(String(stats.paid_referral_count)) || 0,
-          total_earned: 0
-        }
+        referralStats.referral_count = parseInt(String(stats.referral_count)) || 0
+      }
+      // Get total earnings
+      const [earnings] = await sql`
+        SELECT COALESCE(SUM(amount), 0) as total_earned
+        FROM referral_earnings
+        WHERE user_id = ${userIdNum}
+      `
+      if (earnings) {
+        referralStats.total_earned = parseFloat(String(earnings.total_earned)) || 0
       }
     } catch {
-      // referral columns may not exist
+      // referral tables may not exist
     }
 
     return NextResponse.json({
       user: {
         ...user,
-        ...banInfo,
+        referral_code: referralCode,
+        referred_by: referredBy,
         telegram_user_id: user.telegram_user_id?.toString()
       },
       avatars,
