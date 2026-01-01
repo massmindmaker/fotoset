@@ -250,6 +250,7 @@ async function checkJobCompletion() {
 }
 
 // Send all generated photos to user's Telegram
+// Also records messages to telegram_message_queue for admin panel visibility
 async function sendPhotosToTelegram(avatarId: number) {
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 
@@ -295,9 +296,12 @@ async function sendPhotosToTelegram(avatarId: number) {
 
     for (let i = 0; i < photoUrls.length; i += batchSize) {
       const batch = photoUrls.slice(i, i + batchSize)
+      const isFirstBatch = i === 0
+      const caption = isFirstBatch ? `✨ Ваши ${photoUrls.length} AI-портретов готовы!\n\nPinGlass` : undefined
 
       if (batch.length === 1) {
         // Single photo
+        const photoUrl = batch[0]
         const response = await fetch(
           `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`,
           {
@@ -305,19 +309,34 @@ async function sendPhotosToTelegram(avatarId: number) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               chat_id: chatId,
-              photo: batch[0],
-              caption: i === 0 ? `✨ Ваши ${photoUrls.length} AI-портретов готовы!\n\nPinGlass` : undefined
+              photo: photoUrl,
+              caption: caption
             })
           }
         )
         const result = await response.json()
-        if (result.ok) sentCount++
+
+        // Record to queue for admin visibility
+        if (result.ok) {
+          sentCount++
+          await sql`
+            INSERT INTO telegram_message_queue
+            (telegram_chat_id, message_type, photo_url, caption, status, attempts, sent_at)
+            VALUES (${chatId}, 'photo', ${photoUrl}, ${caption || null}, 'sent', 1, NOW())
+          `
+        } else {
+          await sql`
+            INSERT INTO telegram_message_queue
+            (telegram_chat_id, message_type, photo_url, caption, status, attempts, error_message)
+            VALUES (${chatId}, 'photo', ${photoUrl}, ${caption || null}, 'failed', 1, ${result.description || 'Unknown error'})
+          `
+        }
       } else {
         // Media group
         const media = batch.map((url: string, idx: number) => ({
           type: "photo",
           media: url,
-          caption: i === 0 && idx === 0 ? `✨ Ваши ${photoUrls.length} AI-портретов готовы!\n\nPinGlass` : undefined
+          caption: isFirstBatch && idx === 0 ? caption : undefined
         }))
 
         const response = await fetch(
@@ -329,6 +348,27 @@ async function sendPhotosToTelegram(avatarId: number) {
           }
         )
         const result = await response.json()
+
+        // Record each photo to queue for admin visibility
+        for (let j = 0; j < batch.length; j++) {
+          const photoUrl = batch[j]
+          const photoCaption = isFirstBatch && j === 0 ? caption : null
+
+          if (result.ok) {
+            await sql`
+              INSERT INTO telegram_message_queue
+              (telegram_chat_id, message_type, photo_url, caption, status, attempts, sent_at)
+              VALUES (${chatId}, 'photo', ${photoUrl}, ${photoCaption}, 'sent', 1, NOW())
+            `
+          } else {
+            await sql`
+              INSERT INTO telegram_message_queue
+              (telegram_chat_id, message_type, photo_url, caption, status, attempts, error_message)
+              VALUES (${chatId}, 'photo', ${photoUrl}, ${photoCaption}, 'failed', 1, ${result.description || 'Unknown error'})
+            `
+          }
+        }
+
         if (result.ok) sentCount += batch.length
       }
 
@@ -338,7 +378,7 @@ async function sendPhotosToTelegram(avatarId: number) {
       }
     }
 
-    console.log(`[Poll Kie Tasks] ✓ Sent ${sentCount}/${photoUrls.length} photos to Telegram`)
+    console.log(`[Poll Kie Tasks] ✓ Sent ${sentCount}/${photoUrls.length} photos to Telegram (recorded to queue)`)
 
   } catch (error) {
     console.error("[Poll Kie Tasks] Failed to send photos to Telegram:", error)
