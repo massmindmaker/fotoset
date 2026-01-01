@@ -36,11 +36,11 @@ const SECURITY_HEADERS = {
   // Content Security Policy
   'Content-Security-Policy': [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://telegram.org https://vercel.live",
+    "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://telegram.org https://vercel.live https://static.cloudflareinsights.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https://*.vercel-insights.com https://*.google.com https://*.googleapis.com https://api.yescale.ai wss://ws.yescale.ai https://*.sentry.io https://*.ingest.sentry.io https://api.replicate.com https://*.upstash.io https://qstash.upstash.io",
+    "connect-src 'self' https://*.vercel-insights.com https://*.google.com https://*.googleapis.com https://api.yescale.ai wss://ws.yescale.ai https://*.sentry.io https://*.ingest.sentry.io https://api.replicate.com https://*.upstash.io https://qstash.upstash.io https://cloudflareinsights.com",
     "frame-src 'self' https://telegram.org https://yoomoney.ru https://securepayments.tinkoff.ru",
     "media-src 'self' blob:",
     "worker-src 'self' blob:",

@@ -51,33 +51,12 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Try to get optional ban/earnings columns if they exist
-    let banInfo: { is_banned: boolean; ban_reason: string | null; banned_at: string | null; total_earnings: number } = {
+    // Ban info defaults (columns may not exist yet)
+    const banInfo = {
       is_banned: false,
-      ban_reason: null,
-      banned_at: null,
+      ban_reason: null as string | null,
+      banned_at: null as string | null,
       total_earnings: 0
-    }
-    try {
-      const [banData] = await sql`
-        SELECT
-          COALESCE(is_banned, false) as is_banned,
-          ban_reason,
-          banned_at,
-          COALESCE(total_earnings, 0) as total_earnings
-        FROM users
-        WHERE id = ${userIdNum}
-      `
-      if (banData) {
-        banInfo = {
-          is_banned: Boolean(banData.is_banned),
-          ban_reason: banData.ban_reason as string | null,
-          banned_at: banData.banned_at as string | null,
-          total_earnings: Number(banData.total_earnings) || 0
-        }
-      }
-    } catch {
-      // Columns might not exist yet, use defaults
     }
 
     // Get avatars
@@ -129,17 +108,27 @@ export async function GET(
       LIMIT 20
     `
 
-    // Get referral stats
-    const [referralStats] = await sql`
-      SELECT
-        COUNT(DISTINCT referred.id) as referral_count,
-        COUNT(DISTINCT CASE WHEN referred.is_pro THEN referred.id END) as paid_referral_count,
-        COALESCE(SUM(CASE WHEN re.status = 'credited' THEN re.amount ELSE 0 END), 0) as total_earned
-      FROM users u
-      LEFT JOIN users referred ON referred.referred_by = u.referral_code
-      LEFT JOIN referral_earnings re ON re.referrer_id = u.id
-      WHERE u.id = ${userIdNum}
-    `
+    // Get referral stats (simplified - no referral_earnings table dependency)
+    let referralStats = { referral_count: 0, paid_referral_count: 0, total_earned: 0 }
+    try {
+      const [stats] = await sql`
+        SELECT
+          COUNT(DISTINCT referred.id) as referral_count,
+          COUNT(DISTINCT CASE WHEN referred.is_pro THEN referred.id END) as paid_referral_count
+        FROM users u
+        LEFT JOIN users referred ON referred.referred_by = u.referral_code
+        WHERE u.id = ${userIdNum}
+      `
+      if (stats) {
+        referralStats = {
+          referral_count: parseInt(String(stats.referral_count)) || 0,
+          paid_referral_count: parseInt(String(stats.paid_referral_count)) || 0,
+          total_earned: 0
+        }
+      }
+    } catch {
+      // referral columns may not exist
+    }
 
     return NextResponse.json({
       user: {
@@ -150,11 +139,7 @@ export async function GET(
       avatars,
       payments,
       jobs,
-      referralStats: referralStats || {
-        referral_count: 0,
-        paid_referral_count: 0,
-        total_earned: 0
-      }
+      referralStats
     })
   } catch (error) {
     console.error('[Admin User Details] Error:', error)
