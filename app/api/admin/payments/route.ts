@@ -90,25 +90,27 @@ export async function GET(request: NextRequest) {
         p.refund_at,
         p.created_at,
         p.updated_at,
-        -- Count photos sent to Telegram for this payment's generation job
-        COALESCE(tg_stats.tg_sent_count, 0) as tg_sent_count,
-        COALESCE(tg_stats.gen_photos_count, 0) as gen_photos_count
+        -- Count photos sent to Telegram for this payment (within 1 day of payment)
+        COALESCE((
+          SELECT COUNT(*)::int
+          FROM telegram_queue tq
+          WHERE tq.user_id = p.user_id
+            AND tq.status = 'sent'
+            AND tq.message_type = 'photo'
+            AND tq.created_at >= p.created_at
+            AND tq.created_at <= p.created_at + interval '1 day'
+        ), 0) as tg_sent_count,
+        -- Count generated photos for this user (within 1 day of payment)
+        COALESCE((
+          SELECT COUNT(*)::int
+          FROM generated_photos gp
+          JOIN avatars a ON a.id = gp.avatar_id
+          WHERE a.user_id = p.user_id
+            AND gp.created_at >= p.created_at
+            AND gp.created_at <= p.created_at + interval '1 day'
+        ), 0) as gen_photos_count
       FROM payments p
       LEFT JOIN users u ON u.id = p.user_id
-      LEFT JOIN LATERAL (
-        -- Get telegram delivery stats for generation jobs linked to this payment
-        SELECT
-          COUNT(CASE WHEN tq.status = 'sent' AND tq.message_type = 'photo' THEN 1 END)::int as tg_sent_count,
-          (SELECT COUNT(*) FROM generated_photos gp2
-           JOIN avatars a2 ON a2.id = gp2.avatar_id
-           WHERE a2.user_id = p.user_id
-           AND gp2.created_at >= p.created_at
-           AND gp2.created_at <= p.created_at + interval '1 day')::int as gen_photos_count
-        FROM telegram_queue tq
-        WHERE tq.user_id = p.user_id
-          AND tq.created_at >= p.created_at
-          AND tq.created_at <= p.created_at + interval '1 day'
-      ) tg_stats ON true
       WHERE 1=1
         ${statusCondition}
         ${dateFromCondition}

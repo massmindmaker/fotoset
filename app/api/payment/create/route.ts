@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql, query } from "@/lib/db"
-import { initPayment, IS_TEST_MODE, HAS_CREDENTIALS, type PaymentMethod, type Receipt } from "@/lib/tbank"
+import { initPayment, HAS_CREDENTIALS, type PaymentMethod, type Receipt } from "@/lib/tbank"
 import { findOrCreateUser } from "@/lib/user-identity"
 import { paymentLogger as log } from "@/lib/logger"
+import { getTBankCredentials } from "@/lib/admin/mode"
 
 // Default pricing tiers (fallback if admin settings not configured)
 const DEFAULT_TIER_PRICES: Record<string, { price: number; photos: number; discount?: number }> = {
@@ -30,6 +31,10 @@ export async function POST(request: NextRequest) {
 
     // Find or create user (Telegram-only)
     const user = await findOrCreateUser({ telegramUserId })
+
+    // Get current T-Bank mode from admin settings (dynamic)
+    const tbankCreds = await getTBankCredentials()
+    const isTestMode = tbankCreds.isTestMode
 
     // CRITICAL: Use pending_referral_code from DATABASE (survives T-Bank redirect)
     // Client referralCode parameter is deprecated but still accepted as fallback
@@ -145,7 +150,7 @@ export async function POST(request: NextRequest) {
       successUrl,
       failUrl,
       notificationUrl,
-      testMode: IS_TEST_MODE,
+      testMode: isTestMode,
       hasReceipt: true,
     })
 
@@ -167,7 +172,7 @@ export async function POST(request: NextRequest) {
     // NOTE: Using tbank_payment_id column for backward compatibility (stores T-Bank payment ID)
     await sql`
       INSERT INTO payments (user_id, tbank_payment_id, amount, status, is_test_mode)
-      VALUES (${user.id}, ${payment.PaymentId}, ${amount}, 'pending', ${IS_TEST_MODE})
+      VALUES (${user.id}, ${payment.PaymentId}, ${amount}, 'pending', ${isTestMode})
     `
 
     // CRITICAL: Save pending generation params to user record
@@ -193,13 +198,13 @@ export async function POST(request: NextRequest) {
       orderId,
       paymentId: payment.PaymentId,
       hasPaymentUrl: !!payment.PaymentURL,
-      testMode: IS_TEST_MODE,
+      testMode: isTestMode,
     })
 
     return NextResponse.json({
       paymentId: payment.PaymentId,
       confirmationUrl: payment.PaymentURL,
-      testMode: IS_TEST_MODE,
+      testMode: isTestMode,
       telegramUserId, // Return for client-side usage
     })
   } catch (error) {

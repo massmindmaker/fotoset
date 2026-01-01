@@ -430,25 +430,41 @@ export async function POST(request: NextRequest) {
     // Payment Validation
     // ============================================================================
 
-    // Check if user has a successful payment
-    const successfulPayment = await sql`
-      SELECT id, amount, status FROM payments
-      WHERE user_id = ${user.id} AND status = 'succeeded'
+    // Check if user has an AVAILABLE payment (not yet consumed for generation)
+    // SECURITY: Each payment can only be used for ONE generation
+    const availablePayment = await sql`
+      SELECT id, amount, status, tier_id, photo_count FROM payments
+      WHERE user_id = ${user.id}
+        AND status = 'succeeded'
+        AND COALESCE(generation_consumed, FALSE) = FALSE
       ORDER BY created_at DESC
       LIMIT 1
     `.then((rows: any[]) => rows[0])
 
-    if (!successfulPayment) {
+    if (!availablePayment) {
+      // Check if user has ANY payment (to give better error message)
+      const anyPayment = await sql`
+        SELECT id FROM payments WHERE user_id = ${user.id} AND status = 'succeeded' LIMIT 1
+      `.then((rows: any[]) => rows[0])
+
+      if (anyPayment) {
+        logger.warn("User has consumed all payments", { userId: user.id, telegramUserId: tgId })
+        return error("PAYMENT_CONSUMED", "Ваш платёж уже использован. Для новой генерации необходима новая оплата.", {
+          code: "PAYMENT_CONSUMED"
+        })
+      }
+
       logger.warn("User has no successful payment", { userId: user.id, telegramUserId: tgId })
       return error("PAYMENT_REQUIRED", "Please complete payment before generating photos", {
         code: "PAYMENT_REQUIRED"
       })
     }
 
-    logger.info("Payment validated", {
+    logger.info("Payment validated (available for generation)", {
       userId: user.id,
-      paymentId: successfulPayment.id,
-      amount: successfulPayment.amount
+      paymentId: availablePayment.id,
+      amount: availablePayment.amount,
+      tierId: availablePayment.tier_id
     })
 
     // Handle avatar - if timestamp string from frontend, create new in DB
@@ -549,18 +565,30 @@ export async function POST(request: NextRequest) {
 
     const totalPhotos = Math.min(requestedPhotos, availablePrompts.length, GENERATION_CONFIG.maxPhotos)
 
+    // Create generation job with payment_id binding
     const job = await sql`
-      INSERT INTO generation_jobs (avatar_id, style_id, status, total_photos)
-      VALUES (${dbAvatarId}, ${styleId}, 'pending', ${totalPhotos})
+      INSERT INTO generation_jobs (avatar_id, style_id, status, total_photos, payment_id)
+      VALUES (${dbAvatarId}, ${styleId}, 'pending', ${totalPhotos}, ${availablePayment.id})
       RETURNING *
     `.then((rows: any[]) => rows[0])
 
-    logger.info("Generation job created", {
+    // CRITICAL: Mark payment as consumed IMMEDIATELY after job creation
+    // This prevents race conditions where same payment could be used for multiple generations
+    await sql`
+      UPDATE payments
+      SET generation_consumed = TRUE,
+          consumed_at = NOW(),
+          consumed_avatar_id = ${dbAvatarId}
+      WHERE id = ${availablePayment.id}
+    `
+
+    logger.info("Generation job created, payment consumed", {
       jobId: job.id,
       avatarId: dbAvatarId,
       styleId,
       requestedPhotos,
       totalPhotos,
+      paymentId: availablePayment.id,
       availablePrompts: availablePrompts.length,
       usedPrompts: usedPrompts.length,
     })
