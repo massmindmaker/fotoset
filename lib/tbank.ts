@@ -1,16 +1,18 @@
 // T-Bank (Tinkoff) Payment Integration
 import crypto from "crypto"
 import { paymentLogger as log } from "./logger"
+import { getTBankCredentials, type TBankCredentials } from "./admin/mode"
 
 // CRITICAL: .trim() prevents error 501 from whitespace/newlines in env vars
 const TBANK_TERMINAL_KEY = (process.env.TBANK_TERMINAL_KEY || "").trim()
 const TBANK_PASSWORD = (process.env.TBANK_PASSWORD || "").trim()
 const TBANK_API_URL = "https://securepay.tinkoff.ru/v2"
 
-// Check if credentials are configured
+// Check if credentials are configured (static check for backwards compatibility)
 export const HAS_CREDENTIALS = !!(TBANK_TERMINAL_KEY && TBANK_PASSWORD)
 
 // Test mode - when terminal key contains "DEMO" (uses real API but with test cards)
+// NOTE: This is static. Use getTBankCredentials() for dynamic mode switching
 export const IS_TEST_MODE = TBANK_TERMINAL_KEY.includes("DEMO") ||
   TBANK_TERMINAL_KEY.toLowerCase().includes("test")
 
@@ -60,16 +62,19 @@ export interface Receipt {
 }
 
 // Generate token for T-Bank API requests
-function generateToken(params: Record<string, string | number>): string {
+// Now accepts password as parameter for dynamic credential switching
+function generateToken(params: Record<string, string | number>, password?: string): string {
+  const pwd = password || TBANK_PASSWORD
+
   // SECURITY: Require password - never use fallback
-  if (!TBANK_PASSWORD) {
+  if (!pwd) {
     throw new Error("TBANK_PASSWORD not configured - cannot generate payment token")
   }
 
   // Создаем объект с паролем
   const values: Record<string, string | number> = {
     ...params,
-    Password: TBANK_PASSWORD,
+    Password: pwd,
   }
 
   // Сортируем ключи и создаем строку для подписи
@@ -91,9 +96,12 @@ export async function initPayment(
   customerEmail?: string,
   paymentMethod?: PaymentMethod,
   receipt?: Receipt,
-): Promise<TBankPayment> {
+): Promise<TBankPayment & { isTestMode?: boolean }> {
+  // Get dynamic credentials based on admin mode setting
+  const credentials = await getTBankCredentials()
+
   // Check if credentials are configured
-  if (!HAS_CREDENTIALS) {
+  if (!credentials.terminalKey || !credentials.password) {
     throw new Error("T-Bank credentials not configured. Set TBANK_TERMINAL_KEY and TBANK_PASSWORD environment variables.")
   }
 
@@ -101,27 +109,27 @@ export async function initPayment(
 
   // DIAGNOSTIC: Log configuration state for error 501 debugging
   log.debug("Init payment - config check", {
-    terminalKeySet: !!TBANK_TERMINAL_KEY,
-    terminalKeyLength: TBANK_TERMINAL_KEY?.length,
-    terminalKeyPrefix: TBANK_TERMINAL_KEY?.substring(0, 8),
-    passwordSet: !!TBANK_PASSWORD,
-    passwordLength: TBANK_PASSWORD?.length,
-    testMode: IS_TEST_MODE,
+    terminalKeySet: !!credentials.terminalKey,
+    terminalKeyLength: credentials.terminalKey?.length,
+    terminalKeyPrefix: credentials.terminalKey?.substring(0, 8),
+    passwordSet: !!credentials.password,
+    passwordLength: credentials.password?.length,
+    testMode: credentials.isTestMode,
     orderId,
     amount,
     amountInKopeks: Math.round(amount * 100),
   })
 
   // Validate TerminalKey is not undefined/empty
-  if (!TBANK_TERMINAL_KEY || TBANK_TERMINAL_KEY === "undefined" || TBANK_TERMINAL_KEY.trim() === "") {
+  if (!credentials.terminalKey || credentials.terminalKey === "undefined" || credentials.terminalKey.trim() === "") {
     throw new Error("TBANK_TERMINAL_KEY is invalid or empty - check Vercel environment variables")
   }
 
-  log.debug("Calling API", { testMode: IS_TEST_MODE, orderId, amount })
+  log.debug("Calling API", { testMode: credentials.isTestMode, orderId, amount })
 
   // Все параметры для Token (кроме Receipt, DATA, Token)
   const params: Record<string, string | number> = {
-    TerminalKey: TBANK_TERMINAL_KEY,
+    TerminalKey: credentials.terminalKey,
     Amount: amountInKopeks,
     OrderId: orderId,
     Description: description.substring(0, 250), // Max 250 chars
@@ -146,7 +154,7 @@ export async function initPayment(
   if (notificationUrl) params.NotificationURL = notificationUrl
 
   // Генерируем токен из ВСЕХ параметров (кроме Receipt, DATA)
-  const token = generateToken(params)
+  const token = generateToken(params, credentials.password)
 
   // Формируем полное тело запроса
   const requestBody: Record<string, unknown> = {
@@ -187,7 +195,8 @@ export async function initPayment(
       log.error("Payment init failed - Full diagnostic", {
         errorCode: data.ErrorCode,
         message: data.Message,
-        terminalKey: TBANK_TERMINAL_KEY?.substring(0, 8) + "...",
+        terminalKey: credentials.terminalKey?.substring(0, 8) + "...",
+        isTestMode: credentials.isTestMode,
         hasReceipt: !!requestBody.Receipt,
         hasDATA: !!requestBody.DATA,
         receiptEmail: receiptData?.Email ? "present" : "missing",
@@ -198,7 +207,7 @@ export async function initPayment(
       throw new Error(`T-Bank error ${data.ErrorCode}: ${data.Message || "Unknown error"}`)
     }
 
-    return data
+    return { ...data, isTestMode: credentials.isTestMode }
   } catch (error) {
     log.error("API error", error)
     throw error
@@ -206,17 +215,20 @@ export async function initPayment(
 }
 
 export async function getPaymentState(paymentId: string): Promise<TBankPayment> {
+  // Get dynamic credentials based on admin mode setting
+  const credentials = await getTBankCredentials()
+
   // Check if credentials are configured
-  if (!HAS_CREDENTIALS) {
+  if (!credentials.terminalKey || !credentials.password) {
     throw new Error("T-Bank credentials not configured")
   }
 
   const params = {
-    TerminalKey: TBANK_TERMINAL_KEY!,
+    TerminalKey: credentials.terminalKey,
     PaymentId: paymentId,
   }
 
-  const token = generateToken(params)
+  const token = generateToken(params, credentials.password)
 
   const response = await fetch(`${TBANK_API_URL}/GetState`, {
     method: "POST",
@@ -286,12 +298,15 @@ export async function cancelPayment(
   amount?: number,
   receipt?: Receipt,
 ): Promise<TBankCancelResponse> {
-  if (!HAS_CREDENTIALS) {
+  // Get dynamic credentials based on admin mode setting
+  const credentials = await getTBankCredentials()
+
+  if (!credentials.terminalKey || !credentials.password) {
     throw new Error("T-Bank credentials not configured")
   }
 
   const params: Record<string, string | number> = {
-    TerminalKey: TBANK_TERMINAL_KEY,
+    TerminalKey: credentials.terminalKey,
     PaymentId: paymentId,
   }
 
@@ -300,7 +315,7 @@ export async function cancelPayment(
     params.Amount = Math.round(amount * 100)
   }
 
-  const token = generateToken(params)
+  const token = generateToken(params, credentials.password)
 
   const requestBody: Record<string, unknown> = {
     ...params,
