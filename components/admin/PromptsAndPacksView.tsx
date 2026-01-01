@@ -249,6 +249,9 @@ function SavedPromptsTab() {
 
   const [isImporting, setIsImporting] = useState(false)
   const [isImportingPinGlass, setIsImportingPinGlass] = useState(false)
+  const [isGeneratingPreviews, setIsGeneratingPreviews] = useState(false)
+  const [previewReferenceUrl, setPreviewReferenceUrl] = useState('')
+  const [showReferenceInput, setShowReferenceInput] = useState(false)
 
   const importDreamPack = async () => {
     if (!confirm('Импортировать DREAM PACK (17 промптов)?')) return
@@ -289,6 +292,60 @@ function SavedPromptsTab() {
       alert('Ошибка импорта: ' + (err instanceof Error ? err.message : 'Unknown'))
     } finally {
       setIsImportingPinGlass(false)
+    }
+  }
+
+  const generateAllPreviews = async () => {
+    const promptsWithoutPreview = prompts.filter(p => !p.preview_url).length
+    if (promptsWithoutPreview === 0) {
+      alert('Все промпты уже имеют превью')
+      return
+    }
+
+    if (!confirm(`Сгенерировать превью для ${promptsWithoutPreview} промптов? Это может занять несколько минут.`)) {
+      return
+    }
+
+    setIsGeneratingPreviews(true)
+    try {
+      const response = await fetch('/api/admin/prompts/generate-preview/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          all: true,
+          referenceImageUrl: previewReferenceUrl || undefined
+        })
+      })
+
+      if (!response.ok) throw new Error('Generation failed')
+
+      const data = await response.json()
+      alert(`Генерация завершена!\nУспешно: ${data.generated}\nОшибок: ${data.failed}`)
+      fetchPrompts(pagination.page)
+    } catch (err) {
+      alert('Ошибка генерации: ' + (err instanceof Error ? err.message : 'Unknown'))
+    } finally {
+      setIsGeneratingPreviews(false)
+      setShowReferenceInput(false)
+    }
+  }
+
+  const generateSinglePreview = async (promptId: number) => {
+    try {
+      const response = await fetch('/api/admin/prompts/generate-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          promptId,
+          referenceImageUrl: previewReferenceUrl || undefined
+        })
+      })
+
+      if (!response.ok) throw new Error('Generation failed')
+
+      fetchPrompts(pagination.page)
+    } catch (err) {
+      alert('Ошибка генерации: ' + (err instanceof Error ? err.message : 'Unknown'))
     }
   }
 
@@ -333,6 +390,56 @@ function SavedPromptsTab() {
         </div>
       </div>
 
+      {/* Preview Generator Panel */}
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Image className="w-5 h-5 text-amber-600" />
+            <div>
+              <h4 className="font-medium text-slate-900">Генерация превью</h4>
+              <p className="text-sm text-slate-500">
+                {prompts.filter(p => !p.preview_url).length} промптов без превью
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {showReferenceInput && (
+              <input
+                type="text"
+                value={previewReferenceUrl}
+                onChange={(e) => setPreviewReferenceUrl(e.target.value)}
+                placeholder="URL референс-фото (опционально)"
+                className="w-64 px-3 py-2 text-sm border border-amber-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+            )}
+            <button
+              onClick={() => setShowReferenceInput(!showReferenceInput)}
+              className="p-2 rounded-lg bg-white border border-amber-300 text-amber-600 hover:bg-amber-100 transition-colors"
+              title="Добавить референс"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+            <button
+              onClick={generateAllPreviews}
+              disabled={isGeneratingPreviews || prompts.filter(p => !p.preview_url).length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all disabled:opacity-50"
+            >
+              {isGeneratingPreviews ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Генерация...
+                </>
+              ) : (
+                <>
+                  <Image className="w-4 h-4" />
+                  Сгенерировать все
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Error */}
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -359,16 +466,29 @@ function SavedPromptsTab() {
             >
               {/* Preview Image */}
               {prompt.preview_url ? (
-                <div className="aspect-video bg-slate-100 relative">
+                <div className="aspect-video bg-slate-100 relative group">
                   <img
                     src={prompt.preview_url}
                     alt={prompt.name}
                     className="w-full h-full object-cover"
                   />
+                  <button
+                    onClick={() => generateSinglePreview(prompt.id)}
+                    className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Перегенерировать превью"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </button>
                 </div>
               ) : (
-                <div className="aspect-video bg-slate-100 flex items-center justify-center">
+                <div className="aspect-video bg-slate-100 flex flex-col items-center justify-center gap-2 group">
                   <Image className="w-8 h-8 text-slate-300" />
+                  <button
+                    onClick={() => generateSinglePreview(prompt.id)}
+                    className="px-3 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    Сгенерировать
+                  </button>
                 </div>
               )}
 
