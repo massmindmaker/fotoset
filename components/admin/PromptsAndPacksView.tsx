@@ -500,6 +500,7 @@ function SavedPromptsTab() {
                     <option value="professional">Professional</option>
                     <option value="lifestyle">Lifestyle</option>
                     <option value="creative">Creative</option>
+                    <option value="dreampack">DREAM PACK</option>
                   </select>
                 </div>
 
