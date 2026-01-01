@@ -248,6 +248,7 @@ function SavedPromptsTab() {
   }
 
   const [isImporting, setIsImporting] = useState(false)
+  const [isImportingPinGlass, setIsImportingPinGlass] = useState(false)
 
   const importDreamPack = async () => {
     if (!confirm('Импортировать DREAM PACK (17 промптов)?')) return
@@ -270,6 +271,27 @@ function SavedPromptsTab() {
     }
   }
 
+  const importPinGlassPack = async () => {
+    if (!confirm('Импортировать PinGlass Premium (23 оригинальных промпта)?')) return
+
+    setIsImportingPinGlass(true)
+    try {
+      const response = await fetch('/api/admin/packs/pinglass/import', {
+        method: 'POST'
+      })
+
+      if (!response.ok) throw new Error('Import failed')
+
+      const data = await response.json()
+      alert(`PinGlass Premium: импортировано ${data.imported}, пропущено ${data.skipped}`)
+      fetchPrompts(1)
+    } catch (err) {
+      alert('Ошибка импорта: ' + (err instanceof Error ? err.message : 'Unknown'))
+    } finally {
+      setIsImportingPinGlass(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -278,6 +300,14 @@ function SavedPromptsTab() {
           Сохранённые промпты ({pagination.total})
         </h3>
         <div className="flex gap-2">
+          <button
+            onClick={importPinGlassPack}
+            disabled={isImportingPinGlass}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg hover:from-pink-600 hover:to-rose-600 transition-all disabled:opacity-50"
+          >
+            {isImportingPinGlass ? <Loader2 className="w-4 h-4 animate-spin" /> : <Star className="w-4 h-4" />}
+            PinGlass
+          </button>
           <button
             onClick={importDreamPack}
             disabled={isImporting}
@@ -497,6 +527,7 @@ function SavedPromptsTab() {
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Не выбран</option>
+                    <option value="pinglass">PinGlass Premium</option>
                     <option value="professional">Professional</option>
                     <option value="lifestyle">Lifestyle</option>
                     <option value="creative">Creative</option>
