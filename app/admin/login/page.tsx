@@ -1,10 +1,11 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react'
 
-export default function AdminLoginPage() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -161,5 +162,24 @@ export default function AdminLoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+function LoginLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md text-center">
+        <Loader2 className="w-8 h-8 animate-spin text-pink-500 mx-auto mb-4" />
+        <p className="text-slate-500">Загрузка...</p>
+      </div>
+    </div>
+  )
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={<LoginLoading />}>
+      <LoginForm />
+    </Suspense>
   )
 }
