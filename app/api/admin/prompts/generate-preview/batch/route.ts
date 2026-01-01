@@ -4,6 +4,9 @@ import { getCurrentSession } from '@/lib/admin/session'
 import { generateWithKie, isKieConfigured } from '@/lib/kie'
 import { uploadFromUrl, getPublicUrl, isR2Configured } from '@/lib/r2'
 
+// Increase timeout for batch Kie.ai generation (can take several minutes)
+export const maxDuration = 300
+
 function getSql() {
   const connectionString = process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED
   if (!connectionString) {

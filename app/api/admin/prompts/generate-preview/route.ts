@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { getCurrentSession } from '@/lib/admin/session'
-import { generateWithKie, isKieConfigured } from '@/lib/kie'
-import { uploadFromUrl, getPublicUrl, isR2Configured } from '@/lib/r2'
+import { createKieTask, isKieConfigured } from '@/lib/kie'
+import { isR2Configured } from '@/lib/r2'
+
+// Keep under Vercel timeout - we use async task creation
+export const maxDuration = 55
 
 function getSql() {
   const connectionString = process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED
@@ -14,7 +17,7 @@ function getSql() {
 
 /**
  * POST /api/admin/prompts/generate-preview
- * Generate a preview image for a saved prompt using Kie.ai
+ * Start async preview generation for a saved prompt using Kie.ai
  *
  * Body: { promptId: number, referenceImageUrl?: string }
  */
@@ -68,47 +71,41 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`[GeneratePreview] Generating preview for prompt ${promptId}: "${prompt.name}"`)
+    console.log(`[GeneratePreview] Starting async generation for prompt ${promptId}: "${prompt.name}"`)
 
-    // Generate image using Kie.ai
+    // Create async Kie task
     const referenceImages = referenceImageUrl ? [referenceImageUrl] : []
 
-    const result = await generateWithKie({
+    const result = await createKieTask({
       prompt: prompt.prompt,
       referenceImages,
       aspectRatio: '1:1', // Square for previews
       outputFormat: 'jpg'
     })
 
-    if (!result.success || !result.url) {
-      console.error(`[GeneratePreview] Failed to generate image:`, result.error)
+    if (!result.success || !result.taskId) {
+      console.error(`[GeneratePreview] Failed to create task:`, result.error)
       return NextResponse.json(
-        { error: { code: 'GENERATION_FAILED', message: result.error || 'Ошибка генерации' } },
+        { error: { code: 'TASK_CREATION_FAILED', message: result.error || 'Ошибка создания задачи' } },
         { status: 500 }
       )
     }
 
-    console.log(`[GeneratePreview] Generated image, uploading to R2...`)
-
-    // Upload to R2 for permanent storage
-    const r2Key = `previews/prompt-${promptId}-${Date.now()}.jpg`
-    await uploadFromUrl(result.url, r2Key)
-    const previewUrl = getPublicUrl(r2Key)
-
-    // Update the prompt with preview URL
+    // Store task in preview_tasks table for polling
     await sql`
-      UPDATE saved_prompts
-      SET preview_url = ${previewUrl}
-      WHERE id = ${promptId}
+      INSERT INTO preview_tasks (prompt_id, kie_task_id, status, created_at)
+      VALUES (${promptId}, ${result.taskId}, 'pending', NOW())
+      ON CONFLICT (prompt_id)
+      DO UPDATE SET kie_task_id = ${result.taskId}, status = 'pending', created_at = NOW(), error_message = NULL
     `
 
-    console.log(`[GeneratePreview] ✓ Preview generated for prompt ${promptId}`)
+    console.log(`[GeneratePreview] ✓ Task created for prompt ${promptId}: ${result.taskId}`)
 
     return NextResponse.json({
       success: true,
       promptId,
-      previewUrl,
-      latencyMs: result.latencyMs
+      taskId: result.taskId,
+      message: 'Генерация запущена. Превью появится автоматически.'
     })
 
   } catch (error) {
@@ -126,8 +123,57 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * POST /api/admin/prompts/generate-preview/batch
- * Generate preview images for multiple prompts
- *
- * Body: { promptIds: number[], referenceImageUrl?: string }
+ * GET /api/admin/prompts/generate-preview?promptId=123
+ * Check preview generation status
  */
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getCurrentSession()
+    if (!session) {
+      return NextResponse.json(
+        { error: { code: 'UNAUTHORIZED', message: 'Требуется авторизация' } },
+        { status: 401 }
+      )
+    }
+
+    const { searchParams } = new URL(request.url)
+    const promptId = searchParams.get('promptId')
+
+    if (!promptId) {
+      return NextResponse.json(
+        { error: { code: 'INVALID_REQUEST', message: 'promptId обязателен' } },
+        { status: 400 }
+      )
+    }
+
+    const sql = getSql()
+
+    const [task] = await sql`
+      SELECT pt.*, sp.preview_url
+      FROM preview_tasks pt
+      JOIN saved_prompts sp ON sp.id = pt.prompt_id
+      WHERE pt.prompt_id = ${promptId}
+    `
+
+    if (!task) {
+      return NextResponse.json({
+        status: 'none',
+        message: 'Нет активных задач'
+      })
+    }
+
+    return NextResponse.json({
+      status: task.status,
+      taskId: task.kie_task_id,
+      previewUrl: task.preview_url,
+      error: task.error_message
+    })
+
+  } catch (error) {
+    console.error('[GeneratePreview] Status check error:', error)
+    return NextResponse.json(
+      { error: { code: 'STATUS_ERROR', message: 'Ошибка проверки статуса' } },
+      { status: 500 }
+    )
+  }
+}
