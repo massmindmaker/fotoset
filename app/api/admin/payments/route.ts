@@ -32,9 +32,7 @@ export async function GET(request: NextRequest) {
     const amountMax = searchParams.get('amountMax')
       ? parseFloat(searchParams.get('amountMax')!)
       : undefined
-    const telegramUserId = searchParams.get('telegramUserId')
-      ? parseInt(searchParams.get('telegramUserId')!)
-      : undefined
+    const telegramUserId = searchParams.get('telegramUserId') || undefined
     const tierId = searchParams.get('tierId') || undefined
 
     // Pagination
@@ -42,61 +40,34 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20')))
     const offset = (page - 1) * limit
 
-    // Build WHERE conditions
-    const conditions = []
-    const params: any[] = []
-
-    if (status) {
-      conditions.push(`p.status = $${params.length + 1}`)
-      params.push(status)
-    }
-
-    if (dateFrom) {
-      conditions.push(`p.created_at >= $${params.length + 1}`)
-      params.push(dateFrom)
-    }
-
-    if (dateTo) {
-      conditions.push(`p.created_at <= $${params.length + 1}`)
-      params.push(dateTo)
-    }
-
-    if (amountMin !== undefined) {
-      conditions.push(`p.amount >= $${params.length + 1}`)
-      params.push(amountMin)
-    }
-
-    if (amountMax !== undefined) {
-      conditions.push(`p.amount <= $${params.length + 1}`)
-      params.push(amountMax)
-    }
-
-    if (telegramUserId) {
-      conditions.push(`u.telegram_user_id = $${params.length + 1}`)
-      params.push(telegramUserId)
-    }
-
-    if (tierId) {
-      conditions.push(`p.tier_id = $${params.length + 1}`)
-      params.push(tierId)
-    }
-
     // Filter by current mode (test vs production)
     const mode = await getCurrentMode()
     const isTestMode = mode === 'test'
-    conditions.push(`COALESCE(p.is_test_mode, false) = $${params.length + 1}`)
-    params.push(isTestMode)
 
-    const whereClause = conditions.length > 0
-      ? `WHERE ${conditions.join(' AND ')}`
-      : ''
+    // Build dynamic conditions using tagged template literals
+    const statusCondition = status ? sql`AND p.status = ${status}` : sql``
+    const dateFromCondition = dateFrom ? sql`AND p.created_at >= ${dateFrom}` : sql``
+    const dateToCondition = dateTo ? sql`AND p.created_at <= ${dateTo}` : sql``
+    const amountMinCondition = amountMin !== undefined ? sql`AND p.amount >= ${amountMin}` : sql``
+    const amountMaxCondition = amountMax !== undefined ? sql`AND p.amount <= ${amountMax}` : sql``
+    const telegramCondition = telegramUserId ? sql`AND u.telegram_user_id = ${telegramUserId}` : sql``
+    const tierCondition = tierId ? sql`AND p.tier_id = ${tierId}` : sql``
+    const modeCondition = sql`AND COALESCE(p.is_test_mode, false) = ${isTestMode}`
 
     // Get total count
     const countResult = await sql`
       SELECT COUNT(*) as total
       FROM payments p
       LEFT JOIN users u ON u.id = p.user_id
-      ${sql.unsafe(whereClause)}
+      WHERE 1=1
+        ${statusCondition}
+        ${dateFromCondition}
+        ${dateToCondition}
+        ${amountMinCondition}
+        ${amountMaxCondition}
+        ${telegramCondition}
+        ${tierCondition}
+        ${modeCondition}
     `
     const total = parseInt(countResult[0].total)
 
@@ -120,7 +91,15 @@ export async function GET(request: NextRequest) {
         p.updated_at
       FROM payments p
       LEFT JOIN users u ON u.id = p.user_id
-      ${sql.unsafe(whereClause)}
+      WHERE 1=1
+        ${statusCondition}
+        ${dateFromCondition}
+        ${dateToCondition}
+        ${amountMinCondition}
+        ${amountMaxCondition}
+        ${telegramCondition}
+        ${tierCondition}
+        ${modeCondition}
       ORDER BY p.created_at DESC
       LIMIT ${limit}
       OFFSET ${offset}
