@@ -565,24 +565,41 @@ export async function POST(request: NextRequest) {
 
     const totalPhotos = Math.min(requestedPhotos, availablePrompts.length, GENERATION_CONFIG.maxPhotos)
 
-    // Create generation job with payment_id binding
+    // CRITICAL: Mark payment as consumed BEFORE job creation (ATOMIC)
+    // This prevents race conditions where same payment could be used for multiple generations
+    const consumedResult = await sql`
+      UPDATE payments
+      SET
+        generation_consumed = TRUE,
+        consumed_at = NOW(),
+        consumed_avatar_id = ${dbAvatarId}
+      WHERE id = ${availablePayment.id}
+        AND generation_consumed = FALSE
+      RETURNING id, amount, tier_id, photo_count
+    `
+
+    if (consumedResult.length === 0) {
+      logger.warn("Payment already consumed (race condition prevented)", {
+        userId: user.id,
+        paymentId: availablePayment.id,
+        telegramUserId: tgId,
+      })
+      return error("PAYMENT_CONSUMED",
+        "Ваш платёж уже использован. Для новой генерации необходима новая оплата.",
+        { code: "PAYMENT_CONSUMED" }
+      )
+    }
+
+    const consumedPayment = consumedResult[0]
+
+    // Now safe to create generation job (payment is already consumed)
     const job = await sql`
       INSERT INTO generation_jobs (avatar_id, style_id, status, total_photos, payment_id)
-      VALUES (${dbAvatarId}, ${styleId}, 'pending', ${totalPhotos}, ${availablePayment.id})
+      VALUES (${dbAvatarId}, ${styleId}, 'pending', ${totalPhotos}, ${consumedPayment.id})
       RETURNING *
     `.then((rows: any[]) => rows[0])
 
-    // CRITICAL: Mark payment as consumed IMMEDIATELY after job creation
-    // This prevents race conditions where same payment could be used for multiple generations
-    await sql`
-      UPDATE payments
-      SET generation_consumed = TRUE,
-          consumed_at = NOW(),
-          consumed_avatar_id = ${dbAvatarId}
-      WHERE id = ${availablePayment.id}
-    `
-
-    logger.info("Generation job created, payment consumed", {
+    logger.info("Generation job created, payment consumed atomically", {
       jobId: job.id,
       avatarId: dbAvatarId,
       styleId,

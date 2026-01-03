@@ -24,6 +24,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  // IDEMPOTENCY: Check if this QStash message was already processed
+  const messageId = request.headers.get("upstash-message-id")
+
+  if (messageId) {
+    const existing = await sql`
+      SELECT id FROM qstash_processed_messages
+      WHERE message_id = ${messageId}
+      LIMIT 1
+    `.catch(() => []) // Ignore if table doesn't exist yet
+
+    if (existing.length > 0) {
+      console.log("[Jobs/Process] Duplicate QStash message (idempotency), skipping", {
+        messageId
+      })
+      return NextResponse.json({
+        success: true,
+        duplicate: true,
+        message: "Already processed"
+      })
+    }
+  }
+
   let payload: GenerationJobPayload
   try {
     payload = JSON.parse(body)
@@ -39,6 +61,7 @@ export async function POST(request: Request) {
     startIndex,
     chunkSize,
     totalPhotos: photoCount,
+    messageId,
   })
 
   try {
@@ -173,12 +196,24 @@ export async function POST(request: Request) {
       console.log(`[Jobs/Process] Queued next chunk starting at ${nextStartIndex}`)
     }
 
+    // IDEMPOTENCY: Mark message as processed to prevent duplicate execution
+    if (messageId) {
+      await sql`
+        INSERT INTO qstash_processed_messages (message_id, job_id, processed_at)
+        VALUES (${messageId}, ${jobId}, NOW())
+        ON CONFLICT (message_id) DO NOTHING
+      `.catch((err: Error) => {
+        console.warn("[Jobs/Process] Failed to record idempotency key:", err.message)
+      })
+    }
+
     return NextResponse.json({
       success: true,
       jobId,
       processedChunk: { startIndex, endIndex },
       tasksCreated: tasksCreated.length,
       tasksFailed: tasksFailed.length,
+      messageId,
       message: `Created ${tasksCreated.length} Kie.ai tasks, ${tasksFailed.length} failed. Polling will complete them.`,
     })
 
