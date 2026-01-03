@@ -8,7 +8,7 @@ import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { checkKieTaskStatus } from "@/lib/kie"
 import { uploadFromUrl, generatePromptKey, isR2Configured } from "@/lib/r2"
-import { autoRefundForFailedGeneration } from "@/lib/tbank"
+import { autoRefundForFailedGeneration } from "@/lib/payments/refund-dispatcher"
 
 // Vercel cron requires GET
 export async function GET() {

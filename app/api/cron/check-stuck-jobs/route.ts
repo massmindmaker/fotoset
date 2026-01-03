@@ -9,7 +9,7 @@
 
 import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { autoRefundForFailedGeneration } from "@/lib/tbank"
+import { autoRefundForFailedGeneration } from "@/lib/payments/refund-dispatcher"
 
 // Vercel Cron configuration
 export const dynamic = "force-dynamic"

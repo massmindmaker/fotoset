@@ -456,3 +456,147 @@ export interface AdminError {
   retryable: boolean
   details?: unknown
 }
+
+// ============================================================================
+// Payment Methods Settings (Multi-Provider Support)
+// ============================================================================
+
+/**
+ * Payment Provider ID
+ */
+export type PaymentMethodId = 'tbank' | 'stars' | 'ton'
+
+/**
+ * Base Payment Method Config
+ */
+export interface PaymentMethodConfig {
+  enabled: boolean
+}
+
+/**
+ * T-Bank Payment Method Settings
+ */
+export interface TBankMethodSettings extends PaymentMethodConfig {
+  commission: number  // Percentage (0-100)
+}
+
+/**
+ * Telegram Stars Payment Method Settings
+ */
+export interface StarsMethodSettings extends PaymentMethodConfig {
+  pricing: {
+    starter: number   // Stars amount
+    standard: number
+    premium: number
+  }
+}
+
+/**
+ * TON Crypto Payment Method Settings
+ */
+export interface TonMethodSettings extends PaymentMethodConfig {
+  walletAddress: string
+  pricing: {
+    starter: number   // TON amount
+    standard: number
+    premium: number
+  }
+}
+
+/**
+ * All Payment Methods Configuration
+ */
+export interface PaymentMethodsSettings {
+  tbank: TBankMethodSettings
+  stars: StarsMethodSettings
+  ton: TonMethodSettings
+}
+
+/**
+ * Default Payment Methods Settings
+ */
+export const DEFAULT_PAYMENT_METHODS: PaymentMethodsSettings = {
+  tbank: {
+    enabled: true,
+    commission: 0
+  },
+  stars: {
+    enabled: false,
+    pricing: {
+      starter: 99,
+      standard: 199,
+      premium: 299
+    }
+  },
+  ton: {
+    enabled: false,
+    walletAddress: '',
+    pricing: {
+      starter: 1.5,
+      standard: 3.0,
+      premium: 4.5
+    }
+  }
+}
+
+/**
+ * Exchange Rate Info (for display in admin panel)
+ */
+export interface ExchangeRateInfo {
+  currency: 'XTR' | 'TON'
+  rate: number        // Rate to RUB
+  source: string      // telegram_api, coingecko
+  updatedAt: string   // ISO 8601
+  expiresAt?: string
+}
+
+/**
+ * Extended AdminPayment with multi-provider support
+ */
+export interface AdminPaymentExtended extends AdminPayment {
+  provider: PaymentMethodId
+  provider_payment_id: string | null
+  // Telegram Stars
+  telegram_charge_id: string | null
+  stars_amount: number | null
+  // TON
+  ton_tx_hash: string | null
+  ton_amount: number | null
+  ton_sender_address: string | null
+  ton_confirmations: number | null
+  // Currency tracking
+  original_currency: 'RUB' | 'XTR' | 'TON'
+  original_amount: number | null
+  exchange_rate: number | null
+}
+
+/**
+ * Payment Stats by Method
+ */
+export interface PaymentStatsByMethod {
+  method: PaymentMethodId
+  count: number
+  revenue: number      // In RUB
+  originalAmount?: number
+  originalCurrency?: 'RUB' | 'XTR' | 'TON'
+}
+
+/**
+ * Extended Payment Filters with provider
+ */
+export interface PaymentFiltersExtended extends PaymentFilters {
+  provider?: PaymentMethodId
+}
+
+/**
+ * Orphan Payment (unmatched TON transaction)
+ */
+export interface OrphanPayment {
+  id: number
+  tx_hash: string
+  amount: number
+  wallet_address: string
+  status: 'unmatched' | 'matched' | 'refunded'
+  matched_payment_id: number | null
+  created_at: string
+}

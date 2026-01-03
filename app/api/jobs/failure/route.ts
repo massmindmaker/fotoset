@@ -4,7 +4,7 @@
 
 import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { autoRefundForFailedGeneration } from "@/lib/tbank"
+import { autoRefundForFailedGeneration } from "@/lib/payments/refund-dispatcher"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 60

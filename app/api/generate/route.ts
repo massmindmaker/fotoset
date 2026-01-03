@@ -36,7 +36,7 @@ import {
   trackQStashFallback,
   trackQStashSuccess,
 } from "@/lib/sentry-events"
-import { autoRefundForFailedGeneration } from "@/lib/tbank"
+import { autoRefundForFailedGeneration } from "@/lib/payments/refund-dispatcher"
 
 const logger = createLogger("Generate")
 
@@ -345,7 +345,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // Validate required fields (referenceImages optional if useStoredReferences=true)
-    const { telegramUserId, avatarId, styleId, referenceImages, photoCount, useStoredReferences } = body
+    // provider: 'tbank' | 'stars' | 'ton' - for multi-payment support
+    const { telegramUserId, avatarId, styleId, referenceImages, photoCount, useStoredReferences, provider = 'tbank' } = body
 
     // Require Telegram user ID (no deviceId fallback)
     if (!telegramUserId) {
@@ -432,11 +433,13 @@ export async function POST(request: NextRequest) {
 
     // Check if user has an AVAILABLE payment (not yet consumed for generation)
     // SECURITY: Each payment can only be used for ONE generation
+    // MULTI-PAYMENT: Filter by provider to prevent cross-provider consumption
     const availablePayment = await sql`
-      SELECT id, amount, status, tier_id, photo_count FROM payments
+      SELECT id, amount, status, tier_id, photo_count, COALESCE(provider, 'tbank') as provider FROM payments
       WHERE user_id = ${user.id}
         AND status = 'succeeded'
         AND COALESCE(generation_consumed, FALSE) = FALSE
+        AND COALESCE(provider, 'tbank') = ${provider}
       ORDER BY created_at DESC
       LIMIT 1
     `.then((rows: any[]) => rows[0])

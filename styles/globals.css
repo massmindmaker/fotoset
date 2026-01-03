@@ -548,6 +548,95 @@
   background: oklch(0.30 0.05 350);
 }
 
+/* ============================================================================
+   Multi-Payment Button System
+   Alternative payment methods (Stars, TON) displayed as smaller buttons
+   ============================================================================ */
+
+.btn-payment-alt {
+  min-height: 44px;
+  flex: 1;
+  padding: 10px 16px;
+  font-weight: 500;
+  font-size: 14px;
+  border-radius: 12px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+}
+
+.btn-payment-alt:hover {
+  background: oklch(0.28 0.045 350);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.btn-payment-alt:active {
+  transform: scale(0.98);
+}
+
+/* When only one alt method is available, expand to full width */
+.btn-payment-alt:only-child {
+  width: 100%;
+  flex: none;
+}
+
+/* TON button - blue gradient */
+.btn-payment-alt.btn-ton {
+  background: linear-gradient(135deg, oklch(0.22 0.03 230), oklch(0.18 0.02 220));
+  border-color: oklch(0.50 0.12 230 / 0.3);
+}
+
+.btn-payment-alt.btn-ton:hover {
+  background: linear-gradient(135deg, oklch(0.26 0.04 230), oklch(0.22 0.03 220));
+  border-color: oklch(0.55 0.14 230 / 0.5);
+}
+
+/* Stars button - purple gradient */
+.btn-payment-alt.btn-stars {
+  background: linear-gradient(135deg, oklch(0.22 0.04 280), oklch(0.18 0.03 270));
+  border-color: oklch(0.55 0.15 280 / 0.3);
+}
+
+.btn-payment-alt.btn-stars:hover {
+  background: linear-gradient(135deg, oklch(0.26 0.05 280), oklch(0.22 0.04 270));
+  border-color: oklch(0.60 0.18 280 / 0.5);
+}
+
+/* Alternative payment row container */
+.payment-alt-row {
+  display: flex;
+  gap: 12px;
+}
+
+/* Payment method divider */
+.payment-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.payment-divider::before,
+.payment-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.payment-divider span {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  text-transform: lowercase;
+}
+
 /* Ghost Button (icon buttons) */
 .btn-ghost {
   width: 44px;
@@ -1152,6 +1241,37 @@
     0 2px 12px oklch(0.55 0.18 12 / 0.30),
     0 1px 2px oklch(0 0 0 / 0.10),
     inset 0 2px 4px oklch(0 0 0 / 0.08);
+}
+
+/* Light theme: Alternative payment buttons */
+.light .btn-payment-alt {
+  background: oklch(0.97 0.01 350);
+  border-color: oklch(0.85 0.02 350);
+}
+
+.light .btn-payment-alt:hover {
+  background: oklch(0.94 0.02 350);
+  border-color: var(--primary);
+}
+
+.light .btn-payment-alt.btn-ton {
+  background: linear-gradient(135deg, oklch(0.94 0.04 230), oklch(0.90 0.03 220));
+  border-color: oklch(0.70 0.12 230 / 0.4);
+}
+
+.light .btn-payment-alt.btn-ton:hover {
+  background: linear-gradient(135deg, oklch(0.90 0.05 230), oklch(0.86 0.04 220));
+  border-color: oklch(0.60 0.14 230);
+}
+
+.light .btn-payment-alt.btn-stars {
+  background: linear-gradient(135deg, oklch(0.94 0.05 280), oklch(0.90 0.04 270));
+  border-color: oklch(0.70 0.15 280 / 0.4);
+}
+
+.light .btn-payment-alt.btn-stars:hover {
+  background: linear-gradient(135deg, oklch(0.90 0.06 280), oklch(0.86 0.05 270));
+  border-color: oklch(0.60 0.18 280);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
