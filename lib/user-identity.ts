@@ -16,9 +16,10 @@ export interface UserIdentifier {
  */
 export async function findOrCreateUser(params: {
   telegramUserId: number
+  telegramUsername?: string | null
   referralCode?: string
 }): Promise<User> {
-  const { telegramUserId, referralCode } = params
+  const { telegramUserId, telegramUsername, referralCode } = params
 
   // Validate telegram_user_id
   const tgId = typeof telegramUserId === 'number'
@@ -32,13 +33,18 @@ export async function findOrCreateUser(params: {
   // Normalize referral code (uppercase, trimmed)
   const normalizedCode = referralCode?.toUpperCase().trim() || null
 
+  // Normalize username (remove @ if present, trim)
+  const normalizedUsername = telegramUsername?.replace(/^@/, '').trim() || null
+
   // Find or create user (atomic)
   // CRITICAL: Save referral code on FIRST login - this survives T-Bank redirect
+  // Also save/update telegram_username for admin panel display
   const result = await sql`
-    INSERT INTO users (telegram_user_id, pending_referral_code)
-    VALUES (${tgId}, ${normalizedCode})
+    INSERT INTO users (telegram_user_id, telegram_username, pending_referral_code)
+    VALUES (${tgId}, ${normalizedUsername}, ${normalizedCode})
     ON CONFLICT (telegram_user_id) DO UPDATE SET
       updated_at = NOW(),
+      telegram_username = COALESCE(${normalizedUsername}, users.telegram_username),
       pending_referral_code = COALESCE(users.pending_referral_code, ${normalizedCode})
     RETURNING *
   `

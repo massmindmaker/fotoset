@@ -18,8 +18,9 @@ import { trackReferralApplied } from "@/lib/sentry-events"
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { telegramUserId, referralCode, markOnboardingComplete } = body as {
+    const { telegramUserId, telegramUsername, referralCode, markOnboardingComplete } = body as {
       telegramUserId?: number
+      telegramUsername?: string
       referralCode?: string
       markOnboardingComplete?: boolean
     }
@@ -32,14 +33,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find or create user (with optional referral code)
+    // Find or create user (with optional referral code and username)
     const user = await findOrCreateUser({
       telegramUserId,
+      telegramUsername: telegramUsername || undefined,
       referralCode: referralCode || undefined,
     })
 
     console.log(`[User API] User ${user.id}:`, {
       telegramUserId: user.telegram_user_id,
+      telegramUsername: user.telegram_username || "none",
       pendingReferralCode: user.pending_referral_code || "none",
       markOnboardingComplete,
     })

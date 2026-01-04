@@ -144,7 +144,7 @@ export function formatPaymentForExport(payment: {
 export function formatUserForExport(user: {
   id: number
   telegram_user_id: string
-  is_pro: boolean
+  has_paid?: boolean
   avatars_count: number
   payments_count: number
   total_spent: number
@@ -153,7 +153,7 @@ export function formatUserForExport(user: {
   return {
     'ID': user.id,
     'Telegram ID': user.telegram_user_id,
-    'Pro': user.is_pro ? 'Да' : 'Нет',
+    'Paid': user.payments_count > 0 ? 'Да' : 'Нет',
     'Avatars': user.avatars_count,
     'Payments': user.payments_count,
     'Total Spent': user.total_spent,

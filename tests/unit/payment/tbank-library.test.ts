@@ -470,7 +470,8 @@ describe('T-Bank Library', () => {
       expect(isValid).toBe(false);
     });
 
-    test('should skip verification in dev + test mode', async () => {
+    test('should NOT skip verification in dev mode (security hardening)', async () => {
+      // SECURITY: No bypass allowed - always verify signature
       process.env.NODE_ENV = 'development';
       process.env.TBANK_TERMINAL_KEY = 'TestDEMOKey';
       jest.resetModules();
@@ -484,8 +485,9 @@ describe('T-Bank Library', () => {
         PaymentId: '12345678',
       };
 
+      // Invalid token should fail even in dev mode
       const isValid = tbankModule.verifyWebhookSignature(notification, 'any-invalid-token');
-      expect(isValid).toBe(true); // Should skip verification
+      expect(isValid).toBe(false); // Security: always verify
 
       delete process.env.NODE_ENV;
     });

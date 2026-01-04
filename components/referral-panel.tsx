@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from "react"
 import {
   Gift, Copy, Check, Users, Wallet, TrendingUp, ArrowRight,
-  Loader2, X, CreditCard, Phone, AlertCircle, ChevronDown, Send
+  Loader2, X, CreditCard, Phone, AlertCircle, ChevronDown, Send,
+  Star, Crown, ExternalLink, Clock
 } from "lucide-react"
 
 interface ReferralStats {
@@ -19,6 +20,23 @@ interface ReferralStats {
     amount: number
     ndfl: number
     payout: number
+  } | null
+  // Partner data
+  isPartner?: boolean
+  commissionRate?: number
+  commissionPercent?: number
+}
+
+interface PartnerStatus {
+  isPartner: boolean
+  commissionRate: number
+  commissionPercent: number
+  canApply: boolean
+  application?: {
+    id: number
+    status: "pending" | "approved" | "rejected"
+    createdAt: string
+    rejectionReason?: string
   } | null
 }
 
@@ -51,12 +69,34 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [showEarnings, setShowEarnings] = useState(false)
   const [copiedTelegram, setCopiedTelegram] = useState(false)
+  const [partnerStatus, setPartnerStatus] = useState<PartnerStatus | null>(null)
+  const [showPartnerForm, setShowPartnerForm] = useState(false)
 
   useEffect(() => {
     if (isOpen && telegramUserId) {
       fetchStats()
+      fetchPartnerStatus()
     }
   }, [isOpen, telegramUserId])
+
+  const fetchPartnerStatus = async () => {
+    try {
+      if (!telegramUserId) return
+      const res = await fetch(`/api/partner/status?telegram_user_id=${telegramUserId}`)
+      const data = await res.json()
+      if (data.success) {
+        setPartnerStatus({
+          isPartner: data.isPartner,
+          commissionRate: data.commissionRate,
+          commissionPercent: data.commissionPercent,
+          canApply: data.canApply,
+          application: data.application,
+        })
+      }
+    } catch {
+      // Partner status fetch failed silently
+    }
+  }
 
   const fetchStats = async () => {
     setLoading(true)
@@ -209,12 +249,32 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
         <div className="sticky top-0 bg-background/95 backdrop-blur-xl z-10 px-4 sm:px-6 py-4 border-b border-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
-                <Gift className="w-5 h-5 text-white" />
+              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg ${
+                partnerStatus?.isPartner
+                  ? "bg-gradient-to-br from-violet-500 to-purple-600 shadow-violet-500/30"
+                  : "bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-500/30"
+              }`}>
+                {partnerStatus?.isPartner ? (
+                  <Crown className="w-5 h-5 text-white" />
+                ) : (
+                  <Gift className="w-5 h-5 text-white" />
+                )}
               </div>
               <div>
-                <h2 className="font-bold text-lg text-foreground">Партнёрская программа</h2>
-                <p className="text-xs text-muted-foreground">Зарабатывайте 10% с каждого реферала</p>
+                <h2 className="font-bold text-lg text-foreground flex items-center gap-2">
+                  {partnerStatus?.isPartner ? "Партнёр" : "Реферальная программа"}
+                  {partnerStatus?.isPartner && (
+                    <span className="text-xs px-2 py-0.5 bg-violet-500/20 text-violet-600 dark:text-violet-400 rounded-full">
+                      50%
+                    </span>
+                  )}
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {partnerStatus?.isPartner
+                    ? "Зарабатывайте 50% с каждого реферала"
+                    : "Зарабатывайте 10% с каждого реферала"
+                  }
+                </p>
               </div>
             </div>
             <button
@@ -324,24 +384,29 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
                       Пока нет начислений
                     </p>
                   ) : (
-                    earnings.slice(0, 10).map((earning) => (
-                      <div
-                        key={earning.id}
-                        className="p-3 bg-muted/50 rounded-xl flex items-center justify-between"
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            +{earning.amount.toLocaleString("ru-RU")} ₽
-                          </p>
+                    earnings.slice(0, 10).map((earning) => {
+                      const percent = earning.originalAmount > 0
+                        ? Math.round((earning.amount / earning.originalAmount) * 100)
+                        : 10
+                      return (
+                        <div
+                          key={earning.id}
+                          className="p-3 bg-muted/50 rounded-xl flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              +{earning.amount.toLocaleString("ru-RU")} ₽
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {percent}% от {earning.originalAmount.toLocaleString("ru-RU")} ₽
+                            </p>
+                          </div>
                           <p className="text-xs text-muted-foreground">
-                            10% от {earning.originalAmount.toLocaleString("ru-RU")} ₽
+                            {new Date(earning.createdAt).toLocaleDateString("ru-RU")}
                           </p>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(earning.createdAt).toLocaleDateString("ru-RU")}
-                        </p>
-                      </div>
-                    ))
+                      )
+                    })
                   )}
                 </div>
               )}
@@ -360,6 +425,66 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
                   </div>
                 </div>
               </div>
+
+              {/* Partner Section */}
+              {partnerStatus && !partnerStatus.isPartner && (
+                <div className="p-4 bg-gradient-to-br from-violet-500/10 to-purple-600/5 rounded-2xl border border-violet-500/20">
+                  {partnerStatus.application?.status === "pending" ? (
+                    // Pending application
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
+                        <Clock className="w-5 h-5 text-violet-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-violet-800 dark:text-violet-200">
+                          Заявка на рассмотрении
+                        </p>
+                        <p className="text-xs text-violet-700 dark:text-violet-300 mt-1">
+                          Подана {new Date(partnerStatus.application.createdAt).toLocaleDateString("ru-RU")}.
+                          Обычно рассмотрение занимает 1-2 рабочих дня.
+                        </p>
+                      </div>
+                    </div>
+                  ) : partnerStatus.application?.status === "rejected" ? (
+                    // Rejected application
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0">
+                        <AlertCircle className="w-5 h-5 text-red-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-red-800 dark:text-red-200">
+                          Заявка отклонена
+                        </p>
+                        {partnerStatus.application.rejectionReason && (
+                          <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                            Причина: {partnerStatus.application.rejectionReason}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : partnerStatus.canApply ? (
+                    // Can apply
+                    <>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Crown className="w-4 h-4 text-violet-600" />
+                        <p className="text-sm font-medium text-violet-800 dark:text-violet-200">
+                          Станьте партнёром — получайте 50%
+                        </p>
+                      </div>
+                      <p className="text-xs text-violet-700 dark:text-violet-300 mb-3">
+                        Партнёры получают повышенную комиссию 50% вместо стандартных 10% за каждого приведённого пользователя.
+                      </p>
+                      <button
+                        onClick={() => setShowPartnerForm(true)}
+                        className="w-full py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg shadow-violet-500/25"
+                      >
+                        <Star className="w-4 h-4" />
+                        Стать партнёром
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              )}
 
               {/* Withdraw Button */}
               <button
@@ -397,6 +522,18 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
           onSuccess={() => {
             setShowWithdrawModal(false)
             fetchStats()
+          }}
+        />
+      )}
+
+      {/* Partner Application Modal */}
+      {showPartnerForm && (
+        <PartnerApplicationModal
+          telegramUserId={telegramUserId}
+          onClose={() => setShowPartnerForm(false)}
+          onSuccess={() => {
+            setShowPartnerForm(false)
+            fetchPartnerStatus()
           }}
         />
       )}
@@ -603,6 +740,249 @@ function WithdrawModal({
               </>
             )}
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PartnerApplicationModal({
+  telegramUserId,
+  onClose,
+  onSuccess
+}: {
+  telegramUserId?: number
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [formData, setFormData] = useState({
+    contactName: "",
+    contactEmail: "",
+    contactPhone: "",
+    telegramUsername: "",
+    audienceSize: "",
+    audienceType: "",
+    promotionChannels: "",
+    websiteUrl: "",
+    message: "",
+  })
+
+  const audienceSizes = [
+    { value: "1000-5000", label: "1 000 — 5 000" },
+    { value: "5000-10000", label: "5 000 — 10 000" },
+    { value: "10000-50000", label: "10 000 — 50 000" },
+    { value: "50000-100000", label: "50 000 — 100 000" },
+    { value: "100000+", label: "100 000+" },
+  ]
+
+  const audienceTypes = [
+    { value: "telegram", label: "Telegram-канал" },
+    { value: "instagram", label: "Instagram" },
+    { value: "youtube", label: "YouTube" },
+    { value: "blog", label: "Блог/Сайт" },
+    { value: "other", label: "Другое" },
+  ]
+
+  const handleSubmit = async () => {
+    setError("")
+
+    if (!formData.contactName.trim()) {
+      setError("Введите имя")
+      return
+    }
+
+    if (!formData.audienceSize) {
+      setError("Выберите размер аудитории")
+      return
+    }
+
+    if (!formData.audienceType) {
+      setError("Выберите тип площадки")
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch("/api/partner/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          telegramUserId,
+          ...formData,
+        })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        onSuccess()
+      } else {
+        setError(data.error || "Ошибка при подаче заявки")
+      }
+    } catch {
+      setError("Ошибка сети")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-background rounded-3xl shadow-2xl border border-border max-h-[90vh] overflow-hidden">
+        {/* Header */}
+        <div className="sticky top-0 bg-background/95 backdrop-blur-xl z-10 px-6 py-4 border-b border-border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg">
+                <Crown className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Стать партнёром</h3>
+                <p className="text-xs text-muted-foreground">Комиссия 50% с продаж</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-muted rounded-xl text-muted-foreground"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Form */}
+        <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-140px)] space-y-4">
+          {/* Contact Name */}
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">Имя *</label>
+            <input
+              type="text"
+              value={formData.contactName}
+              onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+              placeholder="Как к вам обращаться"
+              className="w-full px-4 py-3 bg-muted rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
+          </div>
+
+          {/* Contact Email */}
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">Email</label>
+            <input
+              type="email"
+              value={formData.contactEmail}
+              onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+              placeholder="email@example.com"
+              className="w-full px-4 py-3 bg-muted rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
+          </div>
+
+          {/* Telegram Username */}
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">Telegram</label>
+            <input
+              type="text"
+              value={formData.telegramUsername}
+              onChange={(e) => setFormData({ ...formData, telegramUsername: e.target.value })}
+              placeholder="@username"
+              className="w-full px-4 py-3 bg-muted rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
+          </div>
+
+          {/* Audience Size */}
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">Размер аудитории *</label>
+            <select
+              value={formData.audienceSize}
+              onChange={(e) => setFormData({ ...formData, audienceSize: e.target.value })}
+              className="w-full px-4 py-3 bg-muted rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              <option value="">Выберите...</option>
+              {audienceSizes.map((size) => (
+                <option key={size.value} value={size.value}>{size.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Audience Type */}
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">Тип площадки *</label>
+            <select
+              value={formData.audienceType}
+              onChange={(e) => setFormData({ ...formData, audienceType: e.target.value })}
+              className="w-full px-4 py-3 bg-muted rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              <option value="">Выберите...</option>
+              {audienceTypes.map((type) => (
+                <option key={type.value} value={type.value}>{type.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Website URL */}
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">Ссылка на площадку</label>
+            <input
+              type="url"
+              value={formData.websiteUrl}
+              onChange={(e) => setFormData({ ...formData, websiteUrl: e.target.value })}
+              placeholder="https://t.me/channel или https://instagram.com/..."
+              className="w-full px-4 py-3 bg-muted rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
+          </div>
+
+          {/* Message */}
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">Комментарий</label>
+            <textarea
+              value={formData.message}
+              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+              placeholder="Расскажите о себе и как планируете продвигать PinGlass"
+              rows={3}
+              className="w-full px-4 py-3 bg-muted rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+            />
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
+          {/* Info */}
+          <div className="p-3 bg-violet-500/10 border border-violet-500/20 rounded-xl">
+            <p className="text-xs text-violet-700 dark:text-violet-300">
+              После подачи заявки мы свяжемся с вами в течение 1-2 рабочих дней.
+              При одобрении ваша комиссия автоматически увеличится до 50%.
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="sticky bottom-0 bg-background/95 backdrop-blur-xl px-6 py-4 border-t border-border">
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 bg-muted text-muted-foreground rounded-xl font-medium hover:bg-muted/80 transition-colors"
+            >
+              Отмена
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="flex-1 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <ArrowRight className="w-5 h-5" />
+                  Отправить
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

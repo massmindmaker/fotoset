@@ -68,6 +68,12 @@ export type AuditAction =
   | 'experiment_started'
   | 'experiment_stopped'
   | 'experiment_updated'
+  // Ticket actions
+  | 'ticket_assigned'
+  | 'ticket_resolved'
+  | 'ticket_status_changed'
+  | 'ticket_updated'
+  | 'ticket_message_sent'
 
 export interface AuditLogEntry {
   adminId: number

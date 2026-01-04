@@ -29,6 +29,7 @@ export async function query<T = any>(
 export type User = {
   id: number
   telegram_user_id: number  // PRIMARY identifier (NOT NULL, UNIQUE)
+  telegram_username: string | null  // Telegram @username for admin panel display
   pending_referral_code: string | null  // Saved on first login, used on first payment
   created_at: string
   updated_at: string

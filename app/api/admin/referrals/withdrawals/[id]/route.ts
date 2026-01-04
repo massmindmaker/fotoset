@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { getCurrentSession } from '@/lib/admin/session'
+import { hasPermission } from '@/lib/admin/permissions'
 import { logAdminAction } from '@/lib/admin/audit'
 
 function getSql() {
@@ -22,6 +23,11 @@ export async function POST(
     const session = await getCurrentSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Permission check - only super_admin and admin can approve/reject withdrawals
+    if (!hasPermission(session.role as 'super_admin' | 'admin' | 'viewer', 'referrals.approve_withdrawal')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const { id } = await context.params

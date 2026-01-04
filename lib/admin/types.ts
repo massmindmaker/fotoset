@@ -64,7 +64,7 @@ export interface AdminUserListItem {
   avatars_count: number
   payments_count: number
   total_spent: number
-  is_pro: boolean
+  has_paid: boolean // User has at least one successful payment
 
   // NEW: Photo counts (Task 2.2)
   ref_photos_total: number   // Uploaded reference photos

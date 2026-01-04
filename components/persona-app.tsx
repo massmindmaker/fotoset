@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react"
 import { Loader2, Sun, Moon, Gift, Plus } from "lucide-react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
@@ -93,6 +93,9 @@ export default function PersonaApp() {
   // Payment success celebration state
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
 
+  // Active generation job ID (for polling recovery)
+  const [activeJobId, setActiveJobId] = useState<number | null>(null)
+
   // Reference photos state for Avatar Detail View
   const [referencePhotos, setReferencePhotos] = useState<ReferencePhoto[]>([])
   const [isLoadingReferences, setIsLoadingReferences] = useState(false)
@@ -121,6 +124,12 @@ export default function PersonaApp() {
   const getActivePersona = useCallback(() => {
     return "personaId" in viewState ? getPersona(viewState.personaId) : null
   }, [viewState, getPersona])
+
+  // Memoized active persona (prevents multiple calls in render)
+  const activePersona = useMemo(() => {
+    if (!("personaId" in viewState)) return null
+    return personas.find((p) => p.id === viewState.personaId) || null
+  }, [viewState, personas])
 
   // Initialize app
   useEffect(() => {
@@ -323,7 +332,13 @@ export default function PersonaApp() {
       const persona = personas.find((p) => p.id === avatarId)
 
       // If persona has no photos or might be out of sync, fetch from server
-      if (persona && (!persona.generatedAssets || persona.generatedAssets.length === 0 || persona.status === "ready")) {
+      // Also load if processing but not currently generating (user returned after closing app)
+      if (persona && (
+        !persona.generatedAssets ||
+        persona.generatedAssets.length === 0 ||
+        persona.status === "ready" ||
+        (persona.status === "processing" && !isGenerating)
+      )) {
         try {
           console.log("[Results] Loading photos from server for avatar:", avatarId)
           const res = await fetch(`/api/avatars/${avatarId}/photos`)
@@ -350,7 +365,7 @@ export default function PersonaApp() {
     }
 
     loadPhotosForResults()
-  }, [viewState, personas, updatePersona])
+  }, [viewState, personas, updatePersona, isGenerating])
 
   // Recovery: if view requires persona but it's missing, redirect to DASHBOARD
   useEffect(() => {
@@ -711,15 +726,169 @@ export default function PersonaApp() {
     }
   }, [viewState, getActivePersona, getPersona, syncPersonaToServer, telegramUserId, showMessage, setIsSyncing, setIsGenerating, updatePersona, isOnline])
 
+  // Polling helper - reusable for both new generation and recovery
+  const startGenerationPolling = useCallback((
+    jobId: number,
+    personaId: string,
+    totalPhotos: number,
+    initialPhotoCount: number = 0
+  ) => {
+    let lastPhotoCount = initialPhotoCount
+
+    console.log("[Polling] Starting polling for job:", jobId, "persona:", personaId)
+
+    startPolling(
+      `generate-${jobId}`,
+      async () => {
+        const statusRes = await fetch(`/api/generate?job_id=${jobId}`)
+        const statusData = await statusRes.json()
+
+        setGenerationProgress({
+          completed: statusData.progress?.completed || 0,
+          total: statusData.progress?.total || totalPhotos,
+        })
+
+        if (statusData.photos && statusData.photos.length > lastPhotoCount) {
+          const newPhotos = statusData.photos.slice(lastPhotoCount)
+          const newAssets = newPhotos.map((url: string, i: number) => ({
+            id: `${jobId}-${lastPhotoCount + i}`,
+            type: "PHOTO" as const,
+            url,
+            styleId: "pinglass",
+            createdAt: Date.now(),
+          }))
+
+          console.log("[Polling] Got", newPhotos.length, "new photos, updating persona:", personaId)
+
+          setPersonas((prev) =>
+            prev.map((persona) =>
+              persona.id === personaId
+                ? {
+                    ...persona,
+                    generatedAssets: [...newAssets, ...persona.generatedAssets],
+                    thumbnailUrl: persona.thumbnailUrl || newAssets[0]?.url,
+                  }
+                : persona
+            )
+          )
+          lastPhotoCount = statusData.photos.length
+        }
+
+        if (statusData.status === "completed" || statusData.status === "failed") {
+          console.log("[Polling] Job finished:", statusData.status)
+          stopPolling(`generate-${jobId}`)
+          setActiveJobId(null)
+          updatePersona(personaId, { status: statusData.status === "completed" ? "ready" : "draft" })
+          setIsGenerating(false)
+          setGenerationProgress({ completed: 0, total: 0 })
+
+          if (statusData.status === "failed") {
+            showMessage(statusData.error || "Генерация не удалась")
+          }
+        }
+      },
+      {
+        intervalMs: 3000,
+        timeoutMs: 15 * 60 * 1000,
+      }
+    )
+  }, [startPolling, stopPolling, setPersonas, updatePersona, setIsGenerating, setGenerationProgress, showMessage])
+
+  // Restore polling when returning to RESULTS with processing status
+  useEffect(() => {
+    // Skip if already generating or no active persona
+    if (isGenerating || activeJobId) return
+    if (viewState.view !== "RESULTS" || !("personaId" in viewState)) return
+
+    const persona = personas.find((p) => p.id === viewState.personaId)
+    if (!persona || persona.status !== "processing") return
+
+    const resumePolling = async () => {
+      try {
+        console.log("[Resume] Checking for active generation job for avatar:", viewState.personaId)
+
+        // Check if there's an active job for this avatar
+        const res = await fetch(
+          `/api/generate?avatar_id=${viewState.personaId}&telegram_user_id=${telegramUserId}`
+        )
+        const data = await res.json()
+
+        if (data.success && data.status === "processing" && data.jobId) {
+          console.log("[Resume] Found active job, restoring polling:", data.jobId)
+
+          setIsGenerating(true)
+          setActiveJobId(data.jobId)
+          setGenerationProgress({
+            completed: data.progress?.completed || 0,
+            total: data.progress?.total || 23
+          })
+
+          // Add already generated photos that might be missing locally
+          if (data.photos?.length > 0) {
+            const existingUrls = new Set(persona.generatedAssets.map((a) => a.url))
+            const newPhotos = data.photos.filter((url: string) => !existingUrls.has(url))
+
+            if (newPhotos.length > 0) {
+              console.log("[Resume] Adding", newPhotos.length, "photos from server")
+              const newAssets = newPhotos.map((url: string, i: number) => ({
+                id: `${data.jobId}-resumed-${i}`,
+                type: "PHOTO" as const,
+                url,
+                styleId: "pinglass",
+                createdAt: Date.now(),
+              }))
+              updatePersona(viewState.personaId, {
+                generatedAssets: [...newAssets, ...persona.generatedAssets]
+              })
+            }
+          }
+
+          // Start polling from current count
+          const initialCount = data.photos?.length || 0
+          startGenerationPolling(data.jobId, viewState.personaId, data.progress?.total || 23, initialCount)
+
+        } else if (data.status === "completed") {
+          // Generation finished while away - update status and load photos
+          console.log("[Resume] Generation already completed, updating status")
+          updatePersona(viewState.personaId, { status: "ready" })
+
+          // Force photo reload
+          if (data.photos?.length > 0) {
+            const newAssets = data.photos.map((url: string, i: number) => ({
+              id: `completed-${i}`,
+              type: "PHOTO" as const,
+              url,
+              styleId: "pinglass",
+              createdAt: Date.now(),
+            }))
+            updatePersona(viewState.personaId, {
+              generatedAssets: newAssets,
+              status: "ready"
+            })
+          }
+        } else if (data.status === "failed") {
+          console.log("[Resume] Generation failed:", data.error)
+          updatePersona(viewState.personaId, { status: "draft" })
+        }
+      } catch (e) {
+        console.error("[Resume] Failed to check generation status:", e)
+      }
+    }
+
+    resumePolling()
+  }, [viewState, personas, isGenerating, activeJobId, telegramUserId, updatePersona, setIsGenerating, setGenerationProgress, startGenerationPolling])
+
   // Generate photos handler
   const handleGenerate = useCallback(async (tier: PricingTier) => {
     const p = getActivePersona()
     if (!p) return
 
+    const targetPersonaId = p.id  // Capture ID explicitly for closure
+
     setIsGenerating(true)
     setGenerationProgress({ completed: 0, total: tier.photos })
-    setViewState({ view: "RESULTS", personaId: p.id })
-    updatePersona(p.id, { status: "processing" })
+    setViewState({ view: "RESULTS", personaId: targetPersonaId })
+    updatePersona(targetPersonaId, { status: "processing" })
 
     try {
       const referenceImages = await Promise.all(p.images.slice(0, 14).map((img) => fileToBase64(img.file)))
@@ -740,6 +909,7 @@ export default function PersonaApp() {
       const data = await res.json()
 
       if (data.photos && data.photos.length > 0) {
+        // Immediate completion (all photos ready)
         const newAssets = data.photos.map((url: string, i: number) => ({
           id: `${data.jobId}-${i}`,
           type: "PHOTO" as const,
@@ -747,7 +917,7 @@ export default function PersonaApp() {
           styleId: "pinglass",
           createdAt: Date.now(),
         }))
-        updatePersona(p.id, {
+        updatePersona(targetPersonaId, {
           status: "ready",
           generatedAssets: [...newAssets, ...p.generatedAssets],
           thumbnailUrl: p.thumbnailUrl || newAssets[0]?.url,
@@ -758,68 +928,18 @@ export default function PersonaApp() {
       }
 
       if (data.jobId) {
-        let lastPhotoCount = 0
-
-        startPolling(
-          `generate-${data.jobId}`,
-          async () => {
-            const statusRes = await fetch(`/api/generate?job_id=${data.jobId}`)
-            const statusData = await statusRes.json()
-
-            setGenerationProgress({
-              completed: statusData.progress?.completed || 0,
-              total: statusData.progress?.total || tier.photos,
-            })
-
-            if (statusData.photos && statusData.photos.length > lastPhotoCount) {
-              const newPhotos = statusData.photos.slice(lastPhotoCount)
-              const newAssets = newPhotos.map((url: string, i: number) => ({
-                id: `${data.jobId}-${lastPhotoCount + i}`,
-                type: "PHOTO" as const,
-                url,
-                styleId: "pinglass",
-                createdAt: Date.now(),
-              }))
-
-              setPersonas((prev) =>
-                prev.map((persona) =>
-                  persona.id === p.id
-                    ? {
-                        ...persona,
-                        generatedAssets: [...newAssets, ...persona.generatedAssets],
-                        thumbnailUrl: persona.thumbnailUrl || newAssets[0]?.url,
-                      }
-                    : persona
-                )
-              )
-              lastPhotoCount = statusData.photos.length
-            }
-
-            if (statusData.status === "completed" || statusData.status === "failed") {
-              stopPolling(`generate-${data.jobId}`)
-              updatePersona(p.id, { status: statusData.status === "completed" ? "ready" : "draft" })
-              setIsGenerating(false)
-              setGenerationProgress({ completed: 0, total: 0 })
-
-              if (statusData.status === "failed") {
-                showMessage(statusData.error || "Генерация не удалась")
-              }
-            }
-          },
-          {
-            intervalMs: 3000,
-            timeoutMs: 15 * 60 * 1000,
-          }
-        )
+        // Start polling for progress using the helper
+        setActiveJobId(data.jobId)
+        startGenerationPolling(data.jobId, targetPersonaId, tier.photos, 0)
       }
     } catch (e) {
       showMessage(e instanceof Error ? e.message : "Ошибка генерации")
-      updatePersona(p.id, { status: "draft" })
-      setViewState({ view: "SELECT_TIER", personaId: p.id })
+      updatePersona(targetPersonaId, { status: "draft" })
+      setViewState({ view: "SELECT_TIER", personaId: targetPersonaId })
       setIsGenerating(false)
       setGenerationProgress({ completed: 0, total: 0 })
     }
-  }, [getActivePersona, telegramUserId, fileToBase64, updatePersona, setIsGenerating, setGenerationProgress, setPersonas, startPolling, stopPolling, showMessage])
+  }, [getActivePersona, telegramUserId, fileToBase64, updatePersona, setIsGenerating, setGenerationProgress, startGenerationPolling, showMessage])
 
   // Payment success handler
   const handlePaymentSuccess = useCallback(() => {
@@ -977,9 +1097,9 @@ export default function PersonaApp() {
               )
             )}
             {viewState.view === "RESULTS" && (
-              getActivePersona() ? (
+              activePersona ? (
                 <ResultsView
-                  persona={getActivePersona()!}
+                  persona={activePersona}
                   onBack={() => setViewState({ view: "DASHBOARD" })}
                   onGenerateMore={() => setViewState({ view: "SELECT_TIER", personaId: viewState.personaId })}
                   isGenerating={isGenerating}

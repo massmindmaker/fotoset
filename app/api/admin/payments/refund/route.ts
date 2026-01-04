@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { cancelPayment } from "@/lib/tbank"
 import { logAdminAction } from "@/lib/admin/audit"
+import { getCurrentSession } from "@/lib/admin/session"
+import { hasPermission } from "@/lib/admin/permissions"
 import type { Receipt } from "@/lib/tbank"
 
 /**
@@ -24,6 +26,23 @@ import type { Receipt } from "@/lib/tbank"
  */
 export async function POST(request: NextRequest) {
   try {
+    // Auth check
+    const session = await getCurrentSession()
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: { code: "UNAUTHORIZED", userMessage: "Требуется авторизация" } },
+        { status: 401 }
+      )
+    }
+
+    // Permission check
+    if (!hasPermission(session.role as 'super_admin' | 'admin' | 'viewer', 'payments.refund')) {
+      return NextResponse.json(
+        { success: false, error: { code: "FORBIDDEN", userMessage: "Недостаточно прав для возврата" } },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const { paymentId, amount, reason } = body
 
@@ -173,7 +192,7 @@ export async function POST(request: NextRequest) {
 
     // Audit log
     await logAdminAction({
-      adminId: 0, // Will be filled from session in the future
+      adminId: session.adminId,
       action: 'REFUND_CREATED',
       targetType: 'payment',
       targetId: paymentId,

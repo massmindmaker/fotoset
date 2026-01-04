@@ -229,19 +229,7 @@ export class TonProvider implements IPaymentProvider {
             WHERE id = ${paymentId}
           `
 
-          // Mark user as pro if payment succeeded
-          if (newStatus === 'succeeded') {
-            const userPayment = await sql`
-              SELECT user_id FROM payments WHERE id = ${paymentId}
-            `.then((rows: any[]) => rows[0])
-
-            if (userPayment) {
-              await sql`
-                UPDATE users SET is_pro = TRUE, updated_at = NOW()
-                WHERE id = ${userPayment.user_id}
-              `
-            }
-          }
+          // User access is determined by having a successful payment, not by is_pro flag
 
           return {
             success: true,

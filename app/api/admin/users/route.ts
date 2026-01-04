@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         COUNT(DISTINCT p.id) as payments_count,
         SUM(CASE WHEN p.status = 'succeeded' THEN p.amount ELSE 0 END) as total_spent,
         CASE WHEN COUNT(DISTINCT CASE WHEN p.status = 'succeeded' THEN p.id END) > 0
-          THEN true ELSE false END as is_pro,
+          THEN true ELSE false END as has_paid,
 
         -- Photo counts (Task 2.1)
         COUNT(DISTINCT rp.id) as ref_photos_total,

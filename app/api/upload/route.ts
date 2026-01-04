@@ -286,6 +286,14 @@ async function handleJsonUpload(request: NextRequest) {
     if (match) contentType = match[1]
   }
 
+  // Validate content type (same as FormData upload)
+  if (!ALLOWED_TYPES.includes(contentType)) {
+    return error(
+      "BAD_REQUEST",
+      `Invalid content type: ${contentType}. Allowed: ${ALLOWED_TYPES.join(", ")}`
+    )
+  }
+
   // Compress image before upload (except for generated photos)
   if (imageType !== "generated") {
     const compressed = await compressImage(buffer, imageType as ImageType, contentType)

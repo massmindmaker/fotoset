@@ -213,17 +213,7 @@ export class TelegramStarsProvider implements IPaymentProvider {
         WHERE id = ${paymentId}
       `
 
-      // Mark user as pro
-      const payment = await sql`
-        SELECT user_id FROM payments WHERE id = ${paymentId}
-      `.then((rows: any[]) => rows[0])
-
-      if (payment) {
-        await sql`
-          UPDATE users SET is_pro = TRUE, updated_at = NOW()
-          WHERE id = ${payment.user_id}
-        `
-      }
+      // User access is determined by having a successful payment, not by is_pro flag
 
       return {
         success: true,

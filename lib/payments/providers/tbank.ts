@@ -17,8 +17,8 @@ import type {
 } from '../types'
 import { sql } from '../../db'
 import {
-  createPayment as tbankCreatePayment,
-  getPaymentStatus as tbankGetStatus,
+  initPayment as tbankInitPayment,
+  getPaymentState as tbankGetState,
   cancelPayment as tbankCancelPayment,
   verifyWebhookSignature,
 } from '../../tbank'
@@ -58,14 +58,21 @@ export class TBankProvider implements IPaymentProvider {
     `
 
     // Call T-Bank API
-    const result = await tbankCreatePayment({
+    const orderId = `order_${payment.id}`
+    const description = `PinGlass Pro - ${photoCount} AI photos`
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://pinglass.ru'
+    const successUrl = `${baseUrl}/payment/callback?payment_id=${payment.id}`
+    const failUrl = `${baseUrl}/payment/callback?payment_id=${payment.id}&status=failed`
+
+    const result = await tbankInitPayment(
       amount,
-      orderId: `order_${payment.id}`,
-      email: email || undefined,
-      description: `PinGlass Pro - ${photoCount} AI photos`,
-      successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/callback?payment_id=${payment.id}`,
-      failUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/callback?payment_id=${payment.id}&status=failed`,
-    })
+      orderId,
+      description,
+      successUrl,
+      failUrl,
+      undefined,  // notificationUrl
+      email || undefined  // customerEmail
+    )
 
     // Update with T-Bank payment ID
     await sql`
@@ -101,7 +108,7 @@ export class TBankProvider implements IPaymentProvider {
     // If still pending, check T-Bank API
     if (payment.status === 'pending' && payment.tbank_payment_id) {
       try {
-        const tbankStatus = await tbankGetStatus(payment.tbank_payment_id)
+        const tbankStatus = await tbankGetState(payment.tbank_payment_id)
 
         let newStatus = payment.status
         if (tbankStatus.Status === 'CONFIRMED') {
@@ -135,8 +142,13 @@ export class TBankProvider implements IPaymentProvider {
   async processWebhook(payload: unknown): Promise<WebhookResult> {
     const data = payload as TBankWebhookPayload
 
-    // Verify signature
-    const isValid = verifyWebhookSignature(data)
+    // Verify signature (Token field contains the signature)
+    const receivedToken = data.Token as string
+    if (!receivedToken) {
+      return { success: false, error: 'Missing webhook signature token' }
+    }
+
+    const isValid = verifyWebhookSignature(data as unknown as Record<string, unknown>, receivedToken)
     if (!isValid) {
       return { success: false, error: 'Invalid webhook signature' }
     }
@@ -176,19 +188,8 @@ export class TBankProvider implements IPaymentProvider {
       WHERE id = ${paymentId}
     `
 
-    // If succeeded, mark user as pro
-    if (status === 'succeeded') {
-      const payment = await sql`
-        SELECT user_id FROM payments WHERE id = ${paymentId}
-      `.then((rows: any[]) => rows[0])
-
-      if (payment) {
-        await sql`
-          UPDATE users SET is_pro = TRUE, updated_at = NOW()
-          WHERE id = ${payment.user_id}
-        `
-      }
-    }
+    // Payment status is already updated in the webhook handler
+    // User access is determined by having a successful payment, not by is_pro flag
 
     return {
       success: true,

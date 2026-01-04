@@ -123,8 +123,27 @@ export async function verifySession(token: string): Promise<AdminSession | null>
 
 /**
  * Get current session from cookies
+ *
+ * TESTING MODE: Returns test session when ADMIN_AUTH_DISABLED=true
  */
 export async function getCurrentSession(): Promise<AdminSession | null> {
+  // TEMPORARY: Disable auth for testing (ONLY in development!)
+  if (process.env.ADMIN_AUTH_DISABLED === 'true') {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[SECURITY] ADMIN_AUTH_DISABLED is set in production! Ignoring.')
+      // Continue to normal auth flow below
+    } else {
+      return {
+        adminId: 1,
+        email: 'test@admin.local',
+        role: 'super_admin',
+        sessionId: 1,
+        firstName: 'Test',
+        lastName: 'Admin'
+      }
+    }
+  }
+
   const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
 

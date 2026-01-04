@@ -3,7 +3,9 @@ import { sql, query } from "@/lib/db"
 import { verifyWebhookSignature } from "@/lib/tbank"
 import { paymentLogger as log } from "@/lib/logger"
 
-const REFERRAL_RATE = 0.10 // 10% партнёру
+// Default rates (can be overridden per user)
+const DEFAULT_REFERRAL_RATE = 0.10 // 10% for regular referrals
+const PARTNER_REFERRAL_RATE = 0.50 // 50% for partners
 
 // Webhook from T-Bank
 export async function POST(request: NextRequest) {
@@ -133,6 +135,19 @@ async function processReferralEarning(userId: number, paymentId: string) {
 
     const referrerId = referralResult.rows[0].referrer_id
 
+    // Get referrer's commission rate (partner=50%, regular=10%)
+    const rateResult = await query<{ commission_rate: number; is_partner: boolean }>(
+      "SELECT commission_rate, is_partner FROM referral_balances WHERE user_id = $1",
+      [referrerId]
+    )
+
+    // Use partner rate if approved, otherwise default rate
+    const commissionRate = rateResult.rows.length > 0 && rateResult.rows[0].is_partner
+      ? Number(rateResult.rows[0].commission_rate) || PARTNER_REFERRAL_RATE
+      : DEFAULT_REFERRAL_RATE
+
+    console.log(`[Referral] Referrer ${referrerId} commission rate: ${commissionRate * 100}% (partner: ${rateResult.rows[0]?.is_partner || false})`)
+
     // Get payment amount
     const paymentResult = await query<{ id: number; amount: number }>(
       "SELECT id, amount FROM payments WHERE tbank_payment_id = $1",
@@ -145,7 +160,7 @@ async function processReferralEarning(userId: number, paymentId: string) {
 
     const payment = paymentResult.rows[0]
     const originalAmount = Number(payment.amount)
-    const earningAmount = Math.round(originalAmount * REFERRAL_RATE * 100) / 100
+    const earningAmount = Math.round(originalAmount * commissionRate * 100) / 100
 
     // ATOMIC: Insert earning with ON CONFLICT to prevent duplicates
     // This handles race conditions when webhook fires multiple times
@@ -166,15 +181,15 @@ async function processReferralEarning(userId: number, paymentId: string) {
     // Update referrer balance atomically
     // NOTE: referrals_count is now incremented at onboarding completion, not here
     await query(
-      `INSERT INTO referral_balances (user_id, balance, total_earned, referrals_count)
-       VALUES ($1, $2, $2, 0)
+      `INSERT INTO referral_balances (user_id, balance, total_earned, referrals_count, commission_rate)
+       VALUES ($1, $2, $2, 0, $3)
        ON CONFLICT (user_id) DO UPDATE SET
          balance = referral_balances.balance + $2,
          total_earned = referral_balances.total_earned + $2,
          updated_at = NOW()`,
-      [referrerId, earningAmount]
+      [referrerId, earningAmount, DEFAULT_REFERRAL_RATE]
     )
-    log.info(`Credited ${earningAmount} RUB to user ${referrerId} from payment ${paymentId}`)
+    log.info(`Credited ${earningAmount} RUB (${commissionRate * 100}%) to user ${referrerId} from payment ${paymentId}`)
   } catch (error) {
     log.error("Error processing earning:", error)
     // Don't throw - referral is not critical for payment success

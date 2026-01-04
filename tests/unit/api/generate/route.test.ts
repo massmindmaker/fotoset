@@ -899,7 +899,6 @@ describe('POST /api/generate', () => {
       const data = await response.json()
       expect(data.avatarId).toBe(42)
     })
-  })
 
     test('GEN-AVA-003: should create new avatar when valid DB ID not found', async () => {
       const { POST } = await import('@/app/api/generate/route')

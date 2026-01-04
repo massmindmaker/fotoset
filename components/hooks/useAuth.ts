@@ -124,6 +124,7 @@ export function useAuth() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   telegramUserId: tgUser.id,
+                  telegramUsername: tgUser.username,
                   markOnboardingComplete: true,
                 }),
               })
@@ -141,6 +142,7 @@ export function useAuth() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   telegramUserId: tgUser.id,
+                  telegramUsername: tgUser.username,
                   referralCode: startParam.toUpperCase(),
                 }),
               })
@@ -159,7 +161,10 @@ export function useAuth() {
             await fetch("/api/user", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ telegramUserId: tgUser.id }),
+              body: JSON.stringify({
+                telegramUserId: tgUser.id,
+                telegramUsername: tgUser.username,
+              }),
             })
           } catch {
             // Non-critical, user will be created on first payment
