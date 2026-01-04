@@ -21,6 +21,7 @@
     "@aws-sdk/client-s3": "^3.948.0",
     "@aws-sdk/s3-request-presigner": "^3.948.0",
     "@google/genai": "^1.30.0",
+    "@google/generative-ai": "^0.24.1",
     "@jfkz/tinkoff-payment-sdk": "^2.0.0-0",
     "@neondatabase/serverless": "latest",
     "@sentry/nextjs": "^8",
