@@ -13,7 +13,9 @@ import {
   AlertCircle,
   Image,
   ExternalLink,
-  Undo2
+  Undo2,
+  Copy,
+  Check
 } from 'lucide-react'
 
 interface PaymentDetailsModalProps {
@@ -45,6 +47,17 @@ interface PaymentDetails {
   avatar_name: string | null
   avatar_status: string | null
   photos_generated: number
+  // Provider-specific fields
+  provider: 'tbank' | 'stars' | 'ton'
+  original_amount: number | null
+  original_currency: string | null
+  exchange_rate: number | null
+  telegram_charge_id: string | null
+  stars_amount: number | null
+  ton_tx_hash: string | null
+  ton_amount: number | null
+  ton_sender_address: string | null
+  ton_confirmations: number | null
 }
 
 export function PaymentDetailsModal({ paymentId, isOpen, onClose, onRefund }: PaymentDetailsModalProps) {
@@ -54,6 +67,17 @@ export function PaymentDetailsModal({ paymentId, isOpen, onClose, onRefund }: Pa
   const [refunding, setRefunding] = useState(false)
   const [refundReason, setRefundReason] = useState('')
   const [showRefundForm, setShowRefundForm] = useState(false)
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+
+  const copyToClipboard = async (text: string, fieldName: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedField(fieldName)
+      setTimeout(() => setCopiedField(null), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
 
   useEffect(() => {
     if (isOpen && paymentId) {
@@ -292,6 +316,106 @@ export function PaymentDetailsModal({ paymentId, isOpen, onClose, onRefund }: Pa
                   </div>
                 </div>
               )}
+
+              {/* Provider Details */}
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <CreditCard className="w-4 h-4 text-slate-500" />
+                  <p className="text-sm font-medium text-slate-900">Детали провайдера</p>
+                  <span className="px-2 py-0.5 bg-slate-200 rounded text-xs font-medium text-slate-600 uppercase">
+                    {payment.provider || 'tbank'}
+                  </span>
+                </div>
+
+                {(payment.provider === 'tbank' || !payment.provider) && (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">T-Bank ID:</span>
+                      <span className="font-mono text-slate-900">{payment.tbank_payment_id}</span>
+                    </div>
+                  </div>
+                )}
+
+                {payment.provider === 'stars' && (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Telegram Charge ID:</span>
+                      <span className="font-mono text-slate-900">{payment.telegram_charge_id || '—'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Сумма в Stars:</span>
+                      <span className="text-slate-900">&#11088; {payment.stars_amount || payment.original_amount}</span>
+                    </div>
+                    {payment.exchange_rate && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Курс:</span>
+                        <span className="text-slate-900">{payment.exchange_rate} RUB/Star</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {payment.provider === 'ton' && (
+                  <div className="space-y-2 text-sm">
+                    {payment.ton_tx_hash && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">TX Hash:</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs text-slate-900">
+                            {payment.ton_tx_hash.slice(0, 16)}...
+                          </span>
+                          <button
+                            onClick={() => copyToClipboard(payment.ton_tx_hash!, 'ton_tx_hash')}
+                            className="p-1 hover:bg-slate-200 rounded transition-colors"
+                            title="Копировать"
+                          >
+                            {copiedField === 'ton_tx_hash' ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-500" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5 text-slate-400" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Сумма TON:</span>
+                      <span className="text-slate-900">&#128142; {payment.ton_amount}</span>
+                    </div>
+                    {payment.ton_sender_address && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Отправитель:</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs text-slate-900">
+                            {payment.ton_sender_address.slice(0, 12)}...
+                          </span>
+                          <button
+                            onClick={() => copyToClipboard(payment.ton_sender_address!, 'ton_sender')}
+                            className="p-1 hover:bg-slate-200 rounded transition-colors"
+                            title="Копировать"
+                          >
+                            {copiedField === 'ton_sender' ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-500" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5 text-slate-400" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Подтверждений:</span>
+                      <span className="text-slate-900">{payment.ton_confirmations ?? 0}</span>
+                    </div>
+                    {payment.exchange_rate && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Курс:</span>
+                        <span className="text-slate-900">{payment.exchange_rate} RUB/TON</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Error Info */}
               {(payment.error_code || payment.error_message) && (

@@ -39,7 +39,8 @@ export async function GET() {
       registrationsByDay,
       recentPayments,
       recentUsers,
-      recentGenerations
+      recentGenerations,
+      providerStatsResult
     ] = await Promise.all([
       // Total users
       sql`SELECT COUNT(*) as count FROM users`,
@@ -145,6 +146,20 @@ export async function GET() {
         LEFT JOIN users u ON u.id = a.user_id
         ORDER BY gj.created_at DESC
         LIMIT 10
+      `,
+
+      // Provider stats (T-Bank, Stars, TON)
+      sql`
+        SELECT
+          COALESCE(provider, 'tbank') as provider,
+          COUNT(*) as total_count,
+          COUNT(CASE WHEN status = 'succeeded' THEN 1 END) as success_count,
+          SUM(CASE WHEN status = 'succeeded' THEN amount ELSE 0 END) as revenue_rub,
+          SUM(CASE WHEN status = 'succeeded' AND original_currency = 'XTR' THEN original_amount ELSE 0 END) as total_stars,
+          SUM(CASE WHEN status = 'succeeded' AND original_currency = 'TON' THEN original_amount ELSE 0 END) as total_ton
+        FROM payments
+        GROUP BY COALESCE(provider, 'tbank')
+        ORDER BY revenue_rub DESC
       `
     ])
 
@@ -165,6 +180,16 @@ export async function GET() {
     const avgCheck = totalProUsers > 0
       ? (totalRevenueMtd / totalProUsers).toFixed(0)
       : '0'
+
+    // Provider stats
+    const providerStats = providerStatsResult.map((p: Record<string, unknown>) => ({
+      provider: p.provider as string,
+      totalCount: parseInt(String(p.total_count || 0), 10),
+      successCount: parseInt(String(p.success_count || 0), 10),
+      revenueRub: parseFloat(String(p.revenue_rub || 0)),
+      totalStars: parseInt(String(p.total_stars || 0), 10),
+      totalTon: parseFloat(String(p.total_ton || 0))
+    }))
 
     // Tier distribution
     const tiers = tierStats.reduce((acc: Record<string, { count: number; revenue: number }>, t) => {
@@ -198,6 +223,7 @@ export async function GET() {
         })),
         tierDistribution: tiers
       },
+      providerStats,
       recent: {
         payments: recentPayments.map(p => ({
           id: p.id,

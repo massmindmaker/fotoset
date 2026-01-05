@@ -25,7 +25,23 @@ interface Filters {
   dateFrom: string
   dateTo: string
   tierId: string
+  provider: string
   page: number
+}
+
+// Provider badge component
+function ProviderBadge({ provider }: { provider: string }) {
+  const config: Record<string, { label: string; icon: string; className: string }> = {
+    tbank: { label: 'T-Bank', icon: '🏦', className: 'bg-red-100 text-red-700' },
+    stars: { label: 'Stars', icon: '⭐', className: 'bg-blue-100 text-blue-700' },
+    ton: { label: 'TON', icon: '💎', className: 'bg-amber-100 text-amber-700' },
+  }
+  const { label, icon, className } = config[provider] || config.tbank
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${className}`}>
+      {icon} {label}
+    </span>
+  )
 }
 
 export function PaymentsView() {
@@ -36,8 +52,18 @@ export function PaymentsView() {
     dateFrom: '',
     dateTo: '',
     tierId: '',
+    provider: '',
     page: 1,
   })
+  const [providerStats, setProviderStats] = useState<Array<{
+    provider: string
+    total_count: number
+    success_count: number
+    revenue_rub: number
+    total_stars: number
+    total_ton: number
+  }>>([])
+
   const [pagination, setPagination] = useState({ total: 0, totalPages: 0, page: 1 })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -68,6 +94,7 @@ export function PaymentsView() {
       if (filters.dateFrom) params.append('dateFrom', filters.dateFrom)
       if (filters.dateTo) params.append('dateTo', filters.dateTo)
       if (filters.tierId) params.append('tierId', filters.tierId)
+      if (filters.provider) params.append('provider', filters.provider)
 
       const response = await fetch(`/api/admin/payments?${params}`)
       const data = await response.json()
@@ -92,6 +119,9 @@ export function PaymentsView() {
       const data = await response.json()
       if (data.success) {
         setStats(data.data.stats)
+        if (data.data.providerStats) {
+          setProviderStats(data.data.providerStats)
+        }
       }
     } catch (err) {
       console.error('Failed to fetch stats:', err)
@@ -225,6 +255,25 @@ export function PaymentsView() {
         </div>
       )}
 
+      {/* Provider Stats */}
+      {providerStats.length > 0 && (
+        <div className="grid grid-cols-3 gap-4">
+          {providerStats.map((ps) => (
+            <div key={ps.provider} className="bg-white rounded-xl p-4 border border-slate-200">
+              <ProviderBadge provider={ps.provider} />
+              <div className="mt-2">
+                <div className="text-xl font-bold">{ps.revenue_rub.toLocaleString('ru-RU')}₽</div>
+                <div className="text-xs text-muted-foreground">
+                  {ps.success_count} платежей
+                  {ps.total_stars > 0 && ` · ${ps.total_stars}⭐`}
+                  {ps.total_ton > 0 && ` · ${ps.total_ton.toFixed(2)} TON`}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex gap-3 flex-wrap items-center">
         <select
@@ -247,6 +296,17 @@ export function PaymentsView() {
           <option value="starter">Starter (7 фото)</option>
           <option value="standard">Standard (15 фото)</option>
           <option value="premium">Premium (23 фото)</option>
+        </select>
+
+        <select
+          value={filters.provider}
+          onChange={(e) => setFilters(f => ({ ...f, provider: e.target.value, page: 1 }))}
+          className="px-3 py-2 text-sm border border-border rounded-lg bg-background"
+        >
+          <option value="">Все провайдеры</option>
+          <option value="tbank">T-Bank</option>
+          <option value="stars">Stars</option>
+          <option value="ton">TON</option>
         </select>
 
         <DateFilter
@@ -294,6 +354,7 @@ export function PaymentsView() {
                   <th className="px-4 py-3">Сумма</th>
                   <th className="px-4 py-3">Тариф</th>
                   <th className="px-4 py-3">Статус</th>
+                  <th className="px-4 py-3">Провайдер</th>
                   <th className="px-4 py-3">TG фото</th>
                   <th className="px-4 py-3">Возврат</th>
                   <th className="px-4 py-3">Дата</th>
@@ -303,7 +364,7 @@ export function PaymentsView() {
               <tbody className="divide-y divide-border">
                 {payments.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
                       Платежи не найдены
                     </td>
                   </tr>
@@ -319,10 +380,20 @@ export function PaymentsView() {
                           <span className="text-xs text-muted-foreground font-mono">{payment.telegram_user_id}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm font-medium">{payment.amount}₽</td>
+                      <td className="px-4 py-3 text-sm font-medium">
+                        {payment.amount}₽
+                        {payment.original_amount && payment.original_currency && (
+                          <span className="text-xs text-muted-foreground ml-1">
+                            ({payment.original_currency === 'XTR' ? `${payment.original_amount}⭐` : `${payment.original_amount} TON`})
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-sm">{payment.tier_id || '—'}</td>
                       <td className="px-4 py-3">
                         <StatusBadge status={payment.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <ProviderBadge provider={payment.provider || 'tbank'} />
                       </td>
                       <td className="px-4 py-3">
                         {payment.status === 'succeeded' ? (

@@ -9,8 +9,8 @@ export default function TelegramPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">Telegram Queue</h1>
-        <p className="text-slate-500 mt-1">Мониторинг и управление очередью сообщений</p>
+        <h1 className="text-2xl font-bold text-foreground">Telegram Queue</h1>
+        <p className="text-muted-foreground mt-1">Мониторинг и управление очередью сообщений</p>
       </div>
       <TelegramQueueView />
     </div>

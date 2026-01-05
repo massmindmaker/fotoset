@@ -18,6 +18,15 @@ import { TiersChart } from './charts/TiersChart'
 import { RegistrationsChart } from './charts/RegistrationsChart'
 import { RecentActivity } from './RecentActivity'
 
+interface ProviderStat {
+  provider: string
+  totalCount: number
+  successCount: number
+  revenueRub: number
+  totalStars: number
+  totalTon: number
+}
+
 interface DashboardStats {
   kpi: {
     totalUsers: number
@@ -34,6 +43,7 @@ interface DashboardStats {
     registrationsByDay: Array<{ date: string; registrations: number }>
     tierDistribution: Record<string, { count: number; revenue: number }>
   }
+  providerStats?: ProviderStat[]
   recent: {
     payments: Array<{
       id: number
@@ -201,6 +211,36 @@ export function Dashboard() {
           color={stats.kpi.pendingGenerations > 0 ? 'yellow' : 'purple'}
         />
       </div>
+
+      {/* Provider Revenue Cards */}
+      {stats.providerStats && stats.providerStats.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {stats.providerStats.map((ps) => {
+            const config = {
+              tbank: { icon: '\uD83C\uDFE6', label: 'T-Bank', color: 'text-red-600' },
+              stars: { icon: '\u2B50', label: 'Telegram Stars', color: 'text-blue-600' },
+              ton: { icon: '\uD83D\uDC8E', label: 'TON', color: 'text-amber-600' },
+            }[ps.provider] || { icon: '\uD83D\uDCB3', label: ps.provider, color: 'text-slate-600' }
+
+            return (
+              <div key={ps.provider} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+                  <span>{config.icon}</span>
+                  <span>{config.label}</span>
+                </div>
+                <div className={`text-2xl font-bold ${config.color}`}>
+                  {ps.revenueRub.toLocaleString('ru-RU')}\u20BD
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {ps.successCount} \u043F\u043B\u0430\u0442\u0435\u0436\u0435\u0439
+                  {ps.totalStars > 0 && ` \u00B7 ${ps.totalStars.toLocaleString()}\u2B50`}
+                  {ps.totalTon > 0 && ` \u00B7 ${ps.totalTon.toFixed(2)} TON`}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -184,20 +184,32 @@ export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalP
                 )}
 
                 {/* Tags */}
-                {event.tags && Object.keys(event.tags).length > 0 && (
+                {event.tags && (Array.isArray(event.tags) ? event.tags.length > 0 : Object.keys(event.tags).length > 0) && (
                   <Section title="Tags">
                     <div className="flex flex-wrap gap-2">
-                      {Object.entries(event.tags).map(([key, value]) => (
-                        <span
-                          key={key}
-                          className="px-2 py-1 bg-slate-100 rounded text-xs font-mono"
-                        >
-                          <span className="text-slate-500">{key}:</span>{" "}
-                          <span className="text-slate-700">
-                            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                          </span>
-                        </span>
-                      ))}
+                      {/* Handle both array format [{key, value}] and object format {key: value} */}
+                      {Array.isArray(event.tags)
+                        ? event.tags.map((tag: { key: string; value: string }, idx: number) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-1 bg-slate-100 rounded text-xs font-mono"
+                            >
+                              <span className="text-slate-500">{tag.key}:</span>{" "}
+                              <span className="text-slate-700">{tag.value}</span>
+                            </span>
+                          ))
+                        : Object.entries(event.tags).map(([key, value]) => (
+                            <span
+                              key={key}
+                              className="px-2 py-1 bg-slate-100 rounded text-xs font-mono"
+                            >
+                              <span className="text-slate-500">{key}:</span>{" "}
+                              <span className="text-slate-700">
+                                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                              </span>
+                            </span>
+                          ))
+                      }
                     </div>
                   </Section>
                 )}

@@ -15,6 +15,7 @@ import { getCurrentMode } from "@/lib/admin/mode"
  * - amountMax: number (optional)
  * - telegramUserId: number (optional)
  * - tierId: "starter" | "standard" | "premium" (optional)
+ * - provider: "tbank" | "stars" | "ton" (optional)
  * - page: number (default: 1)
  * - limit: number (default: 20, max: 100)
  */
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
       : undefined
     const telegramUserId = searchParams.get('telegramUserId') || undefined
     const tierId = searchParams.get('tierId') || undefined
+    const provider = searchParams.get('provider') || undefined
 
     // Pagination
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
@@ -52,6 +54,7 @@ export async function GET(request: NextRequest) {
     const amountMaxCondition = amountMax !== undefined ? sql`AND p.amount <= ${amountMax}` : sql``
     const telegramCondition = telegramUserId ? sql`AND u.telegram_user_id = ${telegramUserId}` : sql``
     const tierCondition = tierId ? sql`AND p.tier_id = ${tierId}` : sql``
+    const providerCondition = provider ? sql`AND COALESCE(p.provider, 'tbank') = ${provider}` : sql``
     const modeCondition = sql`AND COALESCE(p.is_test_mode, false) = ${isTestMode}`
 
     // Get total count
@@ -67,6 +70,7 @@ export async function GET(request: NextRequest) {
         ${amountMaxCondition}
         ${telegramCondition}
         ${tierCondition}
+        ${providerCondition}
         ${modeCondition}
     `
     const total = parseInt(countResult[0].total)
@@ -90,6 +94,18 @@ export async function GET(request: NextRequest) {
         p.refund_at,
         p.created_at,
         p.updated_at,
+        -- Provider info
+        COALESCE(p.provider, 'tbank') as provider,
+        p.original_amount,
+        p.original_currency,
+        p.exchange_rate,
+        -- Provider-specific fields
+        p.telegram_charge_id,
+        p.stars_amount,
+        p.ton_tx_hash,
+        p.ton_amount,
+        p.ton_sender_address,
+        p.ton_confirmations,
         -- Count photos sent to Telegram for this payment (within 1 day of payment)
         COALESCE((
           SELECT COUNT(*)::int
@@ -119,6 +135,7 @@ export async function GET(request: NextRequest) {
         ${amountMaxCondition}
         ${telegramCondition}
         ${tierCondition}
+        ${providerCondition}
         ${modeCondition}
       ORDER BY p.created_at DESC
       LIMIT ${limit}

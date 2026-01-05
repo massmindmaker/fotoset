@@ -17,16 +17,16 @@ export default function PromptTestingPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">
+          <h2 className="text-2xl font-bold text-foreground">
             Промпты и Паки
           </h2>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Тестирование, сохранённые промпты и фотопаки
           </p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm">
-          <Sparkles className="w-4 h-4 text-blue-600" />
-          <span className="text-xs font-medium text-slate-700">KIE AI</span>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-border shadow-sm">
+          <Sparkles className="w-4 h-4 text-primary" />
+          <span className="text-xs font-medium text-foreground">KIE AI</span>
         </div>
       </div>
 

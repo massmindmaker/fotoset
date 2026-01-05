@@ -9,8 +9,8 @@ export default function ReferralsPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Рефералы</h1>
-        <p className="text-zinc-400 mt-1">Статистика и управление реферальной системой</p>
+        <h1 className="text-2xl font-bold text-foreground">Рефералы</h1>
+        <p className="text-muted-foreground mt-1">Статистика и управление реферальной системой</p>
       </div>
       <ReferralsView />
     </div>

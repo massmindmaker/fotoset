@@ -89,7 +89,7 @@ export interface AdminPayment {
   tbank_payment_id: string
   user_id: number
   telegram_user_id: number
-  telegram_username: string | null  // NEW: Telegram username
+  telegram_username: string | null  // Telegram username
   amount: number
   currency: string
   status: 'pending' | 'succeeded' | 'canceled' | 'refunded' | 'refunding'
@@ -101,9 +101,22 @@ export interface AdminPayment {
   refund_at: string | null
   created_at: string
   updated_at: string
-  // NEW: Telegram delivery stats for this payment's generation
+  // Telegram delivery stats for this payment's generation
   tg_sent_count: number | null      // Photos sent to Telegram
   gen_photos_count: number | null   // Total generated photos
+  // Multi-provider support
+  provider: 'tbank' | 'stars' | 'ton'
+  original_amount: number | null
+  original_currency: 'RUB' | 'XTR' | 'TON' | null
+  exchange_rate: number | null
+  // Telegram Stars specific
+  telegram_charge_id: string | null
+  stars_amount: number | null
+  // TON specific
+  ton_tx_hash: string | null
+  ton_amount: number | null
+  ton_sender_address: string | null
+  ton_confirmations: number | null
 }
 
 /**
