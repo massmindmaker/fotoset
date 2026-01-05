@@ -53,4 +53,5 @@ export interface ReferencePhoto {
 export interface GenerationProgress {
   completed: number
   total: number
+  startPhotoCount?: number // Number of photos at generation start (for re-generation)
 }

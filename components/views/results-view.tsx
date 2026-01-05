@@ -2,8 +2,11 @@
 
 import type React from "react"
 import { lazy, Suspense } from "react"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2, Sparkles } from "lucide-react"
 import type { Persona, GenerationProgress } from "./types"
+import { Card } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const ResultsGallery = lazy(() => import("../results-gallery"))
 
@@ -29,7 +32,11 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   generationProgress,
 }) => {
   const assets = [...persona.generatedAssets].sort((a, b) => b.createdAt - a.createdAt)
-  const pendingCount = isGenerating ? Math.max(0, generationProgress.total - assets.length) : 0
+
+  // For re-generation: calculate new photos generated in THIS batch
+  const startCount = generationProgress.startPhotoCount ?? 0
+  const newPhotosInBatch = Math.max(0, assets.length - startCount)
+  const pendingCount = isGenerating ? Math.max(0, generationProgress.total - newPhotosInBatch) : 0
 
   return (
     <div className="space-y-4 pb-6" aria-busy={isGenerating} aria-live="polite">
@@ -45,25 +52,36 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
           <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/10 rounded-xl">
             <Loader2 className="w-4 h-4 animate-spin text-primary" />
             <span className="text-sm font-medium text-primary">
-              {assets.length} / {generationProgress.total} фото
+              {newPhotosInBatch} / {generationProgress.total} фото
             </span>
           </div>
         )}
       </div>
 
       {isGenerating && generationProgress.total > 0 && (
-        <div className="space-y-3 bg-card border border-border rounded-2xl p-4 shadow-lg">
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500 ease-out shimmer"
-              style={{ width: (assets.length / generationProgress.total) * 100 + "%" }}
+        <Card className="p-4 shadow-lg border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+              <span className="text-sm font-medium text-primary">AI генерация</span>
+            </div>
+            <Progress
+              value={(newPhotosInBatch / generationProgress.total) * 100}
+              className="h-3 [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-accent"
             />
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-foreground font-medium">
+                {newPhotosInBatch} / {generationProgress.total} фото
+              </p>
+              <p className="text-xs text-muted-foreground">
+                ~{Math.ceil((generationProgress.total - newPhotosInBatch) * 0.5)} мин
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground text-center pt-2 border-t border-border/50">
+              Можете закрыть приложение — пришлём фото в Telegram
+            </p>
           </div>
-          <p className="text-sm text-foreground font-medium text-center animate-pulse">Генерируем ваши фото...</p>
-          <p className="text-xs text-muted-foreground text-center">
-            Можете закрыть приложение — пришлём фото в Telegram, когда будут готовы
-          </p>
-        </div>
+        </Card>
       )}
 
       {assets.length === 0 && !isGenerating ? (
@@ -80,11 +98,16 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
               {Array.from({ length: pendingCount }).map((_, i) => (
                 <div
                   key={"skeleton-" + i}
-                  className="aspect-[3/4] rounded-2xl bg-gradient-to-br from-muted to-muted/50 shimmer flex items-center justify-center border border-border/50"
+                  className="aspect-[3/4] rounded-2xl overflow-hidden relative"
                   role="status"
                   aria-label="Загрузка фото"
                 >
-                  <Loader2 className="w-6 h-6 text-muted-foreground/50 animate-spin" />
+                  <Skeleton className="w-full h-full" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                      <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

@@ -224,7 +224,8 @@ export default function PersonaApp() {
               // Show generation screen
               setViewState({ view: "RESULTS", personaId: targetAvatarId })
               setIsGenerating(true)
-              setGenerationProgress({ completed: 0, total: tierPhotos })
+              // For pending generation recovery, startPhotoCount = 0 (fresh generation)
+              setGenerationProgress({ completed: 0, total: tierPhotos, startPhotoCount: 0 })
               setIsReady(true)
 
               // Clear pending generation from DB
@@ -257,10 +258,11 @@ export default function PersonaApp() {
                     const statusRes = await fetch(`/api/generate?job_id=${jobId}`)
                     const statusData = await statusRes.json()
 
-                    setGenerationProgress({
+                    setGenerationProgress((prev) => ({
                       completed: statusData.progress?.completed || 0,
                       total: statusData.progress?.total || tierPhotos,
-                    })
+                      startPhotoCount: prev.startPhotoCount ?? 0,
+                    }))
 
                     // Update photos as they arrive (with deduplication)
                     if (statusData.photos && statusData.photos.length > lastPhotoCount) {
@@ -808,10 +810,11 @@ export default function PersonaApp() {
         const statusRes = await fetch(`/api/generate?job_id=${jobId}`)
         const statusData = await statusRes.json()
 
-        setGenerationProgress({
+        setGenerationProgress((prev) => ({
           completed: statusData.progress?.completed || 0,
           total: statusData.progress?.total || totalPhotos,
-        })
+          startPhotoCount: prev.startPhotoCount,
+        }))
 
         if (statusData.photos && statusData.photos.length > lastPhotoCount) {
           const newPhotos = statusData.photos.slice(lastPhotoCount) as string[]
@@ -892,11 +895,17 @@ export default function PersonaApp() {
         if (data.success && data.status === "processing" && data.jobId) {
           console.log("[Resume] Found active job, restoring polling:", data.jobId)
 
+          // Calculate startPhotoCount: photos before this job started
+          const photosFromThisJob = data.photos?.length || 0
+          const currentPhotoCount = persona.generatedAssets?.length || 0
+          const startPhotoCount = Math.max(0, currentPhotoCount - photosFromThisJob)
+
           setIsGenerating(true)
           setActiveJobId(data.jobId)
           setGenerationProgress({
             completed: data.progress?.completed || 0,
-            total: data.progress?.total || 23
+            total: data.progress?.total || 23,
+            startPhotoCount,
           })
 
           // Add already generated photos that might be missing locally (with deduplication)
@@ -957,9 +966,10 @@ export default function PersonaApp() {
     if (!p) return
 
     const targetPersonaId = p.id  // Capture ID explicitly for closure
+    const startPhotoCount = p.generatedAssets?.length || 0  // Track photos at start for re-generation
 
     setIsGenerating(true)
-    setGenerationProgress({ completed: 0, total: tier.photos })
+    setGenerationProgress({ completed: 0, total: tier.photos, startPhotoCount })
     setViewState({ view: "RESULTS", personaId: targetPersonaId })
     updatePersona(targetPersonaId, { status: "processing" })
 
@@ -978,7 +988,13 @@ export default function PersonaApp() {
         }),
       })
 
-      if (!res.ok) throw new Error((await res.json()).error || "Failed")
+      if (!res.ok) {
+        const errorData = await res.json()
+        if (errorData.code === "GENERATION_LIMIT_REACHED") {
+          throw new Error("Достигнут лимит генераций для этого аватара (максимум 3). Создайте новый аватар для продолжения.")
+        }
+        throw new Error(errorData.error || "Failed")
+      }
       const data = await res.json()
 
       if (data.photos && data.photos.length > 0) {
@@ -997,7 +1013,7 @@ export default function PersonaApp() {
           generatedAssets: mergedAssets,
           thumbnailUrl: p.thumbnailUrl || mergedAssets[0]?.url,
         })
-        setGenerationProgress({ completed: data.photos.length, total: tier.photos })
+        setGenerationProgress({ completed: data.photos.length, total: tier.photos, startPhotoCount })
         setIsGenerating(false)
         return
       }

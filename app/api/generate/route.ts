@@ -485,6 +485,28 @@ export async function POST(request: NextRequest) {
       `.then((rows: any[]) => rows[0])
     }
 
+    // ============================================================================
+    // Generation Limit Check - Maximum 3 generations per avatar
+    // ============================================================================
+    if (existingAvatar) {
+      const generationCount = await sql`
+        SELECT COUNT(*) as count FROM generation_jobs
+        WHERE avatar_id = ${parsedAvatarId}
+          AND status IN ('completed', 'processing', 'pending')
+      `.then((rows: any[]) => parseInt(rows[0]?.count || '0'))
+
+      if (generationCount >= 3) {
+        logger.warn("Generation limit reached", { avatarId: parsedAvatarId, count: generationCount })
+        return error("GENERATION_LIMIT_REACHED", "Достигнут лимит генераций для этого аватара (максимум 3)", {
+          code: "GENERATION_LIMIT_REACHED",
+          currentCount: generationCount,
+          maxAllowed: 3
+        })
+      }
+
+      logger.info("Generation limit check passed", { avatarId: parsedAvatarId, count: generationCount })
+    }
+
     if (existingAvatar) {
       dbAvatarId = existingAvatar.id
       logger.info("Using existing avatar", { avatarId: dbAvatarId })
@@ -805,19 +827,13 @@ export async function GET(request: NextRequest) {
       return error("NOT_FOUND", "Generation job not found")
     }
 
-    // Get generated photos
-    // Note: style_id can be NULL, so we need to handle that case
-    const photos = job.style_id
-      ? await sql`
-          SELECT image_url FROM generated_photos
-          WHERE avatar_id = ${job.avatar_id} AND style_id = ${job.style_id}
-          ORDER BY created_at ASC
-        `
-      : await sql`
-          SELECT image_url FROM generated_photos
-          WHERE avatar_id = ${job.avatar_id}
-          ORDER BY created_at ASC
-        `
+    // FIX: Return ALL photos for avatar, not filtered by style_id
+    // This allows viewing photos from multiple generations (7+7=14)
+    const photos = await sql`
+      SELECT image_url FROM generated_photos
+      WHERE avatar_id = ${job.avatar_id}
+      ORDER BY created_at ASC
+    `
 
     logger.info("Status checked", {
       jobId: job.id,
