@@ -362,23 +362,31 @@ export default function PersonaApp() {
   }, [viewState, isReady])
 
   // Load photos from server when navigating to RESULTS view
+  // Also acts as fallback if polling doesn't update photos properly
   useEffect(() => {
     const loadPhotosForResults = async () => {
       if (viewState.view !== "RESULTS" || !("personaId" in viewState)) return
 
       const avatarId = viewState.personaId
       const persona = personas.find((p) => p.id === avatarId)
+      if (!persona) return
 
-      // If persona has no photos or might be out of sync, fetch from server
-      // Also load if processing but not currently generating (user returned after closing app)
-      if (persona && (
-        !persona.generatedAssets ||
-        persona.generatedAssets.length === 0 ||
+      const localPhotoCount = persona.generatedAssets?.length || 0
+
+      // Load photos if:
+      // 1. No photos locally
+      // 2. Status is ready (might have missed some)
+      // 3. Processing but not actively generating (user returned)
+      // 4. Generating but no photos shown yet (fallback for polling issues)
+      const shouldLoad =
+        localPhotoCount === 0 ||
         persona.status === "ready" ||
-        (persona.status === "processing" && !isGenerating)
-      )) {
+        (persona.status === "processing" && !isGenerating) ||
+        (isGenerating && localPhotoCount === 0)
+
+      if (shouldLoad) {
         try {
-          console.log("[Results] Loading photos from server for avatar:", avatarId)
+          console.log("[Results] Loading photos from server for avatar:", avatarId, "isGenerating:", isGenerating, "localCount:", localPhotoCount)
           const res = await fetch(`/api/avatars/${avatarId}/photos`)
           if (res.ok) {
             const data = await res.json()
@@ -390,9 +398,17 @@ export default function PersonaApp() {
                 createdAt: new Date(p.created_at).getTime(),
               }))
               // Only update if we have more photos than currently loaded
-              if (newAssets.length > (persona.generatedAssets?.length || 0)) {
-                console.log("[Results] Updating with", newAssets.length, "photos from server")
+              if (newAssets.length > localPhotoCount) {
+                console.log("[Results] Updating with", newAssets.length, "photos from server (had", localPhotoCount, ")")
                 updatePersona(avatarId, { generatedAssets: newAssets })
+
+                // If we got all expected photos and were generating, mark as complete
+                if (isGenerating && newAssets.length >= generationProgress.total && generationProgress.total > 0) {
+                  console.log("[Results] All photos loaded from server, marking generation complete")
+                  updatePersona(avatarId, { status: "ready" })
+                  setIsGenerating(false)
+                  setGenerationProgress({ completed: 0, total: 0 })
+                }
               }
             }
           }
@@ -403,7 +419,18 @@ export default function PersonaApp() {
     }
 
     loadPhotosForResults()
-  }, [viewState, personas, updatePersona, isGenerating])
+
+    // Also set up interval to check server periodically during generation
+    // This is a fallback in case polling doesn't work properly
+    let intervalId: NodeJS.Timeout | null = null
+    if (isGenerating && viewState.view === "RESULTS" && "personaId" in viewState) {
+      intervalId = setInterval(loadPhotosForResults, 5000) // Check every 5 seconds
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId)
+    }
+  }, [viewState, personas, updatePersona, isGenerating, generationProgress.total, setIsGenerating, setGenerationProgress])
 
   // Recovery: if view requires persona but it's missing, redirect to DASHBOARD
   useEffect(() => {

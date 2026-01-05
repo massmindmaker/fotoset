@@ -806,11 +806,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Get generated photos
-    const photos = await sql`
-      SELECT image_url FROM generated_photos
-      WHERE avatar_id = ${job.avatar_id} AND style_id = ${job.style_id}
-      ORDER BY created_at ASC
-    `
+    // Note: style_id can be NULL, so we need to handle that case
+    const photos = job.style_id
+      ? await sql`
+          SELECT image_url FROM generated_photos
+          WHERE avatar_id = ${job.avatar_id} AND style_id = ${job.style_id}
+          ORDER BY created_at ASC
+        `
+      : await sql`
+          SELECT image_url FROM generated_photos
+          WHERE avatar_id = ${job.avatar_id}
+          ORDER BY created_at ASC
+        `
 
     logger.info("Status checked", {
       jobId: job.id,
