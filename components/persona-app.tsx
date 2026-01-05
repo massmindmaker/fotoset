@@ -7,7 +7,7 @@ import Link from "next/link"
 import dynamic from "next/dynamic"
 
 // Import types and constants
-import type { Persona, ViewState, PricingTier, ReferencePhoto } from "./views/types"
+import type { Persona, ViewState, PricingTier, ReferencePhoto, GeneratedAsset } from "./views/types"
 import { getErrorMessage } from "@/lib/error-utils"
 import { PRICING_TIERS } from "./views/dashboard-view"
 
@@ -22,6 +22,34 @@ import { PaymentSuccess } from "./payment-success"
 // Export for other components
 export { PRICING_TIERS } from "./views/dashboard-view"
 export type { PricingTier } from "./views/types"
+
+// Utility for merging photos with deduplication by URL
+const mergePhotosWithDedup = (
+  existingAssets: GeneratedAsset[],
+  newPhotoUrls: string[],
+  jobId: number | string,
+  startIndex: number
+): { assets: GeneratedAsset[]; addedCount: number } => {
+  const existingUrls = new Set(existingAssets.map((a) => a.url))
+  const uniquePhotos = newPhotoUrls.filter((url) => !existingUrls.has(url))
+
+  if (uniquePhotos.length === 0) {
+    return { assets: existingAssets, addedCount: 0 }
+  }
+
+  const newAssets: GeneratedAsset[] = uniquePhotos.map((url, i) => ({
+    id: `${jobId}-${startIndex + i}`,
+    type: "PHOTO" as const,
+    url,
+    styleId: "pinglass",
+    createdAt: Date.now(),
+  }))
+
+  return {
+    assets: [...newAssets, ...existingAssets],
+    addedCount: uniquePhotos.length,
+  }
+}
 
 // Loading fallback component
 const ComponentLoader = () => (
@@ -234,28 +262,38 @@ export default function PersonaApp() {
                       total: statusData.progress?.total || tierPhotos,
                     })
 
-                    // Update photos as they arrive
+                    // Update photos as they arrive (with deduplication)
                     if (statusData.photos && statusData.photos.length > lastPhotoCount) {
-                      const newPhotos = statusData.photos.slice(lastPhotoCount)
-                      const newAssets = newPhotos.map((url: string, i: number) => ({
-                        id: `${jobId}-${lastPhotoCount + i}`,
-                        type: "PHOTO" as const,
-                        url,
-                        styleId: "pinglass",
-                        createdAt: Date.now(),
-                      }))
+                      const newPhotos = statusData.photos.slice(lastPhotoCount) as string[]
 
-                      setPersonas((prev) =>
-                        prev.map((persona) =>
-                          persona.id === targetAvatarId
+                      setPersonas((prev) => {
+                        const targetPersona = prev.find((p) => String(p.id) === String(targetAvatarId))
+                        if (!targetPersona) {
+                          console.warn("[Init Polling] Persona not found:", targetAvatarId)
+                          return prev
+                        }
+
+                        const { assets: mergedAssets, addedCount } = mergePhotosWithDedup(
+                          targetPersona.generatedAssets,
+                          newPhotos,
+                          jobId,
+                          lastPhotoCount
+                        )
+
+                        if (addedCount === 0) return prev
+
+                        console.log("[Init Polling] Added", addedCount, "photos to persona:", targetAvatarId)
+
+                        return prev.map((persona) =>
+                          String(persona.id) === String(targetAvatarId)
                             ? {
                                 ...persona,
-                                generatedAssets: [...newAssets, ...persona.generatedAssets],
-                                thumbnailUrl: persona.thumbnailUrl || newAssets[0]?.url,
+                                generatedAssets: mergedAssets,
+                                thumbnailUrl: persona.thumbnailUrl || mergedAssets[0]?.url,
                               }
                             : persona
                         )
-                      )
+                      })
                       lastPhotoCount = statusData.photos.length
                     }
 
@@ -749,28 +787,39 @@ export default function PersonaApp() {
         })
 
         if (statusData.photos && statusData.photos.length > lastPhotoCount) {
-          const newPhotos = statusData.photos.slice(lastPhotoCount)
-          const newAssets = newPhotos.map((url: string, i: number) => ({
-            id: `${jobId}-${lastPhotoCount + i}`,
-            type: "PHOTO" as const,
-            url,
-            styleId: "pinglass",
-            createdAt: Date.now(),
-          }))
+          const newPhotos = statusData.photos.slice(lastPhotoCount) as string[]
 
-          console.log("[Polling] Got", newPhotos.length, "new photos, updating persona:", personaId)
+          setPersonas((prev) => {
+            const targetPersona = prev.find((p) => String(p.id) === String(personaId))
+            if (!targetPersona) {
+              console.warn("[Polling] Persona not found:", personaId, "available:", prev.map((p) => p.id))
+              return prev
+            }
 
-          setPersonas((prev) =>
-            prev.map((persona) =>
-              persona.id === personaId
+            const { assets: mergedAssets, addedCount } = mergePhotosWithDedup(
+              targetPersona.generatedAssets,
+              newPhotos,
+              jobId,
+              lastPhotoCount
+            )
+
+            if (addedCount === 0) {
+              console.log("[Polling] No new unique photos to add")
+              return prev
+            }
+
+            console.log("[Polling] Added", addedCount, "new photos to persona:", personaId)
+
+            return prev.map((persona) =>
+              String(persona.id) === String(personaId)
                 ? {
                     ...persona,
-                    generatedAssets: [...newAssets, ...persona.generatedAssets],
-                    thumbnailUrl: persona.thumbnailUrl || newAssets[0]?.url,
+                    generatedAssets: mergedAssets,
+                    thumbnailUrl: persona.thumbnailUrl || mergedAssets[0]?.url,
                   }
                 : persona
             )
-          )
+          })
           lastPhotoCount = statusData.photos.length
         }
 
@@ -823,22 +872,19 @@ export default function PersonaApp() {
             total: data.progress?.total || 23
           })
 
-          // Add already generated photos that might be missing locally
+          // Add already generated photos that might be missing locally (with deduplication)
           if (data.photos?.length > 0) {
-            const existingUrls = new Set(persona.generatedAssets.map((a) => a.url))
-            const newPhotos = data.photos.filter((url: string) => !existingUrls.has(url))
+            const { assets: mergedAssets, addedCount } = mergePhotosWithDedup(
+              persona.generatedAssets,
+              data.photos as string[],
+              `${data.jobId}-resumed`,
+              0
+            )
 
-            if (newPhotos.length > 0) {
-              console.log("[Resume] Adding", newPhotos.length, "photos from server")
-              const newAssets = newPhotos.map((url: string, i: number) => ({
-                id: `${data.jobId}-resumed-${i}`,
-                type: "PHOTO" as const,
-                url,
-                styleId: "pinglass",
-                createdAt: Date.now(),
-              }))
+            if (addedCount > 0) {
+              console.log("[Resume] Adding", addedCount, "photos from server")
               updatePersona(viewState.personaId, {
-                generatedAssets: [...newAssets, ...persona.generatedAssets]
+                generatedAssets: mergedAssets
               })
             }
           }
@@ -850,21 +896,21 @@ export default function PersonaApp() {
         } else if (data.status === "completed") {
           // Generation finished while away - update status and load photos
           console.log("[Resume] Generation already completed, updating status")
-          updatePersona(viewState.personaId, { status: "ready" })
 
-          // Force photo reload
+          // Merge photos with deduplication
           if (data.photos?.length > 0) {
-            const newAssets = data.photos.map((url: string, i: number) => ({
-              id: `completed-${i}`,
-              type: "PHOTO" as const,
-              url,
-              styleId: "pinglass",
-              createdAt: Date.now(),
-            }))
+            const { assets: mergedAssets } = mergePhotosWithDedup(
+              persona.generatedAssets,
+              data.photos as string[],
+              "completed",
+              0
+            )
             updatePersona(viewState.personaId, {
-              generatedAssets: newAssets,
+              generatedAssets: mergedAssets,
               status: "ready"
             })
+          } else {
+            updatePersona(viewState.personaId, { status: "ready" })
           }
         } else if (data.status === "failed") {
           console.log("[Resume] Generation failed:", data.error)
@@ -909,18 +955,20 @@ export default function PersonaApp() {
       const data = await res.json()
 
       if (data.photos && data.photos.length > 0) {
-        // Immediate completion (all photos ready)
-        const newAssets = data.photos.map((url: string, i: number) => ({
-          id: `${data.jobId}-${i}`,
-          type: "PHOTO" as const,
-          url,
-          styleId: "pinglass",
-          createdAt: Date.now(),
-        }))
+        // Immediate completion (all photos ready) - with deduplication
+        const { assets: mergedAssets, addedCount } = mergePhotosWithDedup(
+          p.generatedAssets,
+          data.photos as string[],
+          data.jobId,
+          0
+        )
+
+        console.log("[Generate] Immediate completion:", addedCount, "photos added")
+
         updatePersona(targetPersonaId, {
           status: "ready",
-          generatedAssets: [...newAssets, ...p.generatedAssets],
-          thumbnailUrl: p.thumbnailUrl || newAssets[0]?.url,
+          generatedAssets: mergedAssets,
+          thumbnailUrl: p.thumbnailUrl || mergedAssets[0]?.url,
         })
         setGenerationProgress({ completed: data.photos.length, total: tier.photos })
         setIsGenerating(false)
