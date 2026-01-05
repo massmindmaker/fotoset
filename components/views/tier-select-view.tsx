@@ -5,7 +5,7 @@ import { ArrowLeft, Sparkles, CheckCircle2, Loader2, Star, Percent } from "lucid
 import type { Persona, PricingTier } from "./types"
 import { Card, CardHeader, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { BgAnimateButton } from "@/components/ui/bg-animate-button"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export interface TierSelectViewProps {
@@ -116,15 +116,11 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
       ))}
     </div>
     <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
-      <BgAnimateButton
+      <Button
         onClick={() => selectedTier && onUpgrade(selectedTier)}
         disabled={!selectedTier || isGenerating || isProcessingPayment}
-        gradient="candy"
-        animation="spin-slow"
         size="lg"
-        rounded="2xl"
-        shadow="deep"
-        className="w-full sm:w-auto"
+        className="w-full sm:w-auto h-12 rounded-2xl text-base font-semibold gap-2"
       >
         {(isGenerating || isProcessingPayment) ? (
           <>
@@ -137,7 +133,7 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
             Оплатить и получить {selectedTier?.photos || 0} фото
           </>
         )}
-      </BgAnimateButton>
+      </Button>
     </div>
   </div>
 )

@@ -22,6 +22,7 @@ import { NextRequest } from 'next/server';
 jest.mock('@/lib/db');
 jest.mock('@/lib/tbank');
 jest.mock('@/lib/user-identity');
+jest.mock('@/lib/referral-earnings');
 
 const mockSql = jest.fn();
 const mockQuery = jest.fn();
@@ -300,19 +301,16 @@ describe('GET /api/payment/status - T-Bank Status Check', () => {
   test('should process CONFIRMED status - update DB and process referral', async () => {
     const userIdentity = await import('@/lib/user-identity');
     const tbank = await import('@/lib/tbank');
+    const referralEarnings = await import('@/lib/referral-earnings');
     (userIdentity.findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 1, telegram_user_id: 12345 });
     mockSql
       .mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }]) // Latest payment
-      .mockResolvedValueOnce([{ id: 1, user_id: 1 }]); // UPDATE returns row
+      .mockResolvedValueOnce([{ id: 10, user_id: 1 }]); // UPDATE returns row with payment id
     (tbank.getPaymentState as jest.Mock).mockResolvedValueOnce({
       Status: 'CONFIRMED',
       PaymentId: 'pay-123'
     });
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ referrer_id: 2 }] }) // Has referrer
-      .mockResolvedValueOnce({ rows: [{ id: 1, amount: 1499 }] }) // Payment amount
-      .mockResolvedValueOnce({ rows: [{ id: 1 }] }) // Insert earning
-      .mockResolvedValueOnce({ rows: [] }); // Update balance
+    (referralEarnings.processReferralEarning as jest.Mock).mockResolvedValueOnce({ success: true, credited: 149.9 });
 
     const { GET } = await import('@/app/api/payment/status/route');
 
@@ -323,7 +321,7 @@ describe('GET /api/payment/status - T-Bank Status Check', () => {
     expect(response.status).toBe(200);
     expect(data.paid).toBe(true);
     expect(data.status).toBe('succeeded');
-    expect(mockQuery).toHaveBeenCalled(); // Referral processing
+    expect(referralEarnings.processReferralEarning).toHaveBeenCalledWith(10, 1); // payment.id, user_id
   });
 
   test('should process AUTHORIZED status same as CONFIRMED', async () => {
@@ -376,6 +374,7 @@ describe('GET /api/payment/status - T-Bank Status Check', () => {
   test('should trigger referral processing when UPDATE returns rows', async () => {
     const userIdentity = await import('@/lib/user-identity');
     const tbank = await import('@/lib/tbank');
+    const referralEarnings = await import('@/lib/referral-earnings');
     (userIdentity.findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 5, telegram_user_id: 12345 });
     mockSql
       .mockResolvedValueOnce([{ tbank_payment_id: 'pay-789', status: 'pending' }])
@@ -384,11 +383,7 @@ describe('GET /api/payment/status - T-Bank Status Check', () => {
       Status: 'CONFIRMED',
       PaymentId: 'pay-789'
     });
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ referrer_id: 3 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 10, amount: 999 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 5 }] })
-      .mockResolvedValueOnce({ rows: [] });
+    (referralEarnings.processReferralEarning as jest.Mock).mockResolvedValueOnce({ success: true });
 
     const { GET } = await import('@/app/api/payment/status/route');
 
@@ -396,7 +391,7 @@ describe('GET /api/payment/status - T-Bank Status Check', () => {
     const response = await GET(request);
 
     expect(response.status).toBe(200);
-    expect(mockQuery).toHaveBeenCalledTimes(4); // Referral flow completed
+    expect(referralEarnings.processReferralEarning).toHaveBeenCalledWith(10, 5); // payment.id, user_id
   });
 
   test('should return false + status for NEW/PENDING T-Bank statuses', async () => {
@@ -480,179 +475,59 @@ describe('GET /api/payment/status - T-Bank Status Check', () => {
 });
 
 describe('GET /api/payment/status - Referral Processing', () => {
-  test('should record earning when user has referrer', async () => {
+  test('should call processReferralEarning when payment confirmed', async () => {
     const userIdentity = await import('@/lib/user-identity');
     const tbank = await import('@/lib/tbank');
+    const referralEarnings = await import('@/lib/referral-earnings');
     (userIdentity.findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 10, telegram_user_id: 12345 });
     mockSql
       .mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }])
       .mockResolvedValueOnce([{ id: 20, user_id: 10 }]);
     (tbank.getPaymentState as jest.Mock).mockResolvedValueOnce({ Status: 'CONFIRMED' });
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ referrer_id: 5 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 20, amount: 1499 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 100 }] })
-      .mockResolvedValueOnce({ rows: [] });
+    (referralEarnings.processReferralEarning as jest.Mock).mockResolvedValueOnce({ success: true, credited: 49.9 });
 
     const { GET } = await import('@/app/api/payment/status/route');
 
     const request = createRequest({ telegram_user_id: '12345' });
     await GET(request);
 
-    expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining('SELECT referrer_id FROM referrals'),
-      [10]
-    );
+    // Verify processReferralEarning was called with payment ID and user ID
+    expect(referralEarnings.processReferralEarning).toHaveBeenCalledWith(20, 10);
   });
 
-  test('should prevent duplicate earning with ON CONFLICT', async () => {
+  test('should not call processReferralEarning when status not updated', async () => {
     const userIdentity = await import('@/lib/user-identity');
     const tbank = await import('@/lib/tbank');
+    const referralEarnings = await import('@/lib/referral-earnings');
     (userIdentity.findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 10, telegram_user_id: 12345 });
     mockSql
       .mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }])
-      .mockResolvedValueOnce([{ id: 20, user_id: 10 }]);
+      .mockResolvedValueOnce([]); // No rows updated (already succeeded)
     (tbank.getPaymentState as jest.Mock).mockResolvedValueOnce({ Status: 'CONFIRMED' });
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ referrer_id: 5 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 20, amount: 1499 }] })
-      .mockResolvedValueOnce({ rows: [] }); // ON CONFLICT - no rows returned
 
     const { GET } = await import('@/app/api/payment/status/route');
 
     const request = createRequest({ telegram_user_id: '12345' });
     await GET(request);
 
-    // Should not update balance if earning already exists
-    expect(mockQuery).toHaveBeenCalledTimes(3); // No 4th call for balance
+    // Should not call referral processing if payment was already processed
+    expect(referralEarnings.processReferralEarning).not.toHaveBeenCalled();
   });
 
-  test('should increment referral balance when exists', async () => {
+  test('should handle processReferralEarning failure gracefully', async () => {
     const userIdentity = await import('@/lib/user-identity');
     const tbank = await import('@/lib/tbank');
+    const referralEarnings = await import('@/lib/referral-earnings');
     (userIdentity.findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 10, telegram_user_id: 12345 });
     mockSql
       .mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }])
       .mockResolvedValueOnce([{ id: 20, user_id: 10 }]);
     (tbank.getPaymentState as jest.Mock).mockResolvedValueOnce({ Status: 'CONFIRMED' });
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ referrer_id: 5 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 20, amount: 1499 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 100 }] })
-      .mockResolvedValueOnce({ rows: [] });
-
-    const { GET } = await import('@/app/api/payment/status/route');
-
-    const request = createRequest({ telegram_user_id: '12345' });
-    await GET(request);
-
-    expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO referral_balances'),
-      expect.arrayContaining([5, 149.9]) // 10% of 1499
-    );
-  });
-
-  test('should insert referral balance when missing', async () => {
-    const userIdentity = await import('@/lib/user-identity');
-    const tbank = await import('@/lib/tbank');
-    (userIdentity.findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 10, telegram_user_id: 12345 });
-    mockSql
-      .mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }])
-      .mockResolvedValueOnce([{ id: 20, user_id: 10 }]);
-    (tbank.getPaymentState as jest.Mock).mockResolvedValueOnce({ Status: 'CONFIRMED' });
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ referrer_id: 5 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 20, amount: 999 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 100 }] })
-      .mockResolvedValueOnce({ rows: [] });
-
-    const { GET } = await import('@/app/api/payment/status/route');
-
-    const request = createRequest({ telegram_user_id: '12345' });
-    await GET(request);
-
-    expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining('ON CONFLICT (user_id) DO UPDATE'),
-      expect.arrayContaining([5, 99.9]) // 10% of 999
-    );
-  });
-
-  test('should calculate 10% commission correctly', async () => {
-    const userIdentity = await import('@/lib/user-identity');
-    const tbank = await import('@/lib/tbank');
-    (userIdentity.findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 10, telegram_user_id: 12345 });
-    mockSql
-      .mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }])
-      .mockResolvedValueOnce([{ id: 20, user_id: 10 }]);
-    (tbank.getPaymentState as jest.Mock).mockResolvedValueOnce({ Status: 'CONFIRMED' });
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ referrer_id: 5 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 20, amount: 499 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 100 }] })
-      .mockResolvedValueOnce({ rows: [] });
-
-    const { GET } = await import('@/app/api/payment/status/route');
-
-    const request = createRequest({ telegram_user_id: '12345' });
-    await GET(request);
-
-    // Verify 10% calculation: 499 * 0.10 = 49.9
-    expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO referral_earnings'),
-      expect.arrayContaining([5, 10, 20, 49.9, 499])
-    );
-  });
-
-  test('should skip processing when user has no referrer', async () => {
-    const userIdentity = await import('@/lib/user-identity');
-    const tbank = await import('@/lib/tbank');
-    (userIdentity.findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 10, telegram_user_id: 12345 });
-    mockSql
-      .mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }])
-      .mockResolvedValueOnce([{ id: 20, user_id: 10 }]);
-    (tbank.getPaymentState as jest.Mock).mockResolvedValueOnce({ Status: 'CONFIRMED' });
-    mockQuery.mockResolvedValueOnce({ rows: [] }); // No referrer
-
-    const { GET } = await import('@/app/api/payment/status/route');
-
-    const request = createRequest({ telegram_user_id: '12345' });
-    await GET(request);
-
-    expect(mockQuery).toHaveBeenCalledTimes(1); // Only referral check
-  });
-
-  test('should skip processing when payment not found', async () => {
-    const userIdentity = await import('@/lib/user-identity');
-    const tbank = await import('@/lib/tbank');
-    (userIdentity.findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 10, telegram_user_id: 12345 });
-    mockSql
-      .mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }])
-      .mockResolvedValueOnce([{ id: 20, user_id: 10 }]);
-    (tbank.getPaymentState as jest.Mock).mockResolvedValueOnce({ Status: 'CONFIRMED' });
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ referrer_id: 5 }] })
-      .mockResolvedValueOnce({ rows: [] }); // Payment not found
-
-    const { GET } = await import('@/app/api/payment/status/route');
-
-    const request = createRequest({ telegram_user_id: '12345' });
-    await GET(request);
-
-    expect(mockQuery).toHaveBeenCalledTimes(2); // Early return after payment check
-  });
-
-  test('should not block response when INSERT earnings throws', async () => {
-    const userIdentity = await import('@/lib/user-identity');
-    const tbank = await import('@/lib/tbank');
-    (userIdentity.findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 10, telegram_user_id: 12345 });
-    mockSql
-      .mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }])
-      .mockResolvedValueOnce([{ id: 20, user_id: 10 }]);
-    (tbank.getPaymentState as jest.Mock).mockResolvedValueOnce({ Status: 'CONFIRMED' });
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ referrer_id: 5 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 20, amount: 1499 }] })
-      .mockRejectedValueOnce(new Error('DB constraint violation'));
+    // Referral function returns error result (doesn't throw)
+    (referralEarnings.processReferralEarning as jest.Mock).mockResolvedValueOnce({
+      success: false,
+      error: 'Referral processing failed'
+    });
 
     const { GET } = await import('@/app/api/payment/status/route');
 
@@ -660,23 +535,24 @@ describe('GET /api/payment/status - Referral Processing', () => {
     const response = await GET(request);
     const data = await response.json();
 
+    // Should still return success since payment was confirmed
     expect(response.status).toBe(200);
-    expect(data.paid).toBe(true); // Still returns success
+    expect(data.paid).toBe(true);
   });
 
-  test('should not block response when INSERT balances throws', async () => {
+  test('should return success when processReferralEarning returns no referrer', async () => {
     const userIdentity = await import('@/lib/user-identity');
     const tbank = await import('@/lib/tbank');
+    const referralEarnings = await import('@/lib/referral-earnings');
     (userIdentity.findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 10, telegram_user_id: 12345 });
     mockSql
       .mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }])
       .mockResolvedValueOnce([{ id: 20, user_id: 10 }]);
     (tbank.getPaymentState as jest.Mock).mockResolvedValueOnce({ Status: 'CONFIRMED' });
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ referrer_id: 5 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 20, amount: 1499 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 100 }] })
-      .mockRejectedValueOnce(new Error('Balance update failed'));
+    (referralEarnings.processReferralEarning as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      error: 'No referrer found for user'
+    });
 
     const { GET } = await import('@/app/api/payment/status/route');
 
@@ -684,27 +560,6 @@ describe('GET /api/payment/status - Referral Processing', () => {
     const response = await GET(request);
     const data = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(data.paid).toBe(true); // Still returns success
-  });
-
-  test('should handle referral processing error gracefully', async () => {
-    const userIdentity = await import('@/lib/user-identity');
-    const tbank = await import('@/lib/tbank');
-    (userIdentity.findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 10, telegram_user_id: 12345 });
-    mockSql
-      .mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }])
-      .mockResolvedValueOnce([{ id: 20, user_id: 10 }]);
-    (tbank.getPaymentState as jest.Mock).mockResolvedValueOnce({ Status: 'CONFIRMED' });
-    mockQuery.mockRejectedValueOnce(new Error('Referral query failed'));
-
-    const { GET } = await import('@/app/api/payment/status/route');
-
-    const request = createRequest({ telegram_user_id: '12345' });
-    const response = await GET(request);
-    const data = await response.json();
-
-    // Should not crash - referral is non-critical
     expect(response.status).toBe(200);
     expect(data.paid).toBe(true);
     expect(data.status).toBe('succeeded');

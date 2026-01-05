@@ -75,12 +75,13 @@ export async function POST(request: NextRequest) {
         // Process referral earnings (non-blocking)
         try {
           const sql = neon(process.env.DATABASE_URL!)
+          // Need database payment.id (not provider payment_id) for processReferralEarning
           const payment = await sql`
-            SELECT user_id FROM payments WHERE payment_id = ${result.paymentId}
+            SELECT id, user_id FROM payments WHERE payment_id = ${result.paymentId}
           `
 
-          if (payment[0]?.user_id) {
-            await processReferralEarning(result.paymentId, payment[0].user_id)
+          if (payment[0]?.id && payment[0]?.user_id) {
+            await processReferralEarning(payment[0].id, payment[0].user_id)
             console.log('[Telegram Webhook] Referral earnings processed for user:', payment[0].user_id)
           }
         } catch (referralError) {

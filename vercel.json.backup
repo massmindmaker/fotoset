@@ -16,9 +16,6 @@
     },
     "app/api/cron/poll-preview-tasks/route.ts": {
       "maxDuration": 55
-    },
-    "app/api/cron/ton-monitor/route.ts": {
-      "maxDuration": 60
     }
   },
   "crons": [
@@ -33,10 +30,6 @@
     {
       "path": "/api/cron/poll-preview-tasks",
       "schedule": "*/1 * * * *"
-    },
-    {
-      "path": "/api/cron/ton-monitor",
-      "schedule": "*/5 * * * *"
     }
   ]
 }

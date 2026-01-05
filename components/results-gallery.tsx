@@ -8,7 +8,7 @@ import {
 import { saveAs } from "file-saver"
 import { Card } from "@/components/ui/card"
 import { MinimalCard } from "@/components/ui/minimal-card"
-import { BgAnimateButton } from "@/components/ui/bg-animate-button"
+import { Button } from "@/components/ui/button"
 
 interface GeneratedAsset {
   id: string
@@ -475,17 +475,14 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl, onGe
             <p className="text-sm text-muted-foreground">{assets.length} фото готово</p>
           </div>
           {onGenerateMore && (
-            <BgAnimateButton
+            <Button
               onClick={onGenerateMore}
-              gradient="candy"
-              animation="spin-slow"
               size="sm"
-              rounded="xl"
-              className="flex-shrink-0"
+              className="flex-shrink-0 rounded-xl gap-1.5"
             >
               <Sparkles className="w-4 h-4" />
               <span>Ещё</span>
-            </BgAnimateButton>
+            </Button>
           )}
         </div>
       </Card>

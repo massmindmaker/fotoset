@@ -5,8 +5,6 @@ import { useState, useEffect, useCallback } from "react"
 import { X, Check, Loader2, Mail, ShieldCheck, CreditCard, Coins, Star } from "lucide-react"
 import { extractErrorMessage, getErrorMessage } from "@/lib/error-utils"
 import { usePaymentMethods } from "./hooks/usePaymentMethods"
-import { BgAnimateButton } from "@/components/ui/bg-animate-button"
-import { TextureButton } from "@/components/ui/texture-button"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 
@@ -266,15 +264,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
 
               {/* T-Bank Primary Button */}
               {methods.tbank.enabled && (
-                <BgAnimateButton
+                <Button
                   onClick={() => { setSelectedMethod('tbank'); handlePayment() }}
                   disabled={loading || (selectedMethod === 'tbank' && !email.trim()) || methodsLoading}
-                  gradient="candy"
-                  animation="spin-slow"
                   size="lg"
-                  rounded="2xl"
-                  shadow="deep"
-                  className="w-full"
+                  className="w-full h-12 rounded-2xl text-base font-semibold gap-2"
                 >
                   {loading && selectedMethod === 'tbank' ? (
                     <>
@@ -287,7 +281,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                       Оплатить картой {tier.price} ₽
                     </>
                   )}
-                </BgAnimateButton>
+                </Button>
               )}
 
               {/* Divider + Alternative Methods */}
@@ -301,12 +295,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               {altMethodsCount > 0 && (
                 <div className="grid grid-cols-2 gap-3">
                   {methods.ton.enabled && (
-                    <TextureButton
+                    <Button
                       onClick={() => { setSelectedMethod('ton'); handleAltPayment('ton') }}
                       disabled={loading || methodsLoading}
                       variant="secondary"
-                      size="default"
-                      className="w-full"
+                      className="w-full h-10 rounded-xl gap-2"
                     >
                       {loading && selectedMethod === 'ton' ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -316,15 +309,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                           <span>{methods.ton.pricing?.[tier.id] || '—'} TON</span>
                         </>
                       )}
-                    </TextureButton>
+                    </Button>
                   )}
                   {methods.stars.enabled && (
-                    <TextureButton
+                    <Button
                       onClick={() => { setSelectedMethod('stars'); handleAltPayment('stars') }}
                       disabled={loading || methodsLoading}
-                      variant="accent"
-                      size="default"
-                      className="w-full"
+                      variant="outline"
+                      className="w-full h-10 rounded-xl gap-2"
                     >
                       {loading && selectedMethod === 'stars' ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -334,7 +326,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                           <span>{methods.stars.pricing?.[tier.id] || '—'} XTR</span>
                         </>
                       )}
-                    </TextureButton>
+                    </Button>
                   )}
                 </div>
               )}
@@ -350,16 +342,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
 
           {step === "PROCESSING" && (
             <div className="flex flex-col items-center py-12">
-              <div className="relative mb-4">
-                <BgAnimateButton
-                  gradient="candy"
-                  animation="spin"
-                  size="lg"
-                  rounded="full"
-                  className="w-20 h-20 pointer-events-none"
-                >
-                  <Loader2 className="w-8 h-8 animate-spin text-white" />
-                </BgAnimateButton>
+              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                <Loader2 className="w-10 h-10 animate-spin text-primary" />
               </div>
               <p className="text-lg font-medium">Создание платежа...</p>
               <p className="text-muted-foreground text-sm mt-1">Подождите немного</p>

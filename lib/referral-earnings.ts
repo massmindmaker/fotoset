@@ -39,7 +39,7 @@ export async function processReferralEarning(
   try {
     // 1. Check if user has a referrer
     const referralCheck = await query(
-      'SELECT referrer_id FROM referrals WHERE referred_user_id = $1',
+      'SELECT referrer_id FROM referrals WHERE referred_id = $1',
       [userId]
     )
 

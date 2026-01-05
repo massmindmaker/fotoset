@@ -5,7 +5,7 @@ import { useRef } from "react"
 import { ArrowLeft, Camera, Loader2, Plus, Sparkles, X, CheckCircle2 } from "lucide-react"
 import type { Persona } from "./types"
 import { Progress } from "@/components/ui/progress"
-import { BgAnimateButton } from "@/components/ui/bg-animate-button"
+import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -159,15 +159,11 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
         ))}
       </div>
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
-        <BgAnimateButton
+        <Button
           onClick={onNext}
           disabled={!isReady || isLoading}
-          gradient="candy"
-          animation="spin-slow"
           size="lg"
-          rounded="2xl"
-          shadow="deep"
-          className="w-full sm:w-auto"
+          className="w-full sm:w-auto h-12 rounded-2xl text-base font-semibold gap-2"
         >
           {isLoading ? (
             <>
@@ -180,7 +176,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
               Выбрать стиль
             </>
           )}
-        </BgAnimateButton>
+        </Button>
         {!isReady && (
           <p className="text-xs text-center text-muted-foreground mt-2 sm:hidden">
             Нужно ещё {MIN_PHOTOS - persona.images.length} фото
