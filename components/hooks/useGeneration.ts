@@ -4,6 +4,7 @@ import type { Persona, PricingTier, GeneratedAsset } from "../views/types"
 interface GenerationProgress {
   completed: number
   total: number
+  startPhotoCount?: number // Number of photos at generation start (for re-generation)
 }
 
 /**

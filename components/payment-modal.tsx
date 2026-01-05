@@ -5,6 +5,10 @@ import { useState, useEffect, useCallback } from "react"
 import { X, Check, Loader2, Mail, ShieldCheck, CreditCard, Coins, Star } from "lucide-react"
 import { extractErrorMessage, getErrorMessage } from "@/lib/error-utils"
 import { usePaymentMethods } from "./hooks/usePaymentMethods"
+import { BgAnimateButton } from "@/components/ui/bg-animate-button"
+import { TextureButton } from "@/components/ui/texture-button"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 
 interface PricingTier {
   id: string
@@ -262,10 +266,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
 
               {/* T-Bank Primary Button */}
               {methods.tbank.enabled && (
-                <button
+                <BgAnimateButton
                   onClick={() => { setSelectedMethod('tbank'); handlePayment() }}
                   disabled={loading || (selectedMethod === 'tbank' && !email.trim()) || methodsLoading}
-                  className="w-full py-4 bg-primary text-primary-foreground font-semibold rounded-xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  gradient="candy"
+                  animation="spin-slow"
+                  size="lg"
+                  rounded="2xl"
+                  shadow="deep"
+                  className="w-full"
                 >
                   {loading && selectedMethod === 'tbank' ? (
                     <>
@@ -278,7 +287,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                       Оплатить картой {tier.price} ₽
                     </>
                   )}
-                </button>
+                </BgAnimateButton>
               )}
 
               {/* Divider + Alternative Methods */}
@@ -290,12 +299,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
 
               {/* Alternative Payment Methods (Stars, TON) */}
               {altMethodsCount > 0 && (
-                <div className="payment-alt-row">
+                <div className="grid grid-cols-2 gap-3">
                   {methods.ton.enabled && (
-                    <button
+                    <TextureButton
                       onClick={() => { setSelectedMethod('ton'); handleAltPayment('ton') }}
                       disabled={loading || methodsLoading}
-                      className="btn-payment-alt btn-ton"
+                      variant="secondary"
+                      size="default"
+                      className="w-full"
                     >
                       {loading && selectedMethod === 'ton' ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -305,13 +316,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                           <span>{methods.ton.pricing?.[tier.id] || '—'} TON</span>
                         </>
                       )}
-                    </button>
+                    </TextureButton>
                   )}
                   {methods.stars.enabled && (
-                    <button
+                    <TextureButton
                       onClick={() => { setSelectedMethod('stars'); handleAltPayment('stars') }}
                       disabled={loading || methodsLoading}
-                      className="btn-payment-alt btn-stars"
+                      variant="accent"
+                      size="default"
+                      className="w-full"
                     >
                       {loading && selectedMethod === 'stars' ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -321,7 +334,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                           <span>{methods.stars.pricing?.[tier.id] || '—'} XTR</span>
                         </>
                       )}
-                    </button>
+                    </TextureButton>
                   )}
                 </div>
               )}
@@ -337,7 +350,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
 
           {step === "PROCESSING" && (
             <div className="flex flex-col items-center py-12">
-              <Loader2 className="animate-spin w-12 h-12 text-primary mb-4" />
+              <div className="relative mb-4">
+                <BgAnimateButton
+                  gradient="candy"
+                  animation="spin"
+                  size="lg"
+                  rounded="full"
+                  className="w-20 h-20 pointer-events-none"
+                >
+                  <Loader2 className="w-8 h-8 animate-spin text-white" />
+                </BgAnimateButton>
+              </div>
               <p className="text-lg font-medium">Создание платежа...</p>
               <p className="text-muted-foreground text-sm mt-1">Подождите немного</p>
             </div>
@@ -368,12 +391,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               </div>
               <p className="text-lg font-medium">Ошибка оплаты</p>
               <p className="text-muted-foreground text-sm mt-1 text-center">{errorMessage}</p>
-              <button
+              <Button
                 onClick={() => setStep("FORM")}
-                className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+                variant="default"
+                className="mt-4"
               >
                 Попробовать снова
-              </button>
+              </Button>
             </div>
           )}
         </div>

@@ -2,8 +2,13 @@
 
 import type React from "react"
 import { useRef } from "react"
-import { ArrowLeft, Camera, Loader2, Plus, Sparkles, X } from "lucide-react"
+import { ArrowLeft, Camera, Loader2, Plus, Sparkles, X, CheckCircle2 } from "lucide-react"
 import type { Persona } from "./types"
+import { Progress } from "@/components/ui/progress"
+import { BgAnimateButton } from "@/components/ui/bg-animate-button"
+import { Card } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 
 export interface UploadViewProps {
   persona: Persona
@@ -75,25 +80,26 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
             aria-label="Название аватара"
           />
           <div className="flex items-center gap-2 mt-1">
-            <div
-              className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-[120px]"
-              role="progressbar"
-              aria-valuenow={persona.images.length}
-              aria-valuemin={0}
-              aria-valuemax={20}
-            >
-              <div
-                className={"h-full transition-all duration-500 " + (isReady ? "bg-green-500" : "bg-primary")}
-                style={{ width: progress + "%" }}
-              />
+            <Progress
+              value={progress}
+              className={cn(
+                "flex-1 h-2 max-w-[140px] transition-all",
+                isReady && "[&>div]:bg-green-500"
+              )}
+            />
+            <div className="flex items-center gap-1">
+              {isReady && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
+              <span className={cn(
+                "text-xs transition-colors",
+                isReady ? "text-green-600 font-medium" : "text-muted-foreground"
+              )}>
+                {persona.images.length}/20 фото
+              </span>
             </div>
-            <span className={"text-xs " + (isReady ? "text-green-600 font-medium" : "text-muted-foreground")}>
-              {persona.images.length}/20 фото
-            </span>
           </div>
         </div>
       </div>
-      <div className="p-4 glass rounded-2xl hover-lift">
+      <Card className="p-4 hover-lift">
         <div className="flex gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 hover-glow transition-all">
             <Camera className="w-5 h-5 text-primary" aria-hidden="true" />
@@ -107,7 +113,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
             </ul>
           </div>
         </div>
-      </div>
+      </Card>
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -127,7 +133,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
           aria-label="Выбрать файлы"
         />
         {persona.images.map((img) => (
-          <div key={img.id} className="aspect-square rounded-xl bg-muted overflow-hidden relative group min-h-[80px] hover-scale transition-all">
+          <div key={img.id} className="aspect-square rounded-xl bg-muted overflow-hidden relative group min-h-[80px] hover-scale transition-all shadow-sm">
             <img src={img.previewUrl} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-110" loading="lazy" />
             <button
               onClick={() => removeImage(img.id)}
@@ -138,25 +144,43 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
             </button>
           </div>
         ))}
+        {/* Skeleton placeholders для визуализации оставшихся слотов */}
+        {persona.images.length < 5 && Array.from({ length: Math.min(3, 5 - persona.images.length) }).map((_, i) => (
+          <div
+            key={`skeleton-${i}`}
+            onClick={() => fileInputRef.current?.click()}
+            className="aspect-square rounded-xl overflow-hidden relative cursor-pointer group"
+          >
+            <Skeleton className="w-full h-full" />
+            <div className="absolute inset-0 flex items-center justify-center opacity-50 group-hover:opacity-80 transition-opacity">
+              <Plus className="w-6 h-6 text-muted-foreground" />
+            </div>
+          </div>
+        ))}
       </div>
-      <div className="fixed bottom-0 left-0 right-0 p-4 glass-strong border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
-        <button
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
+        <BgAnimateButton
           onClick={onNext}
           disabled={!isReady || isLoading}
-          className="w-full sm:w-auto btn-premium disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          gradient="candy"
+          animation="spin-slow"
+          size="lg"
+          rounded="2xl"
+          shadow="deep"
+          className="w-full sm:w-auto"
         >
           {isLoading ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin" />
               Загрузка...
             </>
           ) : (
             <>
-              <Sparkles className="w-4 h-4" />
-              Сгенерировать фото
+              <Sparkles className="w-5 h-5" />
+              Выбрать стиль
             </>
           )}
-        </button>
+        </BgAnimateButton>
         {!isReady && (
           <p className="text-xs text-center text-muted-foreground mt-2 sm:hidden">
             Нужно ещё {MIN_PHOTOS - persona.images.length} фото

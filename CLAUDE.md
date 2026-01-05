@@ -3,6 +3,52 @@
 ## Глобальные ресурсы
 @C:/Users/bob/.claude/CLAUDE.md
 
+---
+
+## 🚫 ANTI-PATTERNS (НЕ ДЕЛАТЬ!)
+
+### 1. is_pro колонка - УДАЛЕНА
+```sql
+❌ SELECT is_pro FROM users
+❌ UPDATE users SET is_pro = true
+✅ Pro = есть успешный платёж: SELECT COUNT(*) FROM payments WHERE user_id=? AND status='succeeded'
+```
+
+### 2. Синхронная генерация
+```typescript
+❌ await generateAndWait(prompt) // Cloudflare 100s timeout!
+✅ createKieTask() + cron polling через kie_tasks таблицу
+```
+
+### 3. Хардкод цен/провайдеров
+```typescript
+❌ const PRICE = 499
+✅ Читать из pricing_tiers или admin settings API
+```
+
+### 4. telegram_queue таблица
+```sql
+❌ SELECT * FROM telegram_queue -- НЕ СУЩЕСТВУЕТ
+✅ JOIN telegram_message_queue + users ON telegram_chat_id
+```
+
+---
+
+## Naming Conventions
+
+| Context | Convention | Example |
+|---------|------------|---------|
+| Database columns | snake_case | `telegram_user_id`, `created_at` |
+| TypeScript variables | camelCase | `telegramUserId`, `createdAt` |
+| API query params | snake_case | `?telegram_user_id=123` |
+| API request body | camelCase | `{ telegramUserId: 123 }` |
+| API response body | camelCase | `{ isPro: true }` |
+| Environment vars | SCREAMING_SNAKE | `DATABASE_URL`, `TBANK_PASSWORD` |
+| React components | PascalCase | `PaymentModal`, `PersonaApp` |
+| CSS classes | kebab-case | `payment-modal`, `btn-primary` |
+
+---
+
 ## Project Overview
 
 **PinGlass** (розовые очки) — это веб-приложение для генерации AI-фотопортретов на базе Next.js 16. Позволяет пользователям загружать свои фотографии и получать 23 профессиональных AI-сгенерированных портрета в различных стилях.
@@ -10,10 +56,12 @@
 ### Tech Stack
 - **Frontend:** React 19, Next.js 16 (App Router), TypeScript
 - **Styling:** Tailwind CSS 4, OKLCH color space
-- **AI Generation:** Google Imagen 3.0 API (через YeScale proxy)
+- **AI Generation:** Kie.ai (async) + Replicate fallback
 - **Database:** Neon PostgreSQL (serverless)
-- **Payments:** T-Bank (Tinkoff) Payment API
-- **Analytics:** Vercel Analytics
+- **Payments:** T-Bank + Telegram Stars + TON Crypto
+- **Storage:** Cloudflare R2
+- **Background Jobs:** QStash + Vercel Cron
+- **Analytics:** Vercel Analytics, Sentry
 
 ---
 
@@ -360,64 +408,59 @@ NEXT_PUBLIC_APP_URL=https://your-domain.com
 
 ---
 
-## Database Schema
+## Database Schema (Key Tables)
 
 ```sql
--- Users table
+-- Users (НЕТ is_pro! Pro = есть успешный платёж)
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
-  device_id VARCHAR(255) UNIQUE NOT NULL,
-  is_pro BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Avatars (Personas)
-CREATE TABLE avatars (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id),
-  name VARCHAR(255) DEFAULT 'Мой аватар',
-  status VARCHAR(20) DEFAULT 'draft', -- draft, processing, ready
-  thumbnail_url TEXT,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Generated Photos
-CREATE TABLE generated_photos (
-  id SERIAL PRIMARY KEY,
-  avatar_id INTEGER REFERENCES avatars(id),
-  style_id VARCHAR(50),
-  prompt TEXT,
-  image_url TEXT,
+  telegram_user_id BIGINT UNIQUE,
+  telegram_username VARCHAR(255),
+  device_id VARCHAR(255),
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Payments
+-- Payments (Multi-provider)
 CREATE TABLE payments (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id),
-  tbank_payment_id VARCHAR(255),
+  payment_id VARCHAR(255),
+  provider VARCHAR(20) DEFAULT 'tbank', -- tbank, stars, ton
   amount DECIMAL(10,2),
-  currency VARCHAR(3) DEFAULT 'RUB',
-  status VARCHAR(20), -- pending, succeeded, canceled
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  status VARCHAR(20), -- pending, succeeded, canceled, refunded
+  -- Stars-specific
+  telegram_charge_id VARCHAR(255) UNIQUE,
+  stars_amount INTEGER,
+  -- TON-specific
+  ton_tx_hash CHAR(64) UNIQUE,
+  ton_amount DECIMAL(20,9),
+  created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Generation Jobs
-CREATE TABLE generation_jobs (
+-- Async Generation (Kie.ai tasks)
+CREATE TABLE kie_tasks (
   id SERIAL PRIMARY KEY,
-  avatar_id INTEGER REFERENCES avatars(id),
-  style_id VARCHAR(50),
-  status VARCHAR(20), -- processing, completed, failed
-  total_photos INTEGER DEFAULT 23,
-  completed_photos INTEGER DEFAULT 0,
-  error_message TEXT,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  job_id INTEGER REFERENCES generation_jobs(id),
+  kie_task_id VARCHAR(255) NOT NULL,
+  prompt_index INTEGER,
+  status VARCHAR(20) DEFAULT 'pending', -- pending, completed, failed
+  result_url TEXT,
+  attempts INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Referral System
+CREATE TABLE referral_balances (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER UNIQUE REFERENCES users(id),
+  referral_code VARCHAR(20) UNIQUE,
+  balance DECIMAL(10,2) DEFAULT 0,
+  is_partner BOOLEAN DEFAULT FALSE,
+  commission_rate DECIMAL(3,2) DEFAULT 0.10 -- 10% default, 50% for partners
 );
 ```
+
+**Полная схема:** См. `scripts/migrations/` (29 миграций)
 
 ---
 
@@ -489,3 +532,34 @@ pnpm lint
 - [ ] Configure Google Cloud Imagen API
 - [ ] Test payment flow end-to-end
 - [ ] Configure webhook URL in T-Bank dashboard
+
+---
+
+## 📚 Serena Memory System
+
+**Ключевые memory файлы (читать при необходимости):**
+
+| Memory | Содержимое |
+|--------|-----------|
+| `architecture-decisions` | Anti-patterns, ключевые решения, схема БД |
+| `2026-01-03-multi-payment-integration-complete` | T-Bank + Stars + TON интеграция |
+| `2025-12-27-async-kie-ai-architecture` | Fire-and-forget + cron polling |
+| `_memory-index` | Индекс всех memories |
+
+**Команды:**
+```
+mcp__serena__list_memories      # Список всех
+mcp__serena__read_memory        # Читать конкретный
+```
+
+---
+
+## 🔧 Useful Skills
+
+| Skill | Когда использовать |
+|-------|-------------------|
+| `/serena` | Файлы >100 строк, символьный анализ |
+| `/context7` | Документация библиотек |
+| `/github-cli` | PR, issues, actions |
+| `/vercel` | Deploy, env, logs |
+| `/docker` | Containers, compose |

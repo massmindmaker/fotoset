@@ -6,6 +6,9 @@ import {
   ZoomIn, ExternalLink, Loader2, Send, MessageCircle, Link as LinkIcon, Check, Sparkles
 } from "lucide-react"
 import { saveAs } from "file-saver"
+import { Card } from "@/components/ui/card"
+import { MinimalCard } from "@/components/ui/minimal-card"
+import { BgAnimateButton } from "@/components/ui/bg-animate-button"
 
 interface GeneratedAsset {
   id: string
@@ -39,25 +42,25 @@ const AssetCard = memo<{
     onDownload,
   }) => {
     return (
-      <div className="relative rounded-2xl overflow-hidden bg-card border border-border hover:border-primary/50 transition-all group">
+      <MinimalCard className="relative p-0 overflow-hidden group hover-lift active-press">
         {/* Image */}
         <button
           onClick={() => onOpenLightbox(index)}
           className="aspect-square w-full"
           aria-label={`View photo ${index + 1} in fullscreen`}
         >
-          <img src={asset.url} alt={`Generated photo ${index + 1}`} className="w-full h-full object-cover" loading="lazy" />
+          <img src={asset.url} alt={`Generated photo ${index + 1}`} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500 rounded-[20px]" loading="lazy" />
         </button>
 
-        {/* Hover actions */}
-        <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="flex items-center justify-center gap-1">
+        {/* Hover/Touch actions overlay */}
+        <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-b-[20px]">
+          <div className="flex items-center justify-center gap-2">
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 onOpenLightbox(index)
               }}
-              className="p-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+              className="p-2.5 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 active:bg-white/40 transition-all hover:scale-110 shadow-lg"
               aria-label="View fullscreen"
             >
               <ZoomIn className="w-4 h-4" />
@@ -67,7 +70,7 @@ const AssetCard = memo<{
                 e.stopPropagation()
                 onShare(asset)
               }}
-              className="p-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+              className="p-2.5 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 active:bg-white/40 transition-all hover:scale-110 shadow-lg"
               aria-label="Share photo"
             >
               <Share2 className="w-4 h-4" />
@@ -77,14 +80,14 @@ const AssetCard = memo<{
                 e.stopPropagation()
                 onDownload(asset)
               }}
-              className="p-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+              className="p-2.5 bg-primary/80 backdrop-blur-sm text-white rounded-xl hover:bg-primary active:bg-primary/90 transition-all hover:scale-110 shadow-lg"
               aria-label="Download photo"
             >
               <Download className="w-4 h-4" />
             </button>
           </div>
         </div>
-      </div>
+      </MinimalCard>
     )
   },
   // Custom comparison function - only re-render if these props change
@@ -458,28 +461,34 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl, onGe
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-2xl">
-        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary flex-shrink-0 bg-muted flex items-center justify-center">
-          {thumbnailUrl || assets[0]?.url ? (
-            <img src={thumbnailUrl || assets[0]?.url} alt={personaName} className="w-full h-full object-cover" loading="lazy" />
-          ) : (
-            <span className="text-lg font-semibold text-muted-foreground">{personaName.charAt(0).toUpperCase()}</span>
+      <Card className="p-4 shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary flex-shrink-0 bg-muted flex items-center justify-center shadow-lg shadow-primary/20">
+            {thumbnailUrl || assets[0]?.url ? (
+              <img src={thumbnailUrl || assets[0]?.url} alt={personaName} className="w-full h-full object-cover" loading="lazy" />
+            ) : (
+              <span className="text-lg font-semibold text-muted-foreground">{personaName.charAt(0).toUpperCase()}</span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold truncate">{personaName}</h3>
+            <p className="text-sm text-muted-foreground">{assets.length} фото готово</p>
+          </div>
+          {onGenerateMore && (
+            <BgAnimateButton
+              onClick={onGenerateMore}
+              gradient="candy"
+              animation="spin-slow"
+              size="sm"
+              rounded="xl"
+              className="flex-shrink-0"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Ещё</span>
+            </BgAnimateButton>
           )}
         </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-semibold truncate">{personaName}</h3>
-          <p className="text-sm text-muted-foreground">{assets.length} фото</p>
-        </div>
-        {onGenerateMore && (
-          <button
-            onClick={onGenerateMore}
-            className="flex items-center gap-2 btn-premium text-sm flex-shrink-0"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Ещё</span>
-          </button>
-        )}
-      </div>
+      </Card>
 
       {/* Photo grid with memoized cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

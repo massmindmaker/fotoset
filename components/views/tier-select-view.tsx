@@ -3,6 +3,10 @@
 import type React from "react"
 import { ArrowLeft, Sparkles, CheckCircle2, Loader2, Star, Percent } from "lucide-react"
 import type { Persona, PricingTier } from "./types"
+import { Card, CardHeader, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { BgAnimateButton } from "@/components/ui/bg-animate-button"
+import { cn } from "@/lib/utils"
 
 export interface TierSelectViewProps {
   persona: Persona
@@ -41,38 +45,38 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
       </div>
     </div>
     <div className="space-y-3" role="radiogroup" aria-label="Выберите пакет фотографий">
-      {pricingTiers.map((tier, index) => (
-        <button
+      {pricingTiers.map((tier) => (
+        <Card
           key={tier.id}
           onClick={() => onSelectTier(tier)}
-          className={
-            "w-full p-4 sm:p-5 rounded-3xl transition-all border-2 text-left hover-lift active-press " +
-            (selectedTier?.id === tier.id
-              ? "border-primary bg-gradient-to-br from-primary/10 to-accent/5 shadow-2xl shadow-primary/20 ring-2 ring-primary/10 hover-glow"
-              : "border-transparent card-premium hover:bg-muted/50")
-          }
+          className={cn(
+            "w-full cursor-pointer transition-all hover-lift active-press",
+            selectedTier?.id === tier.id
+              ? "border-primary bg-gradient-to-br from-primary/10 to-accent/5 shadow-2xl shadow-primary/20 ring-2 ring-primary/20"
+              : "hover:border-muted-foreground/30 hover:bg-muted/30"
+          )}
           role="radio"
           aria-checked={selectedTier?.id === tier.id}
           aria-describedby={`tier-desc-${tier.id}`}
         >
-          <div className="flex items-center gap-4">
+          <CardHeader className="flex flex-row items-center gap-4 p-4 sm:p-5">
             <div
-              className={
-                "w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-lg transition-all hover-scale " +
-                (selectedTier?.id === tier.id
-                  ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-primary/30 hover-glow"
-                  : "bg-muted text-muted-foreground shadow-black/10")
-              }
+              className={cn(
+                "w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-lg transition-all",
+                selectedTier?.id === tier.id
+                  ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-primary/30"
+                  : "bg-muted text-muted-foreground"
+              )}
             >
-              <span className="text-2xl font-bold drop-shadow-sm">{tier.photos}</span>
+              <span className="text-2xl font-bold">{tier.photos}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <h3 className="font-semibold text-lg text-foreground">{tier.photos} фотографий</h3>
                 {tier.popular && (
-                  <span className="px-2.5 py-1 bg-gradient-to-r from-accent/30 to-accent/10 text-accent text-xs font-medium rounded-full flex items-center gap-1 shadow-sm">
-                    <Star className="w-3 h-3" /> Хит
-                  </span>
+                  <Badge variant="default" className="text-xs">
+                    <Star className="w-3 h-3 mr-1" /> Хит
+                  </Badge>
                 )}
               </div>
               <p id={`tier-desc-${tier.id}`} className="text-sm text-muted-foreground">
@@ -88,9 +92,9 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
                 <>
                   <div className="flex items-center gap-2 justify-end">
                     <span className="text-sm line-through text-muted-foreground">{tier.originalPrice} ₽</span>
-                    <span className="px-1.5 py-0.5 bg-green-500/20 text-green-600 text-xs font-medium rounded-md flex items-center gap-0.5">
-                      <Percent className="w-3 h-3" />-{tier.discount}%
-                    </span>
+                    <Badge variant="secondary" className="bg-green-500/20 text-green-600 text-xs">
+                      <Percent className="w-3 h-3 mr-0.5" />-{tier.discount}%
+                    </Badge>
                   </div>
                   <div className="text-2xl font-bold text-green-600">{tier.price} ₽</div>
                 </>
@@ -99,34 +103,41 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
               )}
               <div className="text-xs text-muted-foreground">{Math.round(tier.price / tier.photos)} ₽/фото</div>
             </div>
-          </div>
+          </CardHeader>
           {selectedTier?.id === tier.id && (
-            <div className="flex items-center gap-1 mt-3 text-primary text-sm font-medium">
-              <CheckCircle2 className="w-4 h-4" />
-              Выбрано
-            </div>
+            <CardContent className="pt-0 pb-4 px-4 sm:px-5">
+              <div className="flex items-center gap-1 text-primary text-sm font-medium">
+                <CheckCircle2 className="w-4 h-4" />
+                Выбрано
+              </div>
+            </CardContent>
           )}
-        </button>
+        </Card>
       ))}
     </div>
     <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
-      <button
+      <BgAnimateButton
         onClick={() => selectedTier && onUpgrade(selectedTier)}
         disabled={!selectedTier || isGenerating || isProcessingPayment}
-        className="w-full sm:w-auto btn-premium disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        gradient="candy"
+        animation="spin-slow"
+        size="lg"
+        rounded="2xl"
+        shadow="deep"
+        className="w-full sm:w-auto"
       >
         {(isGenerating || isProcessingPayment) ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Loader2 className="w-5 h-5 animate-spin" />
             {isGenerating ? "Генерация..." : "Обработка..."}
           </>
         ) : (
           <>
-            <Sparkles className="w-4 h-4" />
-            Оплатить и получить {selectedTier.photos} фото
+            <Sparkles className="w-5 h-5" />
+            Оплатить и получить {selectedTier?.photos || 0} фото
           </>
         )}
-      </button>
+      </BgAnimateButton>
     </div>
   </div>
 )

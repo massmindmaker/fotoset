@@ -3,8 +3,7 @@ import { sql, query } from "@/lib/db"
 import { getPaymentState } from "@/lib/tbank"
 import { findOrCreateUser } from "@/lib/user-identity"
 import { paymentLogger as log } from "@/lib/logger"
-
-const REFERRAL_RATE = 0.10 // 10% партнёру
+import { processReferralEarning } from "@/lib/referral-earnings"
 
 export async function GET(request: NextRequest) {
   try {
@@ -79,7 +78,7 @@ export async function GET(request: NextRequest) {
         // (prevents double-crediting if webhook already processed it)
         if (updateResult.length > 0) {
           const updatedPayment = updateResult[0]
-          await processReferralEarning(updatedPayment.user_id, paymentId!)
+          await processReferralEarning(updatedPayment.id, updatedPayment.user_id)
         }
 
         return NextResponse.json({ paid: true, status: "succeeded" })
@@ -100,72 +99,5 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     log.error("Status check error:", error)
     return NextResponse.json({ paid: false, status: "pending", error: "check_failed" })
-  }
-}
-
-// Process referral earning when payment succeeds
-// Copied from webhook/route.ts to handle case when status endpoint processes payment first
-async function processReferralEarning(userId: number, paymentId: string) {
-  console.log(`[Referral/Status] START: Processing for user=${userId}, payment=${paymentId}`)
-  try {
-    // Check if user was referred (referrals table has: referrer_id, referred_id, created_at)
-    const referralResult = await query<{ referrer_id: number }>(
-      "SELECT referrer_id FROM referrals WHERE referred_id = $1",
-      [userId]
-    )
-
-    if (referralResult.rows.length === 0) {
-      console.log(`[Referral/Status] User ${userId} has no referrer - skipping`)
-      return
-    }
-
-    console.log(`[Referral/Status] Found referral: referrer_id=${referralResult.rows[0].referrer_id}`)
-
-    const referrerId = referralResult.rows[0].referrer_id
-
-    // Get payment amount from our DB
-    const paymentResult = await query<{ id: number; amount: number }>(
-      "SELECT id, amount FROM payments WHERE tbank_payment_id = $1",
-      [paymentId]
-    )
-
-    if (paymentResult.rows.length === 0) {
-      console.log(`[Referral/Status] Payment not found in DB: ${paymentId}`)
-      return
-    }
-
-    const payment = paymentResult.rows[0]
-    const originalAmount = Number(payment.amount)
-    const earningAmount = Math.round(originalAmount * REFERRAL_RATE * 100) / 100
-
-    // ATOMIC: Insert earning with status='confirmed' since payment succeeded
-    const insertResult = await query<{ id: number }>(
-      `INSERT INTO referral_earnings (referrer_id, referred_id, payment_id, amount, original_amount, status)
-       VALUES ($1, $2, $3, $4, $5, 'confirmed')
-       ON CONFLICT (payment_id) DO UPDATE SET status = 'confirmed'
-       RETURNING id`,
-      [referrerId, userId, payment.id, earningAmount, originalAmount]
-    )
-
-    // If no row returned, earning was already processed (idempotent)
-    if (insertResult.rows.length === 0) {
-      console.log(`[Referral/Status] Earning already processed for payment ${paymentId}`)
-      return
-    }
-
-    // Update referrer balance atomically
-    await query(
-      `INSERT INTO referral_balances (user_id, balance, total_earned, referrals_count)
-       VALUES ($1, $2, $2, 0)
-       ON CONFLICT (user_id) DO UPDATE SET
-         balance = referral_balances.balance + $2,
-         total_earned = referral_balances.total_earned + $2,
-         updated_at = NOW()`,
-      [referrerId, earningAmount]
-    )
-    console.log(`[Referral/Status] ✓ Credited ${earningAmount} RUB to user ${referrerId} from payment ${paymentId}`)
-  } catch (error) {
-    console.error("[Referral/Status] Error processing earning:", error)
-    // Don't throw - referral is not critical for payment status check
   }
 }

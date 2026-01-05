@@ -9,6 +9,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { starsProvider } from '@/lib/payments/providers/telegram-stars'
+import { processReferralEarning } from '@/lib/referral-earnings'
+import { neon } from '@neondatabase/serverless'
 
 // Verify webhook is from Telegram (optional but recommended)
 function verifyTelegramWebhook(request: NextRequest): boolean {
@@ -69,6 +71,22 @@ export async function POST(request: NextRequest) {
           paymentId: result.paymentId,
           status: result.status,
         })
+
+        // Process referral earnings (non-blocking)
+        try {
+          const sql = neon(process.env.DATABASE_URL!)
+          const payment = await sql`
+            SELECT user_id FROM payments WHERE payment_id = ${result.paymentId}
+          `
+
+          if (payment[0]?.user_id) {
+            await processReferralEarning(result.paymentId, payment[0].user_id)
+            console.log('[Telegram Webhook] Referral earnings processed for user:', payment[0].user_id)
+          }
+        } catch (referralError) {
+          // Don't fail the webhook if referral processing fails
+          console.error('[Telegram Webhook] Referral processing failed:', referralError)
+        }
 
         // Trigger generation if avatar was specified
         // This is handled by the payment polling on the frontend
