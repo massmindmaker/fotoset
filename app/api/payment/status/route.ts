@@ -138,11 +138,11 @@ async function processReferralEarning(userId: number, paymentId: string) {
     const originalAmount = Number(payment.amount)
     const earningAmount = Math.round(originalAmount * REFERRAL_RATE * 100) / 100
 
-    // ATOMIC: Insert earning with ON CONFLICT to prevent duplicates
+    // ATOMIC: Insert earning with status='confirmed' since payment succeeded
     const insertResult = await query<{ id: number }>(
-      `INSERT INTO referral_earnings (referrer_id, referred_id, payment_id, amount, original_amount)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (payment_id) DO NOTHING
+      `INSERT INTO referral_earnings (referrer_id, referred_id, payment_id, amount, original_amount, status)
+       VALUES ($1, $2, $3, $4, $5, 'confirmed')
+       ON CONFLICT (payment_id) DO UPDATE SET status = 'confirmed'
        RETURNING id`,
       [referrerId, userId, payment.id, earningAmount, originalAmount]
     )

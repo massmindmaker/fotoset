@@ -52,7 +52,12 @@ export async function GET(request: NextRequest) {
         -- Telegram status counts (Task 2.1)
         COUNT(DISTINCT CASE WHEN tmq.status = 'sent' THEN tmq.id END) as tg_sent_count,
         COUNT(DISTINCT CASE WHEN tmq.status = 'pending' THEN tmq.id END) as tg_pending_count,
-        COUNT(DISTINCT CASE WHEN tmq.status = 'failed' THEN tmq.id END) as tg_failed_count
+        COUNT(DISTINCT CASE WHEN tmq.status = 'failed' THEN tmq.id END) as tg_failed_count,
+
+        -- Partner status
+        COALESCE(rb.is_partner, false) as is_partner,
+        rb.commission_rate,
+        rb.partner_approved_at
 
       FROM users u
       LEFT JOIN avatars a ON a.user_id = u.id
@@ -60,8 +65,9 @@ export async function GET(request: NextRequest) {
       LEFT JOIN reference_photos rp ON rp.avatar_id = a.id
       LEFT JOIN generated_photos gp ON gp.avatar_id = a.id
       LEFT JOIN telegram_message_queue tmq ON tmq.telegram_chat_id = u.telegram_user_id
+      LEFT JOIN referral_balances rb ON rb.user_id = u.id
       WHERE 1=1 ${searchCondition}
-      GROUP BY u.id, u.telegram_user_id, u.telegram_username, u.is_banned, u.created_at, u.updated_at, u.pending_referral_code, u.pending_generation_tier
+      GROUP BY u.id, u.telegram_user_id, u.telegram_username, u.is_banned, u.created_at, u.updated_at, u.pending_referral_code, u.pending_generation_tier, rb.is_partner, rb.commission_rate, rb.partner_approved_at
       ORDER BY u.created_at DESC
       LIMIT ${limit}
       OFFSET ${offset}

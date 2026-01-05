@@ -253,7 +253,7 @@ async function handleClear(chatId: number) {
 
 async function handleAccountStatus(chatId: number) {
   const session = await query(
-    `SELECT ts.*, u.device_id, u.is_pro
+    `SELECT ts.*, u.device_id
      FROM telegram_sessions ts
      JOIN users u ON u.id = ts.user_id
      WHERE ts.telegram_chat_id = $1`,
@@ -266,7 +266,6 @@ async function handleAccountStatus(chatId: number) {
       chatId,
       `✅ *Аккаунт привязан*\n\n` +
         `👤 Telegram: @${s.telegram_username || 'не указан'}\n` +
-        `⭐ Статус: ${s.is_pro ? 'Pro' : 'Free'}\n` +
         `📅 Привязан: ${new Date(s.linked_at).toLocaleDateString('ru')}`
     )
   } else {

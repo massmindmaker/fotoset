@@ -197,7 +197,7 @@ export function LogsView({ onEventClick }: LogsViewProps) {
         <select
           value={filters.level}
           onChange={handleLevelChange}
-          className="px-3 py-2 rounded-lg bg-card border border-border text-foreground text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+          className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 text-sm focus:ring-2 focus:ring-pink-500 focus:border-transparent"
         >
           <option value="all">Все уровни</option>
           <option value="error">Errors</option>
@@ -211,14 +211,14 @@ export function LogsView({ onEventClick }: LogsViewProps) {
           value={filters.search}
           onChange={handleSearchChange}
           placeholder="Поиск по тексту..."
-          className="flex-1 px-3 py-2 rounded-lg bg-card border border-border text-foreground text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+          className="flex-1 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 text-sm placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500 focus:border-transparent"
         />
 
         {/* Refresh button */}
         <button
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 active:bg-primary/30 text-primary font-medium text-sm flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 rounded-lg bg-pink-50 hover:bg-pink-100 active:bg-pink-200 text-pink-600 font-medium text-sm flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isRefreshing ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -297,20 +297,20 @@ export function LogsView({ onEventClick }: LogsViewProps) {
       {/* Events table */}
       {!isLoading && !error && (
         <>
-          <div className="glass rounded-xl overflow-hidden border border-border">
+          <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3">
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="text-left text-xs font-medium text-slate-500 px-4 py-3">
                     Уровень
                   </th>
-                  <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3">
+                  <th className="text-left text-xs font-medium text-slate-500 px-4 py-3">
                     Сообщение
                   </th>
-                  <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3">
+                  <th className="text-left text-xs font-medium text-slate-500 px-4 py-3">
                     User ID
                   </th>
-                  <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3">
+                  <th className="text-left text-xs font-medium text-slate-500 px-4 py-3">
                     Время
                   </th>
                 </tr>
@@ -318,7 +318,7 @@ export function LogsView({ onEventClick }: LogsViewProps) {
               <tbody>
                 {events.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-12 text-sm text-muted-foreground">
+                    <td colSpan={4} className="text-center py-12 text-sm text-slate-500">
                       Логи не найдены
                     </td>
                   </tr>
@@ -327,28 +327,28 @@ export function LogsView({ onEventClick }: LogsViewProps) {
                     <tr
                       key={event.id}
                       onClick={() => onEventClick?.(event)}
-                      className="border-b border-border hover:bg-muted/30 cursor-pointer transition-colors"
+                      className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors"
                     >
                       <td className="px-4 py-3">
                         <LevelBadge level={event.level} />
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm text-foreground line-clamp-2">
+                        <p className="text-sm text-slate-800 line-clamp-2">
                           {event.message}
                         </p>
                         {event.culprit && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          <p className="text-xs text-slate-500 mt-0.5">
                             {event.culprit}
                           </p>
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm text-foreground font-mono">
+                        <p className="text-sm text-slate-700 font-mono">
                           {event.user?.telegram_id || event.user?.id || "—"}
                         </p>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-slate-500">
                           {formatTimestamp(event.timestamp)}
                         </p>
                       </td>
@@ -362,21 +362,21 @@ export function LogsView({ onEventClick }: LogsViewProps) {
           {/* Pagination */}
           {totalPages > 0 && (
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-slate-500">
                 Страница {filters.page} из {totalPages} • Всего: {totalEvents}
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={handlePrevPage}
                   disabled={filters.page === 1}
-                  className="px-3 py-2 rounded-lg bg-card border border-border hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-3 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-600"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={handleNextPage}
                   disabled={filters.page === totalPages}
-                  className="px-3 py-2 rounded-lg bg-card border border-border hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-3 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-600"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>

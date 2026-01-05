@@ -93,12 +93,12 @@ export async function GET(request: NextRequest) {
         -- Count photos sent to Telegram for this payment (within 1 day of payment)
         COALESCE((
           SELECT COUNT(*)::int
-          FROM telegram_queue tq
-          WHERE tq.user_id = p.user_id
-            AND tq.status = 'sent'
-            AND tq.message_type = 'photo'
-            AND tq.created_at >= p.created_at
-            AND tq.created_at <= p.created_at + interval '1 day'
+          FROM telegram_message_queue tmq
+          WHERE tmq.telegram_chat_id = u.telegram_user_id
+            AND tmq.status = 'sent'
+            AND tmq.message_type = 'photo'
+            AND tmq.created_at >= p.created_at
+            AND tmq.created_at <= p.created_at + interval '1 day'
         ), 0) as tg_sent_count,
         -- Count generated photos for this user (within 1 day of payment)
         COALESCE((

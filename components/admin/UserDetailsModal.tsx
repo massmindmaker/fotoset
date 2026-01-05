@@ -9,8 +9,6 @@ import {
   Users,
   Loader2,
   AlertCircle,
-  Crown,
-  Ban,
   RefreshCw,
   Calendar,
   Clock,
@@ -83,7 +81,6 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<UserDetails | null>(null)
   const [activeTab, setActiveTab] = useState<TabId>('overview')
-  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   useEffect(() => {
     if (isOpen && userId) {
@@ -112,62 +109,6 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
     }
   }
 
-  const handleGrantPro = async () => {
-    if (!userId || !data) return
-
-    try {
-      setActionLoading('pro')
-      const response = await fetch(`/api/admin/users/${userId}/pro`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          isPro: !data.user.is_pro,
-          reason: 'Admin action'
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to update pro status')
-      }
-
-      await fetchUserDetails()
-      onAction?.()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  const handleBan = async () => {
-    if (!userId || !data) return
-
-    const reason = data.user.is_banned ? undefined : prompt('Причина бана:')
-    if (!data.user.is_banned && !reason) return
-
-    try {
-      setActionLoading('ban')
-      const response = await fetch(`/api/admin/users/${userId}/ban`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          isBanned: !data.user.is_banned,
-          reason
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to update ban status')
-      }
-
-      await fetchUserDetails()
-      onAction?.()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-    } finally {
-      setActionLoading(null)
-    }
-  }
 
   if (!isOpen) return null
 
@@ -220,42 +161,6 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {data && (
-              <>
-                <button
-                  onClick={handleGrantPro}
-                  disabled={actionLoading === 'pro'}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    data.user.is_pro
-                      ? 'bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-300'
-                      : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-300'
-                  }`}
-                >
-                  {actionLoading === 'pro' ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Crown className="w-4 h-4" />
-                  )}
-                  {data.user.is_pro ? 'Отозвать Pro' : 'Дать Pro'}
-                </button>
-                <button
-                  onClick={handleBan}
-                  disabled={actionLoading === 'ban'}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    data.user.is_banned
-                      ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-300'
-                      : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'
-                  }`}
-                >
-                  {actionLoading === 'ban' ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Ban className="w-4 h-4" />
-                  )}
-                  {data.user.is_banned ? 'Разбанить' : 'Забанить'}
-                </button>
-              </>
-            )}
             <button
               onClick={onClose}
               className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"

@@ -142,6 +142,10 @@ export type ReferralBalance = {
   total_earned: number
   total_withdrawn: number
   referrals_count: number
+  commission_rate: number
+  is_partner: boolean
+  partner_approved_at: string | null
+  partner_approved_by: string | null
   updated_at: string
 }
 

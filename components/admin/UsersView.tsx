@@ -8,18 +8,23 @@ interface User {
   id: number
   telegram_user_id: number
   telegram_username: string | null
-  is_pro: boolean
+  has_paid: boolean
+  is_banned: boolean
   created_at: string
   avatars_count: number
   payments_count: number
   total_spent: number
-  // NEW: Photo counts (Task 2.3)
+  // Photo counts
   ref_photos_total: number
   gen_photos_total: number
-  // NEW: Telegram status counts (Task 2.3)
+  // Telegram status counts
   tg_sent_count: number
   tg_pending_count: number
   tg_failed_count: number
+  // Partner status
+  is_partner: boolean
+  commission_rate: number | null
+  partner_approved_at: string | null
 }
 
 /**
@@ -194,7 +199,12 @@ export function UsersView() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-mono text-slate-500">#{user.id}</span>
-                        {user.is_pro ? (
+                        {user.is_partner ? (
+                          <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full font-medium flex items-center gap-1">
+                            <Shield className="w-3 h-3" />
+                            Partner {user.commission_rate ? `${Math.round(Number(user.commission_rate) * 100)}%` : '50%'}
+                          </span>
+                        ) : user.has_paid ? (
                           <span className="px-2 py-0.5 bg-pink-100 text-pink-700 text-xs rounded-full font-medium flex items-center gap-1">
                             <Shield className="w-3 h-3" />
                             Pro
@@ -297,7 +307,12 @@ export function UsersView() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
-                          {user.is_pro ? (
+                          {user.is_partner ? (
+                            <>
+                              <Shield className="w-4 h-4 text-purple-600" />
+                              <span className="text-sm font-medium text-purple-600">Partner {user.commission_rate ? Math.round(Number(user.commission_rate) * 100) : 50}%</span>
+                            </>
+                          ) : user.has_paid ? (
                             <>
                               <Shield className="w-4 h-4 text-primary" />
                               <span className="text-sm font-medium text-primary">Pro</span>
@@ -351,34 +366,17 @@ export function UsersView() {
                               <button
                                 onClick={async () => {
                                   setOpenDropdown(null)
-                                  await fetch(`/api/admin/users/${user.id}/pro`, {
+                                  await fetch(`/api/admin/users/${user.id}/partner`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ isPro: !user.is_pro })
+                                    body: JSON.stringify({ isPartner: !user.is_partner })
                                   })
                                   fetchUsers(true)
                                 }}
                                 className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted transition-colors text-left"
                               >
                                 <Crown className="w-4 h-4" />
-                                {user.is_pro ? 'Отозвать Pro' : 'Дать Pro'}
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  const reason = prompt('Причина бана:')
-                                  if (!reason) return
-                                  setOpenDropdown(null)
-                                  await fetch(`/api/admin/users/${user.id}/ban`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ isBanned: true, reason })
-                                  })
-                                  fetchUsers(true)
-                                }}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted transition-colors text-left text-destructive"
-                              >
-                                <Ban className="w-4 h-4" />
-                                Забанить
+                                {user.is_partner ? 'Отозвать Partner' : 'Сделать Partner'}
                               </button>
                             </div>
                           )}

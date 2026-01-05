@@ -38,15 +38,15 @@ export async function POST(request: NextRequest) {
 
     // Get or create user by telegram_user_id
     let user = await sql`
-      SELECT id, is_pro FROM users WHERE telegram_user_id = ${telegramUserId}
+      SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
     `.then((rows: any[]) => rows[0])
 
     if (!user) {
       // Create user with telegram_user_id
       const [newUser] = await sql`
-        INSERT INTO users (telegram_user_id, is_pro, created_at, updated_at)
-        VALUES (${telegramUserId}, FALSE, NOW(), NOW())
-        RETURNING id, is_pro
+        INSERT INTO users (telegram_user_id, created_at, updated_at)
+        VALUES (${telegramUserId}, NOW(), NOW())
+        RETURNING id
       `
       user = newUser
     }

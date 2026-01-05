@@ -162,12 +162,12 @@ async function processReferralEarning(userId: number, paymentId: string) {
     const originalAmount = Number(payment.amount)
     const earningAmount = Math.round(originalAmount * commissionRate * 100) / 100
 
-    // ATOMIC: Insert earning with ON CONFLICT to prevent duplicates
-    // This handles race conditions when webhook fires multiple times
+    // ATOMIC: Insert earning with status='confirmed' since payment is already succeeded
+    // ON CONFLICT handles race conditions when webhook fires multiple times
     const insertResult = await query<{ id: number }>(
-      `INSERT INTO referral_earnings (referrer_id, referred_id, payment_id, amount, original_amount)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (payment_id) DO NOTHING
+      `INSERT INTO referral_earnings (referrer_id, referred_id, payment_id, amount, original_amount, status)
+       VALUES ($1, $2, $3, $4, $5, 'confirmed')
+       ON CONFLICT (payment_id) DO UPDATE SET status = 'confirmed'
        RETURNING id`,
       [referrerId, userId, payment.id, earningAmount, originalAmount]
     )

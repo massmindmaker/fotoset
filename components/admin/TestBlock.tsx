@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Loader2, Sparkles, X, Download, AlertCircle } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Loader2, Sparkles, X, Download, AlertCircle, Save, FolderPlus, Check } from "lucide-react"
 import type { TestBlock as TestBlockType, TestResult } from "@/lib/admin/types"
 
 /**
@@ -14,10 +14,18 @@ import type { TestBlock as TestBlockType, TestResult } from "@/lib/admin/types"
  * - Photo count selector (1-4 buttons, radio style)
  * - Generate button (disabled if prompt empty or generating)
  * - Results gallery (if status === "completed")
+ * - Save prompt button (after generation)
+ * - Add to pack button with pack selector (after generation)
  * - Error message (if status === "failed")
  * - Remove button (X in corner)
  * - Latency display
  */
+
+interface Pack {
+  id: number
+  name: string
+  items_count: number
+}
 
 interface TestBlockProps {
   block: TestBlockType
@@ -35,9 +43,42 @@ export function TestBlock({
   isOnlyBlock = false,
 }: TestBlockProps) {
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isAddingToPack, setIsAddingToPack] = useState(false)
+  const [savedPromptId, setSavedPromptId] = useState<number | null>(null)
+  const [showPackSelector, setShowPackSelector] = useState(false)
+  const [packs, setPacks] = useState<Pack[]>([])
+  const [loadingPacks, setLoadingPacks] = useState(false)
+  const [addedToPackId, setAddedToPackId] = useState<number | null>(null)
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0)
+
+  // Load packs when pack selector is opened
+  useEffect(() => {
+    if (showPackSelector && packs.length === 0) {
+      loadPacks()
+    }
+  }, [showPackSelector])
+
+  const loadPacks = async () => {
+    try {
+      setLoadingPacks(true)
+      const response = await fetch("/api/admin/packs")
+      if (response.ok) {
+        const data = await response.json()
+        setPacks(data.packs || [])
+      }
+    } catch (error) {
+      console.error("[TestBlock] Failed to load packs:", error)
+    } finally {
+      setLoadingPacks(false)
+    }
+  }
 
   const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onUpdate(block.id, { prompt: e.target.value })
+    // Reset saved state when prompt changes
+    setSavedPromptId(null)
+    setAddedToPackId(null)
   }
 
   const handlePhotoCountChange = (count: 1 | 2 | 3 | 4) => {
@@ -52,6 +93,9 @@ export function TestBlock({
 
     setIsGenerating(true)
     onUpdate(block.id, { status: "generating", startedAt: Date.now() })
+    // Reset saved states on new generation
+    setSavedPromptId(null)
+    setAddedToPackId(null)
 
     try {
       const response = await fetch("/api/admin/test-prompt", {
@@ -94,6 +138,64 @@ export function TestBlock({
     }
   }
 
+  const handleSavePrompt = async () => {
+    if (!block.prompt.trim() || !block.results?.length) return
+
+    try {
+      setIsSaving(true)
+      const response = await fetch("/api/admin/prompts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: block.prompt.slice(0, 50) + (block.prompt.length > 50 ? "..." : ""),
+          prompt: block.prompt,
+          preview_url: block.results[selectedImageIndex]?.imageUrl || block.results[0]?.imageUrl,
+          is_favorite: false,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to save prompt")
+      }
+
+      const data = await response.json()
+      setSavedPromptId(data.prompt.id)
+    } catch (error) {
+      console.error("[TestBlock] Save error:", error)
+      alert("Ошибка сохранения промпта")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleAddToPack = async (packId: number) => {
+    if (!block.prompt.trim() || !block.results?.length) return
+
+    try {
+      setIsAddingToPack(true)
+      const response = await fetch(`/api/admin/packs/${packId}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          photo_url: block.results[selectedImageIndex]?.imageUrl || block.results[0]?.imageUrl,
+          prompt: block.prompt,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to add to pack")
+      }
+
+      setAddedToPackId(packId)
+      setShowPackSelector(false)
+    } catch (error) {
+      console.error("[TestBlock] Add to pack error:", error)
+      alert("Ошибка добавления в пак")
+    } finally {
+      setIsAddingToPack(false)
+    }
+  }
+
   const handleDownload = (imageUrl: string, index: number) => {
     const link = document.createElement("a")
     link.href = imageUrl
@@ -105,6 +207,8 @@ export function TestBlock({
     ? block.results.reduce((sum, r) => sum + r.latency, 0)
     : 0
   const avgLatency = block.results ? totalLatency / block.results.length : 0
+
+  const hasResults = block.status === "completed" && block.results && block.results.length > 0
 
   return (
     <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative">
@@ -203,21 +307,34 @@ export function TestBlock({
         )}
 
         {/* Results gallery */}
-        {block.status === "completed" && block.results && block.results.length > 0 && (
+        {hasResults && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-slate-800">
-                Результаты ({block.results.length} фото)
+                Результаты ({block.results!.length} фото)
               </p>
               <p className="text-xs text-slate-500">
                 ⏱️ Среднее время: {(avgLatency / 1000).toFixed(1)}s
               </p>
             </div>
+
+            {/* Image selection hint */}
+            {block.results!.length > 1 && (
+              <p className="text-xs text-slate-500">
+                Выберите фото для сохранения (активно: #{selectedImageIndex + 1})
+              </p>
+            )}
+
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {block.results.map((result, index) => (
+              {block.results!.map((result, index) => (
                 <div
                   key={index}
-                  className="aspect-[3/4] rounded-lg bg-slate-100 overflow-hidden relative group hover-scale"
+                  onClick={() => setSelectedImageIndex(index)}
+                  className={`aspect-[3/4] rounded-lg bg-slate-100 overflow-hidden relative group cursor-pointer transition-all ${
+                    selectedImageIndex === index
+                      ? "ring-2 ring-pink-500 ring-offset-2"
+                      : "hover:ring-2 hover:ring-slate-300"
+                  }`}
                 >
                   <img
                     src={result.imageUrl}
@@ -225,10 +342,19 @@ export function TestBlock({
                     className="w-full h-full object-cover"
                     loading="lazy"
                   />
+                  {/* Selection indicator */}
+                  {selectedImageIndex === index && (
+                    <div className="absolute top-2 right-2 w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center">
+                      <Check className="w-4 h-4 text-white" />
+                    </div>
+                  )}
                   {/* Download overlay */}
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <button
-                      onClick={() => handleDownload(result.imageUrl, index)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDownload(result.imageUrl, index)
+                      }}
                       className="px-3 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-white text-sm font-medium flex items-center gap-2 backdrop-blur-sm"
                     >
                       <Download className="w-4 h-4" />
@@ -242,9 +368,93 @@ export function TestBlock({
                 </div>
               ))}
             </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-2 pt-2">
+              {/* Save prompt button */}
+              <button
+                onClick={handleSavePrompt}
+                disabled={isSaving || !!savedPromptId}
+                className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${
+                  savedPromptId
+                    ? "bg-green-100 text-green-700 border border-green-200"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : savedPromptId ? (
+                  <Check className="w-4 h-4" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {savedPromptId ? "Сохранено" : "Сохранить промпт"}
+              </button>
+
+              {/* Add to pack button */}
+              <div className="relative flex-1">
+                <button
+                  onClick={() => setShowPackSelector(!showPackSelector)}
+                  disabled={isAddingToPack}
+                  className={`w-full px-4 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${
+                    addedToPackId
+                      ? "bg-purple-100 text-purple-700 border border-purple-200"
+                      : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {isAddingToPack ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : addedToPackId ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <FolderPlus className="w-4 h-4" />
+                  )}
+                  {addedToPackId ? "Добавлено" : "В пак"}
+                </button>
+
+                {/* Pack selector dropdown */}
+                {showPackSelector && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border border-slate-200 z-50 overflow-hidden">
+                    <div className="p-2 border-b border-slate-100">
+                      <p className="text-xs font-medium text-slate-500 px-2">Выберите пак</p>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto">
+                      {loadingPacks ? (
+                        <div className="p-4 text-center">
+                          <Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400" />
+                        </div>
+                      ) : packs.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-slate-500">
+                          Нет доступных паков
+                        </div>
+                      ) : (
+                        packs.map((pack) => (
+                          <button
+                            key={pack.id}
+                            onClick={() => handleAddToPack(pack.id)}
+                            className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center justify-between transition-colors"
+                          >
+                            <span className="text-sm font-medium text-slate-700">{pack.name}</span>
+                            <span className="text-xs text-slate-400">{pack.items_count} фото</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Click outside to close pack selector */}
+      {showPackSelector && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setShowPackSelector(false)}
+        />
+      )}
     </div>
   )
 }

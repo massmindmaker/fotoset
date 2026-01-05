@@ -18,7 +18,9 @@ import {
   Eye,
   Copy,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  FolderPlus,
+  Check
 } from 'lucide-react'
 import { PromptTesterView } from './PromptTesterView'
 
@@ -252,6 +254,56 @@ function SavedPromptsTab() {
   const [isGeneratingPreviews, setIsGeneratingPreviews] = useState(false)
   const [previewReferenceUrl, setPreviewReferenceUrl] = useState('')
   const [showReferenceInput, setShowReferenceInput] = useState(false)
+
+  // Add to pack state
+  const [availablePacks, setAvailablePacks] = useState<{ id: number; name: string; items_count: number }[]>([])
+  const [loadingPacks, setLoadingPacks] = useState(false)
+  const [showPackDropdown, setShowPackDropdown] = useState<number | null>(null)
+  const [addingToPack, setAddingToPack] = useState<number | null>(null)
+  const [addedToPackMap, setAddedToPackMap] = useState<Record<number, number>>({}) // promptId -> packId
+
+  const loadAvailablePacks = async () => {
+    if (availablePacks.length > 0) return // Already loaded
+    try {
+      setLoadingPacks(true)
+      const response = await fetch('/api/admin/packs')
+      if (response.ok) {
+        const data = await response.json()
+        setAvailablePacks(data.packs || [])
+      }
+    } catch (error) {
+      console.error('[SavedPromptsTab] Failed to load packs:', error)
+    } finally {
+      setLoadingPacks(false)
+    }
+  }
+
+  const handleAddPromptToPack = async (promptId: number, packId: number) => {
+    const prompt = prompts.find(p => p.id === promptId)
+    if (!prompt) return
+
+    try {
+      setAddingToPack(promptId)
+      const response = await fetch(`/api/admin/packs/${packId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          photo_url: prompt.preview_url || '',
+          prompt: prompt.prompt,
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to add to pack')
+
+      setAddedToPackMap(prev => ({ ...prev, [promptId]: packId }))
+      setShowPackDropdown(null)
+    } catch (error) {
+      console.error('[SavedPromptsTab] Add to pack error:', error)
+      alert('Ошибка добавления в пак')
+    } finally {
+      setAddingToPack(null)
+    }
+  }
 
   const importDreamPack = async () => {
     if (!confirm('Импортировать DREAM PACK (17 промптов)?')) return
@@ -550,6 +602,66 @@ function SavedPromptsTab() {
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
+
+                  {/* Add to pack button */}
+                  <div className="relative ml-auto">
+                    <button
+                      onClick={() => {
+                        if (showPackDropdown === prompt.id) {
+                          setShowPackDropdown(null)
+                        } else {
+                          loadAvailablePacks()
+                          setShowPackDropdown(prompt.id)
+                        }
+                      }}
+                      disabled={addingToPack === prompt.id}
+                      className={`p-1.5 rounded transition-colors ${
+                        addedToPackMap[prompt.id]
+                          ? 'text-purple-600 bg-purple-50'
+                          : 'text-slate-400 hover:text-purple-600 hover:bg-purple-50'
+                      }`}
+                      title={addedToPackMap[prompt.id] ? 'Добавлено в пак' : 'Добавить в пак'}
+                    >
+                      {addingToPack === prompt.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : addedToPackMap[prompt.id] ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        <FolderPlus className="w-4 h-4" />
+                      )}
+                    </button>
+
+                    {/* Pack selector dropdown */}
+                    {showPackDropdown === prompt.id && (
+                      <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 z-50 overflow-hidden">
+                        <div className="p-2 border-b border-slate-100">
+                          <p className="text-xs font-medium text-slate-500 px-2">Выберите пак</p>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {loadingPacks ? (
+                            <div className="p-4 text-center">
+                              <Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400" />
+                            </div>
+                          ) : availablePacks.length === 0 ? (
+                            <div className="p-4 text-center text-sm text-slate-500">
+                              Нет доступных паков
+                            </div>
+                          ) : (
+                            availablePacks.map((pack) => (
+                              <button
+                                key={pack.id}
+                                onClick={() => handleAddPromptToPack(prompt.id, pack.id)}
+                                className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center justify-between transition-colors"
+                              >
+                                <span className="text-sm font-medium text-slate-700">{pack.name}</span>
+                                <span className="text-xs text-slate-400">{pack.items_count} фото</span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -714,6 +826,14 @@ function SavedPromptsTab() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Click outside to close pack dropdown */}
+      {showPackDropdown !== null && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setShowPackDropdown(null)}
+        />
       )}
     </div>
   )

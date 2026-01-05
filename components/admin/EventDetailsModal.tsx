@@ -89,22 +89,22 @@ export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalP
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="glass rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden pointer-events-auto border border-border shadow-2xl"
+          className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden pointer-events-auto border border-slate-200 shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card/50">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-foreground truncate">
+              <h2 className="text-lg font-semibold text-slate-800 truncate">
                 Event Details
               </h2>
-              <p className="text-sm text-muted-foreground mt-0.5">
+              <p className="text-sm text-slate-500 mt-0.5">
                 {new Date(event.timestamp).toLocaleString("ru-RU")}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-lg transition-colors"
+              className="w-8 h-8 flex items-center justify-center hover:bg-slate-200 rounded-lg transition-colors text-slate-600"
               aria-label="Закрыть"
             >
               <X className="w-5 h-5" />
@@ -115,17 +115,17 @@ export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalP
           <div className="overflow-y-auto max-h-[calc(90vh-80px)] p-6 space-y-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
               </div>
             ) : (
               <>
                 {/* Message */}
                 <Section title="Сообщение">
-                  <p className="text-sm text-foreground font-medium">
+                  <p className="text-sm text-slate-800 font-medium">
                     {event.message}
                   </p>
                   {event.culprit && (
-                    <p className="text-xs text-muted-foreground mt-2 font-mono">
+                    <p className="text-xs text-slate-500 mt-2 font-mono">
                       {event.culprit}
                     </p>
                   )}
@@ -134,12 +134,12 @@ export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalP
                 {/* Event ID + Actions */}
                 <Section title="Event ID">
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 px-3 py-2 bg-muted rounded-lg text-xs font-mono text-foreground">
+                    <code className="flex-1 px-3 py-2 bg-slate-100 rounded-lg text-xs font-mono text-slate-700">
                       {event.eventID || event.id}
                     </code>
                     <button
                       onClick={handleCopyId}
-                      className="px-3 py-2 bg-muted hover:bg-muted/80 rounded-lg text-xs font-medium flex items-center gap-2 transition-colors"
+                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium flex items-center gap-2 transition-colors text-slate-700"
                     >
                       {copied ? (
                         <>
@@ -157,7 +157,7 @@ export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalP
                       href={sentryDashboardUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-medium flex items-center gap-2 transition-colors"
+                      className="px-3 py-2 bg-pink-50 hover:bg-pink-100 text-pink-600 rounded-lg text-xs font-medium flex items-center gap-2 transition-colors"
                     >
                       <ExternalLink className="w-3 h-3" />
                       Sentry
@@ -190,10 +190,12 @@ export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalP
                       {Object.entries(event.tags).map(([key, value]) => (
                         <span
                           key={key}
-                          className="px-2 py-1 bg-muted rounded text-xs font-mono"
+                          className="px-2 py-1 bg-slate-100 rounded text-xs font-mono"
                         >
-                          <span className="text-muted-foreground">{key}:</span>{" "}
-                          <span className="text-foreground">{value}</span>
+                          <span className="text-slate-500">{key}:</span>{" "}
+                          <span className="text-slate-700">
+                            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                          </span>
                         </span>
                       ))}
                     </div>
@@ -203,7 +205,7 @@ export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalP
                 {/* Context */}
                 {event.context && Object.keys(event.context).length > 0 && (
                   <Section title="Context">
-                    <pre className="p-3 bg-muted rounded-lg text-xs font-mono text-foreground overflow-x-auto">
+                    <pre className="p-3 bg-slate-100 rounded-lg text-xs font-mono text-slate-700 overflow-x-auto">
                       {JSON.stringify(event.context, null, 2)}
                     </pre>
                   </Section>
@@ -212,14 +214,14 @@ export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalP
                 {/* Platform */}
                 {event.platform && (
                   <Section title="Platform">
-                    <p className="text-sm text-foreground font-mono">{event.platform}</p>
+                    <p className="text-sm text-slate-700 font-mono">{event.platform}</p>
                   </Section>
                 )}
 
                 {/* Note about full stack trace */}
-                <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
-                  <p className="text-sm text-muted-foreground">
-                    💡 <strong>Полный stack trace и breadcrumbs</strong> доступны в Sentry
+                <div className="p-4 rounded-lg bg-pink-50 border border-pink-200">
+                  <p className="text-sm text-slate-600">
+                    💡 <strong className="text-slate-800">Полный stack trace и breadcrumbs</strong> доступны в Sentry
                     dashboard (кнопка выше). В MVP мы показываем базовую информацию.
                   </p>
                 </div>
@@ -238,7 +240,7 @@ export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalP
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="text-sm font-semibold text-foreground mb-3">{title}</h3>
+      <h3 className="text-sm font-semibold text-slate-800 mb-3">{title}</h3>
       {children}
     </div>
   )
@@ -250,8 +252,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function InfoRow({ label, value }: { label: string; value: string | number }) {
   return (
     <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-sm text-foreground font-medium mt-0.5">{value}</p>
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="text-sm text-slate-700 font-medium mt-0.5">{value}</p>
     </div>
   )
 }
