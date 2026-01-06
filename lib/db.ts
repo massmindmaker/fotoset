@@ -28,11 +28,52 @@ export async function query<T = any>(
 
 export type User = {
   id: number
-  telegram_user_id: number  // PRIMARY identifier (NOT NULL, UNIQUE)
+  // Telegram identity (nullable for web-only users)
+  telegram_user_id: number | null  // Telegram ID (nullable after migration 033)
   telegram_username: string | null  // Telegram @username for admin panel display
+  telegram_chat_id: number | null  // Telegram chat ID for notifications
+
+  // Web identity (Neon Auth / Stack Auth)
+  neon_auth_id: string | null  // Stack Auth user ID
+  email: string | null  // Email from OAuth or magic link
+  email_verified: boolean  // Email verification status
+  name: string | null  // Display name from OAuth
+  avatar_url: string | null  // Avatar URL from OAuth
+
+  // Auth metadata
+  auth_provider: 'telegram' | 'google' | 'email' | 'github' | null  // Primary auth method
+
+  // Referral
   pending_referral_code: string | null  // Saved on first login, used on first payment
+
+  // Timestamps
   created_at: string
   updated_at: string
+}
+
+// User identity for linking accounts
+export type UserIdentity = {
+  id: number
+  user_id: number
+  provider: 'telegram' | 'google' | 'github' | 'email'
+  provider_user_id: string
+  provider_email: string | null
+  provider_name: string | null
+  provider_avatar_url: string | null
+  provider_metadata: Record<string, unknown>
+  linked_at: string
+  last_used_at: string
+}
+
+// Link tokens for account linking
+export type LinkToken = {
+  id: number
+  user_id: number
+  token: string
+  token_type: 'web_to_tg' | 'tg_to_web'
+  expires_at: string
+  used_at: string | null
+  created_at: string
 }
 
 export type Avatar = {
@@ -165,6 +206,53 @@ export type ReferralWithdrawal = {
   rejection_reason: string | null
   ndfl_paid_at: string | null
   created_at: string
+}
+
+// User cards for T-Bank payouts (migration 035)
+export type UserCard = {
+  id: number
+  user_id: number
+  card_id: string  // T-Bank CardId
+  card_mask: string  // **** **** **** 1234
+  card_type: 'visa' | 'mastercard' | 'mir' | null
+  is_default: boolean
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+// Withdrawal requests (migration 035)
+export type Withdrawal = {
+  id: number
+  user_id: number
+  amount: number
+  currency: string
+  card_id: number | null
+  card_mask: string
+  tbank_payment_id: string | null
+  tbank_order_id: string | null
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
+  error_message: string | null
+  error_code: string | null
+  created_at: string
+  processed_at: string | null
+  completed_at: string | null
+  idempotency_key: string | null
+}
+
+// Partner applications (migration 034)
+export type PartnerApplication = {
+  id: number
+  user_id: number
+  channel_url: string
+  audience_size: string | null
+  promotion_plan: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  admin_notes: string | null
+  reviewed_by: number | null
+  reviewed_at: string | null
+  created_at: string
+  updated_at: string
 }
 
 export type ReferencePhoto = {

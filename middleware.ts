@@ -83,6 +83,27 @@ export async function middleware(request: NextRequest) {
     // Middleware just checks for cookie presence for performance
   }
 
+  // Web dashboard authentication check (Neon Auth)
+  // Protected routes: /dashboard, /settings, /create, /avatar
+  const webProtectedRoutes = ['/dashboard', '/settings', '/create', '/avatar'];
+  const isWebProtectedRoute = webProtectedRoutes.some(route => pathname.startsWith(route));
+
+  if (isWebProtectedRoute) {
+    // Check for Stack Auth session cookie
+    // Note: Stack Auth uses multiple cookies, check for the session token
+    const stackSession = request.cookies.get('stack-session') || request.cookies.get('stack-token');
+
+    if (!stackSession?.value) {
+      // Redirect to sign-in with return URL
+      const signInUrl = new URL('/auth/sign-in', request.url);
+      signInUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(signInUrl);
+    }
+
+    // Note: Full session validation happens in page/API routes via getStackUser()
+    // Middleware just checks for cookie presence for performance
+  }
+
   // Protect admin API routes (except auth routes)
   if (pathname.startsWith('/api/admin') && !pathname.startsWith('/api/admin/auth')) {
     const sessionCookie = request.cookies.get('admin_session');
