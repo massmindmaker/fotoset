@@ -43,9 +43,13 @@ function SignUpContent() {
   }, [router, redirectTo]);
 
   // Store referral code in localStorage for post-signup processing
+  // Validate format: 6-10 alphanumeric characters
   useEffect(() => {
     if (referralCode) {
-      localStorage.setItem('pinglass_referral_code', referralCode.toUpperCase());
+      const sanitized = referralCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (sanitized.length >= 6 && sanitized.length <= 10) {
+        localStorage.setItem('pinglass_referral_code', sanitized);
+      }
     }
   }, [referralCode]);
 

@@ -100,15 +100,34 @@ function validateTelegramInitData(initData: string): { valid: boolean; userId?: 
 }
 
 /**
+ * Sanitize Telegram username
+ * Telegram usernames can only contain a-z, A-Z, 0-9, and underscores
+ */
+function sanitizeTelegramUsername(username: string | undefined): string | null {
+  if (!username) return null;
+  // Remove any characters that aren't alphanumeric or underscore
+  const sanitized = username.replace(/[^\w]/g, '').substring(0, 32);
+  return sanitized || null;
+}
+
+/**
  * Find or create user by Telegram ID
  */
 async function findOrCreateTelegramUser(telegramUserId: number, username?: string): Promise<User> {
+  // Validate telegramUserId
+  if (!Number.isInteger(telegramUserId) || telegramUserId <= 0) {
+    throw new Error('Invalid Telegram user ID');
+  }
+
+  // Sanitize username
+  const safeUsername = sanitizeTelegramUsername(username);
+
   const result = await sql`
     INSERT INTO users (telegram_user_id, telegram_username, auth_provider)
-    VALUES (${telegramUserId}, ${username || null}, 'telegram')
+    VALUES (${telegramUserId}, ${safeUsername}, 'telegram')
     ON CONFLICT (telegram_user_id) DO UPDATE SET
       updated_at = NOW(),
-      telegram_username = COALESCE(${username || null}, users.telegram_username)
+      telegram_username = COALESCE(${safeUsername}, users.telegram_username)
     RETURNING *
   `;
 
@@ -121,74 +140,74 @@ async function findOrCreateTelegramUser(telegramUserId: number, username?: strin
 
 /**
  * Find or create user by Neon Auth ID
+ * Uses INSERT ... ON CONFLICT to prevent race conditions
  */
 async function findOrCreateNeonAuthUser(stackUser: StackUserInfo): Promise<User> {
   const { id: neonAuthId, email, name, avatarUrl, provider } = stackUser;
 
-  // First try to find by neon_auth_id
+  // Sanitize inputs
+  const safeName = name?.substring(0, 255) || null;
+  const safeAvatarUrl = avatarUrl?.substring(0, 2048) || null;
+  const safeProvider = provider || 'email';
+
+  // Try to upsert by neon_auth_id (atomic operation, no race condition)
   let result = await sql`
-    SELECT * FROM users WHERE neon_auth_id = ${neonAuthId}
-  `;
-
-  if (result.length > 0) {
-    // Update user info if changed
-    await sql`
-      UPDATE users SET
-        email = COALESCE(${email}, email),
-        name = COALESCE(${name}, name),
-        avatar_url = COALESCE(${avatarUrl}, avatar_url),
-        updated_at = NOW()
-      WHERE neon_auth_id = ${neonAuthId}
-    `;
-    return result[0] as User;
-  }
-
-  // Check if user exists with same email (for account linking hint)
-  if (email) {
-    const emailUser = await sql`
-      SELECT * FROM users WHERE email = ${email}
-    `;
-
-    if (emailUser.length > 0) {
-      // User exists with same email - could be linked Telegram account
-      // Update neon_auth_id for this user (auto-link by email)
-      result = await sql`
-        UPDATE users SET
-          neon_auth_id = ${neonAuthId},
-          email_verified = TRUE,
-          name = COALESCE(${name}, name),
-          avatar_url = COALESCE(${avatarUrl}, avatar_url),
-          auth_provider = COALESCE(auth_provider, ${provider || 'email'}),
-          updated_at = NOW()
-        WHERE email = ${email}
-        RETURNING *
-      `;
-
-      if (result.length > 0) {
-        return result[0] as User;
-      }
-    }
-  }
-
-  // Create new user
-  result = await sql`
     INSERT INTO users (neon_auth_id, email, email_verified, name, avatar_url, auth_provider)
-    VALUES (${neonAuthId}, ${email}, TRUE, ${name}, ${avatarUrl}, ${provider || 'email'})
+    VALUES (${neonAuthId}, ${email}, TRUE, ${safeName}, ${safeAvatarUrl}, ${safeProvider})
+    ON CONFLICT (neon_auth_id) DO UPDATE SET
+      email = COALESCE(EXCLUDED.email, users.email),
+      name = COALESCE(EXCLUDED.name, users.name),
+      avatar_url = COALESCE(EXCLUDED.avatar_url, users.avatar_url),
+      updated_at = NOW()
     RETURNING *
   `;
 
-  if (result.length === 0) {
-    throw new Error('Failed to create Neon Auth user');
+  if (result.length > 0) {
+    // User found/created by neon_auth_id
+    const user = result[0] as User;
+
+    // Create identity record if not exists
+    await sql`
+      INSERT INTO user_identities (user_id, provider, provider_user_id, provider_email, provider_name, provider_avatar_url)
+      VALUES (${user.id}, ${safeProvider}, ${neonAuthId}, ${email}, ${safeName}, ${safeAvatarUrl})
+      ON CONFLICT (provider, provider_user_id) DO UPDATE SET
+        provider_email = COALESCE(EXCLUDED.provider_email, user_identities.provider_email),
+        provider_name = COALESCE(EXCLUDED.provider_name, user_identities.provider_name),
+        last_used_at = NOW()
+    `;
+
+    return user;
   }
 
-  // Create identity record
-  await sql`
-    INSERT INTO user_identities (user_id, provider, provider_user_id, provider_email, provider_name, provider_avatar_url)
-    VALUES (${result[0].id}, ${provider || 'email'}, ${neonAuthId}, ${email}, ${name}, ${avatarUrl})
-    ON CONFLICT (provider, provider_user_id) DO NOTHING
-  `;
+  // If neon_auth_id insert failed due to email conflict, try to link by email
+  if (email) {
+    result = await sql`
+      UPDATE users SET
+        neon_auth_id = ${neonAuthId},
+        email_verified = TRUE,
+        name = COALESCE(${safeName}, name),
+        avatar_url = COALESCE(${safeAvatarUrl}, avatar_url),
+        auth_provider = COALESCE(auth_provider, ${safeProvider}),
+        updated_at = NOW()
+      WHERE email = ${email} AND neon_auth_id IS NULL
+      RETURNING *
+    `;
 
-  return result[0] as User;
+    if (result.length > 0) {
+      const user = result[0] as User;
+
+      // Create identity record
+      await sql`
+        INSERT INTO user_identities (user_id, provider, provider_user_id, provider_email, provider_name, provider_avatar_url)
+        VALUES (${user.id}, ${safeProvider}, ${neonAuthId}, ${email}, ${safeName}, ${safeAvatarUrl})
+        ON CONFLICT (provider, provider_user_id) DO NOTHING
+      `;
+
+      return user;
+    }
+  }
+
+  throw new Error('Failed to create or find Neon Auth user');
 }
 
 /**
@@ -330,12 +349,49 @@ export async function getUserById(userId: number): Promise<User | null> {
 /**
  * Link accounts - merge Telegram and Web accounts
  * Transfers all assets from source to target user
+ *
+ * @param targetUserId - User ID to keep (receives all assets)
+ * @param sourceUserId - User ID to merge and delete
+ * @returns Success status and optional error message
  */
 export async function linkAccounts(
   targetUserId: number,
   sourceUserId: number
 ): Promise<{ success: boolean; error?: string }> {
+  // Validate inputs
+  if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
+    return { success: false, error: 'Invalid target user ID' };
+  }
+  if (!Number.isInteger(sourceUserId) || sourceUserId <= 0) {
+    return { success: false, error: 'Invalid source user ID' };
+  }
+  if (targetUserId === sourceUserId) {
+    return { success: false, error: 'Cannot link account to itself' };
+  }
+
   try {
+    // Verify both users exist before starting transaction
+    const [targetCheck, sourceCheck] = await Promise.all([
+      sql`SELECT id, telegram_user_id, neon_auth_id FROM users WHERE id = ${targetUserId}`,
+      sql`SELECT id, telegram_user_id, neon_auth_id FROM users WHERE id = ${sourceUserId}`
+    ]);
+
+    if (targetCheck.length === 0) {
+      return { success: false, error: 'Target user not found' };
+    }
+    if (sourceCheck.length === 0) {
+      return { success: false, error: 'Source user not found' };
+    }
+
+    // Ensure accounts are complementary (one has TG, other has Web, or similar)
+    const target = targetCheck[0];
+    const source = sourceCheck[0];
+
+    // Prevent linking if target already has both identities
+    if (target.telegram_user_id && target.neon_auth_id) {
+      return { success: false, error: 'Target account already has both Telegram and Web identities' };
+    }
+
     // Start transaction
     await sql`BEGIN`;
 
