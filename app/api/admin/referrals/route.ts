@@ -22,7 +22,7 @@ export async function GET() {
 
     const sql = getSql()
 
-    // Get overall stats
+    // Get overall stats (multi-currency)
     const [statsResult] = await sql`
       SELECT
         (SELECT COUNT(*) FROM referral_codes WHERE is_active = true)::int as total_codes,
@@ -30,7 +30,14 @@ export async function GET() {
         (SELECT COALESCE(SUM(amount), 0) FROM referral_earnings WHERE status = 'confirmed')::numeric as total_earnings,
         (SELECT COALESCE(SUM(balance), 0) FROM referral_balances)::numeric as pending_balance,
         (SELECT COALESCE(SUM(total_withdrawn), 0) FROM referral_balances)::numeric as total_withdrawn,
-        (SELECT COUNT(*) FROM referral_withdrawals WHERE status = 'pending')::int as pending_withdrawals
+        (SELECT COUNT(*) FROM referral_withdrawals WHERE status = 'pending')::int as pending_withdrawals,
+        -- Multi-currency fields
+        (SELECT COALESCE(SUM(earned_rub), 0) FROM referral_balances)::numeric as earned_rub,
+        (SELECT COALESCE(SUM(earned_ton), 0) FROM referral_balances)::numeric as earned_ton,
+        (SELECT COALESCE(SUM(balance_rub), 0) FROM referral_balances)::numeric as balance_rub,
+        (SELECT COALESCE(SUM(balance_ton), 0) FROM referral_balances)::numeric as balance_ton,
+        (SELECT COALESCE(SUM(withdrawn_rub), 0) FROM referral_balances)::numeric as withdrawn_rub,
+        (SELECT COALESCE(SUM(withdrawn_ton), 0) FROM referral_balances)::numeric as withdrawn_ton
     `
 
     // Get funnel stats (clicked -> registered -> paid)
@@ -96,6 +103,13 @@ export async function GET() {
         pending_balance: parseFloat(String(statsResult?.pending_balance || 0)),
         total_withdrawn: parseFloat(String(statsResult?.total_withdrawn || 0)),
         pending_withdrawals: parseInt(String(statsResult?.pending_withdrawals || 0), 10),
+        // Multi-currency
+        earned_rub: parseFloat(String(statsResult?.earned_rub || 0)),
+        earned_ton: parseFloat(String(statsResult?.earned_ton || 0)),
+        balance_rub: parseFloat(String(statsResult?.balance_rub || 0)),
+        balance_ton: parseFloat(String(statsResult?.balance_ton || 0)),
+        withdrawn_rub: parseFloat(String(statsResult?.withdrawn_rub || 0)),
+        withdrawn_ton: parseFloat(String(statsResult?.withdrawn_ton || 0)),
         funnel: {
           registered: parseInt(String(funnelResult?.registered || 0), 10),
           paid: parseInt(String(funnelResult?.paid || 0), 10)

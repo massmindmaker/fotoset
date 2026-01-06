@@ -15,7 +15,9 @@ import {
   Wallet,
   CreditCard,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Star,
+  Coins
 } from 'lucide-react'
 import type { ReferralStats, TopReferrer, ReferralEarning, WithdrawalRequest } from '@/lib/admin/types'
 
@@ -117,7 +119,13 @@ export function ReferralsView() {
     })
   }
 
-  const formatMoney = (amount: number) => {
+  const formatMoney = (amount: number, currency: 'RUB' | 'TON' | 'STARS' = 'RUB') => {
+    if (currency === 'TON') {
+      return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + ' TON'
+    }
+    if (currency === 'STARS') {
+      return amount.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' ⭐'
+    }
     return amount.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' ₽'
   }
 
@@ -125,55 +133,89 @@ export function ReferralsView() {
     <div className="space-y-6">
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-2 text-slate-600 text-xs font-medium mb-1">
-              <Users className="w-4 h-4" />
-              Рефералы
+        <div className="space-y-4">
+          {/* Main Stats Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-2 text-slate-600 text-xs font-medium mb-1">
+                <Users className="w-4 h-4" />
+                Рефералы
+              </div>
+              <p className="text-2xl font-bold text-slate-800">{stats.total_referrals}</p>
             </div>
-            <p className="text-2xl font-bold text-slate-800">{stats.total_referrals}</p>
+
+            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-2 text-slate-600 text-xs font-medium mb-1">
+                <Clock className="w-4 h-4" />
+                Заявок на вывод
+              </div>
+              <p className="text-2xl font-bold text-slate-800">{stats.pending_withdrawals}</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-2 text-purple-600 text-xs font-medium mb-1">
+                <TrendingUp className="w-4 h-4" />
+                Конверсия
+              </div>
+              <p className="text-2xl font-bold text-purple-600">
+                {stats.funnel.registered > 0 ? Math.round((stats.funnel.paid / stats.funnel.registered) * 100) : 0}%
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-2 text-amber-600 text-xs font-medium mb-1">
+                <Star className="w-4 h-4" />
+                Stars (TG Affiliate)
+              </div>
+              <p className="text-sm text-slate-500">Обрабатывается Telegram</p>
+            </div>
           </div>
 
-          <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-2 text-emerald-600 text-xs font-medium mb-1">
-              <DollarSign className="w-4 h-4" />
-              Заработано
+          {/* Multi-currency Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* RUB Stats */}
+            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+              <h4 className="text-sm font-medium text-slate-600 mb-3 flex items-center gap-2">
+                <DollarSign className="w-4 h-4" />
+                Рубли (₽)
+              </h4>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Заработано</p>
+                  <p className="text-lg font-bold text-emerald-600">{formatMoney(stats.earned_rub || stats.total_earnings)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">На балансах</p>
+                  <p className="text-lg font-bold text-amber-600">{formatMoney(stats.balance_rub || stats.pending_balance)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Выведено</p>
+                  <p className="text-lg font-bold text-blue-600">{formatMoney(stats.withdrawn_rub || stats.total_withdrawn)}</p>
+                </div>
+              </div>
             </div>
-            <p className="text-2xl font-bold text-emerald-600">{formatMoney(stats.total_earnings)}</p>
-          </div>
 
-          <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-2 text-amber-600 text-xs font-medium mb-1">
-              <Wallet className="w-4 h-4" />
-              На балансах
+            {/* TON Stats */}
+            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+              <h4 className="text-sm font-medium text-slate-600 mb-3 flex items-center gap-2">
+                <Coins className="w-4 h-4" />
+                TON
+              </h4>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Заработано</p>
+                  <p className="text-lg font-bold text-emerald-600">{formatMoney(stats.earned_ton || 0, 'TON')}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">На балансах</p>
+                  <p className="text-lg font-bold text-amber-600">{formatMoney(stats.balance_ton || 0, 'TON')}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Выведено</p>
+                  <p className="text-lg font-bold text-blue-600">{formatMoney(stats.withdrawn_ton || 0, 'TON')}</p>
+                </div>
+              </div>
             </div>
-            <p className="text-2xl font-bold text-amber-600">{formatMoney(stats.pending_balance)}</p>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-2 text-blue-600 text-xs font-medium mb-1">
-              <CreditCard className="w-4 h-4" />
-              Выведено
-            </div>
-            <p className="text-2xl font-bold text-blue-600">{formatMoney(stats.total_withdrawn)}</p>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-2 text-slate-600 text-xs font-medium mb-1">
-              <Clock className="w-4 h-4" />
-              Заявок
-            </div>
-            <p className="text-2xl font-bold text-slate-800">{stats.pending_withdrawals}</p>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-2 text-purple-600 text-xs font-medium mb-1">
-              <TrendingUp className="w-4 h-4" />
-              Конверсия
-            </div>
-            <p className="text-2xl font-bold text-purple-600">
-              {stats.funnel.registered > 0 ? Math.round((stats.funnel.paid / stats.funnel.registered) * 100) : 0}%
-            </p>
           </div>
         </div>
       )}

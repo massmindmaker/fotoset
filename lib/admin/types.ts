@@ -355,6 +355,13 @@ export interface ReferralStats {
   pending_balance: number
   total_withdrawn: number
   pending_withdrawals: number
+  // Multi-currency
+  earned_rub?: number
+  earned_ton?: number
+  balance_rub?: number
+  balance_ton?: number
+  withdrawn_rub?: number
+  withdrawn_ton?: number
   funnel: {
     registered: number
     paid: number
