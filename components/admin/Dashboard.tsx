@@ -212,29 +212,41 @@ export function Dashboard() {
         />
       </div>
 
-      {/* Provider Revenue Cards */}
+      {/* Provider Revenue Cards - каждый провайдер в своей валюте */}
       {stats.providerStats && stats.providerStats.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {stats.providerStats.map((ps) => {
             const config = {
-              tbank: { icon: '\uD83C\uDFE6', label: 'T-Bank', color: 'text-red-600' },
-              stars: { icon: '\u2B50', label: 'Telegram Stars', color: 'text-blue-600' },
-              ton: { icon: '\uD83D\uDC8E', label: 'TON', color: 'text-amber-600' },
-            }[ps.provider] || { icon: '\uD83D\uDCB3', label: ps.provider, color: 'text-slate-600' }
+              tbank: { icon: '🏦', label: 'T-Bank', color: 'text-red-600', bgColor: 'bg-red-50', borderColor: 'border-red-200' },
+              stars: { icon: '⭐', label: 'Telegram Stars', color: 'text-yellow-600', bgColor: 'bg-yellow-50', borderColor: 'border-yellow-200' },
+              ton: { icon: '💎', label: 'TON', color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
+            }[ps.provider] || { icon: '💳', label: ps.provider, color: 'text-slate-600', bgColor: 'bg-slate-50', borderColor: 'border-slate-200' }
+
+            // Показываем суммы в родных валютах
+            const mainValue = ps.provider === 'stars'
+              ? `${ps.totalStars.toLocaleString('ru-RU')} ⭐`
+              : ps.provider === 'ton'
+                ? `${ps.totalTon.toFixed(2)} TON`
+                : `${ps.revenueRub.toLocaleString('ru-RU')} ₽`
+
+            // Подпись с количеством платежей
+            const subtitle = ps.successCount === 1
+              ? '1 платёж'
+              : ps.successCount >= 2 && ps.successCount <= 4
+                ? `${ps.successCount} платежа`
+                : `${ps.successCount} платежей`
 
             return (
-              <div key={ps.provider} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+              <div key={ps.provider} className={`rounded-xl p-4 border shadow-sm ${config.bgColor} ${config.borderColor}`}>
+                <div className="flex items-center gap-2 text-slate-600 text-sm mb-1">
                   <span>{config.icon}</span>
                   <span>{config.label}</span>
                 </div>
                 <div className={`text-2xl font-bold ${config.color}`}>
-                  {ps.revenueRub.toLocaleString('ru-RU')}\u20BD
+                  {mainValue}
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {ps.successCount} \u043F\u043B\u0430\u0442\u0435\u0436\u0435\u0439
-                  {ps.totalStars > 0 && ` \u00B7 ${ps.totalStars.toLocaleString()}\u2B50`}
-                  {ps.totalTon > 0 && ` \u00B7 ${ps.totalTon.toFixed(2)} TON`}
+                <div className="text-xs text-slate-500 mt-1">
+                  {subtitle}
                 </div>
               </div>
             )

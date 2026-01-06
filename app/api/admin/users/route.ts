@@ -64,8 +64,8 @@ export async function GET(request: NextRequest) {
       LEFT JOIN payments p ON p.user_id = u.id
       LEFT JOIN reference_photos rp ON rp.avatar_id = a.id
       LEFT JOIN generated_photos gp ON gp.avatar_id = a.id
-      LEFT JOIN telegram_sessions ts ON ts.user_id = u.id
-      LEFT JOIN telegram_message_queue tmq ON tmq.telegram_chat_id = ts.telegram_chat_id
+      -- Прямой JOIN по telegram_user_id (telegram_sessions таблица пустая)
+      LEFT JOIN telegram_message_queue tmq ON tmq.telegram_chat_id::text = u.telegram_user_id
       LEFT JOIN referral_balances rb ON rb.user_id = u.id
       WHERE 1=1 ${searchCondition}
       GROUP BY u.id, u.telegram_user_id, u.telegram_username, u.is_banned, u.created_at, u.updated_at, u.pending_referral_code, u.pending_generation_tier, rb.is_partner, rb.commission_rate, rb.partner_approved_at

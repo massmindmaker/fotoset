@@ -242,7 +242,7 @@ export function UsersView() {
                     <div className="flex flex-wrap gap-3 text-xs text-slate-500">
                       <span>👤 {user.avatars_count}</span>
                       <span>💳 {user.payments_count}</span>
-                      {user.total_spent > 0 && <span className="font-medium text-slate-700">{user.total_spent}₽</span>}
+                      {user.total_spent > 0 && <span className="font-medium text-slate-700">{Number(user.total_spent).toLocaleString('ru-RU')}₽</span>}
                       <span>📸 {user.ref_photos_total}/{user.gen_photos_total}</span>
                       <TelegramStatusIndicator
                         sentCount={user.tg_sent_count}
@@ -328,7 +328,7 @@ export function UsersView() {
                       <td className="px-4 py-3 text-sm">{user.avatars_count}</td>
                       <td className="px-4 py-3 text-sm">{user.payments_count}</td>
                       <td className="px-4 py-3 text-sm font-medium">
-                        {user.total_spent ? `${user.total_spent}₽` : "—"}
+                        {user.total_spent ? `${Number(user.total_spent).toLocaleString('ru-RU')}₽` : "—"}
                       </td>
                       <td className="px-4 py-3 text-sm">{user.ref_photos_total}</td>
                       <td className="px-4 py-3 text-sm">{user.gen_photos_total}</td>
