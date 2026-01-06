@@ -48,17 +48,23 @@ export async function GET() {
       // Pro users (unique with succeeded payment)
       sql`SELECT COUNT(DISTINCT user_id) as count FROM payments WHERE status = 'succeeded'`,
 
-      // Revenue MTD
+      // Revenue MTD (split by currency)
       sql`
-        SELECT COALESCE(SUM(amount), 0) as total
+        SELECT
+          COALESCE(SUM(CASE WHEN COALESCE(provider, 'tbank') = 'tbank' THEN amount ELSE 0 END), 0) as rub,
+          COALESCE(SUM(CASE WHEN provider = 'stars' THEN stars_amount ELSE 0 END), 0) as stars,
+          COALESCE(SUM(CASE WHEN provider = 'ton' THEN ton_amount ELSE 0 END), 0) as ton
         FROM payments
         WHERE status = 'succeeded'
         AND created_at >= DATE_TRUNC('month', NOW())
       `,
 
-      // Revenue today
+      // Revenue today (split by currency)
       sql`
-        SELECT COALESCE(SUM(amount), 0) as total
+        SELECT
+          COALESCE(SUM(CASE WHEN COALESCE(provider, 'tbank') = 'tbank' THEN amount ELSE 0 END), 0) as rub,
+          COALESCE(SUM(CASE WHEN provider = 'stars' THEN stars_amount ELSE 0 END), 0) as stars,
+          COALESCE(SUM(CASE WHEN provider = 'ton' THEN ton_amount ELSE 0 END), 0) as ton
         FROM payments
         WHERE status = 'succeeded'
         AND created_at >= DATE_TRUNC('day', NOW())
@@ -113,7 +119,10 @@ export async function GET() {
           p.tier_id as tier,
           p.status,
           p.created_at,
-          u.telegram_user_id
+          u.telegram_user_id,
+          COALESCE(p.provider, 'tbank') as provider,
+          p.original_amount,
+          p.original_currency
         FROM payments p
         LEFT JOIN users u ON u.id = p.user_id
         ORDER BY p.created_at DESC
@@ -166,8 +175,17 @@ export async function GET() {
     // Calculate metrics
     const totalUsers = parseInt(usersTotal[0]?.count || '0', 10)
     const totalProUsers = parseInt(proUsers[0]?.count || '0', 10)
-    const totalRevenueMtd = parseFloat(revenueMtd[0]?.total || '0')
-    const totalRevenueToday = parseFloat(revenueToday[0]?.total || '0')
+
+    // Revenue MTD by currency
+    const revenueMtdRub = parseFloat(revenueMtd[0]?.rub || '0')
+    const revenueMtdStars = parseInt(revenueMtd[0]?.stars || '0', 10)
+    const revenueMtdTon = parseFloat(revenueMtd[0]?.ton || '0')
+
+    // Revenue Today by currency
+    const revenueTodayRub = parseFloat(revenueToday[0]?.rub || '0')
+    const revenueTodayStars = parseInt(revenueToday[0]?.stars || '0', 10)
+    const revenueTodayTon = parseFloat(revenueToday[0]?.ton || '0')
+
     const totalGenerations = parseInt(generationsTotal[0]?.count || '0', 10)
     const pendingGenerations = parseInt(generationsPending[0]?.count || '0', 10)
 
@@ -176,9 +194,9 @@ export async function GET() {
       ? ((totalProUsers / totalUsers) * 100).toFixed(1)
       : '0'
 
-    // Average check
+    // Average check (based on RUB only for simplicity)
     const avgCheck = totalProUsers > 0
-      ? (totalRevenueMtd / totalProUsers).toFixed(0)
+      ? (revenueMtdRub / totalProUsers).toFixed(0)
       : '0'
 
     // Provider stats
@@ -204,8 +222,16 @@ export async function GET() {
       kpi: {
         totalUsers,
         proUsers: totalProUsers,
-        revenueMtd: totalRevenueMtd,
-        revenueToday: totalRevenueToday,
+        revenueMtd: {
+          rub: revenueMtdRub,
+          stars: revenueMtdStars,
+          ton: revenueMtdTon
+        },
+        revenueToday: {
+          rub: revenueTodayRub,
+          stars: revenueTodayStars,
+          ton: revenueTodayTon
+        },
         conversionRate: parseFloat(conversionRate),
         avgCheck: parseFloat(avgCheck),
         totalGenerations,
@@ -231,7 +257,10 @@ export async function GET() {
           tier: p.tier,
           status: p.status,
           createdAt: p.created_at,
-          telegramUserId: p.telegram_user_id
+          telegramUserId: p.telegram_user_id,
+          provider: p.provider,
+          originalAmount: p.original_amount ? parseFloat(p.original_amount) : null,
+          originalCurrency: p.original_currency
         })),
         users: recentUsers.map(u => ({
           id: u.id,

@@ -55,6 +55,11 @@ interface UserDetails {
     photo_count: number
     status: string
     created_at: string
+    provider: string
+    stars_amount?: number
+    ton_amount?: number
+    telegram_charge_id?: string
+    ton_tx_hash?: string
   }>
   jobs: Array<{
     id: number
@@ -367,6 +372,7 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
                     <table className="w-full">
                       <thead>
                         <tr className="text-left text-xs text-slate-600 uppercase font-semibold">
+                          <th className="pb-3">Провайдер</th>
                           <th className="pb-3">ID</th>
                           <th className="pb-3">Сумма</th>
                           <th className="pb-3">Тариф</th>
@@ -375,38 +381,65 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200">
-                        {data.payments.map(payment => (
-                          <tr key={payment.id} className="hover:bg-slate-50">
-                            <td className="py-3 font-mono text-sm text-slate-600">
-                              {payment.tbank_payment_id?.slice(0, 8)}...
-                            </td>
-                            <td className="py-3 text-slate-800 font-medium">
-                              {payment.amount.toLocaleString('ru-RU')} ₽
-                            </td>
-                            <td className="py-3">
-                              <span className="text-sm text-slate-600">
-                                {payment.tier_id} ({payment.photo_count} фото)
-                              </span>
-                            </td>
-                            <td className="py-3">
-                              <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-                                payment.status === 'succeeded'
-                                  ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                                  : payment.status === 'pending'
-                                    ? 'bg-amber-100 text-amber-700 border border-amber-300'
-                                    : 'bg-red-100 text-red-700 border border-red-300'
-                              }`}>
-                                {payment.status === 'succeeded' && <CheckCircle className="w-3 h-3" />}
-                                {payment.status === 'pending' && <Clock className="w-3 h-3" />}
-                                {payment.status === 'canceled' && <XCircle className="w-3 h-3" />}
-                                {payment.status}
-                              </span>
-                            </td>
-                            <td className="py-3 text-sm text-slate-600">
-                              {formatDate(payment.created_at)}
-                            </td>
-                          </tr>
-                        ))}
+                        {data.payments.map(payment => {
+                          // Get payment ID based on provider
+                          const paymentId = payment.provider === 'stars'
+                            ? payment.telegram_charge_id
+                            : payment.provider === 'ton'
+                              ? payment.ton_tx_hash
+                              : payment.tbank_payment_id
+
+                          // Format amount based on provider
+                          const formattedAmount = payment.provider === 'stars'
+                            ? `${payment.stars_amount} ⭐`
+                            : payment.provider === 'ton'
+                              ? `${Number(payment.ton_amount)?.toFixed(2)} TON`
+                              : `${payment.amount.toLocaleString('ru-RU')} ₽`
+
+                          return (
+                            <tr key={payment.id} className="hover:bg-slate-50">
+                              <td className="py-3">
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  payment.provider === 'stars'
+                                    ? 'bg-purple-100 text-purple-700 border border-purple-300'
+                                    : payment.provider === 'ton'
+                                      ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                                      : 'bg-slate-100 text-slate-700 border border-slate-300'
+                                }`}>
+                                  {payment.provider === 'stars' ? 'Stars' : payment.provider === 'ton' ? 'TON' : 'T-Bank'}
+                                </span>
+                              </td>
+                              <td className="py-3 font-mono text-sm text-slate-600">
+                                {paymentId ? `${paymentId.slice(0, 8)}...` : '—'}
+                              </td>
+                              <td className="py-3 text-slate-800 font-medium">
+                                {formattedAmount}
+                              </td>
+                              <td className="py-3">
+                                <span className="text-sm text-slate-600">
+                                  {payment.tier_id} ({payment.photo_count} фото)
+                                </span>
+                              </td>
+                              <td className="py-3">
+                                <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  payment.status === 'succeeded'
+                                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                                    : payment.status === 'pending'
+                                      ? 'bg-amber-100 text-amber-700 border border-amber-300'
+                                      : 'bg-red-100 text-red-700 border border-red-300'
+                                }`}>
+                                  {payment.status === 'succeeded' && <CheckCircle className="w-3 h-3" />}
+                                  {payment.status === 'pending' && <Clock className="w-3 h-3" />}
+                                  {payment.status === 'canceled' && <XCircle className="w-3 h-3" />}
+                                  {payment.status}
+                                </span>
+                              </td>
+                              <td className="py-3 text-sm text-slate-600">
+                                {formatDate(payment.created_at)}
+                              </td>
+                            </tr>
+                          )
+                        })}
                       </tbody>
                     </table>
                   )}

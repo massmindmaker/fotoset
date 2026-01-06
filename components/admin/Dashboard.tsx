@@ -27,12 +27,18 @@ interface ProviderStat {
   totalTon: number
 }
 
+interface MultiCurrencyRevenue {
+  rub: number
+  stars: number
+  ton: number
+}
+
 interface DashboardStats {
   kpi: {
     totalUsers: number
     proUsers: number
-    revenueMtd: number
-    revenueToday: number
+    revenueMtd: MultiCurrencyRevenue
+    revenueToday: MultiCurrencyRevenue
     conversionRate: number
     avgCheck: number
     totalGenerations: number
@@ -52,6 +58,9 @@ interface DashboardStats {
       status: string
       createdAt: string
       telegramUserId: string
+      provider?: string
+      originalAmount?: number | null
+      originalCurrency?: string
     }>
     users: Array<{
       id: number
@@ -157,6 +166,24 @@ export function Dashboard() {
     }).format(amount)
   }
 
+  // Format multi-currency revenue display
+  const formatMultiCurrency = (revenue: MultiCurrencyRevenue): string => {
+    const parts: string[] = []
+    if (revenue.rub > 0) parts.push(`${revenue.rub.toLocaleString('ru-RU')}₽`)
+    if (revenue.stars > 0) parts.push(`${revenue.stars.toLocaleString('ru-RU')}⭐`)
+    if (revenue.ton > 0) parts.push(`${revenue.ton.toFixed(2)} TON`)
+    return parts.length > 0 ? parts.join(' / ') : '0₽'
+  }
+
+  // Format compact multi-currency for subtitle
+  const formatMultiCurrencyCompact = (revenue: MultiCurrencyRevenue): string => {
+    const parts: string[] = []
+    if (revenue.rub > 0) parts.push(`${revenue.rub.toLocaleString('ru-RU')}₽`)
+    if (revenue.stars > 0) parts.push(`${revenue.stars}⭐`)
+    if (revenue.ton > 0) parts.push(`${revenue.ton.toFixed(1)}T`)
+    return parts.length > 0 ? parts.join(' / ') : '0₽'
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -191,15 +218,15 @@ export function Dashboard() {
         />
         <KPICard
           title="Выручка MTD"
-          value={formatCurrency(stats.kpi.revenueMtd)}
-          subtitle={`Сегодня: ${formatCurrency(stats.kpi.revenueToday)}`}
+          value={formatMultiCurrency(stats.kpi.revenueMtd)}
+          subtitle={`Сегодня: ${formatMultiCurrencyCompact(stats.kpi.revenueToday)}`}
           icon={<CreditCard className="w-5 h-5" />}
           color="green"
         />
         <KPICard
           title="Средний чек"
           value={formatCurrency(stats.kpi.avgCheck)}
-          subtitle={`${stats.kpi.conversionRate}% конверсия`}
+          subtitle={`${stats.kpi.conversionRate}% конверсия (RUB)`}
           icon={<TrendingUp className="w-5 h-5" />}
           color="blue"
         />

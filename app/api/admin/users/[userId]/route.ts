@@ -101,7 +101,12 @@ export async function GET(
         tier_id,
         photo_count,
         status,
-        created_at
+        created_at,
+        COALESCE(provider, 'tbank') as provider,
+        stars_amount,
+        ton_amount,
+        telegram_charge_id,
+        ton_tx_hash
       FROM payments
       WHERE user_id = ${userIdNum}
       ORDER BY created_at DESC

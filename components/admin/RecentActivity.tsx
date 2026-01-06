@@ -11,6 +11,9 @@ interface RecentActivityProps {
     status: string
     createdAt: string
     telegramUserId: string
+    provider?: string
+    originalAmount?: number | null
+    originalCurrency?: string
   }>
   users: Array<{
     id: number
@@ -103,7 +106,11 @@ export function RecentActivity({ payments, users, generations }: RecentActivityP
                   {getStatusIcon(payment.status)}
                   <div>
                     <p className="text-sm font-medium text-slate-800">
-                      {payment.amount.toLocaleString('ru-RU')} ₽
+                      {payment.provider === 'stars'
+                        ? `${payment.originalAmount || payment.amount} ⭐`
+                        : payment.provider === 'ton'
+                          ? `${(payment.originalAmount || payment.amount).toFixed(2)} TON`
+                          : `${payment.amount.toLocaleString('ru-RU')} ₽`}
                     </p>
                     <p className="text-xs text-slate-500">
                       {payment.tier} • TG: {payment.telegramUserId}

@@ -14,6 +14,10 @@ interface User {
   avatars_count: number
   payments_count: number
   total_spent: number
+  // Currency-specific spent amounts
+  spent_rub: number
+  spent_stars: number
+  spent_ton: number
   // Photo counts
   ref_photos_total: number
   gen_photos_total: number
@@ -242,7 +246,9 @@ export function UsersView() {
                     <div className="flex flex-wrap gap-3 text-xs text-slate-500">
                       <span>👤 {user.avatars_count}</span>
                       <span>💳 {user.payments_count}</span>
-                      {user.total_spent > 0 && <span className="font-medium text-slate-700">{Number(user.total_spent).toLocaleString('ru-RU')}₽</span>}
+                      {user.spent_rub > 0 && <span className="font-medium text-slate-700">{Number(user.spent_rub).toLocaleString('ru-RU')}₽</span>}
+                      {user.spent_stars > 0 && <span className="font-medium text-yellow-600">{user.spent_stars}⭐</span>}
+                      {user.spent_ton > 0 && <span className="font-medium text-blue-600">{Number(user.spent_ton).toFixed(2)} TON</span>}
                       <span>📸 {user.ref_photos_total}/{user.gen_photos_total}</span>
                       <TelegramStatusIndicator
                         sentCount={user.tg_sent_count}
@@ -328,7 +334,12 @@ export function UsersView() {
                       <td className="px-4 py-3 text-sm">{user.avatars_count}</td>
                       <td className="px-4 py-3 text-sm">{user.payments_count}</td>
                       <td className="px-4 py-3 text-sm font-medium">
-                        {user.total_spent ? `${Number(user.total_spent).toLocaleString('ru-RU')}₽` : "—"}
+                        <div className="flex flex-wrap gap-1">
+                          {user.spent_rub > 0 && <span>{Number(user.spent_rub).toLocaleString('ru-RU')}₽</span>}
+                          {user.spent_stars > 0 && <span className="text-yellow-600">{user.spent_stars}⭐</span>}
+                          {user.spent_ton > 0 && <span className="text-blue-600">{Number(user.spent_ton).toFixed(2)} TON</span>}
+                          {!user.spent_rub && !user.spent_stars && !user.spent_ton && "—"}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm">{user.ref_photos_total}</td>
                       <td className="px-4 py-3 text-sm">{user.gen_photos_total}</td>

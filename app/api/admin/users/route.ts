@@ -42,6 +42,10 @@ export async function GET(request: NextRequest) {
         COUNT(DISTINCT a.id) as avatars_count,
         COUNT(DISTINCT p.id) as payments_count,
         SUM(CASE WHEN p.status = 'succeeded' THEN p.amount ELSE 0 END) as total_spent,
+        -- Currency-specific spent amounts
+        SUM(CASE WHEN p.status = 'succeeded' AND COALESCE(p.provider, 'tbank') = 'tbank' THEN p.amount ELSE 0 END) as spent_rub,
+        SUM(CASE WHEN p.status = 'succeeded' AND p.provider = 'stars' THEN p.stars_amount ELSE 0 END) as spent_stars,
+        SUM(CASE WHEN p.status = 'succeeded' AND p.provider = 'ton' THEN p.ton_amount ELSE 0 END) as spent_ton,
         CASE WHEN COUNT(DISTINCT CASE WHEN p.status = 'succeeded' THEN p.id END) > 0
           THEN true ELSE false END as has_paid,
 

@@ -381,11 +381,18 @@ export function PaymentsView() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm font-medium">
-                        {payment.amount}₽
-                        {payment.original_amount && payment.original_currency && (
-                          <span className="text-xs text-muted-foreground ml-1">
-                            ({payment.original_currency === 'XTR' ? `${payment.original_amount}⭐` : `${payment.original_amount} TON`})
-                          </span>
+                        {payment.provider === 'stars' && payment.original_amount ? (
+                          <>
+                            <span className="text-yellow-600">{payment.original_amount} ⭐</span>
+                            <span className="text-xs text-muted-foreground ml-1">(~{payment.amount}₽)</span>
+                          </>
+                        ) : payment.provider === 'ton' && payment.original_amount ? (
+                          <>
+                            <span className="text-blue-600">{Number(payment.original_amount).toFixed(2)} TON</span>
+                            <span className="text-xs text-muted-foreground ml-1">(~{payment.amount}₽)</span>
+                          </>
+                        ) : (
+                          <span>{payment.amount.toLocaleString('ru-RU')}₽</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm">{payment.tier_id || '—'}</td>
