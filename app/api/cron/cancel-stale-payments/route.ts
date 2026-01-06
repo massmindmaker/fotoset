@@ -43,7 +43,6 @@ export async function GET(request: Request) {
     const stalePayments = await sql`
       SELECT
         p.id,
-        p.payment_id,
         p.tbank_payment_id,
         p.provider,
         p.amount,
@@ -70,7 +69,7 @@ export async function GET(request: Request) {
     for (const payment of stalePayments) {
       console.log(`[Cron] Expiring stale payment:`, {
         id: payment.id,
-        paymentId: payment.payment_id,
+        tbankPaymentId: payment.tbank_payment_id,
         userId: payment.user_id,
         minutesOld: Math.round(payment.minutes_since_created),
         amount: payment.amount,
@@ -87,7 +86,7 @@ export async function GET(request: Request) {
         `
 
         results.push({
-          paymentId: payment.payment_id || payment.id.toString(),
+          paymentId: payment.tbank_payment_id || payment.id.toString(),
           userId: payment.user_id,
           minutesOld: Math.round(payment.minutes_since_created),
           action: "expired",
@@ -99,7 +98,7 @@ export async function GET(request: Request) {
         console.error(`[Cron] Failed to expire payment ${payment.id}:`, errorMsg)
 
         results.push({
-          paymentId: payment.payment_id || payment.id.toString(),
+          paymentId: payment.tbank_payment_id || payment.id.toString(),
           userId: payment.user_id,
           minutesOld: Math.round(payment.minutes_since_created),
           action: `error: ${errorMsg}`,
