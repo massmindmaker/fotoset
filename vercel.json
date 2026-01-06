@@ -19,6 +19,9 @@
     },
     "app/api/cron/ton-monitor/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/cron/cancel-stale-payments/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -36,6 +39,10 @@
     },
     {
       "path": "/api/cron/ton-monitor",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/cancel-stale-payments",
       "schedule": "*/5 * * * *"
     }
   ]

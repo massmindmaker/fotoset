@@ -58,9 +58,9 @@ interface TicketMessage {
   ticket_id: number
   sender_type: MessageSender
   sender_name: string | null
-  content: string
+  message: string // API returns 'message' field
   created_at: string
-  attachments?: string[]
+  attachments?: { type: string; url: string; filename?: string }[]
 }
 
 interface TicketStats {
@@ -212,19 +212,19 @@ function MessageBubble({ message }: { message: TicketMessage }) {
             })}
           </span>
         </div>
-        <p className="text-sm text-slate-800 whitespace-pre-wrap">{message.content}</p>
+        <p className="text-sm text-slate-800 whitespace-pre-wrap">{message.message}</p>
         {message.attachments && message.attachments.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
-            {message.attachments.map((url, idx) => (
+            {message.attachments.map((attachment, idx) => (
               <a
                 key={idx}
-                href={url}
+                href={attachment.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-blue-600 hover:underline flex items-center gap-1"
               >
                 <ArrowUpRight className="w-3 h-3" />
-                Вложение {idx + 1}
+                {attachment.filename || `Вложение ${idx + 1}`}
               </a>
             ))}
           </div>
@@ -366,8 +366,8 @@ function TicketDetailModal({ ticket, isOpen, onClose, onAction }: TicketDetailMo
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: replyContent.trim(),
-          sender_type: 'operator'
+          message: replyContent.trim(),
+          messageType: 'text'
         })
       })
 
