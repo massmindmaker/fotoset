@@ -396,7 +396,7 @@ export default function PersonaApp() {
   }, [viewState, isReady])
 
   // Load photos from server when navigating to RESULTS view
-  // Also acts as fallback if polling doesn't update photos properly
+  // Also acts as aggressive fallback if polling doesn't update photos properly
   useEffect(() => {
     const loadPhotosForResults = async () => {
       if (viewState.view !== "RESULTS" || !("personaId" in viewState)) return
@@ -407,38 +407,37 @@ export default function PersonaApp() {
 
       const localPhotoCount = persona.generatedAssets?.length || 0
 
-      // Load photos if:
-      // 1. No photos locally
-      // 2. Status is ready (might have missed some)
-      // 3. Processing but not actively generating (user returned)
-      // 4. Generating but no photos shown yet (fallback for polling issues)
+      // ALWAYS load during generation to ensure photos appear
+      // Also load if no photos locally or status is ready
       const shouldLoad =
+        isGenerating ||  // Always check during generation
         localPhotoCount === 0 ||
         persona.status === "ready" ||
-        (persona.status === "processing" && !isGenerating) ||
-        (isGenerating && localPhotoCount === 0)
+        persona.status === "processing"
 
       if (shouldLoad) {
         try {
-          console.log("[Results] Loading photos from server for avatar:", avatarId, "isGenerating:", isGenerating, "localCount:", localPhotoCount)
           const res = await fetch(`/api/avatars/${avatarId}/photos`)
           if (res.ok) {
             const data = await res.json()
             if (data.success && data.photos?.length > 0) {
-              const newAssets = data.photos.map((p: { id: number; image_url: string; created_at: string }) => ({
-                id: p.id.toString(),
-                url: p.image_url,
-                type: "image" as const,
-                createdAt: new Date(p.created_at).getTime(),
-              }))
-              // Only update if we have more photos than currently loaded
-              if (newAssets.length > localPhotoCount) {
-                console.log("[Results] Updating with", newAssets.length, "photos from server (had", localPhotoCount, ")")
+              const serverPhotoCount = data.photos.length
+
+              // Only update if server has more photos
+              if (serverPhotoCount > localPhotoCount) {
+                const newAssets = data.photos.map((p: { id: number; image_url: string; created_at: string }) => ({
+                  id: p.id.toString(),
+                  url: p.image_url,
+                  type: "image" as const,
+                  createdAt: new Date(p.created_at).getTime(),
+                }))
+
+                console.log("[Fallback] ✓ Updating UI with", serverPhotoCount, "photos (had", localPhotoCount, ")")
                 updatePersona(avatarId, { generatedAssets: newAssets })
 
                 // If we got all expected photos and were generating, mark as complete
-                if (isGenerating && newAssets.length >= generationProgress.total && generationProgress.total > 0) {
-                  console.log("[Results] All photos loaded from server, marking generation complete")
+                if (isGenerating && serverPhotoCount >= generationProgress.total && generationProgress.total > 0) {
+                  console.log("[Fallback] All photos loaded, marking generation complete")
                   updatePersona(avatarId, { status: "ready" })
                   setIsGenerating(false)
                   setGenerationProgress({ completed: 0, total: 0 })
@@ -447,18 +446,22 @@ export default function PersonaApp() {
             }
           }
         } catch (err) {
-          console.error("[Results] Failed to load photos:", err)
+          // Silent fail - polling is primary, this is backup
+          console.debug("[Fallback] Photo check failed:", err)
         }
       }
     }
 
+    // Initial load
     loadPhotosForResults()
 
-    // Also set up interval to check server periodically during generation
-    // This is a fallback in case polling doesn't work properly
+    // Aggressive fallback: check server every 3 seconds during generation
+    // This ensures photos appear even if main polling has issues
     let intervalId: NodeJS.Timeout | null = null
-    if (isGenerating && viewState.view === "RESULTS" && "personaId" in viewState) {
-      intervalId = setInterval(loadPhotosForResults, 5000) // Check every 5 seconds
+    if (viewState.view === "RESULTS" && "personaId" in viewState) {
+      // Use faster interval during active generation
+      const intervalMs = isGenerating ? 3000 : 10000
+      intervalId = setInterval(loadPhotosForResults, intervalMs)
     }
 
     return () => {
@@ -826,6 +829,7 @@ export default function PersonaApp() {
   }, [viewState, getActivePersona, getPersona, syncPersonaToServer, telegramUserId, showMessage, setIsSyncing, setIsGenerating, updatePersona, isOnline])
 
   // Polling helper - reusable for both new generation and recovery
+  // Uses aggressive polling (2s) for real-time photo updates
   const startGenerationPolling = useCallback((
     jobId: number,
     personaId: string,
@@ -833,74 +837,104 @@ export default function PersonaApp() {
     initialPhotoCount: number = 0
   ) => {
     let lastPhotoCount = initialPhotoCount
+    let consecutiveErrors = 0
+    const MAX_CONSECUTIVE_ERRORS = 5
 
-    console.log("[Polling] Starting polling for job:", jobId, "persona:", personaId)
+    console.log("[Polling] Starting polling for job:", jobId, "persona:", personaId, "interval: 2000ms")
 
     startPolling(
       `generate-${jobId}`,
       async () => {
-        const statusRes = await fetch(`/api/generate?job_id=${jobId}`)
-        const statusData = await statusRes.json()
+        try {
+          const statusRes = await fetch(`/api/generate?job_id=${jobId}`)
 
-        setGenerationProgress((prev) => ({
-          completed: statusData.progress?.completed || 0,
-          total: statusData.progress?.total || totalPhotos,
-          startPhotoCount: prev.startPhotoCount,
-        }))
-
-        if (statusData.photos && statusData.photos.length > lastPhotoCount) {
-          const newPhotos = statusData.photos.slice(lastPhotoCount) as string[]
-
-          setPersonas((prev) => {
-            const targetPersona = prev.find((p) => String(p.id) === String(personaId))
-            if (!targetPersona) {
-              console.warn("[Polling] Persona not found:", personaId, "available:", prev.map((p) => p.id))
-              return prev
+          if (!statusRes.ok) {
+            consecutiveErrors++
+            console.warn("[Polling] Fetch error:", statusRes.status, "consecutive:", consecutiveErrors)
+            if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+              console.error("[Polling] Too many errors, stopping polling")
+              stopPolling(`generate-${jobId}`)
+              setIsGenerating(false)
+              showMessage("Ошибка при проверке статуса. Обновите страницу.")
             }
+            return
+          }
 
-            const { assets: mergedAssets, addedCount } = mergePhotosWithDedup(
-              targetPersona.generatedAssets,
-              newPhotos,
-              jobId,
-              lastPhotoCount
-            )
+          // Reset error counter on success
+          consecutiveErrors = 0
+          const statusData = await statusRes.json()
 
-            if (addedCount === 0) {
-              console.log("[Polling] No new unique photos to add")
-              return prev
+          setGenerationProgress((prev) => ({
+            completed: statusData.progress?.completed || 0,
+            total: statusData.progress?.total || totalPhotos,
+            startPhotoCount: prev.startPhotoCount,
+          }))
+
+          // Check for new photos - update immediately when found
+          const serverPhotoCount = statusData.photos?.length || 0
+          if (serverPhotoCount > lastPhotoCount) {
+            const newPhotos = statusData.photos.slice(lastPhotoCount) as string[]
+            console.log("[Polling] New photos detected:", newPhotos.length, "total on server:", serverPhotoCount)
+
+            setPersonas((prev) => {
+              const targetPersona = prev.find((p) => String(p.id) === String(personaId))
+              if (!targetPersona) {
+                console.warn("[Polling] Persona not found:", personaId, "available:", prev.map((p) => p.id))
+                return prev
+              }
+
+              const { assets: mergedAssets, addedCount } = mergePhotosWithDedup(
+                targetPersona.generatedAssets,
+                newPhotos,
+                jobId,
+                lastPhotoCount
+              )
+
+              if (addedCount === 0) {
+                console.log("[Polling] No new unique photos to add (already merged)")
+                return prev
+              }
+
+              console.log("[Polling] ✓ Added", addedCount, "new photos to UI, total:", mergedAssets.length)
+
+              return prev.map((persona) =>
+                String(persona.id) === String(personaId)
+                  ? {
+                      ...persona,
+                      generatedAssets: mergedAssets,
+                      thumbnailUrl: persona.thumbnailUrl || mergedAssets[0]?.url,
+                    }
+                  : persona
+              )
+            })
+            lastPhotoCount = serverPhotoCount
+          }
+
+          if (statusData.status === "completed" || statusData.status === "failed") {
+            console.log("[Polling] Job finished:", statusData.status, "photos:", serverPhotoCount)
+            stopPolling(`generate-${jobId}`)
+            setActiveJobId(null)
+            updatePersona(personaId, { status: statusData.status === "completed" ? "ready" : "draft" })
+            setIsGenerating(false)
+            setGenerationProgress({ completed: 0, total: 0 })
+
+            if (statusData.status === "failed") {
+              showMessage(statusData.error || "Генерация не удалась")
             }
-
-            console.log("[Polling] Added", addedCount, "new photos to persona:", personaId)
-
-            return prev.map((persona) =>
-              String(persona.id) === String(personaId)
-                ? {
-                    ...persona,
-                    generatedAssets: mergedAssets,
-                    thumbnailUrl: persona.thumbnailUrl || mergedAssets[0]?.url,
-                  }
-                : persona
-            )
-          })
-          lastPhotoCount = statusData.photos.length
-        }
-
-        if (statusData.status === "completed" || statusData.status === "failed") {
-          console.log("[Polling] Job finished:", statusData.status)
-          stopPolling(`generate-${jobId}`)
-          setActiveJobId(null)
-          updatePersona(personaId, { status: statusData.status === "completed" ? "ready" : "draft" })
-          setIsGenerating(false)
-          setGenerationProgress({ completed: 0, total: 0 })
-
-          if (statusData.status === "failed") {
-            showMessage(statusData.error || "Генерация не удалась")
+          }
+        } catch (err) {
+          consecutiveErrors++
+          console.error("[Polling] Network error:", err, "consecutive:", consecutiveErrors)
+          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            stopPolling(`generate-${jobId}`)
+            setIsGenerating(false)
+            showMessage("Потеряно соединение. Обновите страницу.")
           }
         }
       },
       {
-        intervalMs: 3000,
-        timeoutMs: 15 * 60 * 1000,
+        intervalMs: 2000,  // Faster polling for real-time updates
+        timeoutMs: 20 * 60 * 1000,  // Extended timeout for longer generations
       }
     )
   }, [startPolling, stopPolling, setPersonas, updatePersona, setIsGenerating, setGenerationProgress, showMessage])
@@ -1088,31 +1122,8 @@ export default function PersonaApp() {
     )
   }
 
-  // Block access if not in Telegram Mini App
-  if (authStatus === 'not_in_telegram') {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center bg-gradient-to-br from-background via-background to-muted/20">
-        <div className="max-w-md space-y-6">
-          <div className="text-6xl mb-4">📱</div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-            Откройте в Telegram
-          </h1>
-          <p className="text-muted-foreground text-lg leading-relaxed">
-            PinGlass работает только внутри Telegram Mini App.<br />
-            Откройте приложение через бота в Telegram.
-          </p>
-          <div className="pt-4">
-            <a
-              href="https://t.me/Pinglass_bot"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105"
-            >
-              Открыть в Telegram →
-            </a>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // Web users (not in Telegram) - show onboarding with Google auth
+  // No longer blocking - web version is supported via Neon Auth
 
   return (
     <div className="min-h-screen bg-background text-foreground">
