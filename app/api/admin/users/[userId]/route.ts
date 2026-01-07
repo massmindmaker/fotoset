@@ -133,7 +133,7 @@ export async function GET(
     `
 
     // Get referral stats from referrals table
-    let referralStats = { referral_count: 0, total_earned: 0 }
+    let referralStats = { referral_count: 0, paid_referral_count: 0, total_earned: 0 }
     try {
       const [stats] = await sql`
         SELECT COUNT(*) as referral_count
@@ -142,6 +142,16 @@ export async function GET(
       `
       if (stats) {
         referralStats.referral_count = parseInt(String(stats.referral_count)) || 0
+      }
+      // Get count of referrals who made a payment
+      const [paidStats] = await sql`
+        SELECT COUNT(DISTINCT r.referred_id) as paid_referral_count
+        FROM referrals r
+        JOIN payments p ON p.user_id = r.referred_id
+        WHERE r.referrer_id = ${userIdNum} AND p.status = 'succeeded'
+      `
+      if (paidStats) {
+        referralStats.paid_referral_count = parseInt(String(paidStats.paid_referral_count)) || 0
       }
       // Get total earnings
       const [earnings] = await sql`

@@ -436,23 +436,37 @@ export async function getTicketsForAdmin(params: {
   )
   const total = parseInt(countResult.rows[0]?.count || '0')
 
-  // Get tickets
-  const ticketsResult = await query<SupportTicket>(
-    `SELECT * FROM support_tickets ${whereClause}
+  // Get tickets with computed fields
+  const ticketsResult = await query<SupportTicket & {
+    telegram_user_id: string
+    messages_count: number
+    last_message_at: string | null
+    assigned_to_name: string | null
+    sla_deadline: string | null
+  }>(
+    `SELECT
+       t.*,
+       t.telegram_chat_id::text as telegram_user_id,
+       t.sla_first_response_at as sla_deadline,
+       COALESCE((SELECT COUNT(*) FROM support_ticket_messages WHERE ticket_id = t.id), 0)::int as messages_count,
+       (SELECT MAX(created_at) FROM support_ticket_messages WHERE ticket_id = t.id) as last_message_at,
+       (SELECT admin_username FROM support_operators WHERE admin_username = t.assigned_to LIMIT 1) as assigned_to_name
+     FROM support_tickets t
+     ${whereClause}
      ORDER BY
        CASE
-         WHEN status = 'open' AND sla_first_response_at < NOW() THEN 0
-         WHEN status = 'open' THEN 1
-         WHEN status = 'in_progress' THEN 2
+         WHEN t.status = 'open' AND t.sla_first_response_at < NOW() THEN 0
+         WHEN t.status = 'open' THEN 1
+         WHEN t.status = 'in_progress' THEN 2
          ELSE 3
        END,
-       CASE priority
+       CASE t.priority
          WHEN 'P1' THEN 1
          WHEN 'P2' THEN 2
          WHEN 'P3' THEN 3
          WHEN 'P4' THEN 4
        END,
-       created_at DESC
+       t.created_at DESC
      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
     [...queryParams, limit, offset]
   )

@@ -88,13 +88,14 @@ export async function GET(
         SELECT
           id,
           job_id,
-          style_id,
+          prompt_index as style_id,
           status,
-          task_id,
-          image_url,
-          error_message,
+          kie_task_id as task_id,
+          result_url as image_url,
+          NULL as error_message,
+          attempts as retry_count,
           created_at,
-          updated_at
+          created_at as updated_at
         FROM kie_tasks
         WHERE job_id = ${jobId}
         ORDER BY created_at DESC

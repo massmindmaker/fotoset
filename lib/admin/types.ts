@@ -411,6 +411,7 @@ export interface WithdrawalRequest {
   card_number: string | null
   phone: string | null
   status: 'pending' | 'approved' | 'rejected' | 'processing' | 'completed'
+  currency: 'RUB' | 'TON'  // Added for multi-currency support
   created_at: string
   processed_at: string | null
   current_balance: number
@@ -431,8 +432,9 @@ export type TelegramMessageStatus = 'pending' | 'sent' | 'failed' | 'retry'
  */
 export interface TelegramQueueMessage {
   id: number
-  user_id: number
-  telegram_user_id: string
+  user_id: number | null  // Can be null if user not found in JOIN
+  telegram_user_id: string  // May be telegram_chat_id as fallback
+  telegram_chat_id?: string  // Original chat ID from queue
   message_type: string
   payload: Record<string, unknown>
   status: TelegramMessageStatus

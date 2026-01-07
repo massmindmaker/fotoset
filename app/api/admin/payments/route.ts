@@ -92,6 +92,10 @@ export async function GET(request: NextRequest) {
         p.refund_status,
         p.refund_reason,
         p.refund_at,
+        p.refund_id,
+        p.email,
+        p.error_code,
+        p.error_message,
         p.created_at,
         p.updated_at,
         -- Provider info

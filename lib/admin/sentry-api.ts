@@ -195,19 +195,31 @@ export async function fetchSentryEvents(
     const data = await response.json()
     console.log(`[Sentry API] Fetched ${data.length} events`)
 
+    // Parse Link header for pagination info
+    const linkHeader = response.headers.get('Link')
+    let hasNextPage = false
+    if (linkHeader) {
+      // Sentry uses Link header with rel="next" for pagination
+      hasNextPage = linkHeader.includes('rel="next"')
+    }
+
     // Parse events
     const events = parseSentryEvents(data)
 
-    // Calculate pagination (Sentry API doesn't provide total count easily)
-    // For MVP, we'll estimate based on results
-    const totalEvents = events.length
-    const totalPages = Math.ceil(totalEvents / filters.limit)
+    // Calculate pagination
+    // Sentry doesn't provide exact total count, estimate based on whether there's a next page
+    // If we got a full page and there's a next page, assume at least 10 pages
+    const hasFullPage = events.length >= filters.limit
+    const estimatedTotalPages = hasNextPage || hasFullPage
+      ? Math.max(filters.page + 1, 10)  // At least current page + 1, estimate 10 total
+      : filters.page  // This is the last page
+    const estimatedTotalEvents = estimatedTotalPages * filters.limit
 
     return {
       events,
-      totalPages: totalPages || 1,
+      totalPages: estimatedTotalPages,
       currentPage: filters.page,
-      totalEvents,
+      totalEvents: estimatedTotalEvents,
     }
   } catch (error) {
     console.error('[Sentry API] Fatal error:', error)

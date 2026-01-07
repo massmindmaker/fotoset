@@ -44,16 +44,31 @@ export async function GET(
         p.photo_count,
         p.status,
         p.refund_status,
+        p.refund_id,
         p.refund_amount,
         p.refund_reason,
         p.refund_at,
+        p.email,
+        p.error_code,
+        p.error_message,
         p.is_test_mode,
         p.created_at,
         p.updated_at,
         p.avatar_id,
         a.name as avatar_name,
         a.status as avatar_status,
-        (SELECT COUNT(*) FROM generated_photos WHERE avatar_id = p.avatar_id)::int as photos_generated
+        (SELECT COUNT(*) FROM generated_photos WHERE avatar_id = p.avatar_id)::int as photos_generated,
+        -- Multi-provider columns
+        COALESCE(p.provider, 'tbank') as provider,
+        p.telegram_charge_id,
+        p.stars_amount,
+        p.ton_tx_hash,
+        p.ton_amount,
+        p.ton_sender_address,
+        p.ton_confirmations,
+        p.original_currency,
+        p.original_amount,
+        p.exchange_rate
       FROM payments p
       LEFT JOIN users u ON u.id = p.user_id
       LEFT JOIN avatars a ON a.id = p.avatar_id
