@@ -205,11 +205,14 @@ export function useAuth() {
           }
         }
 
-        if (!tg) {
-          console.log("[TG] Not in Telegram WebApp context")
+        // Check if we're actually inside Telegram WebApp by checking initData
+        // SDK is loaded globally, but initData only exists inside Telegram
+        if (!tg?.initData) {
+          console.log("[TG] Not in Telegram WebApp context (no initData)")
           setAuthStatus('not_in_telegram')
         } else {
-          console.log("[TG] No user data in initDataUnsafe")
+          // initData exists but no user - failed auth
+          console.log("[TG] Has initData but no user - failed auth")
           setAuthStatus('failed')
         }
       }
