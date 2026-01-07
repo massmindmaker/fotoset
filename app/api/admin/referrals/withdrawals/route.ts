@@ -102,3 +102,44 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await getCurrentSession()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { withdrawalId, status, errorMessage } = body
+
+    if (!withdrawalId || !status) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    const sql = getSql()
+
+    const result = await sql`
+      UPDATE referral_withdrawals
+      SET
+        status = ${status},
+        error_message = ${errorMessage || null},
+        processed_at = ${status === 'completed' || status === 'failed' ? sql`NOW()` : sql`processed_at`},
+        updated_at = NOW()
+      WHERE id = ${withdrawalId}
+      RETURNING *
+    `
+
+    if (result.length === 0) {
+      return NextResponse.json({ error: 'Withdrawal not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true, withdrawal: result[0] })
+  } catch (error) {
+    console.error('[Admin Withdrawals PATCH] Error:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to update withdrawal' },
+      { status: 500 }
+    )
+  }
+}

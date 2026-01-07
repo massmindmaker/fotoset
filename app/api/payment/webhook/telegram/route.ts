@@ -12,30 +12,36 @@ import { starsProvider } from '@/lib/payments/providers/telegram-stars'
 import { processReferralEarning } from '@/lib/referral-earnings'
 import { neon } from '@neondatabase/serverless'
 
-// Verify webhook is from Telegram (optional but recommended)
-function verifyTelegramWebhook(request: NextRequest): boolean {
+// Verify webhook is from Telegram (REQUIRED in production)
+function verifyTelegramWebhook(request: NextRequest): { valid: boolean; error?: string } {
   // Telegram doesn't sign webhooks like T-Bank does
-  // We rely on the secret webhook URL path being unknown to attackers
-  // In production, consider using a secret token in the URL
+  // We use the secret token header for verification
   const secretToken = request.headers.get('x-telegram-bot-api-secret-token')
   const expectedToken = process.env.TELEGRAM_WEBHOOK_SECRET
 
-  // If secret is configured, verify it
-  if (expectedToken && secretToken !== expectedToken) {
-    console.warn('[Telegram Webhook] Invalid secret token')
-    return false
+  // In production, secret is REQUIRED
+  if (process.env.NODE_ENV === 'production' && !expectedToken) {
+    console.error('[Telegram Webhook] CRITICAL: TELEGRAM_WEBHOOK_SECRET not configured in production!')
+    return { valid: false, error: 'Server misconfiguration' }
   }
 
-  return true
+  if (expectedToken && secretToken !== expectedToken) {
+    console.warn('[Telegram Webhook] Invalid secret token')
+    return { valid: false, error: 'Invalid secret token' }
+  }
+
+  return { valid: true }
 }
 
 export async function POST(request: NextRequest) {
   try {
     // Verify request origin
-    if (!verifyTelegramWebhook(request)) {
+    const verification = verifyTelegramWebhook(request)
+    if (!verification.valid) {
+      const statusCode = verification.error === 'Server misconfiguration' ? 500 : 401
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: verification.error || 'Unauthorized' },
+        { status: statusCode }
       )
     }
 
@@ -76,8 +82,11 @@ export async function POST(request: NextRequest) {
         try {
           const sql = neon(process.env.DATABASE_URL!)
           // Need database payment.id (not provider payment_id) for processReferralEarning
+          // result.paymentId is already our internal database ID (payments.id)
           const payment = await sql`
-            SELECT id, user_id FROM payments WHERE payment_id = ${result.paymentId}
+            SELECT id, user_id FROM payments 
+            WHERE id = ${result.paymentId}::integer 
+            AND provider = 'stars'
           `
 
           if (payment[0]?.id && payment[0]?.user_id) {

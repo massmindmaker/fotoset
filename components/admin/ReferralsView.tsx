@@ -596,13 +596,13 @@ export function ReferralsView() {
                     <td className="px-4 py-3 text-sm text-slate-500">#{w.id}</td>
                     <td className="px-4 py-3">
                       <p className="text-slate-800 font-mono text-sm">{w.telegram_user_id}</p>
-                      <p className="text-xs text-slate-500">Баланс: {formatMoney(w.current_balance)}</p>
+                      <p className="text-xs text-slate-500">Баланс: {formatMoney(w.current_balance, w.currency || 'RUB')}</p>
                     </td>
-                    <td className="px-4 py-3 text-right text-slate-800">{formatMoney(w.amount)}</td>
+                    <td className="px-4 py-3 text-right text-slate-800">{formatMoney(w.amount, w.currency || 'RUB')}</td>
                     <td className="px-4 py-3 text-right">
-                      <p className="text-emerald-600">{formatMoney(w.payout_amount)}</p>
+                      <p className="text-emerald-600">{formatMoney(w.payout_amount, w.currency || 'RUB')}</p>
                       {w.ndfl_amount > 0 && (
-                        <p className="text-xs text-slate-500">НДФЛ: {formatMoney(w.ndfl_amount)}</p>
+                        <p className="text-xs text-slate-500">НДФЛ: {formatMoney(w.ndfl_amount, w.currency || 'RUB')}</p>
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-600">

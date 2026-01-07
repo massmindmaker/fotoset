@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
+import { getCurrentSession } from "@/lib/admin/session"
 
 /**
  * GET /api/admin/users
@@ -8,6 +9,11 @@ import { sql } from "@/lib/db"
  * Fixed: Use subqueries to avoid row multiplication from multiple JOINs
  */
 export async function GET(request: NextRequest) {
+  const session = await getCurrentSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get("page") || "1")

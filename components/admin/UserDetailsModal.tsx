@@ -273,13 +273,44 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
                         <p className="text-xs text-slate-600 font-medium">Рефералов</p>
                       </div>
                       <div className="bg-slate-50 rounded-lg p-4 text-center border border-slate-200">
-                        <p className="text-2xl font-bold text-emerald-600">
-                          {data.payments
-                            .filter(p => p.status === 'succeeded')
-                            .reduce((sum, p) => sum + p.amount, 0)
-                            .toLocaleString('ru-RU')} ₽
-                        </p>
-                        <p className="text-xs text-slate-600 font-medium">Потрачено</p>
+                        <div className="space-y-1">
+                          {(() => {
+                            const succeededPayments = data.payments.filter(p => p.status === 'succeeded')
+                            const rubTotal = succeededPayments
+                              .filter(p => p.provider === 'tbank')
+                              .reduce((sum, p) => sum + p.amount, 0)
+                            const tonTotal = succeededPayments
+                              .filter(p => p.provider === 'ton')
+                              .reduce((sum, p) => sum + (p.ton_amount || 0), 0)
+                            const starsTotal = succeededPayments
+                              .filter(p => p.provider === 'stars')
+                              .reduce((sum, p) => sum + (p.stars_amount || 0), 0)
+                            
+                            return (
+                              <>
+                                {rubTotal > 0 && (
+                                  <p className="text-xl font-bold text-emerald-600">
+                                    {rubTotal.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ₽
+                                  </p>
+                                )}
+                                {tonTotal > 0 && (
+                                  <p className="text-xl font-bold text-emerald-600">
+                                    {tonTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} TON
+                                  </p>
+                                )}
+                                {starsTotal > 0 && (
+                                  <p className="text-xl font-bold text-emerald-600">
+                                    {starsTotal.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ⭐
+                                  </p>
+                                )}
+                                {rubTotal === 0 && tonTotal === 0 && starsTotal === 0 && (
+                                  <p className="text-xl font-bold text-slate-400">0 ₽</p>
+                                )}
+                              </>
+                            )
+                          })()}
+                        </div>
+                        <p className="text-xs text-slate-600 font-medium mt-1">Потрачено</p>
                       </div>
                     </div>
                   </div>

@@ -116,6 +116,7 @@ export interface WebhookResult {
   paymentId?: number
   status?: PaymentStatus
   error?: string
+  alreadyProcessed?: boolean // Indicates webhook was duplicate
 }
 
 // T-Bank specific

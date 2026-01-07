@@ -203,15 +203,23 @@ export class TelegramStarsProvider implements IPaymentProvider {
 
       const paymentId = paymentData.payment_id
 
-      // Update payment with Telegram charge ID
-      await sql`
+      // Update payment with Telegram charge ID (idempotent)
+      const updateResult = await sql`
         UPDATE payments
         SET status = 'succeeded',
             telegram_charge_id = ${sp.telegram_payment_charge_id},
             provider_payment_id = ${sp.telegram_payment_charge_id},
             updated_at = NOW()
         WHERE id = ${paymentId}
+        AND status = 'pending'
+        RETURNING id
       `
+
+      if (updateResult.length === 0) {
+        // Already processed or invalid status
+        console.log('[Stars] Payment already processed or not pending:', paymentId)
+        return { success: true, alreadyProcessed: true }
+      }
 
       // User access is determined by having a successful payment, not by is_pro flag
 

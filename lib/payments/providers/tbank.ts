@@ -179,14 +179,25 @@ export class TBankProvider implements IPaymentProvider {
         status = 'pending'
     }
 
-    // Update payment
-    await sql`
+    // Update payment (idempotent for terminal states)
+    const updateResult = await sql`
       UPDATE payments
       SET status = ${status},
           tbank_payment_id = ${data.PaymentId?.toString()},
           updated_at = NOW()
       WHERE id = ${paymentId}
+      AND (
+        status = 'pending'
+        OR (status IN ('succeeded', 'canceled', 'refunded') AND status != ${status})
+      )
+      RETURNING id, status
     `
+
+    if (updateResult.length === 0) {
+      // Already processed to the same terminal state
+      console.log('[TBank] Payment already in target status:', paymentId, status)
+      return { success: true, alreadyProcessed: true }
+    }
 
     // Payment status is already updated in the webhook handler
     // User access is determined by having a successful payment, not by is_pro flag
