@@ -142,8 +142,9 @@ const freeProvider = selectProvider({ prioritizeCost: true }); // Returns 'fal'
 // For preview generations: prioritize speed
 const previewProvider = selectProvider({ prioritizeSpeed: true }); // Returns 'fal'
 
-// Use in API
-const provider = user.isPro ? proProvider : freeProvider;
+// Use in API - check payment status from payments table
+const hasPaid = await checkUserHasPaid(user.id);
+const provider = hasPaid ? proProvider : freeProvider;
 
 const result = await generateImage({
   prompt: promptText,

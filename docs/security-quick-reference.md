@@ -79,7 +79,7 @@ const response = await fetch('/api/user', {
 });
 
 const user = await response.json();
-// { id, deviceId, telegramUserId, isPro }
+// { id, deviceId, telegramUserId }
 ```
 
 ---
@@ -153,11 +153,11 @@ const query = `SELECT * FROM users WHERE device_id = '${deviceId}'`;
 ### Safe updates
 
 ```typescript
-// Parameterized UPDATE
+// Parameterized UPDATE - Payment status is in payments table
 await sql`
-  UPDATE users
-  SET is_pro = ${isPro}, updated_at = NOW()
-  WHERE device_id = ${deviceId}
+  UPDATE payments
+  SET status = ${status}, updated_at = NOW()
+  WHERE tbank_payment_id = ${paymentId}
 `;
 ```
 

@@ -366,9 +366,9 @@ test('full payment flow', async ({ page }) => {
   await page.waitForURL('**/payment/callback?**')
   expect(await page.locator('.success').isVisible()).toBe(true)
 
-  // Verify Pro status
-  const isPro = await neon.query('SELECT * FROM users WHERE device_id = $1', [deviceId])
-  expect(isPro).toBeTruthy()
+  // Verify payment status
+  const payment = await neon.query('SELECT * FROM payments WHERE user_id = $1 AND status = $2', [userId, 'succeeded'])
+  expect(payment).toBeTruthy()
 })
 ```
 
@@ -419,7 +419,7 @@ Total Time: 36s (with optimizations) vs 85s (sequential, no MCP) → 58% faster
 
 ### Sequence 2: Bug Investigation
 
-**Task:** Payment webhook not updating user isPro status
+**Task:** Payment webhook not updating payment status
 
 **Optimal Sequence:**
 ```
@@ -681,7 +681,7 @@ const nextjsDocs = await getFrameworkDocs("Next.js", "Server Actions", "16.0.1")
    - Mock T-Bank redirect in test mode
 
 3. Verify database state (Neon)
-   - Check user isPro updated
+   - Check payment status updated to 'succeeded'
    - Verify payment record created
    - Confirm generation job started
 

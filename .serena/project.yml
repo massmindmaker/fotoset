@@ -73,7 +73,7 @@ initial_prompt: |
   5. Generation (AI photos) -> 6. Results gallery (download)
 
   ## Database Tables
-  - users (device_id, is_pro)
+  - users (device_id, telegram_user_id) - payment status from payments table
   - avatars (user_id, name, status, thumbnail_url)
   - generated_photos (avatar_id, style_id, prompt, image_url)
   - payments (user_id, payment_id, amount, status)

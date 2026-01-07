@@ -66,10 +66,13 @@ Without T-Bank credentials, the app runs in **test mode**:
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   device_id VARCHAR(255) UNIQUE NOT NULL,
-  is_pro BOOLEAN DEFAULT FALSE,
+  telegram_user_id BIGINT UNIQUE,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Note: Payment status is determined from payments table
+-- SELECT EXISTS (SELECT 1 FROM payments WHERE user_id = ? AND status = 'succeeded') AS has_paid;
 
 CREATE TABLE avatars (
   id SERIAL PRIMARY KEY,

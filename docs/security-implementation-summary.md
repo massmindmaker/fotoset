@@ -164,7 +164,7 @@ matcher: [
 - Device ID priority logic for Telegram users
 - Device ID mismatch logging (security audit)
 - Fallback to deviceId-only for non-Telegram clients
-- Returns `isPro` status in response
+- Payment status is checked via /api/payment/status endpoint
 
 **Authentication Flow:**
 
@@ -200,8 +200,8 @@ matcher: [
          ▼                         │
 ┌──────────────────┐               │
 │ Find/Create User │               │
-│ Return with      │◄──────────────┘
-│ isPro status     │
+│ Return user data │◄──────────────┘
+│                  │
 └──────────────────┘
 ```
 
@@ -280,7 +280,7 @@ fetch('/api/user', {
 .then(r => r.json())
 .then(console.log);
 
-// Should return: { id, deviceId, telegramUserId, isPro }
+// Should return: { id, deviceId, telegramUserId }
 ```
 
 ### Invalid Telegram Auth

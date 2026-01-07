@@ -201,18 +201,18 @@ ALTER TABLE avatars ADD COLUMN status VARCHAR(20) DEFAULT 'draft';
 
 ---
 
-### 007_add_is_pro.sql (November 28, 2024)
+### 007_add_is_pro.sql (November 28, 2024) [DEPRECATED]
 
-**Purpose:** Add Pro subscription flag
+**Purpose:** Add Pro subscription flag (DEPRECATED - column removed, use payments table instead)
 
 **Changes:**
 ```sql
-ALTER TABLE users ADD COLUMN is_pro BOOLEAN DEFAULT FALSE;
-
-CREATE INDEX idx_users_is_pro ON users(is_pro);
+-- DEPRECATED: is_pro column removed
+-- Pro status is now derived from successful payments:
+-- SELECT EXISTS(SELECT 1 FROM payments WHERE user_id=? AND status='succeeded') as has_paid
 ```
 
-**Purpose:** Implement Pro subscription feature (500₽)
+**Note:** Pro status is determined by having a successful payment, not by a flag
 
 ---
 

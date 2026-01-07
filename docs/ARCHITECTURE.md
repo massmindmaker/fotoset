@@ -93,7 +93,7 @@ Single-file React component (1059 lines) managing all application views and stat
 ```typescript
 const [authStatus, setAuthStatus] = useState<AuthStatus>('pending')
 const [userIdentifier, setUserIdentifier] = useState<UserIdentifier | null>(null)
-const [isPro, setIsPro] = useState(false)
+const [hasPaid, setHasPaid] = useState(false)
 const [currentView, setCurrentView] = useState<ViewType>('ONBOARDING')
 const [personas, setPersonas] = useState<Persona[]>([])
 const [currentPersona, setCurrentPersona] = useState<Persona | null>(null)
@@ -149,11 +149,11 @@ User completes payment
     ↓
 T-Bank webhook → POST /api/payment/webhook
     ↓
-Update users.is_pro = true
+Update payments.status = 'succeeded'
     ↓
 Callback page polls /api/payment/status
     ↓
-Frontend sets isPro = true
+Frontend sets hasPaid = true (localStorage)
     ↓
 Redirect to Dashboard
 ```

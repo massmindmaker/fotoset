@@ -580,12 +580,12 @@ NEON_DATABASE_ROLE=mcp_readonly
    └─ Store bug pattern + fix
 ```
 
-**Example: Payment Not Updating isPro**
+**Example: Payment Not Updating Status**
 ```
 1. Playwright: Reproduce
-   test('payment success updates isPro', async () => {
+   test('payment success updates status', async () => {
      await pay();
-     expect(await isPro()).toBe(true); // FAILS
+     expect(await hasPayment()).toBe(true); // FAILS
    });
 
 2. Serena: Analyze webhook
@@ -593,21 +593,21 @@ NEON_DATABASE_ROLE=mcp_readonly
    → See database update logic
 
 3. Neon: Check database
-   query_table("users", {device_id: "test123"})
-   → is_pro is still false
+   query_table("payments", {user_id: userId})
+   → status is still 'pending'
 
 4. Research: Exa "T-Bank webhook timing issues"
    → Find race condition in webhook processing
 
 5. Fix: Add transaction + retry logic
    await db.transaction(async (tx) => {
-     await tx.update(users).set({is_pro: true});
+     await tx.update(payments).set({status: 'succeeded'});
    });
 
 6. Test: Verify fix
-   test('payment success updates isPro', async () => {
+   test('payment success updates status', async () => {
      await pay();
-     await waitFor(() => isPro() === true); // PASSES
+     await waitFor(() => hasPayment() === true); // PASSES
    });
 
 7. Memory: Store
@@ -703,7 +703,7 @@ test('full payment flow', async () => {
 // Mock Neon for unit tests
 const mockNeon = {
   query: jest.fn().mockResolvedValue([
-    {id: 1, device_id: 'test', is_pro: true}
+    {id: 1, device_id: 'test', telegram_user_id: 123456}
   ])
 };
 

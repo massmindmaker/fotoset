@@ -38,7 +38,7 @@ const [viewState, setViewState] = useState<ViewState>({ view: "ONBOARDING" })
 const [personas, setPersonas] = useState<Persona[]>([])
 const [isGenerating, setIsGenerating] = useState(false)
 const [generationProgress, setGenerationProgress] = useState(0)
-const [isPro, setIsPro] = useState(false)
+const [hasPaid, setHasPaid] = useState(false)
 const [isPaymentOpen, setIsPaymentOpen] = useState(false)
 const [deviceId, setDeviceId] = useState("")
 const [isReady, setIsReady] = useState(false)
@@ -216,7 +216,7 @@ const TierSelectView: React.FC<{
   onBack: () => void
   onGenerate: (tier: PricingTier) => void
   isGenerating: boolean
-  isPro: boolean
+  hasPaid: boolean
   onUpgrade: (tier: PricingTier) => void
   selectedTier: PricingTier
   onSelectTier: (tier: PricingTier) => void
@@ -236,8 +236,8 @@ const TierSelectView: React.FC<{
 - Price per photo calculation
 - "Popular" badge on standard tier
 - Selected tier indicator
-- Pro users: "Generate" button
-- Non-Pro users: "Pay X RUB" button
+- Paid users: "Generate" button
+- Unpaid users: "Pay X RUB" button
 
 ---
 

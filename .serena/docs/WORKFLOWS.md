@@ -92,10 +92,10 @@ Step 4: Style Selection
          ▼
 Step 5: Payment
 ┌─────────────────┐
-│ Check isPro     │
+│ Check hasPaid   │
 └────────┬────────┘
          │
-    isPro = false
+    hasPaid = false
          │
          ▼
 ┌─────────────────┐
@@ -138,12 +138,12 @@ Step 5: Payment
          ▼
 ┌─────────────────┐
 │ Poll status     │
-│ until isPro     │
+│ until paid      │
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│ Save isPro=true │
+│ Save paid=true  │
 │ to localStorage │
 └────────┬────────┘
          │
@@ -187,13 +187,13 @@ Step 7: Results
 
 ---
 
-## Workflow 2: Returning Pro User
+## Workflow 2: Returning Paid User
 
-Quick path for users with active Pro subscription.
+Quick path for users who have completed payment.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                      RETURNING PRO USER FLOW                         │
+│                      RETURNING PAID USER FLOW                        │
 └─────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────┐
@@ -205,7 +205,7 @@ Quick path for users with active Pro subscription.
 ┌─────────────────┐
 │ Check localStorage│
 │ - device_id ✓   │
-│ - is_pro ✓      │
+│ - has_paid ✓    │
 │ - onboarding ✓  │
 └────────┬────────┘
          │
@@ -310,11 +310,11 @@ Frontend                    Backend                     T-Bank
     │                          │◀─────────────────────────┤
     │                          │ { Status: CONFIRMED }    │
     │                          │                          │
-    │                          │ Update user.is_pro=true  │
     │                          │ Update payment.status    │
+    │                          │ to 'succeeded'           │
     │                          │                          │
     │◀─────────────────────────┤                          │
-    │ { isPro: true }          │                          │
+    │ { paid: true }           │                          │
     │                          │                          │
     │ Save to localStorage     │                          │
     │ Redirect to home         │                          │
@@ -334,7 +334,7 @@ T-Bank                      Backend
     │                          │
     │                          │ 1. Verify signature
     │                          │ 2. Update payment status
-    │                          │ 3. Update user.is_pro
+    │                          │    to 'succeeded'
     │                          │
     │◀─────────────────────────┤
     │ { success: true }        │
@@ -360,7 +360,7 @@ Frontend                    Backend                     Google Imagen
     │   styleId, images[] }    │                          │
     ├─────────────────────────▶│                          │
     │                          │                          │
-    │                          │ 1. Validate user is Pro  │
+    │                          │ 1. Validate user has paid│
     │                          │                          │
     │                          │ 2. Get style config      │
     │                          │    STYLE_CONFIGS[styleId]│
@@ -504,5 +504,5 @@ If all generations fail:
 | Key | Type | Description |
 |-----|------|-------------|
 | `pinglass_device_id` | string | Unique browser identifier |
-| `pinglass_is_pro` | boolean | Pro subscription cache |
+| `pinglass_is_pro` | boolean | Payment status cache |
 | `pinglass_onboarding_complete` | boolean | Skip onboarding flag |

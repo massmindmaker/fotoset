@@ -219,8 +219,9 @@ const result = await generateWithABTest({ ... }, ['fal', 'imagen']);
 - **Benefit:** Full cost savings realized
 
 ```typescript
-// Fal.ai primary, Imagen fallback for Pro
-const provider = user.isPro ? 'imagen' : 'fal';
+// Fal.ai primary, Imagen fallback for paid users
+const hasPaid = await checkUserHasPaid(user.id);
+const provider = hasPaid ? 'imagen' : 'fal';
 const results = await generateBatch(..., { preferredProvider: provider });
 ```
 

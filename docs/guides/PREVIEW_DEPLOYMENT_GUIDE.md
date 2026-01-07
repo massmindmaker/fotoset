@@ -197,7 +197,7 @@ https://pinglass-git-preview-reference-photos-5-8-your-team.vercel.app
 **4. Payment (T-Bank DEMO):**
 - [ ] Создать оплату → должен открыться T-Bank test page
 - [ ] Использовать test card `4300000000000777`
-- [ ] Проверить статус → `isPro: true`
+- [ ] Проверить статус → `paid: true`
 - [ ] Проверить webhook → status updated
 
 **5. Generation:**

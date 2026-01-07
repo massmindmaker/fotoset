@@ -77,7 +77,7 @@
 3. **Payment Status Polling**
    - After callback return
    - Poll `/api/payment/status` every 2s
-   - Stop when `isPro: true`
+   - Stop when `paid: true`
    - Update localStorage
 
 4. **Payment Failure Handling**
@@ -246,7 +246,7 @@
 3. **Status Polling**
    - Starts polling after redirect
    - Polls every 2s
-   - Stops when isPro = true
+   - Stops when paid = true
    - Updates parent component
 
 4. **Error Handling**
@@ -467,7 +467,7 @@
 1. Create user via `/api/user`
 2. Create payment via `/api/payment/create`
 3. Simulate webhook to `/api/payment/webhook`
-4. Verify user isPro updated
+4. Verify payment status updated
 5. Upload photos via `/api/upload`
 6. Trigger generation via `/api/generate`
 7. Wait for job completion

@@ -204,12 +204,17 @@ return error("VALIDATION_ERROR", "telegramUserId or deviceId required")
 
 ## Удалённый код
 
-### is_pro / Pro subscription
-**Статус: ЧАСТИЧНО УДАЛЕНО**
+### is_pro column (FULLY REMOVED)
+**Статус: ПОЛНОСТЬЮ УДАЛЕНО**
 
-Удалено из:
-- `app/api/payment/cancel/route.ts` - UPDATE users SET is_pro = false
-- `components/persona-app.tsx` - localStorage.setItem("pinglass_is_pro")
+Колонка `is_pro` удалена из таблицы `users`.
+Статус оплаты теперь определяется из таблицы `payments`:
+```sql
+SELECT EXISTS (
+  SELECT 1 FROM payments
+  WHERE user_id = ? AND status = 'succeeded'
+) AS has_paid;
+```
 
 ---
 

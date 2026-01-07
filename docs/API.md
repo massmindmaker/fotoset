@@ -36,7 +36,6 @@ Get or create user by Telegram ID.
 {
   "id": 1,
   "telegram_user_id": 123456789,
-  "is_pro": false,
   "created_at": "2024-12-19T10:00:00Z",
   "updated_at": "2024-12-19T10:00:00Z"
 }
@@ -277,7 +276,7 @@ curl "https://pinglass.vercel.app/api/payment/status?telegram_user_id=123456789&
 **Response (200):**
 ```json
 {
-  "isPro": true,
+  "paid": true,
   "status": "succeeded",
   "paymentId": "7586227553",
   "amount": 500,
@@ -338,7 +337,7 @@ X-Webhook-Signature: <SHA256 signature>
 - Webhook must be registered in T-Bank dashboard
 - Signature is verified using SHA256 hash
 - Amount is in kopecks (50000 = 500 RUB)
-- Updates `users.is_pro` and `payments.status`
+- Updates `payments.status` (payment status determines paid status)
 
 ---
 

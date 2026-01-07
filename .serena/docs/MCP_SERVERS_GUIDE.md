@@ -96,7 +96,7 @@ Direct database operations for Neon serverless PostgreSQL without SQL queries.
 - Inspect database schema (users, avatars, payments, generated_photos)
 - Verify payment status in database
 - Check generation job progress
-- Debug user isPro status mismatches
+- Debug payment status issues
 
 ### Best Practices
 
@@ -110,14 +110,13 @@ Direct database operations for Neon serverless PostgreSQL without SQL queries.
 **Pattern 2: Payment Debugging**
 ```
 1. query_table("users", filters={device_id: "abc123"})
-   → Get user isPro status
+   → Get user info
 
 2. query_table("payments", filters={user_id: 42})
    → See all payments for user
 
 3. Check webhook updates:
-   - status should be "succeeded" after T-Bank callback
-   - users.is_pro should be true
+   - payments.status should be "succeeded" after T-Bank callback
 ```
 
 ### When NOT to Use
@@ -163,13 +162,13 @@ Browser automation for testing payment flows, photo generation UI, and callback 
 3. Click "Generate" → Payment modal appears
 4. Click "Pay 500₽" → T-Bank redirect
 5. Simulate payment success
-6. Verify callback page → isPro = true
+6. Verify callback page → paid = true
 7. Check dashboard access
 ```
 
 **Pattern 2: Generation Test**
 ```javascript
-1. Login as Pro user (device_id with isPro=true)
+1. Login as paid user (user with successful payment)
 2. Create new persona
 3. Upload 15 photos
 4. Select "Professional" style
@@ -297,7 +296,7 @@ After successful implementation:
 Example:
 {
   "pattern": "Device ID auth flow",
-  "usage": "localStorage → API → DB check → isPro status",
+  "usage": "localStorage → API → DB check → payment status",
   "successRate": 0.98
 }
 ```
@@ -503,7 +502,7 @@ docker exec -i mcp-shadcn npm config set //registry.npmjs.org/:_authToken $GITHU
 
 ### Critical (Use First)
 1. **Serena** - Analyze persona-app.tsx, API routes, lib files
-2. **Neon** - Check database state, verify payments, debug isPro status
+2. **Neon** - Check database state, verify payments, debug payment status
 
 ### High (Use Frequently)
 3. **Memory** - Store learnings after each session
@@ -666,8 +665,8 @@ docker-compose up -d
 
 ### Workflow 3: Payment Debugging
 ```
-1. Check user status (Neon) → users.is_pro
-2. Verify payment (Neon) → payments.status
+1. Check payment status (Neon) → payments.status
+2. Verify user record (Neon) → users
 3. Review webhook logs (Serena) → app/api/payment/webhook/route.ts
 4. Test flow (Playwright) → End-to-end payment
 5. Research (Exa) → T-Bank API docs

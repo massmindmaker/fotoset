@@ -17,7 +17,7 @@ This is a quick reference guide distilled from the comprehensive MCP Usage Optim
 | Find specific function | Serena | `find_symbol` | 1s |
 | Edit function body | Serena | `replace_symbol_body` | 2s |
 | Check payment status | Neon | `query_table` | 1s |
-| Update user Pro status | Neon | `update_record` | 1s |
+| Update payment status | Neon | `update_record` | 1s |
 | Look up Next.js 16 docs | Context7 → Memory | `get-library-docs` | 3s → 0.5s cached |
 | Search for error solution | Exa | `search` | 5s |
 | Test payment flow E2E | Playwright | `browser_*` | 20s |
@@ -62,7 +62,7 @@ Use Promise.all() for independent read operations
 ```
 Playwright: Test UI flow
 Neon: Verify database state changed correctly
-Example: Payment flow → Check isPro updated
+Example: Payment flow → Check payment status updated
 ```
 
 ---
@@ -122,7 +122,7 @@ if (!docs) {
 
 ### Workflow 4: E2E Test with DB Verification
 ```typescript
-test('payment updates isPro', async ({ page }) => {
+test('payment updates status', async ({ page }) => {
   const deviceId = `test-${Date.now()}`
 
   // Setup
@@ -132,9 +132,9 @@ test('payment updates isPro', async ({ page }) => {
   await page.goto('/')
   await page.click('[data-testid="pay-button"]')
 
-  // Verify DB
-  const user = await neon.query_table("users", {device_id: deviceId})
-  expect(user.is_pro).toBe(true) // MUST be true after payment
+  // Verify DB - check payments table for status
+  const payment = await neon.query_table("payments", {user_id: userId})
+  expect(payment.status).toBe('succeeded') // MUST be succeeded after payment
 })
 ```
 
@@ -341,7 +341,7 @@ These should be stored for cross-session learning:
 ### Database
 - Neon uses serverless PostgreSQL (cold starts possible)
 - Parameterized queries prevent SQL injection
-- Transactions needed for isPro updates (race conditions)
+- Transactions needed for payment status updates (race conditions)
 
 ### Testing
 - E2E tests should mock external APIs (T-Bank, Imagen)

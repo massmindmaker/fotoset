@@ -128,14 +128,14 @@ Main user table. Authentication via Telegram.
 | ban_reason | TEXT | Reason for ban |
 | created_at | TIMESTAMP | Registration date |
 
-**Important:** No `is_pro` column! Pro status is derived from payments.
+**Important:** No `is_pro` column! Payment status is derived from payments table.
 
 ```sql
--- Check if user is Pro
+-- Check if user has paid
 SELECT EXISTS (
   SELECT 1 FROM payments
   WHERE user_id = ? AND status = 'succeeded'
-) AS is_pro;
+) AS has_paid;
 ```
 
 ### avatars
@@ -414,14 +414,14 @@ Migrations are in `scripts/migrations/` directory:
 
 ## Common Queries
 
-### Get user with Pro status
+### Get user with payment status
 ```sql
 SELECT
   u.*,
   EXISTS (
     SELECT 1 FROM payments p
     WHERE p.user_id = u.id AND p.status = 'succeeded'
-  ) AS is_pro
+  ) AS has_paid
 FROM users u
 WHERE u.telegram_user_id = $1;
 ```

@@ -78,7 +78,7 @@ https://pinglass-git-preview-reference-photos-5-8-your-team.vercel.app
 ### Payment (T-Bank DEMO)
 Тестовая карта: `4300000000000777`
 - [ ] Оплата → ✅ test page открылась
-- [ ] Статус → ✅ `isPro: true`
+- [ ] Статус → ✅ `paid: true`
 
 ### UI Texts
 - [ ] Dashboard: "5-8 своих фото"

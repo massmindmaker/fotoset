@@ -65,7 +65,7 @@ npx -y @upstash/context7-mcp@latest --help
 
 ### Debug Payment Issue
 ```
-1. Neon: Check user.is_pro and payments.status
+1. Neon: Check payments.status
 2. Serena: Analyze app/api/payment/webhook/route.ts
 3. Playwright: Reproduce with E2E test
 4. Memory: Store bug pattern

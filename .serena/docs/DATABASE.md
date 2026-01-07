@@ -14,28 +14,37 @@ PinGlass uses **Neon PostgreSQL** (serverless) for data persistence.
 
 ### users
 
-Stores user information and Pro subscription status.
+Stores user information. Payment status is derived from payments table.
 
 ```sql
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   device_id VARCHAR(255) UNIQUE NOT NULL,
-  is_pro BOOLEAN DEFAULT FALSE,
+  telegram_user_id BIGINT UNIQUE,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
 -- Indexes
 CREATE UNIQUE INDEX idx_users_device_id ON users(device_id);
+CREATE UNIQUE INDEX idx_users_telegram ON users(telegram_user_id);
 ```
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | id | SERIAL | PRIMARY KEY | Auto-increment ID |
 | device_id | VARCHAR(255) | UNIQUE, NOT NULL | Browser UUID |
-| is_pro | BOOLEAN | DEFAULT FALSE | Pro subscription status |
+| telegram_user_id | BIGINT | UNIQUE | Telegram user ID |
 | created_at | TIMESTAMP | DEFAULT NOW() | Creation timestamp |
 | updated_at | TIMESTAMP | DEFAULT NOW() | Last update timestamp |
+
+**Note:** Payment status is determined by checking payments table:
+```sql
+SELECT EXISTS (
+  SELECT 1 FROM payments
+  WHERE user_id = ? AND status = 'succeeded'
+) AS has_paid;
+```
 
 ---
 
@@ -219,7 +228,7 @@ CREATE INDEX idx_generation_jobs_status ON generation_jobs(status);
 export interface User {
   id: number
   device_id: string
-  is_pro: boolean
+  telegram_user_id: bigint | null
   created_at: Date
   updated_at: Date
 }
@@ -281,12 +290,13 @@ SELECT * FROM users WHERE device_id = $1;
 INSERT INTO users (device_id) VALUES ($1) RETURNING *;
 ```
 
-### Update Pro Status
+### Check Payment Status
 
 ```sql
-UPDATE users
-SET is_pro = TRUE, updated_at = NOW()
-WHERE device_id = $1;
+SELECT EXISTS (
+  SELECT 1 FROM payments
+  WHERE user_id = $1 AND status = 'succeeded'
+) AS has_paid;
 ```
 
 ### Create Avatar
@@ -336,10 +346,13 @@ WHERE id = $1;
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   device_id VARCHAR(255) UNIQUE NOT NULL,
-  is_pro BOOLEAN DEFAULT FALSE,
+  telegram_user_id BIGINT UNIQUE,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Note: Payment status is determined from payments table
+-- SELECT EXISTS (SELECT 1 FROM payments WHERE user_id = ? AND status = 'succeeded') AS has_paid;
 
 CREATE TABLE avatars (
   id SERIAL PRIMARY KEY,

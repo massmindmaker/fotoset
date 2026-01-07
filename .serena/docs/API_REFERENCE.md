@@ -29,7 +29,7 @@ Get or create user by device ID.
 {
   "id": 1,
   "deviceId": "abc123-def456",
-  "isPro": false
+  "paid": false
 }
 ```
 
@@ -74,18 +74,18 @@ Generate AI photos for a persona.
 **Response (Error):**
 ```json
 {
-  "error": "User is not Pro"
+  "error": "User has not paid"
 }
 ```
 
 **Status Codes:**
 - `200` - Generation successful
 - `400` - Invalid request (missing fields)
-- `403` - User is not Pro
+- `403` - User has not paid
 - `500` - Generation failed
 
 **Notes:**
-- Requires user to have Pro status
+- Requires user to have completed payment
 - Uses first 5 reference images for AI consistency
 - Generates N photos based on `photoCount` parameter
 - Uses prompts from `lib/prompts.ts`
@@ -137,7 +137,7 @@ Create a new payment order.
 
 **Status Codes:**
 - `200` - Payment created
-- `400` - Missing deviceId or already Pro
+- `400` - Missing deviceId or already paid
 - `500` - Payment creation failed
 
 **Notes:**
@@ -150,7 +150,7 @@ Create a new payment order.
 
 **File:** `app/api/payment/status/route.ts` (88 lines)
 
-Check payment status and Pro subscription.
+Check payment status.
 
 **Query Parameters:**
 - `device_id` (required) - User's device ID
@@ -160,7 +160,7 @@ Check payment status and Pro subscription.
 **Response:**
 ```json
 {
-  "isPro": true,
+  "paid": true,
   "status": "succeeded"
 }
 ```
@@ -182,7 +182,7 @@ const params = new URLSearchParams({
   payment_id: paymentId
 })
 const response = await fetch(`/api/payment/status?${params}`)
-const { isPro, status } = await response.json()
+const { paid, status } = await response.json()
 ```
 
 ---
@@ -267,8 +267,8 @@ All endpoints return errors in this format:
 | Error | Cause | Solution |
 |-------|-------|----------|
 | "Missing deviceId" | No device ID provided | Include deviceId in request |
-| "User is not Pro" | Generation without Pro status | Complete payment first |
-| "User is already Pro" | Duplicate payment attempt | Refresh page |
+| "User has not paid" | Generation without payment | Complete payment first |
+| "User has already paid" | Duplicate payment attempt | Refresh page |
 | "Payment creation failed" | T-Bank API error | Check credentials |
 | "Invalid request" | Missing required fields | Check request body |
 
@@ -304,7 +304,7 @@ interface UserRequest {
 interface UserResponse {
   id: number
   deviceId: string
-  isPro: boolean
+  hasPaid: boolean
 }
 
 interface GenerateRequest {
@@ -333,7 +333,7 @@ interface PaymentCreateResponse {
 }
 
 interface PaymentStatusResponse {
-  isPro: boolean
+  paid: boolean
   status: "succeeded" | "pending" | "canceled"
 }
 ```

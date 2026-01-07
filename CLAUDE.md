@@ -7,11 +7,14 @@
 
 ## 🚫 ANTI-PATTERNS (НЕ ДЕЛАТЬ!)
 
-### 1. is_pro колонка - УДАЛЕНА
+### 1. Статусы пользователей - НЕ СУЩЕСТВУЮТ
 ```sql
-❌ SELECT is_pro FROM users
-❌ UPDATE users SET is_pro = true
-✅ Pro = есть успешный платёж: SELECT COUNT(*) FROM payments WHERE user_id=? AND status='succeeded'
+-- В приложении НЕТ статусов Free/Pro!
+-- Есть только: пользователь и партнёр (is_partner в referral_balances)
+-- Доступ к генерации = есть успешный платёж
+❌ is_pro, isPro, user_is_pro - НЕ ИСПОЛЬЗОВАТЬ
+❌ Free/Pro статусы - НЕ ОТОБРАЖАТЬ
+✅ Проверка доступа: SELECT COUNT(*) FROM payments WHERE user_id=? AND status='succeeded'
 ```
 
 ### 2. Синхронная генерация
@@ -42,7 +45,7 @@
 | TypeScript variables | camelCase | `telegramUserId`, `createdAt` |
 | API query params | snake_case | `?telegram_user_id=123` |
 | API request body | camelCase | `{ telegramUserId: 123 }` |
-| API response body | camelCase | `{ isPro: true }` |
+| API response body | camelCase | `{ success: true }` |
 | Environment vars | SCREAMING_SNAKE | `DATABASE_URL`, `TBANK_PASSWORD` |
 | React components | PascalCase | `PaymentModal`, `PersonaApp` |
 | CSS classes | kebab-case | `payment-modal`, `btn-primary` |
@@ -107,14 +110,13 @@ PinGlass/
 - Отказоустойчивость при ошибках отдельных фото
 
 ### 2. Payment System
-- Интеграция с T-Bank (500 ₽)
+- Интеграция с T-Bank, Telegram Stars, TON
 - Test mode для разработки
 - Webhook для real-time обновлений статуса
-- Pro-статус по device ID (без аккаунтов)
 
 ### 3. User Persistence
-- Идентификация по device ID (localStorage)
-- Хранение: `pinglass_device_id`, `pinglass_is_pro`, `pinglass_onboarding_complete`
+- Идентификация по telegram_user_id
+- Хранение: `pinglass_device_id`, `pinglass_onboarding_complete`
 - Множественные персоны (аватары) на пользователя
 
 ---
@@ -171,14 +173,14 @@ PinGlass/
 └─────────────────┘
 ```
 
-### Workflow 2: Returning User (Pro)
+### Workflow 2: Returning User
 
 ```
-App Load → Check localStorage isPro
+App Load → Check onboarding status
     │
     ▼
 ┌─────────────────┐
-│   DASHBOARD     │ ← Skip onboarding
+│   DASHBOARD     │ ← Skip onboarding if completed
 │  (all personas) │
 └────────┬────────┘
          │
@@ -244,13 +246,13 @@ App Load → Check localStorage isPro
      ▼
 ┌─────────────────┐
 │ Poll /api/      │
-│ payment/status  │ ← Until isPro = true
+│ payment/status  │ ← Until status = 'succeeded'
 └────────┬────────┘
      │
      ▼
 ┌─────────────────┐
-│ Save to         │
-│ localStorage    │ → pinglass_is_pro = true
+│ Redirect to     │
+│ Generation      │
 └────────┬────────┘
      │
      ▼
@@ -271,7 +273,7 @@ App Load → Check localStorage isPro
          ▼
 ┌─────────────────┐
 │ Validate        │
-│ isPro status    │ ← Check DB
+│ payment status  │ ← Check succeeded payment
 └────────┬────────┘
          │
          ▼
@@ -351,9 +353,9 @@ App Load → Check localStorage isPro
 **Response:** `{ "paymentId": "string", "confirmationUrl": "string", "testMode": boolean }`
 
 ### `GET /api/payment/status?device_id=xxx&payment_id=xxx`
-Проверка статуса Pro подписки.
+Проверка статуса платежа.
 
-**Response:** `{ "isPro": boolean, "status": "succeeded" | "pending" }`
+**Response:** `{ "status": "succeeded" | "pending" | "canceled" }`
 
 ### `POST /api/payment/webhook`
 T-Bank webhook handler. Обрабатывает `payment.succeeded` и `payment.canceled`. Верифицирует подпись SHA256.
@@ -361,9 +363,9 @@ T-Bank webhook handler. Обрабатывает `payment.succeeded` и `payment
 ### `POST /api/user`
 Получение/создание пользователя.
 
-**Request:** `{ "deviceId": "string" }`
+**Request:** `{ "telegramUserId": number }`
 
-**Response:** `{ "id": number, "deviceId": "string", "isPro": boolean }`
+**Response:** `{ "id": number, "telegramUserId": number }`
 
 ---
 
@@ -411,12 +413,12 @@ NEXT_PUBLIC_APP_URL=https://your-domain.com
 ## Database Schema (Key Tables)
 
 ```sql
--- Users (НЕТ is_pro! Pro = есть успешный платёж)
+-- Users (статусов НЕТ! Доступ = есть успешный платёж)
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   telegram_user_id BIGINT UNIQUE,
   telegram_username VARCHAR(255),
-  device_id VARCHAR(255),
+  is_banned BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW()
 );
 

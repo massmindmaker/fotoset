@@ -29,7 +29,7 @@ Response:
       "photoCount": 23,
       "generatedPhotos": [...]
     }],
-    "isPro": true
+    "paid": true
   }
 }
 ```
@@ -125,7 +125,7 @@ Query: `device_id`, `payment_id`
 Response:
 ```json
 {
-  "isPro": true,
+  "paid": true,
   "status": "succeeded",
   "amount": 50000
 }

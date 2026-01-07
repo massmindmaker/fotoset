@@ -40,7 +40,7 @@
          ↓
 6. Frontend polls /api/payment/status
          ↓
-7. Update localStorage (isPro=true)
+7. Update localStorage (paid status cached)
 ```
 
 ---
@@ -83,8 +83,8 @@ function verifyWebhookSignature(notification, receivedToken) {
 | Status | Meaning | Action |
 |--------|---------|--------|
 | NEW | Payment created | Awaiting |
-| CONFIRMED | Success | Grant Pro |
-| AUTHORIZED | Card authorized | Grant Pro |
+| CONFIRMED | Success | Mark payment succeeded |
+| AUTHORIZED | Card authorized | Mark payment succeeded |
 | REJECTED | Failed | Keep pending |
 
 ---
