@@ -14,6 +14,7 @@ import { PRICING_TIERS } from "./views/dashboard-view"
 // Import custom hooks
 import { useAuth, useAvatars, useGeneration, usePayment, usePolling, useSync, usePricing } from "./hooks"
 import { useNetworkStatus } from "@/lib/network-status"
+import { useSession } from "@/lib/auth/client"
 
 // Import error handling components
 import { ErrorModal, OfflineBanner } from "./error-modal"
@@ -91,6 +92,7 @@ const ReferralPanel = lazy(() => import("./referral-panel").then((m) => ({ defau
 export default function PersonaApp() {
   // Custom hooks
   const { userIdentifier, authStatus, telegramUserId, theme, toggleTheme, showMessage } = useAuth()
+  const { data: neonSession, isPending: isNeonAuthPending } = useSession() // Neon Auth session for web users
   const { personas, setPersonas, loadAvatarsFromServer, createPersona, updatePersona, deletePersona, getPersona } = useAvatars()
   const { isGenerating, setIsGenerating, generationProgress, setGenerationProgress, fileToBase64 } = useGeneration()
   const { isPaymentOpen, setIsPaymentOpen, selectedTier, setSelectedTier } = usePayment()
@@ -355,6 +357,36 @@ export default function PersonaApp() {
       abortController.abort()
     }
   }, [authStatus, userIdentifier, loadAvatarsFromServer, setPersonas, setIsGenerating, setGenerationProgress, showMessage, startPolling, stopPolling])
+
+  // Handle Neon Auth session for web users (after Google login redirect)
+  useEffect(() => {
+    if (isNeonAuthPending) return // Wait for session to load
+
+    // Check if user logged in via Neon Auth (web version)
+    if (neonSession?.user && authStatus === 'not_in_telegram') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const isAuthCallback = urlParams.get('auth') === 'success'
+
+      if (isAuthCallback) {
+        console.log('[Auth] Neon Auth success, user:', neonSession.user.email)
+        // Remove auth param from URL
+        const newUrl = new URL(window.location.href)
+        newUrl.searchParams.delete('auth')
+        window.history.replaceState({}, '', newUrl.pathname)
+
+        // Mark onboarding complete and show dashboard
+        localStorage.setItem("pinglass_onboarding_complete", "true")
+        setViewState({ view: "DASHBOARD" })
+      } else if (viewState.view === "ONBOARDING") {
+        // Already logged in via Neon Auth, skip onboarding
+        const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"
+        if (onboardingComplete || personas.length > 0) {
+          console.log('[Auth] Neon Auth user already logged in, showing DASHBOARD')
+          setViewState({ view: "DASHBOARD" })
+        }
+      }
+    }
+  }, [neonSession, isNeonAuthPending, authStatus, viewState.view, personas.length])
 
   // Save view state when it changes
   useEffect(() => {
