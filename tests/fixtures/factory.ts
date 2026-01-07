@@ -16,7 +16,6 @@ export interface TestUser {
   id: number
   telegram_user_id: number
   device_id: string | null
-  is_pro: boolean
   pending_referral_code: string | null
   pending_generation_tier: string | null
   pending_generation_avatar_id: number | null
@@ -197,7 +196,6 @@ export function createUser(overrides: Partial<TestUser> = {}): TestUser {
     id: nextUserId(),
     telegram_user_id: Math.floor(Math.random() * 1000000000) + 100000000,
     device_id: null, // Deprecated, use telegram_user_id
-    is_pro: false,
     pending_referral_code: null,
     pending_generation_tier: null,
     pending_generation_avatar_id: null,
@@ -209,11 +207,11 @@ export function createUser(overrides: Partial<TestUser> = {}): TestUser {
 }
 
 /**
- * Create a pro user (with payment)
+ * Create a user with completed onboarding
+ * Note: Pro status is determined by having a successful payment, not a flag
  */
 export function createProUser(overrides: Partial<TestUser> = {}): TestUser {
   return createUser({
-    is_pro: true,
     onboarding_completed_at: new Date().toISOString(),
     ...overrides,
   })

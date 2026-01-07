@@ -76,7 +76,6 @@ const TEST_JOB_ID = 500
 const testUser = {
   id: TEST_USER_ID,
   telegram_user_id: TEST_TELEGRAM_USER_ID,
-  is_pro: false,
   pending_generation_tier: null,
   pending_generation_avatar_id: null,
   pending_referral_code: null,
@@ -84,7 +83,7 @@ const testUser = {
   updated_at: new Date().toISOString(),
 }
 
-const testProUser = { ...testUser, is_pro: true }
+const testProUser = { ...testUser } // User with successful payment
 
 const testAvatar = {
   id: TEST_AVATAR_ID,
@@ -176,9 +175,8 @@ describe('User Workflow: Step 1 - Payment Creation', () => {
     expect(data.testMode).toBeDefined()
   })
 
-  test('should allow payment creation for Pro user (no restriction)', async () => {
-    // NOTE: Payment API does NOT check isPro - Pro users CAN create new payments
-    // This allows buying additional packages
+  test('should allow payment creation for user with existing payment (no restriction)', async () => {
+    // NOTE: Payment API allows multiple payments - users CAN buy additional packages
     const { POST } = await import('@/app/api/payment/create/route')
 
     mockFindOrCreateUser.mockResolvedValue(testProUser)
@@ -205,7 +203,7 @@ describe('User Workflow: Step 1 - Payment Creation', () => {
     const response = await POST(request)
     const data = await response.json()
 
-    // Payment creates successfully - no isPro restriction
+    // Payment creates successfully - multiple payments allowed
     expect(response.status).toBe(200)
     expect(data.paymentId).toBeDefined()
   })
@@ -251,13 +249,13 @@ describe('User Workflow: Step 2 - Payment Webhook', () => {
     delete process.env.TBANK_PASSWORD
   })
 
-  test('should activate Pro status on CONFIRMED webhook', async () => {
+  test('should mark payment as succeeded on CONFIRMED webhook', async () => {
     const { POST } = await import('@/app/api/payment/webhook/route')
 
     mockVerifyWebhookSignature.mockReturnValue(true)
     mockSql.mockResolvedValueOnce([testPayment]) // find payment
     mockSql.mockResolvedValueOnce([{ ...testPayment, status: 'succeeded' }]) // update payment
-    mockSql.mockResolvedValueOnce([testProUser]) // update user is_pro
+    mockSql.mockResolvedValueOnce([testProUser]) // get user
     mockSql.mockResolvedValueOnce([]) // webhook log
 
     const webhookData = {

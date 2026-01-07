@@ -947,7 +947,6 @@ describe('POST /api/payment/create - Configuration Errors', () => {
     mockFindOrCreateUserLocal.mockResolvedValueOnce({
       id: 14,
       telegram_user_id: 123456789,
-      is_pro: false,
       pending_referral_code: null,
     })
 

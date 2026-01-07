@@ -112,12 +112,19 @@ export class PersonaPage {
   }
 
   /**
-   * Set Pro status in localStorage
+   * Set paid status in localStorage
    */
-  async setProStatus(isPro: boolean) {
-    await this.page.evaluate((pro) => {
-      localStorage.setItem('pinglass_is_pro', String(pro));
-    }, isPro);
+  async setPaidStatus(hasPaid: boolean) {
+    await this.page.evaluate((paid) => {
+      localStorage.setItem('pinglass_is_pro', String(paid));
+    }, hasPaid);
+  }
+
+  /**
+   * @deprecated Use setPaidStatus instead
+   */
+  async setProStatus(hasPaid: boolean) {
+    return this.setPaidStatus(hasPaid);
   }
 
   /**
@@ -325,7 +332,6 @@ export class PersonaPage {
         body: JSON.stringify({
           id: 1,
           deviceId: 'test-device-123',
-          isPro: false,
         }),
       });
     });
@@ -349,7 +355,7 @@ export class PersonaPage {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          isPro: true,
+          paid: true,
           status: 'succeeded',
         }),
       });

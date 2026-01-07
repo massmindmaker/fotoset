@@ -32,11 +32,11 @@ test.describe('Returning Pro User Journey', () => {
     // Should see dashboard
     await personaPage.verifyDashboardVisible();
 
-    // Verify Pro status maintained
-    const isPro = await page.evaluate(() =>
+    // Verify paid status maintained
+    const paidStatus = await page.evaluate(() =>
       localStorage.getItem('pinglass_is_pro')
     );
-    expect(isPro).toBe('true');
+    expect(paidStatus).toBe('true');
   });
 
   test('should display existing personas on dashboard', async ({ page }) => {
@@ -289,13 +289,13 @@ test.describe('Returning Pro User Journey', () => {
 
     await personaPage.goto();
 
-    // Should still be Pro
+    // Should still be paid user
     await personaPage.verifyDashboardVisible();
 
-    const isPro = await newPage.evaluate(() =>
+    const paidStatus = await newPage.evaluate(() =>
       localStorage.getItem('pinglass_is_pro')
     );
-    expect(isPro).toBe('true');
+    expect(paidStatus).toBe('true');
   });
 });
 
@@ -334,12 +334,12 @@ test.describe('Returning User - Edge Cases', () => {
     expect(consoleErrors).toHaveLength(0);
   });
 
-  test('should sync Pro status with backend', async ({ page }) => {
-    // Scenario: localStorage says Pro, but backend says non-Pro
-    await personaPage.setProStatus(true);
+  test('should sync payment status with backend', async ({ page }) => {
+    // Scenario: localStorage says paid, but backend says unpaid
+    await personaPage.setPaidStatus(true);
     await personaPage.setDeviceId('test-device-desync');
 
-    // Mock backend to return isPro: false
+    // Mock backend to return user data (payment status comes from /api/payment/status)
     await page.route('**/api/user', async (route) => {
       await route.fulfill({
         status: 200,
@@ -347,7 +347,6 @@ test.describe('Returning User - Edge Cases', () => {
         body: JSON.stringify({
           id: 1,
           deviceId: 'test-device-desync',
-          isPro: false, // Backend says non-Pro
         }),
       });
     });

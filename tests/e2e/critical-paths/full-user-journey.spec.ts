@@ -164,12 +164,12 @@ test.describe('Full User Journey - First Time User', () => {
     // FINAL VERIFICATION: User state
     await test.step('Verify final user state', async () => {
       const finalState = await page.evaluate(() => ({
-        isPro: localStorage.getItem('pinglass_is_pro'),
+        paidStatus: localStorage.getItem('pinglass_is_pro'),
         deviceId: localStorage.getItem('pinglass_device_id'),
         onboardingComplete: localStorage.getItem('pinglass_onboarding_complete'),
       }));
 
-      expect(finalState.isPro).toBe('true');
+      expect(finalState.paidStatus).toBe('true');
       expect(finalState.deviceId).toBeTruthy();
       expect(finalState.onboardingComplete).toBe('true');
     });

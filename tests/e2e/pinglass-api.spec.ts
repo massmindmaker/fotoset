@@ -24,7 +24,7 @@ test.describe('PinGlass API Endpoints', () => {
 
       expect(data).toHaveProperty('id');
       expect(data.deviceId).toBe(testDeviceId);
-      expect(data.isPro).toBe(false); // New user should not be Pro
+      // Note: User creation doesn't return payment status, only user data
     });
 
     test('should return existing user on duplicate device ID', async ({ request }) => {
@@ -128,9 +128,9 @@ test.describe('PinGlass API Endpoints', () => {
       expect(response.ok()).toBeTruthy();
       const data = await response.json();
 
-      expect(data).toHaveProperty('isPro');
+      expect(data).toHaveProperty('paid');
       expect(data).toHaveProperty('status');
-      expect(typeof data.isPro).toBe('boolean');
+      expect(typeof data.paid).toBe('boolean');
     });
 
     test('should require device_id parameter', async ({ request }) => {

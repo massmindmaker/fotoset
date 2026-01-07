@@ -122,24 +122,24 @@ test.describe('PinGlass User Flow', () => {
       // expect(popup.url()).toContain('payment');
     });
 
-    test('should update Pro status after successful payment', async () => {
+    test('should update paid status after successful payment', async () => {
       // Mock successful payment callback
-      await personaPage.setProStatus(true);
+      await personaPage.setPaidStatus(true);
       await personaPage.goto();
 
-      // Verify Pro status is persisted
-      const isPro = await personaPage.page.evaluate(() => {
+      // Verify paid status is persisted
+      const hasPaid = await personaPage.page.evaluate(() => {
         return localStorage.getItem('pinglass_is_pro') === 'true';
       });
 
-      expect(isPro).toBe(true);
+      expect(hasPaid).toBe(true);
     });
   });
 
   test.describe('Photo Generation Flow', () => {
-    test('should initiate generation for Pro user', async ({ page }) => {
-      // Setup: Pro user with uploaded photos
-      await personaPage.setProStatus(true);
+    test('should initiate generation for paid user', async ({ page }) => {
+      // Setup: Paid user with uploaded photos
+      await personaPage.setPaidStatus(true);
       await personaPage.setDeviceId('test-device-123');
       await personaPage.mockAPIResponses();
 

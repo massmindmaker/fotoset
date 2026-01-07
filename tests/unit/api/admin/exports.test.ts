@@ -102,7 +102,6 @@ describe('GET /api/admin/exports', () => {
           id: 1,
           telegram_user_id: '123456',
           created_at: new Date('2025-01-01'),
-          is_pro: true,
           avatars_count: 2,
           payments_count: 1,
           total_spent: 500,
@@ -134,7 +133,6 @@ describe('GET /api/admin/exports', () => {
         {
           id: 1,
           telegram_user_id: '123456',
-          is_pro: true,
         },
       ]
 

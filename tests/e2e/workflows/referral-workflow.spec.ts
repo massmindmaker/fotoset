@@ -34,7 +34,7 @@ function generateReferralCode(): string {
 async function setupUserSession(page: Page, options?: {
   deviceId?: string;
   telegramUserId?: number;
-  isProUser?: boolean;
+  hasPaid?: boolean;
 }): Promise<{ deviceId: string; telegramUserId?: number }> {
   await page.context().clearCookies();
   await page.goto(TEST_URL);
@@ -46,16 +46,17 @@ async function setupUserSession(page: Page, options?: {
   const deviceId = options?.deviceId || generateDeviceId();
   const telegramUserId = options?.telegramUserId;
 
-  await page.evaluate(({ id, tgId, isPro }) => {
+  await page.evaluate(({ id, tgId, hasPaid }) => {
     localStorage.setItem('pinglass_device_id', id);
     localStorage.setItem('pinglass_onboarding_complete', 'true');
     if (tgId) {
       localStorage.setItem('pinglass_telegram_user_id', String(tgId));
     }
-    if (isPro) {
-      // Note: Actual pro status comes from DB
+    if (hasPaid) {
+      // Note: Actual payment status comes from DB
+      localStorage.setItem('pinglass_is_pro', 'true');
     }
-  }, { id: deviceId, tgId: telegramUserId, isPro: options?.isProUser });
+  }, { id: deviceId, tgId: telegramUserId, hasPaid: options?.hasPaid });
 
   await page.reload();
   return { deviceId, telegramUserId };

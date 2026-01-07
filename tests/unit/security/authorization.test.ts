@@ -108,13 +108,11 @@ import { GET as listAvatars } from "@/app/api/avatars/route"
 const VICTIM_USER = {
   id: 1,
   telegramUserId: 111111111,
-  isPro: true,
 }
 
 const ATTACKER_USER = {
   id: 2,
   telegramUserId: 222222222,
-  isPro: false,
 }
 
 // Test data

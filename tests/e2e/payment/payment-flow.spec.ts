@@ -152,13 +152,13 @@ test.describe('Payment Flow - T-Bank Integration', () => {
       statusPollCount++;
 
       // Return pending for first 3 polls, then success
-      const isPro = statusPollCount > 3;
-      const status = isPro ? 'succeeded' : 'pending';
+      const paid = statusPollCount > 3;
+      const status = paid ? 'succeeded' : 'pending';
 
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ isPro, status }),
+        body: JSON.stringify({ paid, status }),
       });
     });
 
@@ -181,11 +181,11 @@ test.describe('Payment Flow - T-Bank Integration', () => {
     // Verify polling occurred multiple times
     expect(statusPollCount).toBeGreaterThan(1);
 
-    // Verify Pro status set
-    const isPro = await page.evaluate(() =>
+    // Verify paid status set in localStorage
+    const paidStatus = await page.evaluate(() =>
       localStorage.getItem('pinglass_is_pro')
     );
-    expect(isPro).toBe('true');
+    expect(paidStatus).toBe('true');
   });
 
   test('should handle payment cancellation', async ({ page }) => {
@@ -210,7 +210,7 @@ test.describe('Payment Flow - T-Bank Integration', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          isPro: false,
+          paid: false,
           status: 'canceled',
         }),
       });
@@ -229,11 +229,11 @@ test.describe('Payment Flow - T-Bank Integration', () => {
     // Wait for status check
     await page.waitForTimeout(3000);
 
-    // Verify Pro status NOT set
-    const isPro = await page.evaluate(() =>
+    // Verify paid status NOT set
+    const paidStatus = await page.evaluate(() =>
       localStorage.getItem('pinglass_is_pro')
     );
-    expect(isPro).not.toBe('true');
+    expect(paidStatus).not.toBe('true');
 
     // Verify modal still shows (can retry)
     await expect(personaPage.paymentModal).toBeVisible();
@@ -295,7 +295,7 @@ test.describe('Payment Flow - T-Bank Integration', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          isPro: true,
+          paid: true,
           status: 'succeeded',
         }),
       });
@@ -320,12 +320,12 @@ test.describe('Payment Flow - T-Bank Integration', () => {
     // Verify all expected localStorage keys
     const localStorageState = await page.evaluate(() => ({
       deviceId: localStorage.getItem('pinglass_device_id'),
-      isPro: localStorage.getItem('pinglass_is_pro'),
+      paidStatus: localStorage.getItem('pinglass_is_pro'),
       onboardingComplete: localStorage.getItem('pinglass_onboarding_complete'),
     }));
 
     expect(localStorageState.deviceId).toBe(deviceId);
-    expect(localStorageState.isPro).toBe('true');
+    expect(localStorageState.paidStatus).toBe('true');
   });
 
   test('should navigate to generation after successful payment', async ({ page }) => {
@@ -347,7 +347,7 @@ test.describe('Payment Flow - T-Bank Integration', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          isPro: true,
+          paid: true,
           status: 'succeeded',
         }),
       });
@@ -363,7 +363,7 @@ test.describe('Payment Flow - T-Bank Integration', () => {
 
     await personaPage.initiatePayment();
 
-    // Wait for Pro status
+    // Wait for paid status
     await page.waitForFunction(
       () => localStorage.getItem('pinglass_is_pro') === 'true',
       { timeout: 30000 }
@@ -431,7 +431,7 @@ test.describe('Payment Webhook Processing', () => {
       );
 
       const statusData = await statusResponse.json();
-      expect(statusData.isPro).toBe(true);
+      expect(statusData.paid).toBe(true);
     }
   });
 
@@ -501,7 +501,7 @@ test.describe('Payment Webhook Processing', () => {
     );
 
     const statusData = await statusResponse.json();
-    expect(statusData.isPro).toBe(true);
+    expect(statusData.paid).toBe(true);
   });
 });
 
@@ -602,9 +602,9 @@ test.describe('Payment Edge Cases', () => {
     // Pro status should remain false
     await page.waitForTimeout(2000);
 
-    const isPro = await page.evaluate(() =>
+    const paidStatus = await page.evaluate(() =>
       localStorage.getItem('pinglass_is_pro')
     );
-    expect(isPro).not.toBe('true');
+    expect(paidStatus).not.toBe('true');
   });
 });

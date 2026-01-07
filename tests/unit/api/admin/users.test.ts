@@ -5,7 +5,6 @@
  * - GET /api/admin/users - List users with pagination and search
  * - GET /api/admin/users/[userId] - User details
  * - POST /api/admin/users/[userId]/ban - Ban/unban user
- * - POST /api/admin/users/[userId]/pro - Grant/revoke Pro status
  */
 
 import { NextRequest } from "next/server"
@@ -73,7 +72,6 @@ jest.mock("@neondatabase/serverless", () => ({
 import { GET as getUsersList } from "@/app/api/admin/users/route"
 import { GET as getUserDetails } from "@/app/api/admin/users/[userId]/route"
 import { POST as banUser } from "@/app/api/admin/users/[userId]/ban/route"
-import { POST as grantPro } from "@/app/api/admin/users/[userId]/pro/route"
 
 // ============================================================================
 // HELPERS
@@ -108,7 +106,6 @@ const mockUsers = [
     avatars_count: "3",
     payments_count: "2",
     total_spent: "1998",
-    is_pro: true,
     ref_photos_total: "15",
     gen_photos_total: "69",
     tg_sent_count: "5",
@@ -125,7 +122,6 @@ const mockUsers = [
     avatars_count: "1",
     payments_count: "0",
     total_spent: "0",
-    is_pro: false,
     ref_photos_total: "5",
     gen_photos_total: "0",
     tg_sent_count: "0",
@@ -137,7 +133,6 @@ const mockUsers = [
 const mockUserDetails = {
   id: 1,
   telegram_user_id: "111111111",
-  is_pro: true,
   referral_code: "USER1CODE",
   referred_by: null,
   pending_referral_code: null,
@@ -271,7 +266,6 @@ describe("GET /api/admin/users", () => {
       expect(user.avatars_count).toBe("3")
       expect(user.payments_count).toBe("2")
       expect(user.total_spent).toBe("1998")
-      expect(user.is_pro).toBe(true)
     })
 
     it("should include photo counts", async () => {
@@ -347,7 +341,6 @@ describe("GET /api/admin/users/[userId]", () => {
       expect(response.status).toBe(200)
       expect(data.user.id).toBe(1)
       expect(data.user.telegram_user_id).toBe("111111111")
-      expect(data.user.is_pro).toBe(true)
     })
 
     it("should include avatars with photo counts", async () => {
@@ -723,228 +716,6 @@ describe("POST /api/admin/users/[userId]/ban", () => {
 
       expect(response.status).toBe(500)
       expect(data.error).toBe("Failed to update ban status")
-    })
-  })
-})
-
-// ============================================================================
-// TESTS: POST /api/admin/users/[userId]/pro
-// ============================================================================
-
-describe("POST /api/admin/users/[userId]/pro", () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
-    process.env.DATABASE_URL = "postgresql://test"
-  })
-
-  describe("Grant Pro Status", () => {
-    it("should grant Pro status successfully", async () => {
-      mockGetCurrentSession.mockResolvedValueOnce(mockAdminSession)
-      mockHasPermission.mockReturnValueOnce(true)
-      mockSql.mockResolvedValueOnce([{ id: 1, is_pro: false, telegram_user_id: "111111111" }])
-      mockSql.mockResolvedValueOnce([])
-      mockLogAdminAction.mockResolvedValueOnce(undefined)
-
-      const request = await createRequestWithBody("/api/admin/users/1/pro", {
-        isPro: true,
-        reason: "Manual admin grant",
-      })
-      const context = { params: Promise.resolve({ userId: "1" }) }
-      const response = await grantPro(request, context)
-      const data = await response.json()
-
-      expect(response.status).toBe(200)
-      expect(data.success).toBe(true)
-      expect(data.isPro).toBe(true)
-      expect(data.message).toBe("Pro status granted")
-    })
-
-    it("should include reason in metadata", async () => {
-      mockGetCurrentSession.mockResolvedValueOnce(mockAdminSession)
-      mockHasPermission.mockReturnValueOnce(true)
-      mockSql.mockResolvedValueOnce([{ id: 1, is_pro: false, telegram_user_id: "111111111" }])
-      mockSql.mockResolvedValueOnce([])
-      mockLogAdminAction.mockResolvedValueOnce(undefined)
-
-      const reason = "Promotional campaign winner"
-      const request = await createRequestWithBody("/api/admin/users/1/pro", {
-        isPro: true,
-        reason,
-      })
-      const context = { params: Promise.resolve({ userId: "1" }) }
-      await grantPro(request, context)
-
-      expect(mockLogAdminAction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            reason,
-          }),
-        })
-      )
-    })
-
-    it("should log audit action for grant", async () => {
-      mockGetCurrentSession.mockResolvedValueOnce(mockAdminSession)
-      mockHasPermission.mockReturnValueOnce(true)
-      mockSql.mockResolvedValueOnce([{ id: 1, is_pro: false, telegram_user_id: "111111111" }])
-      mockSql.mockResolvedValueOnce([])
-      mockLogAdminAction.mockResolvedValueOnce(undefined)
-
-      const request = await createRequestWithBody("/api/admin/users/1/pro", {
-        isPro: true,
-      })
-      const context = { params: Promise.resolve({ userId: "1" }) }
-      await grantPro(request, context)
-
-      expect(mockLogAdminAction).toHaveBeenCalledWith({
-        adminId: 1,
-        action: "user_granted_pro",
-        targetType: "user",
-        targetId: 1,
-        metadata: {
-          previousStatus: false,
-          newStatus: true,
-          reason: null,
-          telegramUserId: "111111111",
-        },
-      })
-    })
-  })
-
-  describe("Revoke Pro Status", () => {
-    it("should revoke Pro status successfully", async () => {
-      mockGetCurrentSession.mockResolvedValueOnce(mockAdminSession)
-      mockHasPermission.mockReturnValueOnce(true)
-      mockSql.mockResolvedValueOnce([{ id: 1, is_pro: true, telegram_user_id: "111111111" }])
-      mockSql.mockResolvedValueOnce([])
-      mockLogAdminAction.mockResolvedValueOnce(undefined)
-
-      const request = await createRequestWithBody("/api/admin/users/1/pro", {
-        isPro: false,
-      })
-      const context = { params: Promise.resolve({ userId: "1" }) }
-      const response = await grantPro(request, context)
-      const data = await response.json()
-
-      expect(response.status).toBe(200)
-      expect(data.success).toBe(true)
-      expect(data.isPro).toBe(false)
-      expect(data.message).toBe("Pro status revoked")
-    })
-
-    it("should log audit action for revoke", async () => {
-      mockGetCurrentSession.mockResolvedValueOnce(mockAdminSession)
-      mockHasPermission.mockReturnValueOnce(true)
-      mockSql.mockResolvedValueOnce([{ id: 1, is_pro: true, telegram_user_id: "111111111" }])
-      mockSql.mockResolvedValueOnce([])
-      mockLogAdminAction.mockResolvedValueOnce(undefined)
-
-      const request = await createRequestWithBody("/api/admin/users/1/pro", {
-        isPro: false,
-      })
-      const context = { params: Promise.resolve({ userId: "1" }) }
-      await grantPro(request, context)
-
-      expect(mockLogAdminAction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: "user_revoked_pro",
-        })
-      )
-    })
-  })
-
-  describe("Authorization", () => {
-    it("should return 401 without session", async () => {
-      mockGetCurrentSession.mockResolvedValueOnce(null)
-
-      const request = await createRequestWithBody("/api/admin/users/1/pro", {
-        isPro: true,
-      })
-      const context = { params: Promise.resolve({ userId: "1" }) }
-      const response = await grantPro(request, context)
-      const data = await response.json()
-
-      expect(response.status).toBe(401)
-      expect(data.error).toBe("Unauthorized")
-    })
-
-    it("should return 403 without users.grant_pro permission", async () => {
-      mockGetCurrentSession.mockResolvedValueOnce(mockAdminSession)
-      mockHasPermission.mockReturnValueOnce(false)
-
-      const request = await createRequestWithBody("/api/admin/users/1/pro", {
-        isPro: true,
-      })
-      const context = { params: Promise.resolve({ userId: "1" }) }
-      const response = await grantPro(request, context)
-      const data = await response.json()
-
-      expect(response.status).toBe(403)
-      expect(data.error).toBe("Forbidden")
-    })
-  })
-
-  describe("Validation", () => {
-    it("should return 400 for invalid user ID", async () => {
-      mockGetCurrentSession.mockResolvedValueOnce(mockAdminSession)
-      mockHasPermission.mockReturnValueOnce(true)
-
-      const request = await createRequestWithBody("/api/admin/users/invalid/pro", {
-        isPro: true,
-      })
-      const context = { params: Promise.resolve({ userId: "invalid" }) }
-      const response = await grantPro(request, context)
-      const data = await response.json()
-
-      expect(response.status).toBe(400)
-      expect(data.error).toBe("Invalid user ID")
-    })
-
-    it("should return 400 for missing isPro", async () => {
-      mockGetCurrentSession.mockResolvedValueOnce(mockAdminSession)
-      mockHasPermission.mockReturnValueOnce(true)
-
-      const request = await createRequestWithBody("/api/admin/users/1/pro", {})
-      const context = { params: Promise.resolve({ userId: "1" }) }
-      const response = await grantPro(request, context)
-      const data = await response.json()
-
-      expect(response.status).toBe(400)
-      expect(data.error).toBe("isPro is required (boolean)")
-    })
-
-    it("should return 404 for non-existent user", async () => {
-      mockGetCurrentSession.mockResolvedValueOnce(mockAdminSession)
-      mockHasPermission.mockReturnValueOnce(true)
-      mockSql.mockResolvedValueOnce([])
-
-      const request = await createRequestWithBody("/api/admin/users/999/pro", {
-        isPro: true,
-      })
-      const context = { params: Promise.resolve({ userId: "999" }) }
-      const response = await grantPro(request, context)
-      const data = await response.json()
-
-      expect(response.status).toBe(404)
-      expect(data.error).toBe("User not found")
-    })
-  })
-
-  describe("Error Handling", () => {
-    it("should return 500 on database error", async () => {
-      mockGetCurrentSession.mockResolvedValueOnce(mockAdminSession)
-      mockHasPermission.mockReturnValueOnce(true)
-      mockSql.mockRejectedValueOnce(new Error("Connection lost"))
-
-      const request = await createRequestWithBody("/api/admin/users/1/pro", {
-        isPro: true,
-      })
-      const context = { params: Promise.resolve({ userId: "1" }) }
-      const response = await grantPro(request, context)
-      const data = await response.json()
-
-      expect(response.status).toBe(500)
-      expect(data.error).toBe("Failed to update pro status")
     })
   })
 })
