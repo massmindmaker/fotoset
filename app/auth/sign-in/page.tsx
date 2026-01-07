@@ -5,9 +5,9 @@
  *
  * Provides web authentication via:
  * - Google OAuth
- * - Email magic link
+ * - Email/Password
  *
- * Falls back to Telegram Mini App recommendation if Stack Auth unavailable.
+ * Uses Neon Auth (Better Auth) for authentication.
  */
 
 import { Suspense, useEffect, useState } from 'react';
@@ -17,42 +17,36 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { stackClientApp } from '@/lib/neon-auth';
+import { authClient, useSession } from '@/lib/auth/client';
 
 function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, isPending } = useSession();
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const redirectTo = searchParams.get('redirect') || '/dashboard';
 
-  // Check if already signed in
+  // Redirect if already signed in
   useEffect(() => {
-    if (stackClientApp) {
-      stackClientApp.getUser().then((user) => {
-        if (user) {
-          router.push(redirectTo);
-        }
-      });
+    if (session?.user && !isPending) {
+      router.push(redirectTo);
     }
-  }, [router, redirectTo]);
+  }, [session, isPending, router, redirectTo]);
 
   // Handle Google sign in
   const handleGoogleSignIn = async () => {
-    if (!stackClientApp) {
-      setError('Авторизация временно недоступна. Используйте Telegram Mini App.');
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
 
     try {
-      await stackClientApp.signInWithOAuth('google');
-      // Redirect happens automatically
+      await authClient.signIn.social({
+        provider: 'google',
+        callbackURL: redirectTo,
+      });
     } catch (err) {
       console.error('Google sign in error:', err);
       setError('Ошибка входа через Google. Попробуйте ещё раз.');
@@ -60,17 +54,12 @@ function SignInContent() {
     }
   };
 
-  // Handle email magic link
+  // Handle email/password sign in
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!stackClientApp) {
-      setError('Авторизация временно недоступна. Используйте Telegram Mini App.');
-      return;
-    }
-
-    if (!email) {
-      setError('Введите email');
+    if (!email || !password) {
+      setError('Введите email и пароль');
       return;
     }
 
@@ -78,74 +67,33 @@ function SignInContent() {
     setError(null);
 
     try {
-      await stackClientApp.signInWithMagicLink(email);
-      setEmailSent(true);
+      const result = await authClient.signIn.email({
+        email,
+        password,
+        callbackURL: redirectTo,
+      });
+
+      if (result.error) {
+        setError(result.error.message || 'Неверный email или пароль');
+        setIsLoading(false);
+      }
     } catch (err) {
       console.error('Email sign in error:', err);
-      setError('Ошибка отправки ссылки. Проверьте email и попробуйте снова.');
-    } finally {
+      setError('Ошибка входа. Проверьте данные и попробуйте снова.');
       setIsLoading(false);
     }
   };
 
-  // Stack Auth not configured - show Telegram fallback
-  if (!stackClientApp) {
+  // Show loading while checking session
+  if (isPending) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Вход в PinGlass</CardTitle>
-            <CardDescription>
-              Веб-версия временно недоступна
-            </CardDescription>
+            <CardTitle className="text-2xl">Загрузка...</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-center text-muted-foreground">
-              Пока что вы можете использовать PinGlass через Telegram Mini App
-            </p>
-            <Button asChild className="w-full">
-              <a
-                href="https://t.me/PinGlassBot"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Открыть в Telegram
-              </a>
-            </Button>
-            <div className="text-center text-sm text-muted-foreground">
-              <Link href="/" className="hover:underline">
-                ← Вернуться на главную
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Email sent - show confirmation
-  if (emailSent) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Проверьте почту</CardTitle>
-            <CardDescription>
-              Мы отправили ссылку для входа на {email}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-center text-muted-foreground">
-              Нажмите на ссылку в письме, чтобы войти в аккаунт.
-              Ссылка действительна 15 минут.
-            </p>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => setEmailSent(false)}
-            >
-              Отправить ещё раз
-            </Button>
+          <CardContent className="flex justify-center py-8">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           </CardContent>
         </Card>
       </div>
@@ -201,7 +149,7 @@ function SignInContent() {
             </div>
           </div>
 
-          {/* Email magic link */}
+          {/* Email/Password */}
           <form onSubmit={handleEmailSignIn} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -215,8 +163,20 @@ function SignInContent() {
                 required
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Пароль</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                required
+              />
+            </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Отправка...' : 'Войти по email'}
+              {isLoading ? 'Вход...' : 'Войти'}
             </Button>
           </form>
 
@@ -242,25 +202,20 @@ function SignInContent() {
   );
 }
 
-// Loading fallback for Suspense
-function SignInLoading() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Загрузка...</CardTitle>
-        </CardHeader>
-        <CardContent className="flex justify-center py-8">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 export default function SignInPage() {
   return (
-    <Suspense fallback={<SignInLoading />}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Загрузка...</CardTitle>
+          </CardHeader>
+          <CardContent className="flex justify-center py-8">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          </CardContent>
+        </Card>
+      </div>
+    }>
       <SignInContent />
     </Suspense>
   );

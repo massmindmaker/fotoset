@@ -1,87 +1,32 @@
 /**
- * Neon Auth (Stack Auth) Configuration
+ * Neon Auth (Better Auth) Configuration
  *
- * Provides authentication for web users via Google OAuth and Email magic links.
+ * Provides authentication for web users via Google OAuth and Email.
  * Works alongside existing Telegram Mini App authentication.
  *
- * @see https://docs.stack-auth.com/
+ * @see https://neon.tech/docs/guides/neon-auth
  */
 
-import { StackServerApp, StackClientApp } from '@stackframe/stack';
+// Re-export from new auth modules
+export { authClient, useSession, signIn, signOut, signUp } from './auth/client';
+export { authServer, getAuthUser, getAuthUserId, isAuthenticated, getAuthUserInfo } from './auth/server';
+export type { NeonAuthUser } from './auth/server';
 
 // Environment validation
-const STACK_PROJECT_ID = process.env.NEXT_PUBLIC_STACK_PROJECT_ID;
-const STACK_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_KEY;
-const STACK_SECRET_KEY = process.env.STACK_SECRET_SERVER_KEY;
+const NEON_AUTH_BASE_URL = process.env.NEON_AUTH_BASE_URL;
 
-// Check if Stack Auth is configured
-export const isStackAuthConfigured = Boolean(
-  STACK_PROJECT_ID && STACK_PUBLISHABLE_KEY && STACK_SECRET_KEY
-);
+// Check if Neon Auth is configured
+export const isNeonAuthConfigured = Boolean(NEON_AUTH_BASE_URL);
 
-/**
- * Stack Auth Server App
- * Use this in API routes and server components
- */
-export const stackServerApp = isStackAuthConfigured
-  ? new StackServerApp({
-      tokenStore: 'nextjs-cookie',
-      urls: {
-        home: '/',
-        signIn: '/auth/sign-in',
-        signUp: '/auth/sign-up',
-        afterSignIn: '/dashboard',
-        afterSignUp: '/dashboard',
-        afterSignOut: '/',
-      },
-    })
-  : null;
+// Legacy exports for backward compatibility with auth-middleware.ts
+export const isStackAuthConfigured = isNeonAuthConfigured;
+
+// Legacy stackServerApp/stackClientApp replaced by authServer/authClient
+export const stackServerApp = null; // Deprecated - use authServer
+export const stackClientApp = null; // Deprecated - use authClient
 
 /**
- * Stack Auth Client App
- * Use this in client components
- */
-export const stackClientApp = isStackAuthConfigured
-  ? new StackClientApp({
-      tokenStore: 'nextjs-cookie',
-      urls: {
-        home: '/',
-        signIn: '/auth/sign-in',
-        signUp: '/auth/sign-up',
-        afterSignIn: '/dashboard',
-        afterSignUp: '/dashboard',
-        afterSignOut: '/',
-      },
-    })
-  : null;
-
-/**
- * Get current Stack Auth user (server-side)
- * Returns null if not authenticated or Stack Auth not configured
- */
-export async function getStackUser() {
-  if (!stackServerApp) return null;
-
-  try {
-    const user = await stackServerApp.getUser();
-    return user;
-  } catch (error) {
-    console.error('[Neon Auth] Error getting user:', error);
-    return null;
-  }
-}
-
-/**
- * Get Stack Auth user ID from current session
- * Returns the Stack Auth user ID or null
- */
-export async function getStackUserId(): Promise<string | null> {
-  const user = await getStackUser();
-  return user?.id ?? null;
-}
-
-/**
- * Extract user info from Stack Auth user object
+ * Legacy function - use getAuthUserInfo instead
  */
 export interface StackUserInfo {
   id: string;
@@ -92,53 +37,30 @@ export interface StackUserInfo {
   provider: 'google' | 'email' | 'github' | null;
 }
 
+/**
+ * Get Stack Auth user info (legacy compatibility)
+ * Use getAuthUserInfo from './auth/server' for new code
+ */
 export async function getStackUserInfo(): Promise<StackUserInfo | null> {
-  const user = await getStackUser();
+  const { getAuthUserInfo } = await import('./auth/server');
+  const user = await getAuthUserInfo();
+
   if (!user) return null;
-
-  // Determine primary auth provider from available user data
-  // Stack Auth doesn't expose connectedAccounts directly on CurrentServerUser
-  // We infer provider from email domain or fallback to 'email'
-  let provider: StackUserInfo['provider'] = null;
-
-  const email = user.primaryEmail;
-  if (email) {
-    // If user has email, assume email-based auth
-    // OAuth providers (Google/GitHub) also provide email
-    provider = 'email';
-  }
 
   return {
     id: user.id,
-    email: email ?? null,
-    emailVerified: user.primaryEmailVerified ?? false,
-    name: user.displayName ?? null,
-    avatarUrl: user.profileImageUrl ?? null,
-    provider,
+    email: user.email,
+    emailVerified: user.emailVerified,
+    name: user.name,
+    avatarUrl: user.image,
+    provider: user.email ? 'email' : null, // Better Auth doesn't expose provider directly
   };
 }
 
 /**
- * Check if user is authenticated via Stack Auth
+ * Legacy getStackUser function
  */
-export async function isStackAuthenticated(): Promise<boolean> {
-  if (!stackServerApp) return false;
-  const user = await getStackUser();
-  return user !== null;
+export async function getStackUser() {
+  const { getAuthUser } = await import('./auth/server');
+  return getAuthUser();
 }
-
-/**
- * Sign out from Stack Auth (server-side)
- */
-export async function signOutStack() {
-  if (!stackServerApp) return;
-
-  try {
-    await stackServerApp.signOut();
-  } catch (error) {
-    console.error('[Neon Auth] Error signing out:', error);
-  }
-}
-
-// Type exports for use in other files
-export type { StackServerApp, StackClientApp };

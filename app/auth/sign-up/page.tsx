@@ -5,10 +5,9 @@
  *
  * Registration via:
  * - Google OAuth
- * - Email magic link
+ * - Email/Password
  *
- * Note: Sign up and sign in use the same methods in Stack Auth.
- * This page is mainly for UX clarity.
+ * Uses Neon Auth (Better Auth) for authentication.
  */
 
 import { Suspense, useEffect, useState } from 'react';
@@ -18,32 +17,29 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { stackClientApp } from '@/lib/neon-auth';
+import { authClient, useSession } from '@/lib/auth/client';
 
 function SignUpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, isPending } = useSession();
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const redirectTo = searchParams.get('redirect') || '/dashboard';
   const referralCode = searchParams.get('ref');
 
-  // Check if already signed in
+  // Redirect if already signed in
   useEffect(() => {
-    if (stackClientApp) {
-      stackClientApp.getUser().then((user) => {
-        if (user) {
-          router.push(redirectTo);
-        }
-      });
+    if (session?.user && !isPending) {
+      router.push(redirectTo);
     }
-  }, [router, redirectTo]);
+  }, [session, isPending, router, redirectTo]);
 
   // Store referral code in localStorage for post-signup processing
-  // Validate format: 6-10 alphanumeric characters
   useEffect(() => {
     if (referralCode) {
       const sanitized = referralCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -55,17 +51,14 @@ function SignUpContent() {
 
   // Handle Google sign up
   const handleGoogleSignUp = async () => {
-    if (!stackClientApp) {
-      setError('Регистрация временно недоступна. Используйте Telegram Mini App.');
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
 
     try {
-      await stackClientApp.signInWithOAuth('google');
-      // Redirect happens automatically
+      await authClient.signIn.social({
+        provider: 'google',
+        callbackURL: redirectTo,
+      });
     } catch (err) {
       console.error('Google sign up error:', err);
       setError('Ошибка регистрации через Google. Попробуйте ещё раз.');
@@ -73,17 +66,17 @@ function SignUpContent() {
     }
   };
 
-  // Handle email magic link
+  // Handle email/password sign up
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!stackClientApp) {
-      setError('Регистрация временно недоступна. Используйте Telegram Mini App.');
+    if (!email || !password) {
+      setError('Введите email и пароль');
       return;
     }
 
-    if (!email) {
-      setError('Введите email');
+    if (password.length < 8) {
+      setError('Пароль должен быть не менее 8 символов');
       return;
     }
 
@@ -91,74 +84,34 @@ function SignUpContent() {
     setError(null);
 
     try {
-      await stackClientApp.signInWithMagicLink(email);
-      setEmailSent(true);
+      const result = await authClient.signUp.email({
+        email,
+        password,
+        name: name || '',
+        callbackURL: redirectTo,
+      });
+
+      if (result.error) {
+        setError(result.error.message || 'Ошибка регистрации');
+        setIsLoading(false);
+      }
     } catch (err) {
       console.error('Email sign up error:', err);
-      setError('Ошибка отправки ссылки. Проверьте email и попробуйте снова.');
-    } finally {
+      setError('Ошибка регистрации. Попробуйте снова.');
       setIsLoading(false);
     }
   };
 
-  // Stack Auth not configured - show Telegram fallback
-  if (!stackClientApp) {
+  // Show loading while checking session
+  if (isPending) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Регистрация в PinGlass</CardTitle>
-            <CardDescription>
-              Веб-версия временно недоступна
-            </CardDescription>
+            <CardTitle className="text-2xl">Загрузка...</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-center text-muted-foreground">
-              Пока что вы можете использовать PinGlass через Telegram Mini App
-            </p>
-            <Button asChild className="w-full">
-              <a
-                href={`https://t.me/PinGlassBot${referralCode ? `?start=ref_${referralCode}` : ''}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Открыть в Telegram
-              </a>
-            </Button>
-            <div className="text-center text-sm text-muted-foreground">
-              <Link href="/" className="hover:underline">
-                ← Вернуться на главную
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Email sent - show confirmation
-  if (emailSent) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Проверьте почту</CardTitle>
-            <CardDescription>
-              Мы отправили ссылку для входа на {email}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-center text-muted-foreground">
-              Нажмите на ссылку в письме, чтобы завершить регистрацию.
-              Ссылка действительна 15 минут.
-            </p>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => setEmailSent(false)}
-            >
-              Отправить ещё раз
-            </Button>
+          <CardContent className="flex justify-center py-8">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           </CardContent>
         </Card>
       </div>
@@ -221,8 +174,19 @@ function SignUpContent() {
             </div>
           </div>
 
-          {/* Email magic link */}
+          {/* Email/Password */}
           <form onSubmit={handleEmailSignUp} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Имя (необязательно)</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Ваше имя"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -235,8 +199,21 @@ function SignUpContent() {
                 required
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Пароль</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Минимум 8 символов"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                required
+                minLength={8}
+              />
+            </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Отправка...' : 'Зарегистрироваться'}
+              {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
             </Button>
           </form>
 
@@ -273,25 +250,20 @@ function SignUpContent() {
   );
 }
 
-// Loading fallback for Suspense
-function SignUpLoading() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Загрузка...</CardTitle>
-        </CardHeader>
-        <CardContent className="flex justify-center py-8">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 export default function SignUpPage() {
   return (
-    <Suspense fallback={<SignUpLoading />}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Загрузка...</CardTitle>
+          </CardHeader>
+          <CardContent className="flex justify-center py-8">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          </CardContent>
+        </Card>
+      </div>
+    }>
       <SignUpContent />
     </Suspense>
   );
