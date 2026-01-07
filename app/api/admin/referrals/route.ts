@@ -1,6 +1,7 @@
 /**
  * GET /api/admin/referrals
  * Get referral system stats and top referrers
+ * Optimized: parallel queries instead of sequential
  */
 
 import { NextResponse } from 'next/server'
@@ -22,78 +23,82 @@ export async function GET() {
 
     const sql = getSql()
 
-    // Get overall stats (multi-currency)
-    const [statsResult] = await sql`
-      SELECT
-        (SELECT COUNT(*) FROM referral_codes WHERE is_active = true)::int as total_codes,
-        (SELECT COUNT(*) FROM referrals)::int as total_referrals,
-        (SELECT COALESCE(SUM(amount), 0) FROM referral_earnings WHERE status = 'confirmed')::numeric as total_earnings,
-        (SELECT COALESCE(SUM(balance), 0) FROM referral_balances)::numeric as pending_balance,
-        (SELECT COALESCE(SUM(total_withdrawn), 0) FROM referral_balances)::numeric as total_withdrawn,
-        (SELECT COUNT(*) FROM referral_withdrawals WHERE status = 'pending')::int as pending_withdrawals,
-        -- Multi-currency fields
-        (SELECT COALESCE(SUM(earned_rub), 0) FROM referral_balances)::numeric as earned_rub,
-        (SELECT COALESCE(SUM(earned_ton), 0) FROM referral_balances)::numeric as earned_ton,
-        (SELECT COALESCE(SUM(balance_rub), 0) FROM referral_balances)::numeric as balance_rub,
-        (SELECT COALESCE(SUM(balance_ton), 0) FROM referral_balances)::numeric as balance_ton,
-        (SELECT COALESCE(SUM(withdrawn_rub), 0) FROM referral_balances)::numeric as withdrawn_rub,
-        (SELECT COALESCE(SUM(withdrawn_ton), 0) FROM referral_balances)::numeric as withdrawn_ton
-    `
+    // Run all queries in parallel
+    const [statsResult, funnelResult, topReferrers, recentEarnings] = await Promise.all([
+      // Stats query
+      sql`
+        SELECT
+          (SELECT COUNT(*) FROM referral_codes WHERE is_active = true)::int as total_codes,
+          (SELECT COUNT(*) FROM referrals)::int as total_referrals,
+          (SELECT COALESCE(SUM(amount), 0) FROM referral_earnings WHERE status = 'confirmed')::numeric as total_earnings,
+          (SELECT COALESCE(SUM(balance), 0) FROM referral_balances)::numeric as pending_balance,
+          (SELECT COALESCE(SUM(total_withdrawn), 0) FROM referral_balances)::numeric as total_withdrawn,
+          (SELECT COUNT(*) FROM referral_withdrawals WHERE status = 'pending')::int as pending_withdrawals,
+          (SELECT COALESCE(SUM(earned_rub), 0) FROM referral_balances)::numeric as earned_rub,
+          (SELECT COALESCE(SUM(earned_ton), 0) FROM referral_balances)::numeric as earned_ton,
+          (SELECT COALESCE(SUM(balance_rub), 0) FROM referral_balances)::numeric as balance_rub,
+          (SELECT COALESCE(SUM(balance_ton), 0) FROM referral_balances)::numeric as balance_ton,
+          (SELECT COALESCE(SUM(withdrawn_rub), 0) FROM referral_balances)::numeric as withdrawn_rub,
+          (SELECT COALESCE(SUM(withdrawn_ton), 0) FROM referral_balances)::numeric as withdrawn_ton
+      `.then(r => r[0]),
 
-    // Get funnel stats (clicked -> registered -> paid)
-    const [funnelResult] = await sql`
-      SELECT
-        (SELECT COUNT(DISTINCT referred_id) FROM referrals)::int as registered,
-        (
-          SELECT COUNT(DISTINCT r.referred_id)
+      // Funnel query
+      sql`
+        SELECT
+          (SELECT COUNT(DISTINCT referred_id) FROM referrals)::int as registered,
+          (
+            SELECT COUNT(DISTINCT r.referred_id)
+            FROM referrals r
+            WHERE EXISTS (SELECT 1 FROM payments p WHERE p.user_id = r.referred_id AND p.status = 'succeeded')
+          )::int as paid
+      `.then(r => r[0]),
+
+      // Top referrers with precomputed conversions
+      sql`
+        WITH conversions AS (
+          SELECT r.referrer_id, COUNT(DISTINCT r.referred_id)::int as cnt
           FROM referrals r
-          JOIN payments p ON p.user_id = r.referred_id AND p.status = 'succeeded'
-        )::int as paid
-    `
+          WHERE EXISTS (SELECT 1 FROM payments p WHERE p.user_id = r.referred_id AND p.status = 'succeeded')
+          GROUP BY r.referrer_id
+        )
+        SELECT
+          rb.user_id,
+          u.telegram_user_id,
+          rb.referrals_count,
+          rb.balance,
+          rb.total_earned,
+          rb.total_withdrawn,
+          rc.code as referral_code,
+          COALESCE(c.cnt, 0)::int as conversions
+        FROM referral_balances rb
+        JOIN users u ON u.id = rb.user_id
+        LEFT JOIN referral_codes rc ON rc.user_id = rb.user_id AND rc.is_active = true
+        LEFT JOIN conversions c ON c.referrer_id = rb.user_id
+        WHERE rb.referrals_count > 0 OR rb.total_earned > 0
+        ORDER BY rb.total_earned DESC
+        LIMIT 20
+      `,
 
-    // Get top referrers
-    const topReferrers = await sql`
-      SELECT
-        rb.user_id,
-        u.telegram_user_id,
-        rb.referrals_count,
-        rb.balance,
-        rb.total_earned,
-        rb.total_withdrawn,
-        rc.code as referral_code,
-        (
-          SELECT COUNT(*)
-          FROM referrals r
-          JOIN payments p ON p.user_id = r.referred_id AND p.status = 'succeeded'
-          WHERE r.referrer_id = rb.user_id
-        )::int as conversions
-      FROM referral_balances rb
-      JOIN users u ON u.id = rb.user_id
-      LEFT JOIN referral_codes rc ON rc.user_id = rb.user_id AND rc.is_active = true
-      WHERE rb.referrals_count > 0 OR rb.total_earned > 0
-      ORDER BY rb.total_earned DESC
-      LIMIT 20
-    `
-
-    // Get recent referral earnings
-    const recentEarnings = await sql`
-      SELECT
-        re.id,
-        re.referrer_id,
-        ru.telegram_user_id as referrer_telegram_id,
-        re.referred_id,
-        ru2.telegram_user_id as referred_telegram_id,
-        re.amount,
-        re.status,
-        re.created_at,
-        p.tbank_payment_id
-      FROM referral_earnings re
-      JOIN users ru ON ru.id = re.referrer_id
-      JOIN users ru2 ON ru2.id = re.referred_id
-      LEFT JOIN payments p ON p.id = re.payment_id
-      ORDER BY re.created_at DESC
-      LIMIT 20
-    `
+      // Recent earnings
+      sql`
+        SELECT
+          re.id,
+          re.referrer_id,
+          ru.telegram_user_id as referrer_telegram_id,
+          re.referred_id,
+          ru2.telegram_user_id as referred_telegram_id,
+          re.amount,
+          re.status,
+          re.created_at,
+          p.tbank_payment_id
+        FROM referral_earnings re
+        JOIN users ru ON ru.id = re.referrer_id
+        JOIN users ru2 ON ru2.id = re.referred_id
+        LEFT JOIN payments p ON p.id = re.payment_id
+        ORDER BY re.created_at DESC
+        LIMIT 20
+      `
+    ])
 
     return NextResponse.json({
       stats: {
@@ -103,7 +108,6 @@ export async function GET() {
         pending_balance: parseFloat(String(statsResult?.pending_balance || 0)),
         total_withdrawn: parseFloat(String(statsResult?.total_withdrawn || 0)),
         pending_withdrawals: parseInt(String(statsResult?.pending_withdrawals || 0), 10),
-        // Multi-currency
         earned_rub: parseFloat(String(statsResult?.earned_rub || 0)),
         earned_ton: parseFloat(String(statsResult?.earned_ton || 0)),
         balance_rub: parseFloat(String(statsResult?.balance_rub || 0)),

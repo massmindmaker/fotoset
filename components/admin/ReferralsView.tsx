@@ -12,12 +12,15 @@ import {
   XCircle,
   AlertCircle,
   ArrowRight,
-  Wallet,
   CreditCard,
   ChevronLeft,
   ChevronRight,
   Star,
-  Coins
+  Coins,
+  Phone,
+  Key,
+  LogOut,
+  Settings
 } from 'lucide-react'
 import type { ReferralStats, TopReferrer, ReferralEarning, WithdrawalRequest } from '@/lib/admin/types'
 
@@ -25,9 +28,27 @@ import type { ReferralStats, TopReferrer, ReferralEarning, WithdrawalRequest } f
  * ReferralsView Component
  *
  * Referral system dashboard with stats, top referrers, and withdrawal management
+ * Now includes Telegram Affiliate Program (Stars) configuration via MTProto
  */
 
-type Tab = 'overview' | 'referrers' | 'withdrawals'
+type Tab = 'overview' | 'referrers' | 'withdrawals' | 'telegram-affiliate'
+
+interface MTProtoStatus {
+  configured: boolean
+  authenticated: boolean
+  user?: {
+    id: string
+    firstName: string
+    lastName?: string
+    username?: string
+  }
+}
+
+interface AffiliateSettings {
+  commissionPermille: number
+  durationMonths: number
+  isActive: boolean
+}
 
 export function ReferralsView() {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
@@ -41,6 +62,17 @@ export function ReferralsView() {
 
   // Withdrawal action state
   const [processingId, setProcessingId] = useState<number | null>(null)
+
+  // MTProto/Affiliate state
+  const [mtprotoStatus, setMtprotoStatus] = useState<MTProtoStatus | null>(null)
+  const [affiliateSettings, setAffiliateSettings] = useState<AffiliateSettings | null>(null)
+  const [phoneNumber, setPhoneNumber] = useState('')
+  const [verificationCode, setVerificationCode] = useState('')
+  const [password2FA, setPassword2FA] = useState('')
+  const [authStep, setAuthStep] = useState<'phone' | 'code' | '2fa' | 'done'>('phone')
+  const [isAuthLoading, setIsAuthLoading] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [newCommission, setNewCommission] = useState(100) // 10% default
 
   const fetchStats = useCallback(async () => {
     setIsLoading(true)
@@ -74,6 +106,34 @@ export function ReferralsView() {
     }
   }, [])
 
+  const fetchMTProtoStatus = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/telegram/mtproto')
+      if (!response.ok) return
+      const data = await response.json()
+      setMtprotoStatus(data)
+      if (data.authenticated) {
+        setAuthStep('done')
+      }
+    } catch {
+      // Ignore - MTProto not configured
+    }
+  }, [])
+
+  const fetchAffiliateSettings = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/telegram/affiliate')
+      if (!response.ok) return
+      const data = await response.json()
+      setAffiliateSettings(data.settings)
+      if (data.settings?.commissionPermille) {
+        setNewCommission(data.settings.commissionPermille)
+      }
+    } catch {
+      // Ignore
+    }
+  }, [])
+
   useEffect(() => {
     fetchStats()
   }, [fetchStats])
@@ -82,7 +142,11 @@ export function ReferralsView() {
     if (activeTab === 'withdrawals') {
       fetchWithdrawals()
     }
-  }, [activeTab, fetchWithdrawals])
+    if (activeTab === 'telegram-affiliate') {
+      fetchMTProtoStatus()
+      fetchAffiliateSettings()
+    }
+  }, [activeTab, fetchWithdrawals, fetchMTProtoStatus, fetchAffiliateSettings])
 
   const handleWithdrawalAction = async (id: number, action: 'approve' | 'reject') => {
     if (!confirm(`Вы уверены, что хотите ${action === 'approve' ? 'одобрить' : 'отклонить'} этот запрос?`)) return
@@ -106,6 +170,141 @@ export function ReferralsView() {
       setError(err instanceof Error ? err.message : 'Action failed')
     } finally {
       setProcessingId(null)
+    }
+  }
+
+  // MTProto Auth handlers
+  const handleStartAuth = async () => {
+    if (!phoneNumber) {
+      setAuthError('Введите номер телефона')
+      return
+    }
+
+    setIsAuthLoading(true)
+    setAuthError(null)
+
+    try {
+      const response = await fetch('/api/admin/telegram/mtproto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start', phoneNumber })
+      })
+
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to start auth')
+
+      if (data.requiresCode) {
+        setAuthStep('code')
+      }
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Ошибка')
+    } finally {
+      setIsAuthLoading(false)
+    }
+  }
+
+  const handleVerifyCode = async () => {
+    if (!verificationCode) {
+      setAuthError('Введите код')
+      return
+    }
+
+    setIsAuthLoading(true)
+    setAuthError(null)
+
+    try {
+      const response = await fetch('/api/admin/telegram/mtproto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify', code: verificationCode })
+      })
+
+      const data = await response.json()
+
+      // Check for 2FA requirement (API returns requires2FA: true)
+      if (data.requires2FA) {
+        setAuthStep('2fa')
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to verify')
+      }
+
+      setAuthStep('done')
+      await fetchMTProtoStatus()
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Ошибка')
+    } finally {
+      setIsAuthLoading(false)
+    }
+  }
+
+  const handleVerify2FA = async () => {
+    if (!password2FA) {
+      setAuthError('Введите пароль 2FA')
+      return
+    }
+
+    setIsAuthLoading(true)
+    setAuthError(null)
+
+    try {
+      const response = await fetch('/api/admin/telegram/mtproto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: '2fa', password: password2FA })
+      })
+
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to verify 2FA')
+
+      setAuthStep('done')
+      fetchMTProtoStatus()
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Ошибка')
+    } finally {
+      setIsAuthLoading(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    if (!confirm('Выйти из Telegram аккаунта?')) return
+
+    setIsAuthLoading(true)
+    try {
+      await fetch('/api/admin/telegram/mtproto', { method: 'DELETE' })
+      setMtprotoStatus(null)
+      setAuthStep('phone')
+      setPhoneNumber('')
+      setVerificationCode('')
+      setPassword2FA('')
+    } catch {
+      // Ignore
+    } finally {
+      setIsAuthLoading(false)
+    }
+  }
+
+  const handleUpdateAffiliate = async () => {
+    setIsAuthLoading(true)
+    setAuthError(null)
+
+    try {
+      const response = await fetch('/api/admin/telegram/affiliate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commissionPermille: newCommission, durationMonths: 0 })
+      })
+
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to update')
+
+      fetchAffiliateSettings()
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Ошибка')
+    } finally {
+      setIsAuthLoading(false)
     }
   }
 
@@ -245,16 +444,17 @@ export function ReferralsView() {
 
       {/* Tabs */}
       <div className="border-b border-slate-200">
-        <div className="flex gap-4">
+        <div className="flex gap-4 overflow-x-auto">
           {[
             { id: 'overview', label: 'Обзор' },
             { id: 'referrers', label: 'Топ рефереров' },
-            { id: 'withdrawals', label: `Выводы${stats?.pending_withdrawals ? ` (${stats.pending_withdrawals})` : ''}` }
+            { id: 'withdrawals', label: `Выводы${stats?.pending_withdrawals ? ` (${stats.pending_withdrawals})` : ''}` },
+            { id: 'telegram-affiliate', label: '⭐ Telegram Stars' }
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as Tab)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-pink-500 text-slate-800'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -478,6 +678,227 @@ export function ReferralsView() {
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Telegram Affiliate Tab */}
+      {activeTab === 'telegram-affiliate' && (
+        <div className="space-y-6">
+          {/* Info Card */}
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-100">
+            <h3 className="text-lg font-semibold text-slate-800 mb-2 flex items-center gap-2">
+              <Star className="w-5 h-5 text-amber-500" />
+              Telegram Affiliate Program
+            </h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Официальная партнёрская программа Telegram Stars. Когда пользователь оплачивает Stars через реферальную ссылку,
+              партнёр получает комиссию напрямую от Telegram на свой баланс Stars (удерживается 21 день).
+            </p>
+            <p className="text-xs text-slate-500">
+              Для настройки требуется авторизация через MTProto API (user-only API, не Bot API).
+            </p>
+          </div>
+
+          {/* MTProto Auth Card */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-slate-200 bg-slate-50">
+              <h4 className="font-medium text-slate-800 flex items-center gap-2">
+                <Key className="w-4 h-4" />
+                Авторизация MTProto
+              </h4>
+            </div>
+            <div className="p-6">
+              {mtprotoStatus?.authenticated ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-lg">
+                    <CheckCircle className="w-5 h-5 text-emerald-500" />
+                    <div>
+                      <p className="font-medium text-emerald-700">Авторизован</p>
+                      {mtprotoStatus.user && (
+                        <p className="text-sm text-emerald-600">
+                          {mtprotoStatus.user.firstName} {mtprotoStatus.user.lastName}
+                          {mtprotoStatus.user.username && ` (@${mtprotoStatus.user.username})`}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      disabled={isAuthLoading}
+                      className="ml-auto p-2 text-slate-400 hover:text-red-500 transition-colors"
+                      title="Выйти"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4 max-w-md">
+                  {authStep === 'phone' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Номер телефона
+                        </label>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                              type="tel"
+                              value={phoneNumber}
+                              onChange={e => setPhoneNumber(e.target.value)}
+                              placeholder="+79585584130"
+                              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                            />
+                          </div>
+                          <button
+                            onClick={handleStartAuth}
+                            disabled={isAuthLoading}
+                            className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:opacity-50 flex items-center gap-2"
+                          >
+                            {isAuthLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Войти'}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {authStep === 'code' && (
+                    <>
+                      <p className="text-sm text-slate-600">
+                        Код подтверждения отправлен в Telegram на {phoneNumber}
+                      </p>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Код из Telegram
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={verificationCode}
+                            onChange={e => setVerificationCode(e.target.value)}
+                            placeholder="12345"
+                            className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 font-mono text-center tracking-widest"
+                            maxLength={5}
+                          />
+                          <button
+                            onClick={handleVerifyCode}
+                            disabled={isAuthLoading}
+                            className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:opacity-50 flex items-center gap-2"
+                          >
+                            {isAuthLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Подтвердить'}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {authStep === '2fa' && (
+                    <>
+                      <p className="text-sm text-slate-600">
+                        У вас включена двухфакторная аутентификация. Введите пароль.
+                      </p>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Пароль 2FA
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="password"
+                            value={password2FA}
+                            onChange={e => setPassword2FA(e.target.value)}
+                            placeholder="••••••••"
+                            className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                          />
+                          <button
+                            onClick={handleVerify2FA}
+                            disabled={isAuthLoading}
+                            className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:opacity-50 flex items-center gap-2"
+                          >
+                            {isAuthLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Войти'}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {authError && (
+                    <p className="text-sm text-red-500 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      {authError}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Affiliate Settings Card */}
+          {mtprotoStatus?.authenticated && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-4 border-b border-slate-200 bg-slate-50">
+                <h4 className="font-medium text-slate-800 flex items-center gap-2">
+                  <Settings className="w-4 h-4" />
+                  Настройки партнёрской программы
+                </h4>
+              </div>
+              <div className="p-6 space-y-6">
+                {/* Current Settings */}
+                {affiliateSettings && (
+                  <div className="p-4 bg-slate-50 rounded-lg">
+                    <p className="text-sm text-slate-600">
+                      Текущая комиссия: <span className="font-bold text-slate-800">{affiliateSettings.commissionPermille / 10}%</span>
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      Статус: {affiliateSettings.isActive ? (
+                        <span className="text-emerald-600">Активна</span>
+                      ) : (
+                        <span className="text-slate-400">Не активна</span>
+                      )}
+                    </p>
+                  </div>
+                )}
+
+                {/* Update Form */}
+                <div className="max-w-md">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Комиссия партнёрам (%)
+                  </label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="range"
+                      min="0"
+                      max="500"
+                      step="10"
+                      value={newCommission}
+                      onChange={e => setNewCommission(Number(e.target.value))}
+                      className="flex-1"
+                    />
+                    <span className="text-lg font-bold text-slate-800 w-16 text-right">
+                      {newCommission / 10}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    0% = программа отключена, 50% = максимальная комиссия
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleUpdateAffiliate}
+                  disabled={isAuthLoading}
+                  className="px-6 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isAuthLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Сохранить настройки'}
+                </button>
+
+                {authError && (
+                  <p className="text-sm text-red-500 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    {authError}
+                  </p>
+                )}
               </div>
             </div>
           )}

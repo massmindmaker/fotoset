@@ -42,7 +42,6 @@ interface PaymentDetails {
   created_at: string
   updated_at: string
   // Related data
-  user_is_pro: boolean
   avatar_id: number | null
   avatar_name: string | null
   avatar_status: string | null
@@ -283,12 +282,6 @@ export function PaymentDetailsModal({ paymentId, isOpen, onClose, onRefund }: Pa
                   <div>
                     <p className="text-slate-500">Telegram ID</p>
                     <p className="text-slate-900 font-mono">{payment.telegram_user_id}</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500">Pro статус</p>
-                    <p className={payment.user_is_pro ? 'text-emerald-600' : 'text-slate-500'}>
-                      {payment.user_is_pro ? 'Активен' : 'Нет'}
-                    </p>
                   </div>
                 </div>
               </div>

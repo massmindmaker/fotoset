@@ -4,6 +4,8 @@ import { sql } from "@/lib/db"
 /**
  * GET /api/admin/users
  * Returns paginated list of users with stats
+ *
+ * Fixed: Use subqueries to avoid row multiplication from multiple JOINs
  */
 export async function GET(request: NextRequest) {
   try {
@@ -26,7 +28,7 @@ export async function GET(request: NextRequest) {
     `
     const total = parseInt(countResult[0].total)
 
-    // Get users with stats (extended with photo counts and TG status)
+    // Get users with stats using subqueries to avoid row multiplication
     const users = await sql`
       SELECT
         u.id,
@@ -38,25 +40,24 @@ export async function GET(request: NextRequest) {
         u.pending_referral_code,
         u.pending_generation_tier,
 
-        -- Existing aggregates
-        COUNT(DISTINCT a.id) as avatars_count,
-        COUNT(DISTINCT p.id) as payments_count,
-        SUM(CASE WHEN p.status = 'succeeded' THEN p.amount ELSE 0 END) as total_spent,
-        -- Currency-specific spent amounts
-        SUM(CASE WHEN p.status = 'succeeded' AND COALESCE(p.provider, 'tbank') = 'tbank' THEN p.amount ELSE 0 END) as spent_rub,
-        SUM(CASE WHEN p.status = 'succeeded' AND p.provider = 'stars' THEN p.stars_amount ELSE 0 END) as spent_stars,
-        SUM(CASE WHEN p.status = 'succeeded' AND p.provider = 'ton' THEN p.ton_amount ELSE 0 END) as spent_ton,
-        CASE WHEN COUNT(DISTINCT CASE WHEN p.status = 'succeeded' THEN p.id END) > 0
-          THEN true ELSE false END as has_paid,
+        -- Avatar count (simple subquery)
+        (SELECT COUNT(*) FROM avatars WHERE user_id = u.id) as avatars_count,
 
-        -- Photo counts (Task 2.1)
-        COUNT(DISTINCT rp.id) as ref_photos_total,
-        COUNT(DISTINCT gp.id) as gen_photos_total,
+        -- Payment aggregates (subquery to avoid multiplication)
+        COALESCE(pay.payments_count, 0) as payments_count,
+        COALESCE(pay.total_spent, 0) as total_spent,
+        COALESCE(pay.spent_rub, 0) as spent_rub,
+        COALESCE(pay.spent_stars, 0) as spent_stars,
+        COALESCE(pay.spent_ton, 0) as spent_ton,
 
-        -- Telegram status counts (Task 2.1)
-        COUNT(DISTINCT CASE WHEN tmq.status = 'sent' THEN tmq.id END) as tg_sent_count,
-        COUNT(DISTINCT CASE WHEN tmq.status = 'pending' THEN tmq.id END) as tg_pending_count,
-        COUNT(DISTINCT CASE WHEN tmq.status = 'failed' THEN tmq.id END) as tg_failed_count,
+        -- Photo counts (subqueries)
+        COALESCE(photos.ref_photos_total, 0) as ref_photos_total,
+        COALESCE(photos.gen_photos_total, 0) as gen_photos_total,
+
+        -- Telegram status counts (subquery)
+        COALESCE(tg.tg_sent_count, 0) as tg_sent_count,
+        COALESCE(tg.tg_pending_count, 0) as tg_pending_count,
+        COALESCE(tg.tg_failed_count, 0) as tg_failed_count,
 
         -- Partner status
         COALESCE(rb.is_partner, false) as is_partner,
@@ -64,15 +65,39 @@ export async function GET(request: NextRequest) {
         rb.partner_approved_at
 
       FROM users u
-      LEFT JOIN avatars a ON a.user_id = u.id
-      LEFT JOIN payments p ON p.user_id = u.id
-      LEFT JOIN reference_photos rp ON rp.avatar_id = a.id
-      LEFT JOIN generated_photos gp ON gp.avatar_id = a.id
-      -- Прямой JOIN по telegram_user_id (telegram_sessions таблица пустая)
-      LEFT JOIN telegram_message_queue tmq ON tmq.telegram_chat_id = u.telegram_user_id
+
+      -- Payment stats subquery
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(*) as payments_count,
+          SUM(CASE WHEN status = 'succeeded' THEN amount ELSE 0 END) as total_spent,
+          SUM(CASE WHEN status = 'succeeded' AND COALESCE(provider, 'tbank') = 'tbank' THEN amount ELSE 0 END) as spent_rub,
+          SUM(CASE WHEN status = 'succeeded' AND provider = 'stars' THEN stars_amount ELSE 0 END) as spent_stars,
+          SUM(CASE WHEN status = 'succeeded' AND provider = 'ton' THEN ton_amount ELSE 0 END) as spent_ton
+        FROM payments
+        WHERE user_id = u.id
+      ) pay ON true
+
+      -- Photo counts subquery
+      LEFT JOIN LATERAL (
+        SELECT
+          (SELECT COUNT(*) FROM reference_photos rp JOIN avatars a ON rp.avatar_id = a.id WHERE a.user_id = u.id) as ref_photos_total,
+          (SELECT COUNT(*) FROM generated_photos gp JOIN avatars a ON gp.avatar_id = a.id WHERE a.user_id = u.id) as gen_photos_total
+      ) photos ON true
+
+      -- Telegram queue stats subquery
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(*) FILTER (WHERE status = 'sent') as tg_sent_count,
+          COUNT(*) FILTER (WHERE status = 'pending') as tg_pending_count,
+          COUNT(*) FILTER (WHERE status = 'failed') as tg_failed_count
+        FROM telegram_message_queue
+        WHERE telegram_chat_id = u.telegram_user_id
+      ) tg ON true
+
       LEFT JOIN referral_balances rb ON rb.user_id = u.id
+
       WHERE 1=1 ${searchCondition}
-      GROUP BY u.id, u.telegram_user_id, u.telegram_username, u.is_banned, u.created_at, u.updated_at, u.pending_referral_code, u.pending_generation_tier, rb.is_partner, rb.commission_rate, rb.partner_approved_at
       ORDER BY u.created_at DESC
       LIMIT ${limit}
       OFFSET ${offset}

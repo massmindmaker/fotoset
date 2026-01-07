@@ -29,7 +29,6 @@ interface UserDetails {
     id: number
     telegram_user_id: string
     telegram_username: string | null
-    is_pro: boolean
     is_banned: boolean
     ban_reason: string | null
     banned_at: string | null
@@ -237,26 +236,14 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
                           <span className="text-slate-400">—</span>
                         )}
                       </div>
-                      <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
-                        <span className="text-slate-600">Статус</span>
-                        <div className="flex items-center gap-2">
-                          {data.user.is_pro && (
-                            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium border border-amber-300">
-                              PRO
-                            </span>
-                          )}
-                          {data.user.is_banned && (
-                            <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium border border-red-300">
-                              Забанен
-                            </span>
-                          )}
-                          {!data.user.is_pro && !data.user.is_banned && (
-                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium border border-slate-300">
-                              Free
-                            </span>
-                          )}
+                      {data.user.is_banned && (
+                        <div className="flex justify-between p-3 bg-red-50 rounded-lg border border-red-200">
+                          <span className="text-red-600">Статус</span>
+                          <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium border border-red-300">
+                            Забанен
+                          </span>
                         </div>
-                      </div>
+                      )}
                       <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
                         <span className="text-slate-600">Регистрация</span>
                         <span className="text-slate-800 font-medium">{formatDate(data.user.created_at)}</span>

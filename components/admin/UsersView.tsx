@@ -1,14 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { RefreshCw, Loader2, ChevronLeft, ChevronRight, Shield, ShieldOff, MoreHorizontal, Eye, Crown, Ban, RefreshCcw } from "lucide-react"
+import { RefreshCw, Loader2, ChevronLeft, ChevronRight, Shield, MoreHorizontal, Eye, Crown } from "lucide-react"
 import { UserDetailsModal } from "./UserDetailsModal"
 
 interface User {
   id: number
   telegram_user_id: number
   telegram_username: string | null
-  has_paid: boolean
   is_banned: boolean
   created_at: string
   avatars_count: number
@@ -203,19 +202,15 @@ export function UsersView() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-mono text-slate-500">#{user.id}</span>
-                        {user.is_partner ? (
+                        {user.is_partner && (
                           <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full font-medium flex items-center gap-1">
                             <Shield className="w-3 h-3" />
                             Partner {user.commission_rate ? `${Math.round(Number(user.commission_rate) * 100)}%` : '50%'}
                           </span>
-                        ) : user.has_paid ? (
-                          <span className="px-2 py-0.5 bg-pink-100 text-pink-700 text-xs rounded-full font-medium flex items-center gap-1">
-                            <Shield className="w-3 h-3" />
-                            Pro
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs rounded-full">
-                            Free
+                        )}
+                        {user.is_banned && (
+                          <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full font-medium">
+                            Забанен
                           </span>
                         )}
                       </div>
@@ -318,16 +313,10 @@ export function UsersView() {
                               <Shield className="w-4 h-4 text-purple-600" />
                               <span className="text-sm font-medium text-purple-600">Partner {user.commission_rate ? Math.round(Number(user.commission_rate) * 100) : 50}%</span>
                             </>
-                          ) : user.has_paid ? (
-                            <>
-                              <Shield className="w-4 h-4 text-primary" />
-                              <span className="text-sm font-medium text-primary">Pro</span>
-                            </>
+                          ) : user.is_banned ? (
+                            <span className="text-sm font-medium text-red-600">Забанен</span>
                           ) : (
-                            <>
-                              <ShieldOff className="w-4 h-4 text-muted-foreground" />
-                              <span className="text-sm text-muted-foreground">Free</span>
-                            </>
+                            <span className="text-sm text-muted-foreground">—</span>
                           )}
                         </div>
                       </td>

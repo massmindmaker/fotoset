@@ -9,6 +9,8 @@
  * 2. Telegram sends code to phone/app
  * 3. Admin enters code to complete auth
  * 4. Session is saved to DB for future use
+ *
+ * NOTE: Serverless-compatible - stores auth state in DB, not memory
  */
 
 import { TelegramClient, Api } from 'telegram'
@@ -60,8 +62,55 @@ async function saveSession(
       session_string = EXCLUDED.session_string,
       phone_number = COALESCE(EXCLUDED.phone_number, telegram_mtproto_sessions.phone_number),
       user_id = COALESCE(EXCLUDED.user_id, telegram_mtproto_sessions.user_id),
+      is_active = TRUE,
       updated_at = NOW()
   `
+}
+
+/**
+ * Save pending auth state to database (for serverless compatibility)
+ */
+async function savePendingAuth(
+  sessionName: string,
+  phoneNumber: string,
+  phoneCodeHash: string,
+  partialSession: string
+): Promise<void> {
+  await sql`
+    INSERT INTO telegram_mtproto_sessions (session_name, phone_number, phone_code_hash, session_string, is_active)
+    VALUES (${sessionName}, ${phoneNumber}, ${phoneCodeHash}, ${partialSession}, FALSE)
+    ON CONFLICT (session_name)
+    DO UPDATE SET
+      phone_number = EXCLUDED.phone_number,
+      phone_code_hash = EXCLUDED.phone_code_hash,
+      session_string = EXCLUDED.session_string,
+      is_active = FALSE,
+      updated_at = NOW()
+  `
+}
+
+/**
+ * Get pending auth state from database
+ */
+async function getPendingAuth(sessionName: string): Promise<{
+  phoneNumber: string
+  phoneCodeHash: string
+  partialSession: string
+} | null> {
+  const result = await sql`
+    SELECT phone_number, phone_code_hash, session_string
+    FROM telegram_mtproto_sessions
+    WHERE session_name = ${sessionName}
+      AND is_active = FALSE
+      AND phone_code_hash IS NOT NULL
+    LIMIT 1
+  `
+  if (!result[0]) return null
+  return {
+    phoneNumber: result[0].phone_number,
+    phoneCodeHash: result[0].phone_code_hash,
+    partialSession: result[0].session_string || '',
+  }
 }
 
 /**
@@ -70,7 +119,7 @@ async function saveSession(
 async function deleteSession(sessionName: string): Promise<void> {
   await sql`
     UPDATE telegram_mtproto_sessions
-    SET is_active = FALSE, updated_at = NOW()
+    SET is_active = FALSE, phone_code_hash = NULL, updated_at = NOW()
     WHERE session_name = ${sessionName}
   `
 }
@@ -78,18 +127,21 @@ async function deleteSession(sessionName: string): Promise<void> {
 /**
  * Create a new Telegram client
  */
-export async function createClient(sessionName: string = ADMIN_SESSION_NAME): Promise<TelegramClient> {
+export async function createClient(
+  sessionName: string = ADMIN_SESSION_NAME,
+  sessionString?: string
+): Promise<TelegramClient> {
   if (!isMTProtoConfigured()) {
     throw new Error('TELEGRAM_API_ID and TELEGRAM_API_HASH must be set')
   }
 
-  // Try to load existing session
-  const savedSession = await getStoredSession(sessionName)
+  // Use provided session or try to load from DB
+  const savedSession = sessionString ?? (await getStoredSession(sessionName))
   const stringSession = new StringSession(savedSession || '')
 
   const client = new TelegramClient(stringSession, API_ID, API_HASH, {
     connectionRetries: 5,
-    useWSS: true, // Use WebSocket Secure for better compatibility
+    useWSS: true,
   })
 
   return client
@@ -103,28 +155,21 @@ export async function isAuthenticated(sessionName: string = ADMIN_SESSION_NAME):
   if (!savedSession) return false
 
   try {
-    const client = await createClient(sessionName)
+    const client = await createClient(sessionName, savedSession)
     await client.connect()
     const isAuth = await client.isUserAuthorized()
     await client.disconnect()
     return isAuth
-  } catch {
+  } catch (error) {
+    console.error('[MTProto] isAuthenticated error:', error)
     return false
   }
 }
 
 /**
  * Start phone number authentication
- * Returns a function to call with the received code
+ * Stores auth state in DB for serverless compatibility
  */
-export interface AuthState {
-  phoneCodeHash: string
-  phoneNumber: string
-  client: TelegramClient
-}
-
-let pendingAuth: AuthState | null = null
-
 export async function startAuth(
   phoneNumber: string,
   sessionName: string = ADMIN_SESSION_NAME
@@ -133,9 +178,13 @@ export async function startAuth(
     return { success: false, requiresCode: false, error: 'MTProto not configured' }
   }
 
+  let client: TelegramClient | null = null
+
   try {
-    const client = await createClient(sessionName)
+    client = await createClient(sessionName, '')
     await client.connect()
+
+    console.log('[MTProto] Sending code to:', phoneNumber)
 
     const result = await client.invoke(
       new Api.auth.SendCode({
@@ -149,18 +198,21 @@ export async function startAuth(
     // Handle different response types
     const phoneCodeHash = 'phoneCodeHash' in result ? result.phoneCodeHash : ''
     if (!phoneCodeHash) {
+      await client.disconnect()
       return { success: false, requiresCode: false, error: 'Failed to get phone code hash' }
     }
 
-    pendingAuth = {
-      phoneCodeHash,
-      phoneNumber,
-      client,
-    }
+    // Save partial session and auth state to DB
+    const partialSession = client.session.save() as unknown as string
+    await savePendingAuth(sessionName, phoneNumber, phoneCodeHash, partialSession)
 
+    console.log('[MTProto] Code sent, phoneCodeHash saved to DB')
+
+    await client.disconnect()
     return { success: true, requiresCode: true }
   } catch (error) {
     console.error('[MTProto] Auth start error:', error)
+    if (client) await client.disconnect().catch(() => {})
     return {
       success: false,
       requiresCode: false,
@@ -171,18 +223,28 @@ export async function startAuth(
 
 /**
  * Complete authentication with the code
+ * Retrieves auth state from DB
  */
 export async function completeAuth(
   code: string,
   sessionName: string = ADMIN_SESSION_NAME
 ): Promise<{ success: boolean; userId?: string; error?: string }> {
-  if (!pendingAuth) {
-    return { success: false, error: 'No pending authentication' }
+  // Get pending auth from DB
+  const pending = await getPendingAuth(sessionName)
+  if (!pending) {
+    return { success: false, error: 'No pending authentication. Please start again.' }
   }
 
-  const { phoneCodeHash, phoneNumber, client } = pendingAuth
+  const { phoneNumber, phoneCodeHash, partialSession } = pending
+  let client: TelegramClient | null = null
 
   try {
+    // Recreate client with partial session
+    client = await createClient(sessionName, partialSession)
+    await client.connect()
+
+    console.log('[MTProto] Verifying code for:', phoneNumber)
+
     const result = await client.invoke(
       new Api.auth.SignIn({
         phoneNumber,
@@ -191,25 +253,27 @@ export async function completeAuth(
       })
     )
 
-    // Save session to database
+    // Save completed session to database
     const sessionString = client.session.save() as unknown as string
     const userId = 'user' in result ? (result.user as Api.User).id : undefined
     const userIdBigInt = userId ? BigInt(userId.toString()) : undefined
 
     await saveSession(sessionName, sessionString, phoneNumber, userIdBigInt)
 
-    pendingAuth = null
-    await client.disconnect()
+    console.log('[MTProto] Auth completed, session saved. User ID:', userId?.toString())
 
+    await client.disconnect()
     return { success: true, userId: userId?.toString() }
   } catch (error) {
     console.error('[MTProto] Auth complete error:', error)
 
     // Check if 2FA is required
     if (error instanceof Error && error.message.includes('SESSION_PASSWORD_NEEDED')) {
+      // Keep partial session for 2FA step
       return { success: false, error: '2FA_REQUIRED' }
     }
 
+    if (client) await client.disconnect().catch(() => {})
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -224,13 +288,18 @@ export async function complete2FA(
   password: string,
   sessionName: string = ADMIN_SESSION_NAME
 ): Promise<{ success: boolean; userId?: string; error?: string }> {
-  if (!pendingAuth) {
+  const pending = await getPendingAuth(sessionName)
+  if (!pending) {
     return { success: false, error: 'No pending authentication' }
   }
 
-  const { phoneNumber, client } = pendingAuth
+  const { phoneNumber, partialSession } = pending
+  let client: TelegramClient | null = null
 
   try {
+    client = await createClient(sessionName, partialSession)
+    await client.connect()
+
     // Get password info
     const passwordInfo = await client.invoke(new Api.account.GetPassword())
 
@@ -252,12 +321,11 @@ export async function complete2FA(
 
     await saveSession(sessionName, sessionString, phoneNumber, userIdBigInt)
 
-    pendingAuth = null
     await client.disconnect()
-
     return { success: true, userId: userId?.toString() }
   } catch (error) {
     console.error('[MTProto] 2FA error:', error)
+    if (client) await client.disconnect().catch(() => {})
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -270,16 +338,19 @@ export async function complete2FA(
  */
 export async function logout(sessionName: string = ADMIN_SESSION_NAME): Promise<boolean> {
   try {
-    const client = await createClient(sessionName)
-    await client.connect()
+    const savedSession = await getStoredSession(sessionName)
+    if (savedSession) {
+      const client = await createClient(sessionName, savedSession)
+      await client.connect()
 
-    if (await client.isUserAuthorized()) {
-      await client.invoke(new Api.auth.LogOut())
+      if (await client.isUserAuthorized()) {
+        await client.invoke(new Api.auth.LogOut())
+      }
+
+      await client.disconnect()
     }
 
-    await client.disconnect()
     await deleteSession(sessionName)
-
     return true
   } catch (error) {
     console.error('[MTProto] Logout error:', error)
@@ -295,7 +366,10 @@ export async function getCurrentUser(
   sessionName: string = ADMIN_SESSION_NAME
 ): Promise<{ id: string; firstName: string; lastName?: string; username?: string } | null> {
   try {
-    const client = await createClient(sessionName)
+    const savedSession = await getStoredSession(sessionName)
+    if (!savedSession) return null
+
+    const client = await createClient(sessionName, savedSession)
     await client.connect()
 
     if (!(await client.isUserAuthorized())) {
