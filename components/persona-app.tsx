@@ -360,15 +360,26 @@ export default function PersonaApp() {
 
   // Handle Neon Auth session for web users (after Google login redirect)
   useEffect(() => {
+    console.log('[Auth] Neon session check:', {
+      isPending: isNeonAuthPending,
+      hasSession: !!neonSession,
+      hasUser: !!neonSession?.user,
+      authStatus,
+      currentView: viewState.view,
+    })
+
     if (isNeonAuthPending) return // Wait for session to load
 
     // Check if user logged in via Neon Auth (web version)
-    if (neonSession?.user && authStatus === 'not_in_telegram') {
+    // Accept both 'not_in_telegram' and 'pending' (during initial load)
+    if (neonSession?.user) {
       const urlParams = new URLSearchParams(window.location.search)
       const isAuthCallback = urlParams.get('auth') === 'success'
 
+      console.log('[Auth] Neon user found:', neonSession.user.email, 'isCallback:', isAuthCallback)
+
       if (isAuthCallback) {
-        console.log('[Auth] Neon Auth success, user:', neonSession.user.email)
+        console.log('[Auth] Neon Auth success callback, redirecting to DASHBOARD')
         // Remove auth param from URL
         const newUrl = new URL(window.location.href)
         newUrl.searchParams.delete('auth')
@@ -379,9 +390,10 @@ export default function PersonaApp() {
         setViewState({ view: "DASHBOARD" })
       } else if (viewState.view === "ONBOARDING") {
         // Already logged in via Neon Auth, skip onboarding
+        console.log('[Auth] Neon user already logged in, checking if should skip onboarding')
         const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"
         if (onboardingComplete || personas.length > 0) {
-          console.log('[Auth] Neon Auth user already logged in, showing DASHBOARD')
+          console.log('[Auth] Skipping onboarding, showing DASHBOARD')
           setViewState({ view: "DASHBOARD" })
         }
       }
