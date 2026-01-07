@@ -31,12 +31,22 @@ interface PaymentResponse {
 }
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, telegramUserId, tier, personaId }) => {
-  const [step, setStep] = useState<"FORM" | "PROCESSING" | "REDIRECT" | "SUCCESS" | "ERROR">("FORM")
+  const [step, setStep] = useState<"FORM" | "PROCESSING" | "REDIRECT" | "SUCCESS" | "ERROR" | "STARS_WAITING" | "TON_PAYMENT">("FORM")
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [emailError, setEmailError] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
   const [selectedMethod, setSelectedMethod] = useState<'tbank' | 'stars' | 'ton'>('tbank')
+  // Stars payment polling
+  const [starsPaymentId, setStarsPaymentId] = useState<string | null>(null)
+  // TON payment data for showing wallet info
+  const [tonPaymentData, setTonPaymentData] = useState<{
+    walletAddress: string
+    amount: number
+    comment: string
+    paymentId: string
+    tonLink: string
+  } | null>(null)
 
   // Fetch available payment methods from API
   const { methods, altMethodsCount, isLoading: methodsLoading } = usePaymentMethods()
@@ -48,8 +58,52 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
       setLoading(false)
       setEmailError("")
       setErrorMessage("")
+      setStarsPaymentId(null)
+      setTonPaymentData(null)
     }
   }, [isOpen])
+
+  // Poll Stars payment status
+  useEffect(() => {
+    if (step !== "STARS_WAITING" || !starsPaymentId) return
+
+    let isCancelled = false
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/payment/stars/status?telegram_user_id=${telegramUserId}&payment_id=${starsPaymentId}`)
+        const data = await response.json()
+
+        if (isCancelled) return
+
+        if (data.paid) {
+          clearInterval(pollInterval)
+          setStep("SUCCESS")
+          onSuccess()
+        } else if (data.status === 'canceled' || data.status === 'failed') {
+          clearInterval(pollInterval)
+          setErrorMessage("Платёж отменён или не завершён")
+          setStep("ERROR")
+        }
+      } catch (error) {
+        console.error("[Stars] Polling error:", error)
+      }
+    }, 3000) // Poll every 3 seconds
+
+    // Stop polling after 5 minutes
+    const timeout = setTimeout(() => {
+      clearInterval(pollInterval)
+      if (!isCancelled && step === "STARS_WAITING") {
+        setErrorMessage("Время ожидания платежа истекло")
+        setStep("ERROR")
+      }
+    }, 5 * 60 * 1000)
+
+    return () => {
+      isCancelled = true
+      clearInterval(pollInterval)
+      clearTimeout(timeout)
+    }
+  }, [step, starsPaymentId, onSuccess])
 
   const validateEmail = (value: string): boolean => {
     if (!value.trim()) {
@@ -174,15 +228,22 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
           setStep("REDIRECT")
           window.location.href = data.invoiceUrl
         } else {
-          // Invoice sent via Telegram, user should check the app
-          setStep("SUCCESS")
+          // Invoice sent via Telegram - show waiting screen with polling
+          setStarsPaymentId(data.paymentId)
+          setStep("STARS_WAITING")
         }
       } else if (method === 'ton') {
-        // TON: Show wallet address for payment
+        // TON: Show wallet info first, let user click to open wallet
+        // API returns: walletAddress, tonAmount, comment (payment ID), tonLink (ready deep link)
         if (data.walletAddress) {
-          setStep("REDIRECT")
-          // TODO: Open TON wallet with prefilled transaction
-          window.location.href = `ton://transfer/${data.walletAddress}?amount=${data.amount}&text=${data.paymentId}`
+          setTonPaymentData({
+            walletAddress: data.walletAddress,
+            amount: data.tonAmount,
+            comment: data.comment,
+            paymentId: data.paymentId,
+            tonLink: data.tonLink,
+          })
+          setStep("TON_PAYMENT")
         } else {
           throw new Error("Не получен адрес кошелька")
         }
@@ -381,6 +442,78 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                 className="mt-4"
               >
                 Попробовать снова
+              </Button>
+            </div>
+          )}
+
+          {step === "STARS_WAITING" && (
+            <div className="flex flex-col items-center py-12">
+              <div className="w-20 h-20 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-4">
+                <Star className="w-10 h-10 text-blue-500" />
+              </div>
+              <p className="text-lg font-medium">Откройте Telegram</p>
+              <p className="text-muted-foreground text-sm mt-1 text-center">
+                Счёт отправлен в Telegram.<br />
+                Оплатите его и вернитесь сюда.
+              </p>
+              <div className="flex items-center gap-2 mt-4 text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm">Ожидание оплаты...</span>
+              </div>
+              <Button
+                onClick={() => setStep("FORM")}
+                variant="ghost"
+                className="mt-4 text-sm"
+              >
+                Отмена
+              </Button>
+            </div>
+          )}
+
+          {step === "TON_PAYMENT" && tonPaymentData && (
+            <div className="flex flex-col items-center py-8">
+              <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-4">
+                <Coins className="w-8 h-8 text-blue-500" />
+              </div>
+              <p className="text-lg font-medium mb-2">Оплата через TON</p>
+
+              {/* Amount */}
+              <div className="text-3xl font-bold text-primary mb-4">
+                {tonPaymentData.amount} TON
+              </div>
+
+              {/* Wallet Address */}
+              <div className="w-full bg-muted/50 rounded-xl p-4 mb-4">
+                <p className="text-xs text-muted-foreground mb-1">Адрес кошелька:</p>
+                <p className="text-sm font-mono break-all select-all">
+                  {tonPaymentData.walletAddress}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2 mb-1">Комментарий (обязательно):</p>
+                <p className="text-sm font-mono select-all">
+                  {tonPaymentData.comment}
+                </p>
+              </div>
+
+              <p className="text-xs text-muted-foreground text-center mb-4">
+                Нажмите кнопку ниже, чтобы открыть ваш TON кошелёк.<br />
+                Обязательно укажите комментарий при переводе!
+              </p>
+
+              <Button
+                onClick={() => window.location.href = tonPaymentData.tonLink}
+                size="lg"
+                className="w-full h-12 rounded-2xl text-base font-semibold gap-2"
+              >
+                <Coins className="w-5 h-5" />
+                Открыть кошелёк
+              </Button>
+
+              <Button
+                onClick={() => setStep("FORM")}
+                variant="ghost"
+                className="mt-3 text-sm"
+              >
+                Отмена
               </Button>
             </div>
           )}
