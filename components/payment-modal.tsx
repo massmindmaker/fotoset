@@ -265,7 +265,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm">
       <div
-        className="bg-background w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
+        className="bg-background w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-[var(--shadow-lg)] animate-in slide-in-from-bottom-4 duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -331,8 +331,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                 <Button
                   onClick={() => { setSelectedMethod('tbank'); handlePayment() }}
                   disabled={loading || (selectedMethod === 'tbank' && !email.trim()) || methodsLoading}
-                  size="lg"
-                  className="w-full h-12 rounded-2xl text-base font-semibold gap-2"
+                  variant="gradient"
+                  size="xl"
+                  className="w-full"
                 >
                   {loading && selectedMethod === 'tbank' ? (
                     <>
@@ -363,7 +364,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                       onClick={() => { setSelectedMethod('ton'); handleAltPayment('ton') }}
                       disabled={loading || methodsLoading}
                       variant="secondary"
-                      className="w-full h-10 rounded-xl gap-2"
+                      className="w-full h-11 rounded-xl gap-2 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]"
                     >
                       {loading && selectedMethod === 'ton' ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -380,7 +381,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                       onClick={() => { setSelectedMethod('stars'); handleAltPayment('stars') }}
                       disabled={loading || methodsLoading}
                       variant="outline"
-                      className="w-full h-10 rounded-xl gap-2"
+                      className="w-full h-11 rounded-xl gap-2 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]"
                     >
                       {loading && selectedMethod === 'stars' ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -504,8 +505,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
 
               <Button
                 onClick={() => window.location.href = tonPaymentData.tonLink}
-                size="lg"
-                className="w-full h-12 rounded-2xl text-base font-semibold gap-2"
+                variant="gradient"
+                size="xl"
+                className="w-full"
               >
                 <Coins className="w-5 h-5" />
                 Открыть кошелёк

@@ -99,29 +99,40 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
           </div>
         </div>
       </div>
-      <Card className="p-4 hover-lift">
+      {/* Info Card - v4 design: warm yellow background with orange accent */}
+      <div className="p-4 rounded-xl bg-warning/10 border border-warning/30 shadow-[var(--shadow-sm)]">
         <div className="flex gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 hover-glow transition-all">
-            <Camera className="w-5 h-5 text-primary" aria-hidden="true" />
+          <div className="w-10 h-10 rounded-xl bg-warning/20 flex items-center justify-center shrink-0">
+            <Camera className="w-5 h-5 text-warning-foreground" aria-hidden="true" />
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground mb-1">Советы для лучшего результата</p>
-            <ul className="text-xs text-muted-foreground space-y-1">
-              <li>• Хорошее освещение лица</li>
-              <li>• Разные ракурсы и выражения</li>
-              <li>• Без солнечных очков и головных уборов</li>
+            <p className="text-sm font-semibold text-foreground mb-1.5">Советы для лучшего результата</p>
+            <ul className="text-xs text-muted-foreground space-y-1.5">
+              <li className="flex items-start gap-1.5">
+                <span className="text-warning-foreground">•</span>
+                <span>Хорошее освещение лица</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="text-warning-foreground">•</span>
+                <span>Разные ракурсы и выражения</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="text-warning-foreground">•</span>
+                <span>Без солнечных очков и головных уборов</span>
+              </li>
             </ul>
           </div>
         </div>
-      </Card>
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
+      </div>
+      {/* Photo Grid - v4 design: rounded-lg, better spacing */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 active:border-primary/60 hover:bg-muted/50 active:bg-muted/70 transition-all flex flex-col items-center justify-center gap-1.5 group touch-manipulation min-h-[80px] hover-lift active-press"
+          className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/50 active:border-primary/60 hover:bg-primary/5 active:bg-primary/10 transition-all flex flex-col items-center justify-center gap-1.5 group touch-manipulation min-h-[80px] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]"
           aria-label="Добавить фото"
         >
-          <Plus className="w-7 h-7 sm:w-6 sm:h-6 text-muted-foreground group-hover:text-primary" />
-          <span className="text-[11px] sm:text-[10px] text-muted-foreground font-medium">Добавить</span>
+          <Plus className="w-7 h-7 sm:w-6 sm:h-6 text-muted-foreground group-hover:text-primary transition-colors" />
+          <span className="text-[11px] sm:text-[10px] text-muted-foreground group-hover:text-primary font-medium transition-colors">Добавить</span>
         </button>
         <input
           type="file"
@@ -133,14 +144,14 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
           aria-label="Выбрать файлы"
         />
         {persona.images.map((img) => (
-          <div key={img.id} className="aspect-square rounded-xl bg-muted overflow-hidden relative group min-h-[80px] hover-scale transition-all shadow-sm">
-            <img src={img.previewUrl} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-110" loading="lazy" />
+          <div key={img.id} className="aspect-square rounded-lg bg-muted overflow-hidden relative group min-h-[80px] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] transition-shadow">
+            <img src={img.previewUrl} alt="" className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105" loading="lazy" />
             <button
               onClick={() => removeImage(img.id)}
-              className="absolute top-1.5 right-1.5 w-8 h-8 flex items-center justify-center bg-black/60 hover:bg-red-500 active:bg-red-600 rounded-lg text-white opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all touch-manipulation"
+              className="absolute top-1.5 right-1.5 w-7 h-7 flex items-center justify-center bg-black/60 hover:bg-destructive active:bg-destructive/90 rounded-full text-white opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all touch-manipulation"
               aria-label="Удалить фото"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         ))}
@@ -158,12 +169,14 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
           </div>
         ))}
       </div>
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
+      {/* Fixed bottom CTA - v4 design */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-xl border-t border-border/50 sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
         <Button
           onClick={onNext}
           disabled={!isReady || isLoading}
-          size="lg"
-          className="w-full sm:w-auto h-12 rounded-2xl text-base font-semibold gap-2"
+          variant={isReady ? "gradient" : "default"}
+          size="xl"
+          className="w-full sm:w-auto"
         >
           {isLoading ? (
             <>

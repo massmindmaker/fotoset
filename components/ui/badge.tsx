@@ -17,6 +17,20 @@ const badgeVariants = cva(
           "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        // NEW: Success variant (v4 design)
+        success:
+          "border-transparent bg-success text-success-foreground",
+        // NEW: Popular badge with gradient (v4 design)
+        popular:
+          "border-transparent bg-gradient-to-r from-primary to-[oklch(0.65_0.18_340)] text-white font-semibold shadow-sm",
+        // NEW: Purple accent badge
+        purple:
+          "border-transparent bg-[var(--accent-purple)] text-white",
+        // NEW: Warning/Info badges
+        warning:
+          "border-transparent bg-warning text-warning-foreground",
+        info:
+          "border-transparent bg-info text-info-foreground",
       },
     },
     defaultVariants: {

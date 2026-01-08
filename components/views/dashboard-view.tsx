@@ -74,20 +74,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate
               <Card
                 key={tier.id}
                 className={cn(
-                  "p-3 sm:p-4 transition-all touch-manipulation hover-lift active-press",
+                  "p-3 sm:p-4 transition-all touch-manipulation hover-lift active-press shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]",
                   tier.popular
-                    ? "bg-gradient-to-br from-primary/10 to-accent/5 border-primary/40 shadow-lg shadow-primary/10"
-                    : "shadow-md"
+                    ? "bg-gradient-to-br from-primary/10 to-[var(--accent-purple)]/5 border-primary/40 shadow-[var(--shadow-lg)] shadow-primary/10"
+                    : ""
                 )}
               >
                 <div className="space-y-1">
                   {tier.popular && (
-                    <Badge variant="default" className="text-[10px] px-1.5 py-0">
+                    <Badge variant="popular" className="text-[10px] px-1.5 py-0">
                       <Star className="w-2.5 h-2.5 mr-0.5" /> Хит
                     </Badge>
                   )}
                   {tier.discount && tier.discount > 0 && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-500/20 text-green-600">
+                    <Badge variant="success" className="text-[10px] px-1.5 py-0">
                       <Percent className="w-2.5 h-2.5 mr-0.5" /> -{tier.discount}%
                     </Badge>
                   )}
@@ -109,14 +109,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ personas, onCreate
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Card className="p-4 hover-lift">
+          <Card className="p-4 hover-lift shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
               <Zap className="w-5 h-5 text-primary" />
             </div>
             <p className="text-sm font-medium">До 23 фото</p>
             <p className="text-xs text-muted-foreground">На выбор</p>
           </Card>
-          <Card className="p-4 hover-lift">
+          <Card className="p-4 hover-lift shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]">
             <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center mb-3">
               <Shield className="w-5 h-5 text-green-500" />
             </div>

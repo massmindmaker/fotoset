@@ -516,32 +516,33 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl, onGe
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <Card className="p-4 shadow-lg">
+      {/* Header - v4 design */}
+      <div className="p-4 rounded-xl bg-card border border-border shadow-[var(--shadow-md)]">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary flex-shrink-0 bg-muted flex items-center justify-center shadow-lg shadow-primary/20">
+          <div className="w-14 h-14 rounded-xl overflow-hidden border-2 border-primary/30 flex-shrink-0 bg-muted flex items-center justify-center shadow-[var(--shadow-glow)]">
             {thumbnailUrl || assets[0]?.url ? (
               <img src={thumbnailUrl || assets[0]?.url} alt={personaName} className="w-full h-full object-cover" loading="lazy" />
             ) : (
-              <span className="text-lg font-semibold text-muted-foreground">{personaName.charAt(0).toUpperCase()}</span>
+              <span className="text-xl font-bold text-muted-foreground">{personaName.charAt(0).toUpperCase()}</span>
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold truncate">{personaName}</h3>
+            <h3 className="font-semibold text-lg truncate">{personaName}</h3>
             <p className="text-sm text-muted-foreground">{assets.length} фото готово</p>
           </div>
           {onGenerateMore && (
             <Button
               onClick={onGenerateMore}
-              size="sm"
-              className="flex-shrink-0 rounded-xl gap-1.5"
+              variant="gradient"
+              size="lg"
+              className="flex-shrink-0"
             >
               <Sparkles className="w-4 h-4" />
               <span>Ещё</span>
             </Button>
           )}
         </div>
-      </Card>
+      </div>
 
       {/* Photo grid with memoized cards - new photos get animation */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

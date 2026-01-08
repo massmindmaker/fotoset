@@ -19,11 +19,22 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
+        // NEW: Gradient variant for CTAs (v4 design)
+        gradient:
+          "bg-gradient-to-r from-primary to-[oklch(0.65_0.18_340)] text-white font-semibold shadow-[var(--shadow-md)] hover:shadow-[var(--shadow-glow)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[var(--shadow-sm)]",
+        // NEW: Purple gradient for referral/special actions
+        "gradient-purple":
+          "bg-gradient-to-r from-[var(--accent-purple)] to-[var(--accent-purple-light)] text-white font-semibold shadow-[var(--shadow-md)] hover:shadow-[0_4px_20px_rgba(155,123,255,0.35)] hover:-translate-y-0.5 active:translate-y-0",
+        // NEW: Success variant
+        success:
+          "bg-success text-success-foreground hover:bg-success/90",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
         sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+        lg: "h-12 rounded-xl px-6 text-base has-[>svg]:px-4",
+        // NEW: Extra large for main CTAs (v4 design)
+        xl: "h-14 rounded-xl px-8 text-lg has-[>svg]:px-6",
         icon: "size-9",
         "icon-sm": "size-8",
         "icon-lg": "size-10",

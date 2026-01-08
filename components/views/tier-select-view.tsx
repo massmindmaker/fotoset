@@ -50,9 +50,9 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
           key={tier.id}
           onClick={() => onSelectTier(tier)}
           className={cn(
-            "w-full cursor-pointer transition-all hover-lift active-press",
+            "w-full cursor-pointer transition-all hover-lift active-press shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]",
             selectedTier?.id === tier.id
-              ? "border-primary bg-gradient-to-br from-primary/10 to-accent/5 shadow-2xl shadow-primary/20 ring-2 ring-primary/20"
+              ? "border-primary bg-gradient-to-br from-primary/10 to-[var(--accent-purple)]/5 shadow-[var(--shadow-lg)] shadow-primary/20 ring-2 ring-primary/20"
               : "hover:border-muted-foreground/30 hover:bg-muted/30"
           )}
           role="radio"
@@ -74,7 +74,7 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <h3 className="font-semibold text-lg text-foreground">{tier.photos} фотографий</h3>
                 {tier.popular && (
-                  <Badge variant="default" className="text-xs">
+                  <Badge variant="popular" className="text-xs">
                     <Star className="w-3 h-3 mr-1" /> Хит
                   </Badge>
                 )}
@@ -92,7 +92,7 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
                 <>
                   <div className="flex items-center gap-2 justify-end">
                     <span className="text-sm line-through text-muted-foreground">{tier.originalPrice} ₽</span>
-                    <Badge variant="secondary" className="bg-green-500/20 text-green-600 text-xs">
+                    <Badge variant="success" className="text-xs">
                       <Percent className="w-3 h-3 mr-0.5" />-{tier.discount}%
                     </Badge>
                   </div>
@@ -119,8 +119,9 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
       <Button
         onClick={() => selectedTier && onUpgrade(selectedTier)}
         disabled={!selectedTier || isGenerating || isProcessingPayment}
-        size="lg"
-        className="w-full sm:w-auto h-12 rounded-2xl text-base font-semibold gap-2"
+        variant="gradient"
+        size="xl"
+        className="w-full sm:w-auto"
       >
         {(isGenerating || isProcessingPayment) ? (
           <>

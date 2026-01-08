@@ -244,7 +244,7 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
       />
 
       {/* Panel */}
-      <div className="relative w-full max-w-lg bg-background rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-hidden shadow-2xl border border-border animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
+      <div className="relative w-full max-w-lg bg-background rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-hidden shadow-[var(--shadow-lg)] border border-border animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
         {/* Header */}
         <div className="sticky top-0 bg-background/95 backdrop-blur-xl z-10 px-4 sm:px-6 py-4 border-b border-border">
           <div className="flex items-center justify-between">
@@ -625,8 +625,8 @@ function WithdrawModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-background rounded-3xl p-6 shadow-2xl border border-border">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-background rounded-3xl p-6 shadow-[var(--shadow-lg)] border border-border animate-in slide-in-from-bottom-8 duration-300">
         <h3 className="text-xl font-bold text-foreground mb-4">Вывод средств</h3>
 
         {/* Amount Preview */}
@@ -829,8 +829,8 @@ function PartnerApplicationModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-background rounded-3xl shadow-2xl border border-border max-h-[90vh] overflow-hidden">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-background rounded-3xl shadow-[var(--shadow-lg)] border border-border max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
         {/* Header */}
         <div className="sticky top-0 bg-background/95 backdrop-blur-xl z-10 px-6 py-4 border-b border-border">
           <div className="flex items-center justify-between">
