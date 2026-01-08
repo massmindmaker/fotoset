@@ -20,7 +20,7 @@ export type AuthStatus = 'pending' | 'success' | 'failed' | 'not_in_telegram'
 export function useAuth() {
   const [userIdentifier, setUserIdentifier] = useState<UserIdentifier | null>(null)
   const [authStatus, setAuthStatus] = useState<AuthStatus>('pending')
-  const [theme, setTheme] = useState<"dark" | "light">("dark")
+  const [theme, setTheme] = useState<"dark" | "light">("light")
 
   // Helper: show messages via Telegram API or browser alert
   const showMessage = useCallback((message: string) => {
@@ -41,7 +41,8 @@ export function useAuth() {
     const newTheme = theme === "dark" ? "light" : "dark"
     setTheme(newTheme)
     localStorage.setItem("pinglass_theme", newTheme)
-    document.documentElement.classList.toggle("light", newTheme === "light")
+    document.documentElement.classList.remove("dark", "light")
+    document.documentElement.classList.add(newTheme)
   }, [theme])
 
   // Initialize authentication
@@ -51,12 +52,12 @@ export function useAuth() {
     const abortController = new AbortController()
 
     const initAuth = async () => {
-      // Load saved theme
+      // Load saved theme (default to light)
       const savedTheme = localStorage.getItem("pinglass_theme") as "dark" | "light" | null
-      if (savedTheme) {
-        setTheme(savedTheme)
-        document.documentElement.classList.toggle("light", savedTheme === "light")
-      }
+      const effectiveTheme = savedTheme || "light"
+      setTheme(effectiveTheme)
+      document.documentElement.classList.remove("dark", "light")
+      document.documentElement.classList.add(effectiveTheme)
 
       // Telegram WebApp authentication - use initDataUnsafe directly
       let tg = window.Telegram?.WebApp
