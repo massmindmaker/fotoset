@@ -20,9 +20,9 @@ export default function TicketsPage() {
             Управление тикетами поддержки, SLA и переписка с пользователями
           </p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-border">
-          <Ticket className="w-4 h-4 text-primary" />
-          <span className="text-xs font-medium text-foreground">Support</span>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-pink-50 border border-pink-200">
+          <Ticket className="w-4 h-4 text-pink-600" />
+          <span className="text-xs font-medium text-pink-700">Support</span>
         </div>
       </div>
 

@@ -25,9 +25,9 @@ export default function PartnersPage() {
             Партнерская программа, заявки, комиссии
           </p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-border">
-          <Users className="w-4 h-4 text-primary" />
-          <span className="text-xs font-medium text-foreground">Partners</span>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-pink-50 border border-pink-200">
+          <Users className="w-4 h-4 text-pink-600" />
+          <span className="text-xs font-medium text-pink-700">Partners</span>
         </div>
       </div>
 

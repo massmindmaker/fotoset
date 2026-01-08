@@ -24,9 +24,9 @@ export default function PromptTestingPage() {
             Тестирование, сохранённые промпты и фотопаки
           </p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-border shadow-sm">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-xs font-medium text-foreground">KIE AI</span>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-pink-50 border border-pink-200">
+          <Sparkles className="w-4 h-4 text-pink-600" />
+          <span className="text-xs font-medium text-pink-700">KIE AI</span>
         </div>
       </div>
 
