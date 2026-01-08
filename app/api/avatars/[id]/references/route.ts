@@ -17,7 +17,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   // SECURITY: Check auth first - return 403 if no identifier provided
   const identifier = getUserIdentifier(request)
-  if (!identifier.telegramUserId) {
+  if (!identifier.telegramUserId && !identifier.neonUserId) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 })
   }
 
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 
   // Parse body first to extract user identifier (FIX 4)
-  let body: { referenceImages?: string[]; telegramUserId?: number; deviceId?: string }
+  let body: { referenceImages?: string[]; telegramUserId?: number; neonUserId?: string; deviceId?: string }
   try {
     body = await request.json()
   } catch {

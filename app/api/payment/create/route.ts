@@ -14,8 +14,9 @@ const DEFAULT_TIER_PRICES: Record<string, { price: number; photos: number; disco
 
 export async function POST(request: NextRequest) {
   try {
-    const { telegramUserId, email, paymentMethod, tierId, photoCount, referralCode, avatarId } = await request.json() as {
-      telegramUserId: number
+    const { telegramUserId, neonUserId, email, paymentMethod, tierId, photoCount, referralCode, avatarId } = await request.json() as {
+      telegramUserId?: number
+      neonUserId?: string  // Web authentication via Neon Auth
       email?: string
       paymentMethod?: PaymentMethod
       tierId?: string
@@ -24,13 +25,18 @@ export async function POST(request: NextRequest) {
       avatarId?: string
     }
 
-    // SECURITY: Require telegramUserId (Telegram-only authentication)
-    if (!telegramUserId || typeof telegramUserId !== 'number') {
-      return NextResponse.json({ error: "telegramUserId is required" }, { status: 400 })
+    // SECURITY: Require at least one authentication method
+    if (!telegramUserId && !neonUserId) {
+      return NextResponse.json({ error: "telegramUserId or neonUserId is required" }, { status: 400 })
     }
 
-    // Find or create user (Telegram-only)
-    const user = await findOrCreateUser({ telegramUserId })
+    // Validate telegramUserId type if provided
+    if (telegramUserId !== undefined && typeof telegramUserId !== 'number') {
+      return NextResponse.json({ error: "telegramUserId must be a number" }, { status: 400 })
+    }
+
+    // Find or create user (supports both Telegram and Web)
+    const user = await findOrCreateUser({ telegramUserId, neonUserId, email })
 
     // Get current T-Bank mode from admin settings (dynamic)
     const tbankCreds = await getTBankCredentials()
@@ -111,7 +117,13 @@ export async function POST(request: NextRequest) {
     // /payment/success was a dead-end that didn't trigger generation flow
     // Use URL API for proper encoding of query parameters
     const successUrlObj = new URL(`${baseUrl}/payment/callback`)
-    successUrlObj.searchParams.set('telegram_user_id', String(telegramUserId))
+    // Support both Telegram and Web users in callback
+    if (telegramUserId) {
+      successUrlObj.searchParams.set('telegram_user_id', String(telegramUserId))
+    }
+    if (neonUserId) {
+      successUrlObj.searchParams.set('neon_user_id', neonUserId)
+    }
     successUrlObj.searchParams.set('tier', tierId || 'premium')
     const successUrl = successUrlObj.toString()
     const failUrl = `${baseUrl}/payment/fail`

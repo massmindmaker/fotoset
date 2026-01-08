@@ -27,9 +27,11 @@ interface ResultsGalleryProps {
 }
 
 // Memoized Asset Card Component - prevents unnecessary re-renders
+// Includes fade-in animation for newly appeared photos
 const AssetCard = memo<{
   asset: GeneratedAsset
   index: number
+  isNew?: boolean  // Mark as newly appeared for animation
   onOpenLightbox: (index: number) => void
   onShare: (asset: GeneratedAsset) => void
   onDownload: (asset: GeneratedAsset) => void
@@ -37,12 +39,37 @@ const AssetCard = memo<{
   ({
     asset,
     index,
+    isNew = false,
     onOpenLightbox,
     onShare,
     onDownload,
   }) => {
+    const [hasAnimated, setHasAnimated] = useState(false)
+
+    // Trigger animation once on mount for new photos
+    useEffect(() => {
+      if (isNew && !hasAnimated) {
+        const timer = setTimeout(() => setHasAnimated(true), 50)
+        return () => clearTimeout(timer)
+      }
+    }, [isNew, hasAnimated])
+
+    // Animation classes for new photos
+    const animationClass = isNew
+      ? hasAnimated
+        ? "animate-in fade-in-0 zoom-in-95 duration-500"
+        : "opacity-0 scale-95"
+      : ""
+
     return (
-      <MinimalCard className="relative p-0 overflow-hidden group hover-lift active-press">
+      <MinimalCard className={`relative p-0 overflow-hidden group hover-lift active-press ${animationClass}`}>
+        {/* New badge for recently generated photos */}
+        {isNew && (
+          <div className="absolute top-2 right-2 z-10 px-2 py-0.5 bg-primary text-white text-xs font-medium rounded-full animate-pulse">
+            Новое
+          </div>
+        )}
+
         {/* Image */}
         <button
           onClick={() => onOpenLightbox(index)}
@@ -93,7 +120,8 @@ const AssetCard = memo<{
   // Custom comparison function - only re-render if these props change
   (prev, next) =>
     prev.asset.id === next.asset.id &&
-    prev.index === next.index
+    prev.index === next.index &&
+    prev.isNew === next.isNew
 )
 
 AssetCard.displayName = 'AssetCard'
@@ -373,6 +401,34 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl, onGe
   const [shareModalAsset, setShareModalAsset] = useState<GeneratedAsset | null>(null)
   const [referralCode, setReferralCode] = useState<string | null>(null)
 
+  // Track which asset IDs we've seen before to detect new photos
+  const [seenAssetIds, setSeenAssetIds] = useState<Set<string>>(new Set())
+
+  // Update seen assets when assets change - photos created in last 30 seconds are "new"
+  useEffect(() => {
+    const now = Date.now()
+    const newSeen = new Set(seenAssetIds)
+    let hasChanges = false
+
+    assets.forEach(asset => {
+      if (!newSeen.has(asset.id)) {
+        newSeen.add(asset.id)
+        hasChanges = true
+      }
+    })
+
+    if (hasChanges) {
+      setSeenAssetIds(newSeen)
+    }
+  }, [assets, seenAssetIds])
+
+  // Determine if an asset is "new" (created within last 30 seconds)
+  const isNewPhoto = useCallback((asset: GeneratedAsset): boolean => {
+    const now = Date.now()
+    const createdAt = asset.createdAt || 0
+    return now - createdAt < 30000  // 30 seconds
+  }, [])
+
   // Load referral code from localStorage
   useEffect(() => {
     // Load referral code for sharing
@@ -487,13 +543,14 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl, onGe
         </div>
       </Card>
 
-      {/* Photo grid with memoized cards */}
+      {/* Photo grid with memoized cards - new photos get animation */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {assets.map((asset, index) => (
           <AssetCard
             key={asset.id}
             asset={asset}
             index={index}
+            isNew={isNewPhoto(asset)}
             onOpenLightbox={setLightboxIndex}
             onShare={sharePhoto}
             onDownload={downloadSingle}

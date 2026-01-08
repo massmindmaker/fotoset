@@ -486,26 +486,27 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================================================
-    // Generation Limit Check - Maximum 3 generations per avatar
+    // Generation Limit Check - TEMPORARILY DISABLED
+    // TODO: Re-enable when needed: Maximum 3 generations per avatar
     // ============================================================================
-    if (existingAvatar) {
-      const generationCount = await sql`
-        SELECT COUNT(*) as count FROM generation_jobs
-        WHERE avatar_id = ${parsedAvatarId}
-          AND status IN ('completed', 'processing', 'pending')
-      `.then((rows: any[]) => parseInt(rows[0]?.count || '0'))
-
-      if (generationCount >= 3) {
-        logger.warn("Generation limit reached", { avatarId: parsedAvatarId, count: generationCount })
-        return error("GENERATION_LIMIT_REACHED", "Достигнут лимит генераций для этого аватара (максимум 3)", {
-          code: "GENERATION_LIMIT_REACHED",
-          currentCount: generationCount,
-          maxAllowed: 3
-        })
-      }
-
-      logger.info("Generation limit check passed", { avatarId: parsedAvatarId, count: generationCount })
-    }
+    // if (existingAvatar) {
+    //   const generationCount = await sql`
+    //     SELECT COUNT(*) as count FROM generation_jobs
+    //     WHERE avatar_id = ${parsedAvatarId}
+    //       AND status IN ('completed', 'processing', 'pending')
+    //   `.then((rows: any[]) => parseInt(rows[0]?.count || '0'))
+    //
+    //   if (generationCount >= 3) {
+    //     logger.warn("Generation limit reached", { avatarId: parsedAvatarId, count: generationCount })
+    //     return error("GENERATION_LIMIT_REACHED", "Достигнут лимит генераций для этого аватара (максимум 3)", {
+    //       code: "GENERATION_LIMIT_REACHED",
+    //       currentCount: generationCount,
+    //       maxAllowed: 3
+    //     })
+    //   }
+    //
+    //   logger.info("Generation limit check passed", { avatarId: parsedAvatarId, count: generationCount })
+    // }
 
     if (existingAvatar) {
       dbAvatarId = existingAvatar.id

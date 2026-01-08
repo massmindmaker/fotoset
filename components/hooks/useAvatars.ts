@@ -13,7 +13,13 @@ export function useAvatars() {
   const loadAvatarsFromServer = useCallback(async (identifier: UserIdentifier): Promise<Persona[]> => {
     try {
       // Use include_photos=true (default) to get all avatars with photos in ONE request
-      const url = `/api/avatars?include_photos=true&telegram_user_id=${identifier.telegramUserId}`
+      // Support both Telegram and Web users
+      let url: string
+      if (identifier.type === 'web' && identifier.neonUserId) {
+        url = `/api/avatars?include_photos=true&neon_user_id=${identifier.neonUserId}`
+      } else {
+        url = `/api/avatars?include_photos=true&telegram_user_id=${identifier.telegramUserId ?? identifier.visibleUserId}`
+      }
       const res = await fetch(url)
       if (!res.ok) return []
 
@@ -86,7 +92,12 @@ export function useAvatars() {
 
   // Delete persona - calls API and removes from state
   // Returns { success: boolean, error?: string } for proper error handling
-  const deletePersona = useCallback(async (id: string, telegramUserId?: number): Promise<{ success: boolean; error?: string }> => {
+  // Supports both Telegram and Web users
+  const deletePersona = useCallback(async (
+    id: string,
+    telegramUserId?: number,
+    neonUserId?: string
+  ): Promise<{ success: boolean; error?: string }> => {
     // Skip API for temp IDs (not yet saved to DB)
     if (id.startsWith("temp_")) {
       setPersonas((prev) => prev.filter((p) => p.id !== id))
@@ -94,9 +105,12 @@ export function useAvatars() {
     }
 
     try {
-      const url = telegramUserId
-        ? `/api/avatars/${id}?telegram_user_id=${telegramUserId}`
-        : `/api/avatars/${id}`
+      let url = `/api/avatars/${id}`
+      if (telegramUserId) {
+        url += `?telegram_user_id=${telegramUserId}`
+      } else if (neonUserId) {
+        url += `?neon_user_id=${neonUserId}`
+      }
 
       const res = await fetch(url, { method: "DELETE" })
 

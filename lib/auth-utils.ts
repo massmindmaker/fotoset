@@ -14,10 +14,11 @@ export interface OwnershipResult {
 }
 
 /**
- * User identifier - Telegram only
+ * User identifier - supports both Telegram and Web (Neon Auth) users
  */
 export interface UserIdentifier {
   telegramUserId?: number
+  neonUserId?: string  // Stored as neon_auth_id in DB
 }
 
 // ============================================================================
@@ -25,16 +26,16 @@ export interface UserIdentifier {
 // ============================================================================
 
 /**
- * Extract user identifier from request (Telegram only)
+ * Extract user identifier from request
+ * Supports both Telegram users and Web users (Neon Auth)
  * Includes NaN validation for telegram_user_id
  */
 export function getUserIdentifier(request: NextRequest, body?: any): UserIdentifier {
+  // === Telegram User ID ===
   // Check header first (most secure)
   const headerTelegramId = request.headers.get("x-telegram-user-id")
-
   // Check query parameters
   const queryTelegramId = request.nextUrl.searchParams.get("telegram_user_id")
-
   // Check request body
   const bodyTelegramId = body?.telegramUserId
 
@@ -60,8 +61,28 @@ export function getUserIdentifier(request: NextRequest, body?: any): UserIdentif
     }
   }
 
+  // === Neon User ID (Web users) ===
+  // Check header first
+  const headerNeonId = request.headers.get("x-neon-user-id")
+  // Check query parameters
+  const queryNeonId = request.nextUrl.searchParams.get("neon_user_id")
+  // Check request body
+  const bodyNeonId = body?.neonUserId
+
+  let neonUserId: string | undefined = undefined
+
+  // Neon ID is a UUID string, validate it's not empty
+  if (headerNeonId && headerNeonId.trim()) {
+    neonUserId = headerNeonId.trim()
+  } else if (queryNeonId && queryNeonId.trim()) {
+    neonUserId = queryNeonId.trim()
+  } else if (bodyNeonId && typeof bodyNeonId === 'string' && bodyNeonId.trim()) {
+    neonUserId = bodyNeonId.trim()
+  }
+
   return {
     telegramUserId,
+    neonUserId,
   }
 }
 
@@ -71,9 +92,9 @@ export function getUserIdentifier(request: NextRequest, body?: any): UserIdentif
 
 /**
  * Verify that a user identifier owns a specific resource
- * Telegram-only authentication
+ * Supports both Telegram and Web (Neon Auth) users
  *
- * @param identifier - User's identifier (telegram_user_id)
+ * @param identifier - User's identifier (telegram_user_id or neon_user_id)
  * @param resourceType - Type of resource (avatar, job, reference)
  * @param resourceId - ID of the resource to check
  * @returns Ownership verification result
@@ -90,12 +111,13 @@ export async function verifyResourceOwnershipWithIdentifier(
   resourceType: ResourceType,
   resourceId: number
 ): Promise<OwnershipResult> {
-  if (!identifier.telegramUserId) {
+  // Must have at least one identifier
+  if (!identifier.telegramUserId && !identifier.neonUserId) {
     return { authorized: false, resourceExists: false }
   }
 
-  // NaN validation
-  if (isNaN(identifier.telegramUserId)) {
+  // NaN validation for Telegram ID
+  if (identifier.telegramUserId && isNaN(identifier.telegramUserId)) {
     return { authorized: false, resourceExists: false }
   }
 
@@ -127,18 +149,18 @@ export async function verifyResourceOwnershipWithIdentifier(
 }
 
 // ============================================================================
-// Resource-Specific Verification with Telegram Support
+// Resource-Specific Verification with Telegram and Web Support
 // ============================================================================
 
 /**
- * Verify avatar ownership with Telegram
+ * Verify avatar ownership with Telegram or Web (Neon Auth)
  */
 async function verifyAvatarOwnershipWithIdentifier(
   identifier: UserIdentifier,
   avatarId: number
 ): Promise<OwnershipResult> {
   const rows = await sql`
-    SELECT a.id, a.user_id, u.telegram_user_id
+    SELECT a.id, a.user_id, u.telegram_user_id, u.neon_auth_id
     FROM avatars a
     JOIN users u ON u.id = a.user_id
     WHERE a.id = ${avatarId}
@@ -149,9 +171,14 @@ async function verifyAvatarOwnershipWithIdentifier(
   }
 
   const avatar = rows[0]
-  const authorized = identifier.telegramUserId
-    ? Number(avatar.telegram_user_id) === identifier.telegramUserId
-    : false
+
+  // Check authorization via Telegram OR Neon Auth
+  let authorized = false
+  if (identifier.telegramUserId && avatar.telegram_user_id) {
+    authorized = Number(avatar.telegram_user_id) === identifier.telegramUserId
+  } else if (identifier.neonUserId && avatar.neon_auth_id) {
+    authorized = avatar.neon_auth_id === identifier.neonUserId
+  }
 
   return {
     authorized,
@@ -161,14 +188,14 @@ async function verifyAvatarOwnershipWithIdentifier(
 }
 
 /**
- * Verify generation job ownership with Telegram
+ * Verify generation job ownership with Telegram or Web (Neon Auth)
  */
 async function verifyJobOwnershipWithIdentifier(
   identifier: UserIdentifier,
   jobId: number
 ): Promise<OwnershipResult> {
   const rows = await sql`
-    SELECT j.id, j.avatar_id, a.user_id, u.telegram_user_id
+    SELECT j.id, j.avatar_id, a.user_id, u.telegram_user_id, u.neon_auth_id
     FROM generation_jobs j
     JOIN avatars a ON a.id = j.avatar_id
     JOIN users u ON u.id = a.user_id
@@ -180,9 +207,14 @@ async function verifyJobOwnershipWithIdentifier(
   }
 
   const job = rows[0]
-  const authorized = identifier.telegramUserId
-    ? Number(job.telegram_user_id) === identifier.telegramUserId
-    : false
+
+  // Check authorization via Telegram OR Neon Auth
+  let authorized = false
+  if (identifier.telegramUserId && job.telegram_user_id) {
+    authorized = Number(job.telegram_user_id) === identifier.telegramUserId
+  } else if (identifier.neonUserId && job.neon_auth_id) {
+    authorized = job.neon_auth_id === identifier.neonUserId
+  }
 
   return {
     authorized,
@@ -192,14 +224,14 @@ async function verifyJobOwnershipWithIdentifier(
 }
 
 /**
- * Verify reference photo ownership with Telegram
+ * Verify reference photo ownership with Telegram or Web (Neon Auth)
  */
 async function verifyReferenceOwnershipWithIdentifier(
   identifier: UserIdentifier,
   referenceId: number
 ): Promise<OwnershipResult> {
   const rows = await sql`
-    SELECT r.id, r.avatar_id, a.user_id, u.telegram_user_id
+    SELECT r.id, r.avatar_id, a.user_id, u.telegram_user_id, u.neon_auth_id
     FROM reference_photos r
     JOIN avatars a ON a.id = r.avatar_id
     JOIN users u ON u.id = a.user_id
@@ -211,9 +243,14 @@ async function verifyReferenceOwnershipWithIdentifier(
   }
 
   const reference = rows[0]
-  const authorized = identifier.telegramUserId
-    ? Number(reference.telegram_user_id) === identifier.telegramUserId
-    : false
+
+  // Check authorization via Telegram OR Neon Auth
+  let authorized = false
+  if (identifier.telegramUserId && reference.telegram_user_id) {
+    authorized = Number(reference.telegram_user_id) === identifier.telegramUserId
+  } else if (identifier.neonUserId && reference.neon_auth_id) {
+    authorized = reference.neon_auth_id === identifier.neonUserId
+  }
 
   return {
     authorized,

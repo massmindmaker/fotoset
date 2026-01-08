@@ -23,8 +23,8 @@ export function AdminHeaderActions({ session, roleDisplayName }: AdminHeaderActi
       {/* Notification Bell */}
       <NotificationBell />
 
-      {/* User Info */}
-      <div className="flex items-center gap-3 px-4 py-2 rounded-xl glass">
+      {/* User Info - Light badge style */}
+      <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-100 border border-slate-200">
         {session.avatarUrl ? (
           <img
             src={session.avatarUrl}
@@ -32,17 +32,17 @@ export function AdminHeaderActions({ session, roleDisplayName }: AdminHeaderActi
             className="w-8 h-8 rounded-lg object-cover"
           />
         ) : (
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <span className="text-sm font-medium text-primary">
+          <div className="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center">
+            <span className="text-sm font-medium text-pink-600">
               {(session.firstName || session.email).charAt(0).toUpperCase()}
             </span>
           </div>
         )}
         <div className="hidden sm:block">
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-slate-500">
             {roleDisplayName}
           </p>
-          <p className="text-sm font-medium text-foreground">
+          <p className="text-sm font-medium text-slate-800">
             {session.firstName || session.email.split('@')[0]}
           </p>
         </div>
@@ -52,7 +52,7 @@ export function AdminHeaderActions({ session, roleDisplayName }: AdminHeaderActi
       <form action="/api/admin/auth/logout" method="POST">
         <button
           type="submit"
-          className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+          className="p-2 rounded-lg hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
           title="Выйти"
         >
           <LogOut className="w-5 h-5" />

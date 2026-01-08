@@ -19,7 +19,8 @@ interface PaymentModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
-  telegramUserId?: number  // Telegram-only authentication (optional for non-Telegram context)
+  telegramUserId?: number  // Telegram authentication (optional)
+  neonUserId?: string  // Web authentication via Neon Auth (optional)
   tier: PricingTier
   personaId?: string  // For post-payment redirect to generation
 }
@@ -30,7 +31,7 @@ interface PaymentResponse {
   testMode: boolean
 }
 
-export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, telegramUserId, tier, personaId }) => {
+export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, telegramUserId, neonUserId, tier, personaId }) => {
   const [step, setStep] = useState<"FORM" | "PROCESSING" | "REDIRECT" | "SUCCESS" | "ERROR" | "STARS_WAITING" | "TON_PAYMENT">("FORM")
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState("")
@@ -130,10 +131,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
   const handlePayment = useCallback(async () => {
     if (!validateEmail(email)) return
 
-    // Validate telegramUserId (Telegram-only authentication)
-    if (!telegramUserId) {
-      console.error("[Payment] Missing telegramUserId")
-      setErrorMessage("Требуется авторизация через Telegram")
+    // Validate at least one auth method present
+    if (!telegramUserId && !neonUserId) {
+      console.error("[Payment] Missing authentication")
+      setErrorMessage("Требуется авторизация")
       setStep("ERROR")
       return
     }
@@ -149,7 +150,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          telegramUserId,  // Telegram-only authentication
+          telegramUserId,  // Telegram authentication (optional)
+          neonUserId,  // Web authentication (optional)
           email: email.trim(),
           tierId: tier.id,
           photoCount: tier.photos,
@@ -182,14 +184,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
     } finally {
       setLoading(false)
     }
-  }, [email, telegramUserId, tier])
+  }, [email, telegramUserId, neonUserId, tier, personaId])
 
   // Handle alternative payment methods (Stars, TON)
+  // Note: Stars and TON payments require Telegram (they are Telegram-specific)
   const handleAltPayment = useCallback(async (method: 'stars' | 'ton') => {
-    // Validate telegramUserId (Telegram-only authentication)
+    // Stars and TON require Telegram authentication
     if (!telegramUserId) {
-      console.error("[Payment] Missing telegramUserId")
-      setErrorMessage("Требуется авторизация через Telegram")
+      console.error("[Payment] Stars/TON require Telegram")
+      setErrorMessage("Для оплаты Stars/TON требуется авторизация через Telegram")
       setStep("ERROR")
       return
     }

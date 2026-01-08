@@ -39,35 +39,48 @@ interface AvatarWithPhotos {
 }
 
 interface CreateAvatarRequest {
-  telegramUserId: number
+  telegramUserId?: number
+  neonUserId?: string
+  email?: string
   name?: string
 }
 
 // ============================================================================
-// GET /api/avatars?telegram_user_id=xxx - Get all avatars for a user with photos
+// GET /api/avatars?telegram_user_id=xxx or ?neon_user_id=xxx - Get all avatars for a user with photos
 // ============================================================================
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const telegramUserIdParam = searchParams.get("telegram_user_id")
+  const neonUserIdParam = searchParams.get("neon_user_id")
   const includePhotos = searchParams.get("include_photos") !== "false" // default: true
 
-  // Require Telegram user ID (no deviceId fallback)
-  if (!telegramUserIdParam) {
-    return error("UNAUTHORIZED", "telegram_user_id is required")
+  // Require at least one user identifier
+  if (!telegramUserIdParam && !neonUserIdParam) {
+    return error("UNAUTHORIZED", "telegram_user_id or neon_user_id is required")
   }
 
-  // NaN validation
-  const telegramUserId = parseInt(telegramUserIdParam)
-  if (isNaN(telegramUserId)) {
-    return error("VALIDATION_ERROR", "Invalid telegram_user_id format")
+  // Parse identifiers
+  let telegramUserId: number | undefined
+  if (telegramUserIdParam) {
+    telegramUserId = parseInt(telegramUserIdParam)
+    if (isNaN(telegramUserId)) {
+      return error("VALIDATION_ERROR", "Invalid telegram_user_id format")
+    }
   }
 
   try {
-    // Find user by telegram_user_id only
-    const user = await sql`
-      SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
-    `.then((rows: any[]) => rows[0])
+    // Find user by telegram_user_id or neon_auth_id
+    let user
+    if (telegramUserId) {
+      user = await sql`
+        SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
+      `.then((rows: any[]) => rows[0])
+    } else if (neonUserIdParam) {
+      user = await sql`
+        SELECT id FROM users WHERE neon_auth_id = ${neonUserIdParam}
+      `.then((rows: any[]) => rows[0])
+    }
 
     if (!user) {
       logger.info("No user found, returning empty avatars", { telegramUserId })
@@ -203,22 +216,29 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { telegramUserId, name = "My Avatar" } = body as CreateAvatarRequest
+    const { telegramUserId, neonUserId, email, name = "My Avatar" } = body as CreateAvatarRequest
 
-    // Require Telegram user ID (no deviceId fallback)
-    if (!telegramUserId) {
-      return error("UNAUTHORIZED", "telegramUserId is required")
+    // Require at least one user identifier
+    if (!telegramUserId && !neonUserId) {
+      return error("UNAUTHORIZED", "telegramUserId or neonUserId is required")
     }
 
-    // NaN validation
-    const tgId = typeof telegramUserId === 'number' ? telegramUserId : parseInt(String(telegramUserId))
-    if (isNaN(tgId)) {
-      return error("VALIDATION_ERROR", "Invalid telegramUserId format")
+    // Validate telegramUserId if provided
+    let tgId: number | undefined
+    if (telegramUserId) {
+      tgId = typeof telegramUserId === 'number' ? telegramUserId : parseInt(String(telegramUserId))
+      if (isNaN(tgId)) {
+        return error("VALIDATION_ERROR", "Invalid telegramUserId format")
+      }
     }
 
-    // Find or create user with telegram_user_id only
-    const user = await findOrCreateUser({ telegramUserId: tgId })
-    logger.info("User resolved", { userId: user.id, telegramUserId: tgId })
+    // Find or create user with either identifier
+    const user = await findOrCreateUser({
+      telegramUserId: tgId,
+      neonUserId,
+      email,
+    })
+    logger.info("User resolved", { userId: user.id, telegramUserId: tgId, neonUserId })
 
     // Check avatar limit (max 3 per user)
     const MAX_AVATARS = 3

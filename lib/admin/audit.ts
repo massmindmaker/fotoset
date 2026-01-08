@@ -53,6 +53,7 @@ export type AuditAction =
   // Telegram actions
   | 'telegram_message_retried'
   | 'telegram_test_sent'
+  | 'broadcast_created'
   // Settings actions
   | 'settings_updated'
   | 'pricing_updated'

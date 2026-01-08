@@ -91,7 +91,7 @@ const ReferralPanel = lazy(() => import("./referral-panel").then((m) => ({ defau
 
 export default function PersonaApp() {
   // Custom hooks
-  const { userIdentifier, authStatus, telegramUserId, theme, toggleTheme, showMessage } = useAuth()
+  const { userIdentifier, authStatus, telegramUserId, isWebUser, neonUserId, theme, toggleTheme, showMessage, setWebUser } = useAuth()
   const { data: neonSession, isPending: isNeonAuthPending } = useSession() // Neon Auth session for web users
   const { personas, setPersonas, loadAvatarsFromServer, createPersona, updatePersona, deletePersona, getPersona } = useAvatars()
   const { isGenerating, setIsGenerating, generationProgress, setGenerationProgress, fileToBase64 } = useGeneration()
@@ -122,6 +122,14 @@ export default function PersonaApp() {
 
   // Payment success celebration state
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
+
+  // Confirmation dialog for deleting old photos before new generation
+  const [deletePhotosConfirm, setDeletePhotosConfirm] = useState<{
+    isOpen: boolean
+    photoCount: number
+    personaId: string | null
+  }>({ isOpen: false, photoCount: 0, personaId: null })
+  const [isDeletingPhotos, setIsDeletingPhotos] = useState(false)
 
   // Active generation job ID (for polling recovery)
   const [activeJobId, setActiveJobId] = useState<number | null>(null)
@@ -364,15 +372,20 @@ export default function PersonaApp() {
       isPending: isNeonAuthPending,
       hasSession: !!neonSession,
       hasUser: !!neonSession?.user,
+      userId: neonSession?.user?.id,
       authStatus,
       currentView: viewState.view,
+      hasUserIdentifier: !!userIdentifier,
     })
 
     if (isNeonAuthPending) return // Wait for session to load
 
     // Check if user logged in via Neon Auth (web version)
-    // Accept both 'not_in_telegram' and 'pending' (during initial load)
-    if (neonSession?.user) {
+    if (neonSession?.user?.id) {
+      // CRITICAL: Set web user identity in useAuth hook
+      // This creates userIdentifier which triggers avatar loading in main useEffect
+      setWebUser(neonSession.user.id, neonSession.user.email ?? undefined)
+
       const urlParams = new URLSearchParams(window.location.search)
       const isAuthCallback = urlParams.get('auth') === 'success'
 
@@ -398,7 +411,7 @@ export default function PersonaApp() {
         }
       }
     }
-  }, [neonSession, isNeonAuthPending, authStatus, viewState.view, personas.length])
+  }, [neonSession, isNeonAuthPending, authStatus, viewState.view, personas.length, setWebUser, userIdentifier])
 
   // Save view state when it changes
   useEffect(() => {
@@ -572,6 +585,7 @@ export default function PersonaApp() {
       const newIdentifier = {
         type: "telegram" as const,
         telegramUserId: tgUser.id,
+        visibleUserId: tgUser.id,
         deviceId: `tg_${tgUser.id}`,
       }
       const avatars = await loadAvatarsFromServer(newIdentifier)
@@ -586,18 +600,20 @@ export default function PersonaApp() {
 
   // Create persona handler - immediately creates avatar on server
   const handleCreatePersona = useCallback(async () => {
-    if (!telegramUserId) {
-      showMessage("Ошибка: не удалось получить Telegram ID")
+    // Require either Telegram or Web user identifier
+    if (!telegramUserId && !neonUserId) {
+      showMessage("Ошибка: не удалось получить идентификатор пользователя")
       return
     }
 
     try {
-      // Create avatar on server immediately
+      // Create avatar on server immediately (supports both Telegram and Web users)
       const res = await fetch("/api/avatars", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          telegramUserId,
+          telegramUserId: isWebUser ? undefined : telegramUserId,
+          neonUserId: isWebUser ? neonUserId : undefined,
           name: "Мой аватар",
         }),
       })
@@ -628,23 +644,24 @@ export default function PersonaApp() {
     } catch (error) {
       showMessage(`Ошибка: ${error instanceof Error ? error.message : "Не удалось создать аватар"}`)
     }
-  }, [telegramUserId, setPersonas, showMessage])
+  }, [telegramUserId, neonUserId, isWebUser, setPersonas, showMessage])
 
-  // Delete persona handler with Telegram-native confirm
+  // Delete persona handler with Telegram-native confirm (supports both Telegram and Web users)
   const handleDeletePersona = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation()
 
-    // CRITICAL: telegramUserId is required for API authorization
-    if (!telegramUserId) {
-      console.error("[Delete] Cannot delete: telegramUserId is undefined")
+    // Require either Telegram or Web user identifier
+    if (!telegramUserId && !neonUserId) {
+      console.error("[Delete] Cannot delete: no user identifier")
       showMessage("Ошибка авторизации. Перезапустите приложение.")
       return
     }
 
     const currentTelegramUserId = telegramUserId // Capture for async closure
+    const currentNeonUserId = neonUserId // Capture for async closure
 
     const performDelete = async () => {
-      const result = await deletePersona(id, currentTelegramUserId)
+      const result = await deletePersona(id, currentTelegramUserId, currentNeonUserId)
       if (result.success) {
         if ("personaId" in viewState && viewState.personaId === id) {
           setViewState({ view: "DASHBOARD" })
@@ -663,24 +680,27 @@ export default function PersonaApp() {
         }
       })
     } else {
-      // Fallback for non-Telegram environment
+      // Fallback for non-Telegram environment (browser confirm)
       if (confirm("Удалить?")) {
         performDelete()
       }
     }
-  }, [deletePersona, viewState, telegramUserId, showMessage])
+  }, [deletePersona, viewState, telegramUserId, neonUserId, showMessage])
 
-  // Load reference photos for Avatar Detail View
+  // Load reference photos for Avatar Detail View (supports both Telegram and Web users)
   const loadReferencePhotos = useCallback(async (avatarId: string) => {
-    if (!telegramUserId) return
+    if (!telegramUserId && !neonUserId) return
 
     setIsLoadingReferences(true)
     try {
-      const response = await fetch(`/api/avatars/${avatarId}/references`, {
-        headers: {
-          "X-Telegram-User-Id": String(telegramUserId),
-        },
-      })
+      const headers: HeadersInit = {}
+      if (telegramUserId) {
+        headers["X-Telegram-User-Id"] = String(telegramUserId)
+      } else if (neonUserId) {
+        headers["X-Neon-User-Id"] = neonUserId
+      }
+
+      const response = await fetch(`/api/avatars/${avatarId}/references`, { headers })
 
       if (response.ok) {
         const data = await response.json()
@@ -691,27 +711,32 @@ export default function PersonaApp() {
     } finally {
       setIsLoadingReferences(false)
     }
-  }, [telegramUserId])
+  }, [telegramUserId, neonUserId])
 
-  // Add photos to avatar
+  // Add photos to avatar (supports both Telegram and Web users)
   const handleAddPhotos = useCallback(async (files: File[]) => {
     const activePersona = getActivePersona()
-    if (!activePersona || !telegramUserId) return
+    if (!activePersona || (!telegramUserId && !neonUserId)) return
 
     // Convert files to base64
     const base64Images = await Promise.all(
       files.slice(0, 20 - referencePhotos.length).map((file) => fileToBase64(file))
     )
 
+    const headers: HeadersInit = { "Content-Type": "application/json" }
+    if (telegramUserId) {
+      headers["X-Telegram-User-Id"] = String(telegramUserId)
+    } else if (neonUserId) {
+      headers["X-Neon-User-Id"] = neonUserId
+    }
+
     const response = await fetch(`/api/avatars/${activePersona.id}/references`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Telegram-User-Id": String(telegramUserId),
-      },
+      headers,
       body: JSON.stringify({
         referenceImages: base64Images,
-        telegramUserId,
+        telegramUserId: isWebUser ? undefined : telegramUserId,
+        neonUserId: isWebUser ? neonUserId : undefined,
       }),
     })
 
@@ -722,18 +747,23 @@ export default function PersonaApp() {
     } else {
       showMessage("Ошибка при загрузке фото")
     }
-  }, [getActivePersona, telegramUserId, userIdentifier, referencePhotos.length, fileToBase64, loadReferencePhotos, loadAvatarsFromServer, showMessage])
+  }, [getActivePersona, telegramUserId, neonUserId, isWebUser, userIdentifier, referencePhotos.length, fileToBase64, loadReferencePhotos, loadAvatarsFromServer, showMessage])
 
-  // Delete single reference photo
+  // Delete single reference photo (supports both Telegram and Web users)
   const handleDeleteReferencePhoto = useCallback(async (photoId: number) => {
     const activePersona = getActivePersona()
-    if (!activePersona || !telegramUserId) return
+    if (!activePersona || (!telegramUserId && !neonUserId)) return
+
+    const headers: HeadersInit = {}
+    if (telegramUserId) {
+      headers["X-Telegram-User-Id"] = String(telegramUserId)
+    } else if (neonUserId) {
+      headers["X-Neon-User-Id"] = neonUserId
+    }
 
     const response = await fetch(`/api/avatars/${activePersona.id}/references/${photoId}`, {
       method: "DELETE",
-      headers: {
-        "X-Telegram-User-Id": String(telegramUserId),
-      },
+      headers,
     })
 
     if (response.ok) {
@@ -743,7 +773,7 @@ export default function PersonaApp() {
     } else {
       showMessage("Ошибка при удалении фото")
     }
-  }, [getActivePersona, telegramUserId, userIdentifier, loadAvatarsFromServer, showMessage])
+  }, [getActivePersona, telegramUserId, neonUserId, userIdentifier, loadAvatarsFromServer, showMessage])
 
   // Open Avatar Detail View
   const handleSelectAvatar = useCallback((id: string) => {
@@ -1110,12 +1140,68 @@ export default function PersonaApp() {
     }
   }, [getActivePersona, telegramUserId, fileToBase64, updatePersona, setIsGenerating, setGenerationProgress, startGenerationPolling, showMessage])
 
+  // Delete old photos before new generation
+  const deleteOldPhotos = useCallback(async (personaId: string): Promise<boolean> => {
+    try {
+      setIsDeletingPhotos(true)
+      const response = await fetch(`/api/avatars/${personaId}/photos`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete photos")
+      }
+
+      // Update local state - clear generatedAssets for this persona
+      updatePersona(personaId, { generatedAssets: [] })
+
+      return true
+    } catch (error) {
+      console.error("[PersonaApp] Failed to delete old photos:", error)
+      showMessage("Не удалось удалить старые фото")
+      return false
+    } finally {
+      setIsDeletingPhotos(false)
+    }
+  }, [updatePersona, showMessage])
+
+  // Handle confirmation to delete photos and continue
+  const handleDeletePhotosConfirm = useCallback(async () => {
+    if (!deletePhotosConfirm.personaId) return
+
+    const success = await deleteOldPhotos(deletePhotosConfirm.personaId)
+    setDeletePhotosConfirm({ isOpen: false, photoCount: 0, personaId: null })
+
+    if (success) {
+      // Continue with payment success flow
+      setShowPaymentSuccess(true)
+    }
+  }, [deletePhotosConfirm.personaId, deleteOldPhotos])
+
+  // Cancel delete and abort generation
+  const handleDeletePhotosCancel = useCallback(() => {
+    setDeletePhotosConfirm({ isOpen: false, photoCount: 0, personaId: null })
+    // User cancelled - don't proceed with generation
+  }, [])
+
   // Payment success handler
   const handlePaymentSuccess = useCallback(() => {
     setIsPaymentOpen(false)
-    // Show celebration first, then generate
-    setShowPaymentSuccess(true)
-  }, [])
+
+    // Check if current persona has existing photos
+    const persona = getActivePersona()
+    if (persona && persona.generatedAssets && persona.generatedAssets.length > 0) {
+      // Show confirmation dialog
+      setDeletePhotosConfirm({
+        isOpen: true,
+        photoCount: persona.generatedAssets.length,
+        personaId: persona.id,
+      })
+    } else {
+      // No existing photos - proceed directly
+      setShowPaymentSuccess(true)
+    }
+  }, [getActivePersona])
 
   // Handle payment success celebration complete
   const handlePaymentCelebrationComplete = useCallback(() => {
@@ -1151,6 +1237,48 @@ export default function PersonaApp() {
         message={errorModal.message}
         isOffline={!isOnline}
       />
+
+      {/* Delete Photos Confirmation Dialog */}
+      {deletePhotosConfirm.isOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={handleDeletePhotosCancel}
+          />
+          <div className="relative bg-background rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-foreground mb-2">
+              Удалить старые фото?
+            </h3>
+            <p className="text-muted-foreground text-sm mb-6">
+              У вас уже есть {deletePhotosConfirm.photoCount} сгенерированных фото.
+              При новой генерации они будут удалены и заменены новыми.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleDeletePhotosCancel}
+                disabled={isDeletingPhotos}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-border text-foreground font-medium hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleDeletePhotosConfirm}
+                disabled={isDeletingPhotos}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeletingPhotos ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Удаление...
+                  </>
+                ) : (
+                  "Продолжить"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Payment Success Celebration */}
       <PaymentSuccess

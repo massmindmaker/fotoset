@@ -1,32 +1,34 @@
 import { useState, useEffect, useCallback } from "react"
 
-// User identifier interface - Telegram only (no device fallback)
+// User identifier interface - supports both Telegram and Web (Neon Auth) users
 export interface UserIdentifier {
-  type: "telegram"
-  telegramUserId: number // Required (NOT NULL)
-  deviceId?: string // Optional legacy field
+  type: "telegram" | "web"
+  visibleUserId: number          // Unified ID for API calls (telegram_user_id or converted neon_user_id)
+  telegramUserId?: number        // Only for Telegram users
+  neonUserId?: string            // Only for Web users (Neon Auth UUID)
+  email?: string                 // Only for Web users
+  deviceId?: string              // Legacy field
 }
 
-// Auth status type for tracking Telegram authentication state
+// Auth status type for tracking authentication state
 export type AuthStatus = 'pending' | 'success' | 'failed' | 'not_in_telegram'
 
 /**
- * Custom hook for Telegram WebApp authentication
- * Handles SDK initialization, user identification, and auth state
+ * Custom hook for authentication
+ * Supports both Telegram WebApp and Web (Neon Auth) users
  */
 export function useAuth() {
   const [userIdentifier, setUserIdentifier] = useState<UserIdentifier | null>(null)
   const [authStatus, setAuthStatus] = useState<AuthStatus>('pending')
   const [theme, setTheme] = useState<"dark" | "light">("dark")
 
-  // Helper: show messages via Telegram API (window.alert doesn't work in Mini Apps)
+  // Helper: show messages via Telegram API or browser alert
   const showMessage = useCallback((message: string) => {
     const tg = window.Telegram?.WebApp
     if (tg?.showAlert) {
       try {
         tg.showAlert(message)
       } catch {
-        // Fallback if WebApp method not supported (e.g., outside Telegram)
         alert(message)
       }
     } else {
@@ -79,7 +81,6 @@ export function useAuth() {
             }
           }, 100)
         })
-        // Re-check after waiting
         tg = window.Telegram?.WebApp
       }
 
@@ -92,10 +93,12 @@ export function useAuth() {
 
       if (abortController.signal.aborted) return
 
+      // CASE 1: Telegram WebApp user
       if (tg?.initDataUnsafe?.user?.id) {
         const tgUser = tg.initDataUnsafe.user
         const identifier: UserIdentifier = {
           type: "telegram",
+          visibleUserId: tgUser.id,
           telegramUserId: tgUser.id,
           deviceId: `tg_${tgUser.id}`,
         }
@@ -105,19 +108,15 @@ export function useAuth() {
         console.log("[TG] Auth success:", tgUser.id, tgUser.username || tgUser.first_name)
 
         // Handle start_param (passed via Telegram deep link)
-        // Can be: referral code (e.g., "ABC123") or command (e.g., "generate")
         const startParam = tg.initDataUnsafe?.start_param
         if (startParam) {
           console.log("[TG] start_param:", startParam)
 
-          // Check if it's a generate command (from post-payment redirect)
           if (startParam === "generate") {
             console.log("[TG] Generate command detected - setting resume_payment flag")
-            // Set flag to trigger generation in persona-app.tsx
             sessionStorage.setItem("pinglass_resume_payment", "true")
             sessionStorage.setItem("pinglass_from_telegram_deeplink", "true")
             localStorage.setItem("pinglass_onboarding_complete", "true")
-            // FIX: Also mark onboarding complete on server (for referral +1 count)
             try {
               await fetch("/api/user", {
                 method: "POST",
@@ -133,8 +132,7 @@ export function useAuth() {
               console.error("[TG] Failed to mark onboarding complete:", err)
             }
           } else {
-            // Treat as referral code - save to DATABASE via API
-            // CRITICAL: localStorage clears during T-Bank redirect!
+            // Treat as referral code
             console.log("[TG] Referral code from start_param:", startParam)
             try {
               const res = await fetch("/api/user", {
@@ -148,8 +146,6 @@ export function useAuth() {
               })
               if (res.ok) {
                 console.log("[TG] Referral code saved to DB:", startParam.toUpperCase())
-              } else {
-                console.error("[TG] Failed to save referral code to DB:", res.status)
               }
             } catch (err) {
               console.error("[TG] Error saving referral code:", err)
@@ -167,54 +163,44 @@ export function useAuth() {
               }),
             })
           } catch {
-            // Non-critical, user will be created on first payment
+            // Non-critical
           }
         }
 
-        // Wrap in try-catch - these methods throw WebAppMethodUnsupported outside Telegram
-        try {
-          tg.ready()
-        } catch {
-          console.warn('[TG] ready() not available outside Telegram')
+        try { tg.ready() } catch { /* ignore */ }
+        try { tg.expand() } catch { /* ignore */ }
+        return
+      }
+
+      // CASE 2: Payment redirect fallback (with telegram_user_id in URL)
+      const urlParams = new URLSearchParams(window.location.search)
+      const urlTelegramUserId = urlParams.get("telegram_user_id")
+      const sessionTelegramUserId = sessionStorage.getItem("pinglass_telegram_user_id")
+      const fallbackTelegramUserId = urlTelegramUserId || sessionTelegramUserId
+
+      if (fallbackTelegramUserId) {
+        const tgId = parseInt(fallbackTelegramUserId, 10)
+        if (!isNaN(tgId) && tgId > 0) {
+          console.log("[TG] Auth fallback from URL/sessionStorage:", tgId)
+          const identifier: UserIdentifier = {
+            type: "telegram",
+            visibleUserId: tgId,
+            telegramUserId: tgId,
+            deviceId: `tg_${tgId}`,
+          }
+          setUserIdentifier(identifier)
+          setAuthStatus('success')
+          return
         }
-        try {
-          tg.expand()
-        } catch {
-          console.warn('[TG] expand() not available outside Telegram')
-        }
+      }
+
+      // CASE 3: Not in Telegram - set status for web auth handling
+      if (!tg?.initData) {
+        console.log("[TG] Not in Telegram WebApp context (no initData)")
+        setAuthStatus('not_in_telegram')
       } else {
-        // Not in Telegram WebApp - check for payment redirect with telegram_user_id
-        // This happens after T-Bank payment redirect back to browser
-        const urlParams = new URLSearchParams(window.location.search)
-        const urlTelegramUserId = urlParams.get("telegram_user_id")
-        const sessionTelegramUserId = sessionStorage.getItem("pinglass_telegram_user_id")
-        const fallbackTelegramUserId = urlTelegramUserId || sessionTelegramUserId
-
-        if (fallbackTelegramUserId) {
-          const tgId = parseInt(fallbackTelegramUserId, 10)
-          if (!isNaN(tgId) && tgId > 0) {
-            console.log("[TG] Auth fallback from URL/sessionStorage:", tgId)
-            const identifier: UserIdentifier = {
-              type: "telegram",
-              telegramUserId: tgId,
-              deviceId: `tg_${tgId}`,
-            }
-            setUserIdentifier(identifier)
-            setAuthStatus('success')
-            return
-          }
-        }
-
-        // Check if we're actually inside Telegram WebApp by checking initData
-        // SDK is loaded globally, but initData only exists inside Telegram
-        if (!tg?.initData) {
-          console.log("[TG] Not in Telegram WebApp context (no initData)")
-          setAuthStatus('not_in_telegram')
-        } else {
-          // initData exists but no user - failed auth
-          console.log("[TG] Has initData but no user - failed auth")
-          setAuthStatus('failed')
-        }
+        console.log("[TG] Has initData but no user - failed auth")
+        setAuthStatus('failed')
       }
     }
 
@@ -225,12 +211,46 @@ export function useAuth() {
     }
   }, [])
 
+  // Helper function to set web user from Neon Auth session
+  const setWebUser = useCallback((neonUserId: string, email?: string) => {
+    // Convert Neon UUID to numeric ID for compatibility with existing APIs
+    // Use hash of UUID to create a stable numeric ID
+    const numericId = Math.abs(hashString(neonUserId)) % 2000000000 + 1000000000
+
+    const identifier: UserIdentifier = {
+      type: "web",
+      visibleUserId: numericId,
+      neonUserId: neonUserId,
+      email: email,
+      deviceId: `web_${neonUserId}`,
+    }
+
+    console.log("[Web] Auth success:", email, "numericId:", numericId)
+    setUserIdentifier(identifier)
+    setAuthStatus('success')
+  }, [])
+
   return {
     userIdentifier,
     authStatus,
-    telegramUserId: userIdentifier?.telegramUserId,
+    telegramUserId: userIdentifier?.telegramUserId ?? userIdentifier?.visibleUserId,
+    neonUserId: userIdentifier?.neonUserId,
+    isWebUser: userIdentifier?.type === 'web',
+    isTelegramUser: userIdentifier?.type === 'telegram',
     theme,
     toggleTheme,
     showMessage,
+    setWebUser,
   }
+}
+
+// Simple string hash function to convert UUID to stable number
+function hashString(str: string): number {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  return hash
 }

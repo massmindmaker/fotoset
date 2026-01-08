@@ -52,16 +52,16 @@ interface UpdateAvatarRequest {
 }
 
 // ============================================================================
-// Helper: Verify avatar ownership (Telegram-only authentication)
+// Helper: Verify avatar ownership (Telegram and Web authentication)
 // ============================================================================
 
 async function verifyAvatarOwnershipWithData(
   identifier: UserIdentifier,
   avatarId: number
 ): Promise<{ avatar: any; authorized: boolean }> {
-  // Get avatar with owner info
+  // Get avatar with owner info (both Telegram and Neon Auth)
   const avatar = await sql`
-    SELECT a.*, u.telegram_user_id as owner_telegram_id
+    SELECT a.*, u.telegram_user_id as owner_telegram_id, u.neon_auth_id as owner_neon_id
     FROM avatars a
     JOIN users u ON u.id = a.user_id
     WHERE a.id = ${avatarId}
@@ -71,10 +71,13 @@ async function verifyAvatarOwnershipWithData(
     return { avatar: null, authorized: false }
   }
 
-  // Telegram-only authentication (convert bigint to Number for comparison)
-  const authorized = identifier.telegramUserId
-    ? Number(avatar.owner_telegram_id) === identifier.telegramUserId
-    : false
+  // Check authorization via Telegram OR Neon Auth
+  let authorized = false
+  if (identifier.telegramUserId && avatar.owner_telegram_id) {
+    authorized = Number(avatar.owner_telegram_id) === identifier.telegramUserId
+  } else if (identifier.neonUserId && avatar.owner_neon_id) {
+    authorized = avatar.owner_neon_id === identifier.neonUserId
+  }
 
   return { avatar, authorized }
 }
@@ -91,10 +94,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return error("VALIDATION_ERROR", "Invalid avatar ID")
   }
 
-  // IDOR Protection: Get identifier for authorization (Telegram-only authentication)
+  // IDOR Protection: Get identifier for authorization (Telegram or Web)
   const identifier = getUserIdentifier(request)
-  if (!identifier.telegramUserId) {
-    return error("UNAUTHORIZED", "telegram_user_id is required")
+  if (!identifier.telegramUserId && !identifier.neonUserId) {
+    return error("UNAUTHORIZED", "telegram_user_id or neon_user_id is required")
   }
 
   try {
@@ -180,10 +183,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const body = await request.json()
     const { name, status, thumbnailUrl } = body as UpdateAvatarRequest
 
-    // IDOR Protection: Get identifier for authorization (Telegram-only authentication)
+    // IDOR Protection: Get identifier for authorization (Telegram or Web)
     const identifier = getUserIdentifier(request, body)
-    if (!identifier.telegramUserId) {
-      return error("UNAUTHORIZED", "telegram_user_id is required")
+    if (!identifier.telegramUserId && !identifier.neonUserId) {
+      return error("UNAUTHORIZED", "telegram_user_id or neon_user_id is required")
     }
 
     // Verify ownership
@@ -292,10 +295,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return error("VALIDATION_ERROR", "Invalid avatar ID")
   }
 
-  // IDOR Protection: Get identifier for authorization (Telegram-only authentication)
+  // IDOR Protection: Get identifier for authorization (Telegram or Web)
   const identifier = getUserIdentifier(request)
-  if (!identifier.telegramUserId) {
-    return error("UNAUTHORIZED", "telegram_user_id is required")
+  if (!identifier.telegramUserId && !identifier.neonUserId) {
+    return error("UNAUTHORIZED", "telegram_user_id or neon_user_id is required")
   }
 
   try {
