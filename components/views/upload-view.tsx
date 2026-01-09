@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useRef } from "react"
+import { useRef, useEffect } from "react"
 import { ArrowLeft, Camera, Loader2, Plus, Sparkles, X, CheckCircle2 } from "lucide-react"
 import type { Persona } from "./types"
 import { Progress } from "@/components/ui/progress"
@@ -20,6 +20,15 @@ export interface UploadViewProps {
 
 export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, onBack, onNext, isLoading }) => {
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // FIX: Cleanup blob URLs on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      persona.images.forEach(img => {
+        URL.revokeObjectURL(img.previewUrl)
+      })
+    }
+  }, []) // Empty deps: cleanup only on unmount
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || typeof window === "undefined") return

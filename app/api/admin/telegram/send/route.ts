@@ -21,6 +21,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // SECURITY: Only super_admin and admin can send messages
+    if (session.role !== 'super_admin' && session.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden: insufficient permissions' }, { status: 403 })
+    }
+
     const body = await request.json()
     const { telegramUserId, message, messageType = 'admin_notification' } = body as {
       telegramUserId: string

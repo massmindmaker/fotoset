@@ -28,9 +28,11 @@ export function useSync() {
 
   // Sync persona to server: create avatar in DB and upload photos
   // Returns the DB avatar ID (numeric string like "123")
+  // Supports both Telegram and Web (neonUserId) authentication
   const syncPersonaToServer = useCallback(async (
     persona: Persona,
-    telegramUserId: number | undefined
+    telegramUserId: number | undefined,
+    neonUserId?: string  // Web authentication via Neon Auth
   ): Promise<string> => {
     // Check if already has DB ID (not a temp ID like "temp_123456")
     const parsedId = parseInt(persona.id)
@@ -70,7 +72,11 @@ export function useSync() {
       final: tgId,
     })
 
-    if (!tgId) {
+    // WEB AUTH: If neonUserId is provided, use it instead of Telegram
+    if (neonUserId) {
+      console.log("[Sync] Using Web authentication (neonUserId):", neonUserId)
+      // Continue with neonUserId auth - skip Telegram ID requirement
+    } else if (!tgId) {
       console.error("[Sync] No telegram user ID available from any source!")
       const errorMsg = "Ошибка: не удалось получить Telegram ID. Закройте и откройте приложение заново через @Pinglass_bot"
       if (tg?.showAlert) {
@@ -85,6 +91,9 @@ export function useSync() {
       throw new Error("Telegram user ID not available")
     }
 
+    // Use neonUserId for web or tgId for Telegram
+    const authId = neonUserId || tgId
+
     try {
       let dbAvatarId: string
 
@@ -97,7 +106,8 @@ export function useSync() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            telegramUserId: tgId,
+            telegramUserId: neonUserId ? undefined : tgId,  // Telegram auth
+            neonUserId: neonUserId,  // Web auth
             name: persona.name || "Мой аватар",
           }),
         })
@@ -128,7 +138,8 @@ export function useSync() {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "X-Telegram-User-Id": String(tgId), // FIX: Add required auth header
+                "X-Telegram-User-Id": neonUserId ? "" : String(tgId),
+                "X-Neon-User-Id": neonUserId || "", // FIX: Add required auth header
               },
               body: JSON.stringify({
                 avatarId: dbAvatarId,
@@ -171,7 +182,8 @@ export function useSync() {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                telegramUserId: tgId,
+                telegramUserId: neonUserId ? undefined : tgId,
+                neonUserId: neonUserId,
                 referenceImages: uploadedUrls,
               }),
             })

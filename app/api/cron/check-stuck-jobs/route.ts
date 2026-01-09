@@ -16,7 +16,8 @@ export const dynamic = "force-dynamic"
 export const maxDuration = 60
 
 // How long before a job is considered stuck (in minutes)
-const STUCK_THRESHOLD_MINUTES = 10
+// Increased to 15 min to match new 12-min task timeout + buffer
+const STUCK_THRESHOLD_MINUTES = 15
 
 export async function GET(request: Request) {
   // Verify cron secret (optional but recommended)

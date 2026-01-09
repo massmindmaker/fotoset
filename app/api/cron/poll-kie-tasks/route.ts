@@ -134,11 +134,12 @@ export async function GET() {
           WHERE id = ${task.id}
         `
 
-        // Fail tasks that have been pending too long (5 minutes = 30 attempts at 10s interval)
-        if (task.attempts >= 30) {
+        // Fail tasks that have been pending too long (12 minutes = 72 attempts at 10s interval)
+        // Increased from 5 min to 12 min to accommodate Kie.ai's 5-10 min generation time + buffer
+        if (task.attempts >= 72) {
           await sql`
             UPDATE kie_tasks
-            SET status = 'failed', error_message = 'Timeout after 5 minutes', updated_at = NOW()
+            SET status = 'failed', error_message = 'Timeout after 12 minutes', updated_at = NOW()
             WHERE id = ${task.id}
           `
           console.log(`[Poll Kie Tasks] ✗ Task ${task.kie_task_id} timed out`)
