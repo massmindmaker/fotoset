@@ -476,8 +476,11 @@ export default function ResultsGallery({ assets, personaName, thumbnailUrl, onGe
       // Fallback: open in new tab + show explanation
       window.open(asset.url, '_blank')
       const tg = (window as any).Telegram?.WebApp
-      if (tg?.showAlert) {
+      const isRealTelegramApp = tg?.initData && tg.initData.length > 0
+      if (isRealTelegramApp && tg?.showAlert) {
         tg.showAlert("Фото открыто в новой вкладке. Сохраните его вручную (долгое нажатие).")
+      } else {
+        alert("Фото открыто в новой вкладке. Сохраните его вручную.")
       }
     }
   }, [])

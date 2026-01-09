@@ -739,8 +739,11 @@ export default function PersonaApp() {
     }
 
     // Use Telegram.WebApp.showConfirm for native Mini App UX
+    // IMPORTANT: Check initData to ensure we're in a real Telegram Mini App context
     const tg = window.Telegram?.WebApp
-    if (tg?.showConfirm) {
+    const isRealTelegramApp = tg?.initData && tg.initData.length > 0
+
+    if (isRealTelegramApp && tg?.showConfirm) {
       tg.showConfirm("Удалить этот аватар?", (confirmed: boolean) => {
         if (confirmed) {
           performDelete()

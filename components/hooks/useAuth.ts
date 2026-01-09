@@ -23,9 +23,12 @@ export function useAuth() {
   const [theme, setTheme] = useState<"dark" | "light">("light")
 
   // Helper: show messages via Telegram API or browser alert
+  // Only use Telegram API if we're in a real Mini App (has initData)
   const showMessage = useCallback((message: string) => {
     const tg = window.Telegram?.WebApp
-    if (tg?.showAlert) {
+    const isRealTelegramApp = tg?.initData && tg.initData.length > 0
+
+    if (isRealTelegramApp && tg?.showAlert) {
       try {
         tg.showAlert(message)
       } catch {
