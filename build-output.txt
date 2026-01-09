@@ -1,0 +1,160 @@
+[@sentry/nextjs] WARNING: You are using the Sentry SDK with `next build --turbo`. The Sentry SDK doesn't yet fully support Turbopack. The SDK will not be loaded in the browser, and serverside instrumentation will be inaccurate or incomplete. If you are just trying out Sentry or attempting to configure the SDK, we recommend temporarily removing the `--turbo` flag while you are developing locally. Follow this issue for progress on Sentry + Turbopack: https://github.com/getsentry/sentry-javascript/issues/8105. (You can suppress this warning by setting SENTRY_SUPPRESS_TURBOPACK_WARNING=1 as environment variable)
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\bob\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\bob\Projects\Fotoset\package-lock.json
+
+   ▲ Next.js 16.0.10 (Turbopack)
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · clientTraceMetadata
+     · optimizePackageImports
+
+ ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+   Creating an optimized production build ...
+[@sentry/nextjs] WARNING: You are using the Sentry SDK with `next build --turbo`. The Sentry SDK doesn't yet fully support Turbopack. The SDK will not be loaded in the browser, and serverside instrumentation will be inaccurate or incomplete. If you are just trying out Sentry or attempting to configure the SDK, we recommend temporarily removing the `--turbo` flag while you are developing locally. Follow this issue for progress on Sentry + Turbopack: https://github.com/getsentry/sentry-javascript/issues/8105. (You can suppress this warning by setting SENTRY_SUPPRESS_TURBOPACK_WARNING=1 as environment variable)
+ ✓ Compiled successfully in 63s
+   Running TypeScript ...
+   Collecting page data using 7 workers ...
+   Generating static pages using 7 workers (0/92) ...
+   Generating static pages using 7 workers (23/92) 
+   Generating static pages using 7 workers (46/92) 
+[Rates API] Error: Error: Dynamic server usage: Route /api/payment/rates couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at E (C:\Users\bob\Projects\Fotoset\.next\server\chunks\[root-of-the-server]__4c6f7171._.js:12:1018) {
+  description: "Route /api/payment/rates couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+   Generating static pages using 7 workers (69/92) 
+ ✓ Generating static pages using 7 workers (92/92) in 6.9s
+   Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /admin
+├ ƒ /admin/generations
+├ ƒ /admin/login
+├ ƒ /admin/logs
+├ ƒ /admin/partners
+├ ƒ /admin/payments
+├ ƒ /admin/prompt-testing
+├ ƒ /admin/referrals
+├ ƒ /admin/settings
+├ ƒ /admin/telegram
+├ ƒ /admin/tickets
+├ ƒ /admin/users
+├ ƒ /api/admin/auth/google
+├ ƒ /api/admin/auth/google/callback
+├ ƒ /api/admin/auth/login
+├ ƒ /api/admin/auth/logout
+├ ƒ /api/admin/auth/me
+├ ƒ /api/admin/exports
+├ ƒ /api/admin/generations
+├ ƒ /api/admin/generations/[id]
+├ ƒ /api/admin/generations/[id]/retry
+├ ƒ /api/admin/logs
+├ ƒ /api/admin/notifications
+├ ƒ /api/admin/notifications/[id]/read
+├ ƒ /api/admin/notifications/read-all
+├ ƒ /api/admin/packs
+├ ƒ /api/admin/packs/[packId]
+├ ƒ /api/admin/packs/[packId]/items
+├ ƒ /api/admin/packs/[packId]/items/[itemId]
+├ ƒ /api/admin/packs/dreampack/import
+├ ƒ /api/admin/packs/pinglass/import
+├ ƒ /api/admin/partners
+├ ƒ /api/admin/partners/[id]
+├ ƒ /api/admin/payments
+├ ƒ /api/admin/payments/[paymentId]
+├ ƒ /api/admin/payments/refund
+├ ƒ /api/admin/payments/stats
+├ ƒ /api/admin/prompts
+├ ƒ /api/admin/prompts/[promptId]
+├ ƒ /api/admin/prompts/generate-preview
+├ ƒ /api/admin/prompts/generate-preview/batch
+├ ƒ /api/admin/referrals
+├ ƒ /api/admin/referrals/withdrawals
+├ ƒ /api/admin/referrals/withdrawals/[id]
+├ ƒ /api/admin/search
+├ ƒ /api/admin/settings
+├ ƒ /api/admin/settings/payment-methods
+├ ƒ /api/admin/settings/pricing
+├ ƒ /api/admin/settings/tbank
+├ ƒ /api/admin/stats
+├ ƒ /api/admin/telegram
+├ ƒ /api/admin/telegram/[id]/retry
+├ ƒ /api/admin/telegram/affiliate
+├ ƒ /api/admin/telegram/broadcast
+├ ƒ /api/admin/telegram/mtproto
+├ ƒ /api/admin/telegram/send
+├ ƒ /api/admin/test-prompt
+├ ƒ /api/admin/tickets
+├ ƒ /api/admin/tickets/[id]
+├ ƒ /api/admin/tickets/[id]/assign
+├ ƒ /api/admin/tickets/[id]/escalate
+├ ƒ /api/admin/tickets/[id]/messages
+├ ƒ /api/admin/tickets/stats
+├ ƒ /api/admin/users
+├ ƒ /api/admin/users/[userId]
+├ ƒ /api/admin/users/[userId]/ban
+├ ƒ /api/admin/users/[userId]/partner
+├ ƒ /api/admin/users/[userId]/regenerate
+├ ƒ /api/auth/[...path]
+├ ƒ /api/avatars
+├ ƒ /api/avatars/[id]
+├ ƒ /api/avatars/[id]/photos
+├ ƒ /api/avatars/[id]/references
+├ ƒ /api/avatars/[id]/references/[photoId]
+├ ƒ /api/cron/cancel-stale-payments
+├ ƒ /api/cron/check-stuck-jobs
+├ ƒ /api/cron/poll-kie-tasks
+├ ƒ /api/cron/poll-preview-tasks
+├ ƒ /api/cron/ton-monitor
+├ ƒ /api/download
+├ ƒ /api/generate
+├ ƒ /api/jobs/[id]
+├ ƒ /api/jobs/failure
+├ ƒ /api/jobs/process
+├ ƒ /api/partner/apply
+├ ƒ /api/partner/status
+├ ƒ /api/payment-methods
+├ ƒ /api/payment/cancel
+├ ƒ /api/payment/create
+├ ƒ /api/payment/rates
+├ ƒ /api/payment/stars/create
+├ ƒ /api/payment/stars/status
+├ ƒ /api/payment/status
+├ ƒ /api/payment/ton/create
+├ ƒ /api/payment/ton/status
+├ ƒ /api/payment/webhook
+├ ƒ /api/payment/webhook/telegram
+├ ƒ /api/pricing
+├ ƒ /api/referral/apply
+├ ƒ /api/referral/code
+├ ƒ /api/referral/earnings
+├ ƒ /api/referral/stats
+├ ƒ /api/referral/withdraw
+├ ƒ /api/telegram/auth
+├ ƒ /api/telegram/send-photos
+├ ƒ /api/telegram/webapp-send
+├ ƒ /api/telegram/webhook
+├ ƒ /api/upload
+├ ƒ /api/user
+├ ƒ /api/user/pending-generation
+├ ○ /auth/sign-in
+├ ○ /auth/sign-up
+├ ○ /icon.svg
+├ ○ /oferta
+├ ○ /payment/callback
+├ ○ /payment/fail
+├ ○ /payment/success
+└ ○ /privacy
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

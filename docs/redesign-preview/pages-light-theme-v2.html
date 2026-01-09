@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PinGlass - App Screens (Light Theme)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* New color scheme - soft coral & lavender */
+      --primary: #FF6B6B;
+      --primary-light: #FF8A8A;
+      --primary-dark: #E85555;
+      --accent: #9B7BFF;
+      --accent-light: #B39DFF;
+
+      /* Neutral tones */
+      --bg-main: #F8F9FC;
+      --bg-card: #FFFFFF;
+      --bg-elevated: #FEFEFE;
+
+      /* Text colors */
+      --text-primary: #1F2937;
+      --text-secondary: #4B5563;
+      --text-muted: #9CA3AF;
+      --text-light: #D1D5DB;
+
+      /* Borders & shadows */
+      --border-light: rgba(0, 0, 0, 0.06);
+      --border-medium: rgba(0, 0, 0, 0.1);
+
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+      --shadow-glow: 0 4px 20px rgba(255, 107, 107, 0.25);
+
+      /* Radii */
+      --radius-sm: 12px;
+      --radius-md: 16px;
+      --radius-lg: 20px;
+      --radius-xl: 24px;
+
+      /* Font */
+      --font-main: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-main);
+      background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 100%);
+      min-height: 100vh;
+      padding: 60px 40px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 48px;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    /* ============================================
+       PHONE FRAME
+    ============================================ */
+    .phone-wrapper {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .phone-label {
+      position: absolute;
+      top: -36px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .phone-frame {
+      width: 375px;
+      height: 812px;
+      background: var(--bg-main);
+      border-radius: 48px;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        0 60px 120px -30px rgba(0, 0, 0, 0.4),
+        0 0 0 12px #1a1a2e,
+        0 0 0 14px rgba(255, 255, 255, 0.1);
+    }
+
+    .notch {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 160px;
+      height: 36px;
+      background: #000;
+      border-radius: 0 0 24px 24px;
+      z-index: 50;
+    }
+
+    .status-bar {
+      position: absolute;
+      top: 14px;
+      left: 28px;
+      right: 28px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+      z-index: 40;
+    }
+
+    .home-indicator {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 140px;
+      height: 5px;
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 3px;
+      z-index: 50;
+    }
+
+    /* ============================================
+       PAGE CONTENT
+    ============================================ */
+    .page-content {
+      position: absolute;
+      top: 56px;
+      left: 0;
+      right: 0;
+      bottom: 40px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 20px;
+    }
+
+    .page-content::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* ============================================
+       HEADER
+    ============================================ */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .logo {
+      font-size: 28px;
+      font-weight: 900;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+      text-transform: uppercase;
+    }
+
+    .logo span {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header-action {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .header-action:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .page-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ============================================
+       BACK BUTTON
+    ============================================ */
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      margin-bottom: 16px;
+      transition: color 0.2s;
+    }
+
+    .back-btn:hover {
+      color: var(--primary);
+    }
+
+    .back-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* ============================================
+       SECTION TITLE
+    ============================================ */
+    .section-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+    }
+
+    /* ============================================
+       AVATAR GRID (Dashboard)
+    ============================================ */
+    .avatar-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+
+    .avatar-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--border-light);
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .avatar-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .avatar-image {
+      width: 100%;
+      aspect-ratio: 3/4;
+      object-fit: cover;
+      display: block;
+    }
+
+    .avatar-info {
+      padding: 12px 14px 14px;
+    }
+
+    .avatar-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .avatar-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .avatar-count {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .avatar-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 10px;
+      border-radius: 8px;
+    }
+
+    .badge-ready {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .badge-progress {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    /* New Avatar Card */
+    .new-avatar-card {
+      background: var(--bg-card);
+      border: 2px dashed var(--border-medium);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .new-avatar-card:hover {
+      border-color: var(--primary);
+      background: rgba(255, 107, 107, 0.05);
+    }
+
+    .new-avatar-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 26px;
+      font-weight: 300;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .new-avatar-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    /* ============================================
+       INFO BOX
+    ============================================ */
+    .info-box {
+      background: linear-gradient(135deg, rgba(255,107,107,0.08), rgba(155,123,255,0.06));
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255, 107, 107, 0.12);
+    }
+
+    .info-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .info-box ul {
+      list-style: none;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.8;
+    }
+
+    .info-box li::before {
+      content: "•";
+      color: var(--primary);
+      font-weight: bold;
+      margin-right: 8px;
+    }
+
+    /* ============================================
+       PHOTO GRID (Upload)
+    ============================================ */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .photo-item {
+      aspect-ratio: 1;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      position: relative;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .photo-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .photo-remove {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .photo-item:hover .photo-remove {
+      opacity: 1;
+    }
+
+    /* Upload Zone */
+    .upload-zone {
+      border: 2px dashed var(--border-medium);
+      border-radius: var(--radius-lg);
+      padding: 32px 20px;
+      text-align: center;
+      background: var(--bg-card);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .upload-zone:hover {
+      border-color: var(--primary);
+      background: rgba(255, 107, 107, 0.05);
+    }
+
+    .upload-icon {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .upload-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .upload-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ============================================
+       PRICING TIERS
+    ============================================ */
+    .tier-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      margin-bottom: 12px;
+      border: 2px solid var(--border-light);
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .tier-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .tier-card.selected {
+      border-color: var(--primary);
+      background: linear-gradient(135deg, rgba(255,107,107,0.05), rgba(155,123,255,0.03));
+    }
+
+    .tier-badge {
+      position: absolute;
+      top: -10px;
+      right: 16px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .tier-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .tier-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .tier-photos {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .tier-price {
+      text-align: right;
+    }
+
+    .tier-amount {
+      font-size: 24px;
+      font-weight: 900;
+      color: var(--text-primary);
+    }
+
+    .tier-currency {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .tier-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tier-feature {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 5px 10px;
+      background: var(--bg-main);
+      border-radius: 16px;
+      color: var(--text-secondary);
+    }
+
+    /* ============================================
+       PROGRESS RING
+    ============================================ */
+    .progress-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 520px;
+      text-align: center;
+    }
+
+    .progress-ring-wrapper {
+      position: relative;
+      width: 160px;
+      height: 160px;
+      margin-bottom: 32px;
+    }
+
+    .progress-ring {
+      transform: rotate(-90deg);
+    }
+
+    .progress-ring circle {
+      fill: none;
+      stroke-width: 12;
+      stroke-linecap: round;
+    }
+
+    .progress-bg {
+      stroke: var(--bg-main);
+    }
+
+    .progress-fill {
+      stroke: url(#progressGradient);
+      stroke-dasharray: 440;
+      stroke-dashoffset: 132;
+      transition: stroke-dashoffset 1s ease;
+    }
+
+    .progress-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .progress-percent {
+      font-size: 42px;
+      font-weight: 900;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    .progress-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .progress-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .progress-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      max-width: 260px;
+      line-height: 1.5;
+    }
+
+    /* Animated dots */
+    .dots-loader {
+      display: inline-flex;
+      gap: 4px;
+      margin-top: 20px;
+    }
+
+    .dots-loader span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--primary);
+      animation: dotPulse 1.4s ease-in-out infinite;
+    }
+
+    .dots-loader span:nth-child(2) { animation-delay: 0.2s; }
+    .dots-loader span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes dotPulse {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ============================================
+       RESULTS GALLERY
+    ============================================ */
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 100px;
+    }
+
+    .result-item {
+      aspect-ratio: 3/4;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.3s ease;
+    }
+
+    .result-item:hover {
+      transform: scale(1.02);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .result-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .result-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.5), transparent 50%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 10px;
+    }
+
+    .result-item:hover .result-overlay {
+      opacity: 1;
+    }
+
+    .result-download {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-primary);
+    }
+
+    /* ============================================
+       BUTTONS
+    ============================================ */
+    .btn-primary {
+      width: 100%;
+      padding: 16px 24px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      border: none;
+      border-radius: var(--radius-md);
+      color: #fff;
+      font-family: var(--font-main);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--shadow-glow);
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(255, 107, 107, 0.35);
+    }
+
+    .btn-secondary {
+      width: 100%;
+      padding: 14px 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-family: var(--font-main);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-main);
+    }
+
+    /* Fixed Bottom */
+    .fixed-bottom {
+      position: absolute;
+      bottom: 40px;
+      left: 0;
+      right: 0;
+      padding: 0 20px;
+      background: linear-gradient(to top, var(--bg-main) 70%, transparent);
+      padding-top: 40px;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================
+       PAGE 1: DASHBOARD
+  ============================================ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Dashboard</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+
+      <div class="page-content">
+        <div class="header">
+          <div class="logo">Pin<span>glass</span></div>
+          <div class="header-action">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+        </div>
+
+        <p class="section-label">Мои аватары</p>
+
+        <div class="avatar-grid">
+          <div class="avatar-card">
+            <img class="avatar-image" src="https://tempfile.aiquickdraw.com/image-format-converter/1767818487625-llwlkexj6gj.png" alt="Safari Avatar">
+            <div class="avatar-info">
+              <div class="avatar-name">Safari</div>
+              <div class="avatar-meta">
+                <span class="avatar-count">23 фото</span>
+                <span class="avatar-badge badge-ready">Готово</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="avatar-card">
+            <img class="avatar-image" src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484313-2btg7hkp6qn.png" alt="Moto Avatar">
+            <div class="avatar-info">
+              <div class="avatar-name">Moto</div>
+              <div class="avatar-meta">
+                <span class="avatar-count">11/15</span>
+                <span class="avatar-badge badge-progress">Генерация...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="new-avatar-card">
+            <div class="new-avatar-icon">+</div>
+            <div class="new-avatar-text">Новый</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       PAGE 2: UPLOAD
+  ============================================ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Upload</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+
+      <div class="page-content">
+        <button class="back-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Назад
+        </button>
+
+        <h1 class="page-title">Название аватара...</h1>
+        <p class="page-subtitle" style="margin-bottom: 20px;">6/20 фото</p>
+
+        <div class="info-box">
+          <p class="info-title">Советы для лучшего результата</p>
+          <ul>
+            <li>Хорошее освещение лица</li>
+            <li>Разные ракурсы и выражения</li>
+            <li>Без солнечных очков и головных уборов</li>
+          </ul>
+        </div>
+
+        <div class="photo-grid">
+          <div class="photo-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484576-kcab1v5mlls.png" alt="">
+            <span class="photo-remove">×</span>
+          </div>
+          <div class="photo-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484313-2btg7hkp6qn.png" alt="">
+            <span class="photo-remove">×</span>
+          </div>
+          <div class="photo-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818481162-tibhf4uppl.png" alt="">
+            <span class="photo-remove">×</span>
+          </div>
+          <div class="photo-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818482193-shc7f6rsnpi.png" alt="">
+            <span class="photo-remove">×</span>
+          </div>
+          <div class="photo-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767819181714-jql2b3p5y1a.png" alt="">
+            <span class="photo-remove">×</span>
+          </div>
+          <div class="photo-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767819178000-342pbkb04zi.png" alt="">
+            <span class="photo-remove">×</span>
+          </div>
+        </div>
+
+        <div class="upload-zone">
+          <div class="upload-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </div>
+          <div class="upload-title">Добавить</div>
+          <div class="upload-subtitle">JPG, PNG, WEBP</div>
+        </div>
+      </div>
+
+      <div class="fixed-bottom">
+        <button class="btn-primary">Выбрать стиль</button>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       PAGE 3: PAYMENT
+  ============================================ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Payment</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+
+      <div class="page-content">
+        <button class="back-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Назад
+        </button>
+
+        <h1 class="page-title">Тарифы</h1>
+        <p class="page-subtitle" style="margin-bottom: 24px;">Создавайте AI-фотографии в стиле PINGLASS</p>
+
+        <!-- Starter -->
+        <div class="tier-card">
+          <div class="tier-header">
+            <div>
+              <div class="tier-name">7 фото</div>
+              <div class="tier-photos">Starter</div>
+            </div>
+            <div class="tier-price">
+              <div class="tier-amount">499 <span class="tier-currency">₽</span></div>
+            </div>
+          </div>
+          <div class="tier-features">
+            <span class="tier-feature">До 23 фото</span>
+            <span class="tier-feature">На выбор</span>
+          </div>
+        </div>
+
+        <!-- Standard -->
+        <div class="tier-card selected">
+          <span class="tier-badge">Хит</span>
+          <div class="tier-header">
+            <div>
+              <div class="tier-name">15 фото</div>
+              <div class="tier-photos">Standard</div>
+            </div>
+            <div class="tier-price">
+              <div class="tier-amount">999 <span class="tier-currency">₽</span></div>
+            </div>
+          </div>
+          <div class="tier-features">
+            <span class="tier-feature">До 23 фото</span>
+            <span class="tier-feature">На выбор</span>
+            <span class="tier-feature">Безопасно</span>
+          </div>
+        </div>
+
+        <!-- Premium -->
+        <div class="tier-card">
+          <div class="tier-header">
+            <div>
+              <div class="tier-name">23 фото</div>
+              <div class="tier-photos">Premium</div>
+            </div>
+            <div class="tier-price">
+              <div class="tier-amount">1499 <span class="tier-currency">₽</span></div>
+            </div>
+          </div>
+          <div class="tier-features">
+            <span class="tier-feature">До 23 фото</span>
+            <span class="tier-feature">На выбор</span>
+            <span class="tier-feature">Фото не сохраняются</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="fixed-bottom">
+        <button class="btn-primary">Оплатить картой 999 ₽</button>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       PAGE 4: GENERATING
+  ============================================ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Generating</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+
+      <div class="page-content">
+        <div class="progress-container">
+          <div class="progress-ring-wrapper">
+            <svg class="progress-ring" width="160" height="160" viewBox="0 0 160 160">
+              <defs>
+                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#FF6B6B"/>
+                  <stop offset="100%" stop-color="#9B7BFF"/>
+                </linearGradient>
+              </defs>
+              <circle class="progress-bg" cx="80" cy="80" r="70"/>
+              <circle class="progress-fill" cx="80" cy="80" r="70"/>
+            </svg>
+            <div class="progress-text">
+              <div class="progress-percent">70%</div>
+              <div class="progress-label">11 / 15 фото</div>
+            </div>
+          </div>
+
+          <div class="progress-title">AI генерация</div>
+          <div class="progress-subtitle">Можете закрыть приложение — пришлём фото в Telegram</div>
+
+          <div class="dots-loader">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       PAGE 5: RESULTS
+  ============================================ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Results</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+
+      <div class="page-content">
+        <button class="back-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Мои аватары
+        </button>
+
+        <div class="results-header">
+          <div>
+            <h1 class="page-title" style="margin-bottom: 0;">Готово</h1>
+            <p class="page-subtitle">15 фото</p>
+          </div>
+          <div class="header-action">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+              <polyline points="16,6 12,2 8,6"/>
+              <line x1="12" y1="2" x2="12" y2="15"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="results-grid">
+          <div class="result-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818487625-llwlkexj6gj.png" alt="">
+            <div class="result-overlay">
+              <div class="result-download">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="result-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484576-kcab1v5mlls.png" alt="">
+            <div class="result-overlay">
+              <div class="result-download">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="result-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484313-2btg7hkp6qn.png" alt="">
+            <div class="result-overlay">
+              <div class="result-download">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="result-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818481162-tibhf4uppl.png" alt="">
+            <div class="result-overlay">
+              <div class="result-download">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="result-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818482193-shc7f6rsnpi.png" alt="">
+            <div class="result-overlay">
+              <div class="result-download">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="result-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767819181714-jql2b3p5y1a.png" alt="">
+            <div class="result-overlay">
+              <div class="result-download">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="result-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767819178000-342pbkb04zi.png" alt="">
+            <div class="result-overlay">
+              <div class="result-download">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="result-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818487625-llwlkexj6gj.png" alt="">
+            <div class="result-overlay">
+              <div class="result-download">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="result-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484576-kcab1v5mlls.png" alt="">
+            <div class="result-overlay">
+              <div class="result-download">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fixed-bottom">
+        <div class="btn-group">
+          <button class="btn-primary">Смотреть результат</button>
+          <button class="btn-secondary">Создать первый аватар</button>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+</body>
+</html>

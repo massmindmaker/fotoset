@@ -1,0 +1,1869 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PinGlass - All App Screens (Light Theme v3)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Color scheme - soft coral & lavender */
+      --primary: #FF6B6B;
+      --primary-light: #FF8A8A;
+      --primary-dark: #E85555;
+      --accent: #9B7BFF;
+      --accent-light: #B39DFF;
+
+      /* Status colors */
+      --success: #10B981;
+      --warning: #F59E0B;
+      --error: #EF4444;
+      --info: #3B82F6;
+
+      /* Neutral tones */
+      --bg-main: #F8F9FC;
+      --bg-card: #FFFFFF;
+      --bg-elevated: #FEFEFE;
+
+      /* Text colors */
+      --text-primary: #1F2937;
+      --text-secondary: #4B5563;
+      --text-muted: #9CA3AF;
+      --text-light: #D1D5DB;
+
+      /* Borders & shadows */
+      --border-light: rgba(0, 0, 0, 0.06);
+      --border-medium: rgba(0, 0, 0, 0.1);
+
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+      --shadow-glow: 0 4px 20px rgba(255, 107, 107, 0.25);
+
+      /* Radii */
+      --radius-sm: 12px;
+      --radius-md: 16px;
+      --radius-lg: 20px;
+      --radius-xl: 24px;
+
+      /* Font */
+      --font-main: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-main);
+      background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 100%);
+      min-height: 100vh;
+      padding: 60px 40px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 48px;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    /* ============================================
+       PHONE FRAME
+    ============================================ */
+    .phone-wrapper {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .phone-label {
+      position: absolute;
+      top: -36px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .phone-frame {
+      width: 375px;
+      height: 812px;
+      background: var(--bg-main);
+      border-radius: 48px;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        0 60px 120px -30px rgba(0, 0, 0, 0.4),
+        0 0 0 12px #1a1a2e,
+        0 0 0 14px rgba(255, 255, 255, 0.1);
+    }
+
+    .notch {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 160px;
+      height: 36px;
+      background: #000;
+      border-radius: 0 0 24px 24px;
+      z-index: 50;
+    }
+
+    .status-bar {
+      position: absolute;
+      top: 14px;
+      left: 28px;
+      right: 28px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+      z-index: 40;
+    }
+
+    .home-indicator {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 140px;
+      height: 5px;
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 3px;
+      z-index: 50;
+    }
+
+    /* ============================================
+       PAGE CONTENT
+    ============================================ */
+    .page-content {
+      position: absolute;
+      top: 56px;
+      left: 0;
+      right: 0;
+      bottom: 40px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 20px;
+    }
+
+    .page-content::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Full height content for onboarding */
+    .page-content.full-height {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+
+    /* ============================================
+       HEADER & NAVIGATION
+    ============================================ */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .logo {
+      font-size: 28px;
+      font-weight: 900;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+      text-transform: uppercase;
+    }
+
+    .logo span {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header-action {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .page-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      margin-bottom: 16px;
+    }
+
+    .back-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .section-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+    }
+
+    /* ============================================
+       TIPS BOX (Enhanced)
+    ============================================ */
+    .tips-box {
+      background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-bottom: 24px;
+      border: 2px solid #F59E0B;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tips-box::before {
+      content: '';
+      position: absolute;
+      top: -20px;
+      right: -20px;
+      width: 80px;
+      height: 80px;
+      background: rgba(245, 158, 11, 0.2);
+      border-radius: 50%;
+    }
+
+    .tips-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .tips-icon {
+      width: 36px;
+      height: 36px;
+      background: #F59E0B;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 18px;
+    }
+
+    .tips-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #92400E;
+    }
+
+    .tips-list {
+      list-style: none;
+      font-size: 13px;
+      color: #78350F;
+      line-height: 1.9;
+    }
+
+    .tips-list li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .tips-list li::before {
+      content: "✓";
+      width: 20px;
+      height: 20px;
+      background: #F59E0B;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    /* File info badge */
+    .file-info {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px dashed rgba(146, 64, 14, 0.3);
+    }
+
+    .file-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 10px;
+      background: rgba(245, 158, 11, 0.3);
+      border-radius: 8px;
+      color: #92400E;
+    }
+
+    /* ============================================
+       AVATAR GRID
+    ============================================ */
+    .avatar-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+
+    .avatar-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--border-light);
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .avatar-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .avatar-image {
+      width: 100%;
+      aspect-ratio: 3/4;
+      object-fit: cover;
+      display: block;
+    }
+
+    .avatar-info {
+      padding: 12px 14px 14px;
+    }
+
+    .avatar-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .avatar-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .avatar-count {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .avatar-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 10px;
+      border-radius: 8px;
+    }
+
+    .badge-ready {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .badge-progress {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    /* New Avatar Card */
+    .new-avatar-card {
+      background: var(--bg-card);
+      border: 2px dashed var(--border-medium);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .new-avatar-card:hover {
+      border-color: var(--primary);
+      background: rgba(255, 107, 107, 0.05);
+    }
+
+    .new-avatar-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 26px;
+      font-weight: 300;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .new-avatar-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    /* ============================================
+       PHOTO GRID (Upload)
+    ============================================ */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .photo-item {
+      aspect-ratio: 1;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      position: relative;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .photo-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .photo-remove {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    /* Upload Zone */
+    .upload-zone {
+      border: 2px dashed var(--border-medium);
+      border-radius: var(--radius-lg);
+      padding: 32px 20px;
+      text-align: center;
+      background: var(--bg-card);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .upload-zone:hover {
+      border-color: var(--primary);
+      background: rgba(255, 107, 107, 0.05);
+    }
+
+    .upload-icon {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .upload-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .upload-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ============================================
+       PRICING TIERS
+    ============================================ */
+    .tier-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      margin-bottom: 12px;
+      border: 2px solid var(--border-light);
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .tier-card.selected {
+      border-color: var(--primary);
+      background: linear-gradient(135deg, rgba(255,107,107,0.05), rgba(155,123,255,0.03));
+    }
+
+    .tier-badge {
+      position: absolute;
+      top: -10px;
+      right: 16px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 16px;
+      text-transform: uppercase;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .tier-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .tier-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .tier-photos {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .tier-amount {
+      font-size: 24px;
+      font-weight: 900;
+      color: var(--text-primary);
+    }
+
+    .tier-currency {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .tier-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tier-feature {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 5px 10px;
+      background: var(--bg-main);
+      border-radius: 16px;
+      color: var(--text-secondary);
+    }
+
+    /* Payment methods */
+    .payment-methods {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-light);
+    }
+
+    .payment-methods-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .payment-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .payment-btn {
+      flex: 1;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-medium);
+      background: var(--bg-card);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .payment-btn:hover {
+      border-color: var(--primary);
+      background: rgba(255, 107, 107, 0.05);
+    }
+
+    .payment-btn.stars {
+      border-color: #3B82F6;
+      color: #3B82F6;
+    }
+
+    .payment-btn.ton {
+      border-color: #0088CC;
+      color: #0088CC;
+    }
+
+    /* ============================================
+       PROGRESS RING
+    ============================================ */
+    .progress-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 520px;
+      text-align: center;
+    }
+
+    .progress-ring-wrapper {
+      position: relative;
+      width: 160px;
+      height: 160px;
+      margin-bottom: 32px;
+    }
+
+    .progress-ring {
+      transform: rotate(-90deg);
+    }
+
+    .progress-ring circle {
+      fill: none;
+      stroke-width: 12;
+      stroke-linecap: round;
+    }
+
+    .progress-bg {
+      stroke: var(--bg-main);
+    }
+
+    .progress-fill {
+      stroke: url(#progressGradient);
+      stroke-dasharray: 440;
+      stroke-dashoffset: 132;
+      transition: stroke-dashoffset 1s ease;
+    }
+
+    .progress-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .progress-percent {
+      font-size: 42px;
+      font-weight: 900;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    .progress-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .progress-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .progress-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      max-width: 260px;
+      line-height: 1.5;
+    }
+
+    .dots-loader {
+      display: inline-flex;
+      gap: 4px;
+      margin-top: 20px;
+    }
+
+    .dots-loader span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--primary);
+      animation: dotPulse 1.4s ease-in-out infinite;
+    }
+
+    .dots-loader span:nth-child(2) { animation-delay: 0.2s; }
+    .dots-loader span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes dotPulse {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ============================================
+       RESULTS GALLERY
+    ============================================ */
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 100px;
+    }
+
+    .result-item {
+      aspect-ratio: 3/4;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.3s ease;
+    }
+
+    .result-item:hover {
+      transform: scale(1.02);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .result-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .result-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.6), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 12px;
+      gap: 8px;
+    }
+
+    .result-item:hover .result-overlay {
+      opacity: 1;
+    }
+
+    .result-action {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-primary);
+    }
+
+    .result-action.primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* ============================================
+       BUTTONS
+    ============================================ */
+    .btn-primary {
+      width: 100%;
+      padding: 16px 24px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      border: none;
+      border-radius: var(--radius-md);
+      color: #fff;
+      font-family: var(--font-main);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--shadow-glow);
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(255, 107, 107, 0.35);
+    }
+
+    .btn-secondary {
+      width: 100%;
+      padding: 14px 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-family: var(--font-main);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Fixed Bottom */
+    .fixed-bottom {
+      position: absolute;
+      bottom: 40px;
+      left: 0;
+      right: 0;
+      padding: 0 20px;
+      background: linear-gradient(to top, var(--bg-main) 70%, transparent);
+      padding-top: 40px;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* ============================================
+       MODAL OVERLAY
+    ============================================ */
+    .modal-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 100;
+      border-radius: 48px;
+    }
+
+    .modal-content {
+      background: var(--bg-card);
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+      width: 100%;
+      padding: 24px 20px 40px;
+      max-height: 80%;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--bg-main);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+
+    /* Error Modal */
+    .error-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #FEE2E2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      color: var(--error);
+      font-size: 32px;
+    }
+
+    .error-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .error-message {
+      font-size: 14px;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+
+    /* Share Modal */
+    .share-preview {
+      width: 120px;
+      height: 160px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin: 0 auto 20px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .share-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .share-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .share-option {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-main);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .share-option:hover {
+      background: var(--border-light);
+    }
+
+    .share-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 18px;
+    }
+
+    .share-icon.telegram { background: #0088CC; }
+    .share-icon.whatsapp { background: #25D366; }
+    .share-icon.vk { background: #0077FF; }
+    .share-icon.copy { background: #6B7280; }
+    .share-icon.download { background: var(--primary); }
+
+    .share-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    /* Lightbox */
+    .lightbox-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 100;
+      border-radius: 48px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .lightbox-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px;
+      color: white;
+    }
+
+    .lightbox-counter {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .lightbox-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .lightbox-action {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: white;
+    }
+
+    .lightbox-image {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 20px;
+    }
+
+    .lightbox-image img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: var(--radius-md);
+    }
+
+    .lightbox-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: white;
+    }
+
+    .lightbox-nav.prev { left: 12px; }
+    .lightbox-nav.next { right: 12px; }
+
+    .lightbox-thumbs {
+      display: flex;
+      gap: 8px;
+      padding: 16px 20px 24px;
+      justify-content: center;
+      overflow-x: auto;
+    }
+
+    .lightbox-thumb {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      overflow: hidden;
+      opacity: 0.5;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .lightbox-thumb.active {
+      opacity: 1;
+      box-shadow: 0 0 0 2px white;
+    }
+
+    .lightbox-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* ============================================
+       ONBOARDING
+    ============================================ */
+    .onboarding-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      padding: 40px 30px;
+    }
+
+    .onboarding-images {
+      width: 200px;
+      height: 200px;
+      position: relative;
+      margin-bottom: 40px;
+    }
+
+    .orbit-photo {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+      border: 3px solid white;
+    }
+
+    .orbit-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .orbit-photo:nth-child(1) { top: 0; left: 50%; transform: translateX(-50%); }
+    .orbit-photo:nth-child(2) { top: 20%; right: 0; }
+    .orbit-photo:nth-child(3) { bottom: 20%; right: 0; }
+    .orbit-photo:nth-child(4) { bottom: 0; left: 50%; transform: translateX(-50%); }
+    .orbit-photo:nth-child(5) { bottom: 20%; left: 0; }
+    .orbit-photo:nth-child(6) { top: 20%; left: 0; }
+
+    .onboarding-logo {
+      font-size: 36px;
+      font-weight: 900;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+
+    .onboarding-logo span {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .onboarding-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+
+    .onboarding-subtitle {
+      font-size: 15px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 40px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================
+       PAGE 1: ONBOARDING
+  ============================================ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Onboarding</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+
+      <div class="page-content">
+        <div class="onboarding-content">
+          <div class="onboarding-images">
+            <div class="orbit-photo">
+              <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818487625-llwlkexj6gj.png" alt="">
+            </div>
+            <div class="orbit-photo">
+              <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484576-kcab1v5mlls.png" alt="">
+            </div>
+            <div class="orbit-photo">
+              <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484313-2btg7hkp6qn.png" alt="">
+            </div>
+            <div class="orbit-photo">
+              <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818481162-tibhf4uppl.png" alt="">
+            </div>
+            <div class="orbit-photo">
+              <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818482193-shc7f6rsnpi.png" alt="">
+            </div>
+            <div class="orbit-photo">
+              <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767819181714-jql2b3p5y1a.png" alt="">
+            </div>
+          </div>
+
+          <div class="onboarding-logo">Pin<span>glass</span></div>
+          <h1 class="onboarding-title">Создавайте впечатляющие AI-фотографии</h1>
+          <p class="onboarding-subtitle">Загрузите 5-8 своих фото и получите до 23 профессиональных портрета</p>
+
+          <button class="btn-primary">Начать!</button>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       PAGE 2: DASHBOARD
+  ============================================ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Dashboard</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+
+      <div class="page-content">
+        <div class="header">
+          <div class="logo">Pin<span>glass</span></div>
+          <div class="header-action">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+        </div>
+
+        <p class="section-label">Мои аватары</p>
+
+        <div class="avatar-grid">
+          <div class="avatar-card">
+            <img class="avatar-image" src="https://tempfile.aiquickdraw.com/image-format-converter/1767818487625-llwlkexj6gj.png" alt="">
+            <div class="avatar-info">
+              <div class="avatar-name">Safari</div>
+              <div class="avatar-meta">
+                <span class="avatar-count">23 фото</span>
+                <span class="avatar-badge badge-ready">Готово</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="avatar-card">
+            <img class="avatar-image" src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484313-2btg7hkp6qn.png" alt="">
+            <div class="avatar-info">
+              <div class="avatar-name">Moto</div>
+              <div class="avatar-meta">
+                <span class="avatar-count">11/15</span>
+                <span class="avatar-badge badge-progress">Генерация...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="new-avatar-card">
+            <div class="new-avatar-icon">+</div>
+            <div class="new-avatar-text">Новый</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       PAGE 3: UPLOAD
+  ============================================ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Upload</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+
+      <div class="page-content">
+        <button class="back-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Назад
+        </button>
+
+        <h1 class="page-title">Название аватара...</h1>
+        <p class="page-subtitle" style="margin-bottom: 20px;">5/8 фото</p>
+
+        <!-- Enhanced Tips Box -->
+        <div class="tips-box">
+          <div class="tips-header">
+            <div class="tips-icon">💡</div>
+            <div class="tips-title">Советы для лучшего результата</div>
+          </div>
+          <ul class="tips-list">
+            <li>Хорошее освещение лица</li>
+            <li>Разные ракурсы и выражения</li>
+            <li>Без солнечных очков и головных уборов</li>
+          </ul>
+          <div class="file-info">
+            <span class="file-badge">5-8 фото</span>
+            <span class="file-badge">до 30 MB</span>
+            <span class="file-badge">JPG, PNG, WEBP, HEIC</span>
+          </div>
+        </div>
+
+        <div class="photo-grid">
+          <div class="photo-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484576-kcab1v5mlls.png" alt="">
+            <span class="photo-remove">×</span>
+          </div>
+          <div class="photo-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484313-2btg7hkp6qn.png" alt="">
+            <span class="photo-remove">×</span>
+          </div>
+          <div class="photo-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818481162-tibhf4uppl.png" alt="">
+            <span class="photo-remove">×</span>
+          </div>
+          <div class="photo-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818482193-shc7f6rsnpi.png" alt="">
+            <span class="photo-remove">×</span>
+          </div>
+          <div class="photo-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767819181714-jql2b3p5y1a.png" alt="">
+            <span class="photo-remove">×</span>
+          </div>
+        </div>
+
+        <div class="upload-zone">
+          <div class="upload-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </div>
+          <div class="upload-title">Добавить</div>
+          <div class="upload-subtitle">JPG, PNG, WEBP, HEIC до 30MB</div>
+        </div>
+      </div>
+
+      <div class="fixed-bottom">
+        <button class="btn-primary">Выбрать стиль</button>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       PAGE 4: UPLOAD ERROR MODAL
+  ============================================ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Error Modal</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+
+      <div class="page-content">
+        <button class="back-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Назад
+        </button>
+
+        <h1 class="page-title">Название аватара...</h1>
+        <p class="page-subtitle" style="margin-bottom: 20px;">3/8 фото</p>
+      </div>
+
+      <!-- Error Modal Overlay -->
+      <div class="modal-overlay">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title">Ошибка загрузки</div>
+            <button class="modal-close">×</button>
+          </div>
+
+          <div class="error-icon">⚠️</div>
+          <div class="error-title">Файл слишком большой</div>
+          <div class="error-message">
+            Максимальный размер файла — 30 MB.<br>
+            Пожалуйста, выберите файл меньшего размера или сожмите изображение.
+          </div>
+
+          <button class="btn-primary">Понятно</button>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       PAGE 5: PAYMENT (with Stars & TON)
+  ============================================ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Payment</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+
+      <div class="page-content">
+        <button class="back-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Назад
+        </button>
+
+        <h1 class="page-title">Тарифы</h1>
+        <p class="page-subtitle" style="margin-bottom: 24px;">Создавайте AI-фотографии в стиле PINGLASS</p>
+
+        <!-- Starter -->
+        <div class="tier-card">
+          <div class="tier-header">
+            <div>
+              <div class="tier-name">7 фото</div>
+              <div class="tier-photos">Starter</div>
+            </div>
+            <div class="tier-price">
+              <div class="tier-amount">499 <span class="tier-currency">₽</span></div>
+            </div>
+          </div>
+          <div class="tier-features">
+            <span class="tier-feature">До 23 фото</span>
+            <span class="tier-feature">На выбор</span>
+          </div>
+        </div>
+
+        <!-- Standard (Selected) -->
+        <div class="tier-card selected">
+          <span class="tier-badge">Хит</span>
+          <div class="tier-header">
+            <div>
+              <div class="tier-name">15 фото</div>
+              <div class="tier-photos">Standard</div>
+            </div>
+            <div class="tier-price">
+              <div class="tier-amount">999 <span class="tier-currency">₽</span></div>
+            </div>
+          </div>
+          <div class="tier-features">
+            <span class="tier-feature">До 23 фото</span>
+            <span class="tier-feature">Безопасно</span>
+          </div>
+
+          <!-- Payment Methods -->
+          <div class="payment-methods">
+            <div class="payment-methods-label">Способ оплаты</div>
+            <div class="payment-buttons">
+              <button class="payment-btn stars">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="12,2 15,9 22,9 17,14 19,22 12,17 5,22 7,14 2,9 9,9"/>
+                </svg>
+                Stars
+              </button>
+              <button class="payment-btn ton">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                TON
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Premium -->
+        <div class="tier-card">
+          <div class="tier-header">
+            <div>
+              <div class="tier-name">23 фото</div>
+              <div class="tier-photos">Premium</div>
+            </div>
+            <div class="tier-price">
+              <div class="tier-amount">1499 <span class="tier-currency">₽</span></div>
+            </div>
+          </div>
+          <div class="tier-features">
+            <span class="tier-feature">Все стили</span>
+            <span class="tier-feature">Фото не сохраняются</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="fixed-bottom">
+        <button class="btn-primary">Оплатить картой 999 ₽</button>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       PAGE 6: GENERATING
+  ============================================ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Generating</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+
+      <div class="page-content">
+        <div class="progress-container">
+          <div class="progress-ring-wrapper">
+            <svg class="progress-ring" width="160" height="160" viewBox="0 0 160 160">
+              <defs>
+                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#FF6B6B"/>
+                  <stop offset="100%" stop-color="#9B7BFF"/>
+                </linearGradient>
+              </defs>
+              <circle class="progress-bg" cx="80" cy="80" r="70"/>
+              <circle class="progress-fill" cx="80" cy="80" r="70"/>
+            </svg>
+            <div class="progress-text">
+              <div class="progress-percent">70%</div>
+              <div class="progress-label">11 / 15 фото</div>
+            </div>
+          </div>
+
+          <div class="progress-title">AI генерация</div>
+          <div class="progress-subtitle">Можете закрыть приложение — пришлём фото в Telegram</div>
+
+          <div class="dots-loader">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       PAGE 7: RESULTS (with Share)
+  ============================================ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Results</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+
+      <div class="page-content">
+        <button class="back-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Мои аватары
+        </button>
+
+        <div class="results-header">
+          <div>
+            <h1 class="page-title" style="margin-bottom: 0;">Готово</h1>
+            <p class="page-subtitle">15 фото</p>
+          </div>
+        </div>
+
+        <div class="results-grid">
+          <div class="result-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818487625-llwlkexj6gj.png" alt="">
+            <div class="result-overlay">
+              <div class="result-action">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+              </div>
+              <div class="result-action primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="result-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484576-kcab1v5mlls.png" alt="">
+            <div class="result-overlay">
+              <div class="result-action">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+              </div>
+              <div class="result-action primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="result-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484313-2btg7hkp6qn.png" alt="">
+            <div class="result-overlay">
+              <div class="result-action">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+              </div>
+              <div class="result-action primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="result-item">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818481162-tibhf4uppl.png" alt="">
+            <div class="result-overlay">
+              <div class="result-action">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+              </div>
+              <div class="result-action primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fixed-bottom">
+        <div class="btn-group">
+          <button class="btn-primary">Смотреть результат</button>
+          <button class="btn-secondary">Создать ещё</button>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       PAGE 8: SHARE MODAL
+  ============================================ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Share Modal</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+
+      <div class="page-content">
+        <button class="back-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Мои аватары
+        </button>
+      </div>
+
+      <!-- Share Modal Overlay -->
+      <div class="modal-overlay">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title">Поделиться</div>
+            <button class="modal-close">×</button>
+          </div>
+
+          <div class="share-preview">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818487625-llwlkexj6gj.png" alt="">
+          </div>
+
+          <div class="share-options">
+            <div class="share-option">
+              <div class="share-icon telegram">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                </svg>
+              </div>
+              <span class="share-label">Telegram</span>
+            </div>
+            <div class="share-option">
+              <div class="share-icon whatsapp">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+              </div>
+              <span class="share-label">WhatsApp</span>
+            </div>
+            <div class="share-option">
+              <div class="share-icon vk">VK</div>
+              <span class="share-label">ВКонтакте</span>
+            </div>
+            <div class="share-option">
+              <div class="share-icon copy">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+              </div>
+              <span class="share-label">Скопировать ссылку</span>
+            </div>
+            <div class="share-option">
+              <div class="share-icon download">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+              <span class="share-label">Скачать</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       PAGE 9: LIGHTBOX
+  ============================================ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Lightbox</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar" style="color: white;">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+
+      <!-- Lightbox Overlay -->
+      <div class="lightbox-overlay">
+        <div class="lightbox-header">
+          <button class="lightbox-action">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+          <div class="lightbox-counter">3 / 15</div>
+          <div class="lightbox-actions">
+            <button class="lightbox-action">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+            </button>
+            <button class="lightbox-action">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7,10 12,15 17,10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="lightbox-image">
+          <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484313-2btg7hkp6qn.png" alt="">
+        </div>
+
+        <button class="lightbox-nav prev">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15,18 9,12 15,6"/>
+          </svg>
+        </button>
+        <button class="lightbox-nav next">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9,18 15,12 9,6"/>
+          </svg>
+        </button>
+
+        <div class="lightbox-thumbs">
+          <div class="lightbox-thumb">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818487625-llwlkexj6gj.png" alt="">
+          </div>
+          <div class="lightbox-thumb">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484576-kcab1v5mlls.png" alt="">
+          </div>
+          <div class="lightbox-thumb active">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818484313-2btg7hkp6qn.png" alt="">
+          </div>
+          <div class="lightbox-thumb">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818481162-tibhf4uppl.png" alt="">
+          </div>
+          <div class="lightbox-thumb">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767818482193-shc7f6rsnpi.png" alt="">
+          </div>
+        </div>
+      </div>
+
+      <div class="home-indicator" style="background: rgba(255,255,255,0.3);"></div>
+    </div>
+  </div>
+
+</body>
+</html>

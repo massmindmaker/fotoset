@@ -36,7 +36,6 @@ export async function GET(
       SELECT
         p.id,
         p.tbank_payment_id,
-        p.provider_payment_id,
         p.user_id,
         u.telegram_user_id,
         u.telegram_username,

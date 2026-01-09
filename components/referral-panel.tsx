@@ -57,11 +57,12 @@ interface WithdrawalPreview {
 
 interface ReferralPanelProps {
   telegramUserId?: number
+  neonUserId?: string  // Web users have neonUserId instead of telegramUserId
   isOpen: boolean
   onClose: () => void
 }
 
-export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanelProps) {
+export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: ReferralPanelProps) {
   const [stats, setStats] = useState<ReferralStats | null>(null)
   const [earnings, setEarnings] = useState<ReferralEarning[]>([])
   const [loading, setLoading] = useState(true)
@@ -72,17 +73,22 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
   const [partnerStatus, setPartnerStatus] = useState<PartnerStatus | null>(null)
   const [showPartnerForm, setShowPartnerForm] = useState(false)
 
+  // Build query params based on auth type
+  const authParam = neonUserId
+    ? `neon_user_id=${encodeURIComponent(neonUserId)}`
+    : `telegram_user_id=${telegramUserId}`
+
   useEffect(() => {
-    if (isOpen && telegramUserId) {
+    if (isOpen && (telegramUserId || neonUserId)) {
       fetchStats()
       fetchPartnerStatus()
     }
-  }, [isOpen, telegramUserId])
+  }, [isOpen, telegramUserId, neonUserId])
 
   const fetchPartnerStatus = async () => {
     try {
-      if (!telegramUserId) return
-      const res = await fetch(`/api/partner/status?telegram_user_id=${telegramUserId}`)
+      if (!telegramUserId && !neonUserId) return
+      const res = await fetch(`/api/partner/status?${authParam}`)
       const data = await res.json()
       if (data.success) {
         setPartnerStatus({
@@ -102,11 +108,11 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
     setLoading(true)
     setError(null)
     try {
-      if (!telegramUserId) {
-        setError("Telegram ID отсутствует")
+      if (!telegramUserId && !neonUserId) {
+        setError("Не удалось определить пользователя")
         return
       }
-      const res = await fetch(`/api/referral/stats?telegram_user_id=${telegramUserId}`)
+      const res = await fetch(`/api/referral/stats?${authParam}`)
       const data = await res.json()
 
       if (!res.ok) {
@@ -139,7 +145,7 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
 
   const fetchEarnings = async () => {
     try {
-      const res = await fetch(`/api/referral/earnings?telegram_user_id=${telegramUserId}`)
+      const res = await fetch(`/api/referral/earnings?${authParam}`)
       const data = await res.json()
       if (data.success && Array.isArray(data.earnings)) {
         setEarnings(data.earnings)

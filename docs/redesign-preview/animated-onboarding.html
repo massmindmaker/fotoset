@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PinGlass - Animated Onboarding Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #0a0a0a;
+      color: white;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* =============================================
+       PHONE FRAME CONTAINER
+       ============================================= */
+    .demo-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 40px 20px;
+      background: linear-gradient(180deg, #0d0015 0%, #1a0a2e 50%, #0d0015 100%);
+    }
+
+    .demo-title {
+      font-size: 24px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #FF6B6B, #a855f7);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .demo-subtitle {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+
+    .phone-container {
+      position: relative;
+      width: 375px;
+      max-width: 100%;
+    }
+
+    .phone-frame {
+      background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+      border-radius: 50px;
+      padding: 14px;
+      box-shadow:
+        0 50px 100px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .phone-screen {
+      position: relative;
+      border-radius: 40px;
+      overflow: hidden;
+      background: #0a0a0a;
+      aspect-ratio: 9/19;
+    }
+
+    /* =============================================
+       AI BACKGROUND (from Kie.ai)
+       ============================================= */
+    .ai-background {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .ai-background img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      animation: bgFadeIn 1.5s ease-out 0.3s forwards;
+    }
+
+    @keyframes bgFadeIn {
+      to { opacity: 1; }
+    }
+
+    /* Animated overlay gradients */
+    .bg-overlay {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(168, 85, 247, 0.3) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(255, 107, 107, 0.2) 0%, transparent 50%);
+      animation: overlayPulse 4s ease-in-out infinite;
+    }
+
+    @keyframes overlayPulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    /* =============================================
+       MAIN CONTENT
+       ============================================= */
+    .onboarding-content {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 60px 24px 40px;
+      text-align: center;
+    }
+
+    /* =============================================
+       ORBITING PHOTOS SYSTEM
+       ============================================= */
+    .orbit-container {
+      position: relative;
+      width: 260px;
+      height: 260px;
+      margin-bottom: 40px;
+    }
+
+    /* Center glow */
+    .center-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle, rgba(255, 107, 107, 0.4) 0%, transparent 70%);
+      border-radius: 50%;
+      filter: blur(30px);
+      opacity: 0;
+      animation: glowAppear 1s ease-out 0.5s forwards, glowPulse 3s ease-in-out 1.5s infinite;
+    }
+
+    @keyframes glowAppear {
+      to { opacity: 1; }
+    }
+
+    @keyframes glowPulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+      50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+    }
+
+    /* Main photo in center */
+    .main-photo {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 120px;
+      height: 150px;
+      border-radius: 24px;
+      overflow: hidden;
+      transform: translate(-50%, -50%) scale(0);
+      animation: mainPhotoEnter 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.8s forwards;
+      box-shadow:
+        0 0 0 3px rgba(255, 107, 107, 0.5),
+        0 20px 40px rgba(0, 0, 0, 0.4),
+        0 0 60px rgba(255, 107, 107, 0.3);
+    }
+
+    .main-photo::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 27px;
+      background: linear-gradient(135deg, #FF6B6B, #a855f7, #FFD700, #FF6B6B);
+      background-size: 300% 300%;
+      z-index: -1;
+      animation: borderRotate 4s linear infinite;
+    }
+
+    @keyframes borderRotate {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    @keyframes mainPhotoEnter {
+      0% { transform: translate(-50%, -50%) scale(0) rotate(-10deg); opacity: 0; }
+      70% { transform: translate(-50%, -50%) scale(1.1) rotate(3deg); }
+      100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+    }
+
+    .main-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* AI Badge */
+    .ai-badge {
+      position: absolute;
+      bottom: -12px;
+      left: 50%;
+      transform: translateX(-50%) scale(0);
+      background: linear-gradient(135deg, #FF6B6B, #a855f7);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      white-space: nowrap;
+      box-shadow: 0 4px 15px rgba(168, 85, 247, 0.5);
+      animation: badgePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.4s forwards;
+    }
+
+    @keyframes badgePop {
+      to { transform: translateX(-50%) scale(1); }
+    }
+
+    /* Orbit rings */
+    .orbit-ring {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border: 1px dashed rgba(255, 107, 107, 0.15);
+      border-radius: 50%;
+      opacity: 0;
+    }
+
+    .orbit-ring.inner {
+      width: 200px;
+      height: 200px;
+      animation: ringAppear 0.6s ease-out 1.2s forwards, ringRotate 20s linear 1.8s infinite;
+    }
+
+    .orbit-ring.outer {
+      width: 260px;
+      height: 260px;
+      animation: ringAppear 0.6s ease-out 1.4s forwards, ringRotateReverse 30s linear 2s infinite;
+    }
+
+    @keyframes ringAppear {
+      to { opacity: 1; }
+    }
+
+    @keyframes ringRotate {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    @keyframes ringRotateReverse {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
+      to { transform: translate(-50%, -50%) rotate(-360deg); }
+    }
+
+    /* Orbiting photos */
+    .orbit-photo {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      overflow: hidden;
+      transform: scale(0);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .orbit-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .orbit-photo.style-pink { border: 2px solid #FF6B6B; }
+    .orbit-photo.style-purple { border: 2px solid #a855f7; }
+    .orbit-photo.style-gold { border: 2px solid #FFD700; }
+
+    /* Inner orbit photos - positions */
+    .orbit-ring.inner .orbit-photo:nth-child(1) { top: -22px; left: 50%; margin-left: -22px; animation: orbitPhotoPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.6s forwards; }
+    .orbit-ring.inner .orbit-photo:nth-child(2) { top: 50%; right: -22px; margin-top: -22px; animation: orbitPhotoPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.7s forwards; }
+    .orbit-ring.inner .orbit-photo:nth-child(3) { bottom: -22px; left: 50%; margin-left: -22px; animation: orbitPhotoPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.8s forwards; }
+    .orbit-ring.inner .orbit-photo:nth-child(4) { top: 50%; left: -22px; margin-top: -22px; animation: orbitPhotoPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.9s forwards; }
+
+    /* Outer orbit photos - positions */
+    .orbit-ring.outer .orbit-photo:nth-child(1) { top: 10%; left: 5%; animation: orbitPhotoPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 2.0s forwards; }
+    .orbit-ring.outer .orbit-photo:nth-child(2) { top: 5%; right: 15%; animation: orbitPhotoPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 2.1s forwards; }
+    .orbit-ring.outer .orbit-photo:nth-child(3) { bottom: 10%; right: 5%; animation: orbitPhotoPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 2.2s forwards; }
+    .orbit-ring.outer .orbit-photo:nth-child(4) { bottom: 5%; left: 15%; animation: orbitPhotoPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 2.3s forwards; }
+
+    @keyframes orbitPhotoPop {
+      0% { transform: scale(0) rotate(-20deg); }
+      70% { transform: scale(1.2) rotate(5deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+
+    /* Style labels on orbit photos */
+    .style-label {
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-size: 7px;
+      white-space: nowrap;
+    }
+
+    /* =============================================
+       TEXT CONTENT
+       ============================================= */
+    .text-content {
+      opacity: 0;
+      transform: translateY(20px);
+      animation: textAppear 0.8s ease-out 2.4s forwards;
+    }
+
+    @keyframes textAppear {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .tagline {
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.5);
+      margin-bottom: 8px;
+    }
+
+    .logo {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #fff 0%, #FF6B6B 50%, #a855f7 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 60px rgba(255, 107, 107, 0.5);
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.7);
+      line-height: 1.5;
+      max-width: 260px;
+      margin: 0 auto 28px;
+    }
+
+    /* =============================================
+       CTA BUTTON
+       ============================================= */
+    .cta-button {
+      position: relative;
+      padding: 16px 36px;
+      background: linear-gradient(135deg, #FF6B6B 0%, #e55555 100%);
+      border: none;
+      border-radius: 18px;
+      color: white;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: buttonAppear 0.8s ease-out 2.6s forwards;
+      box-shadow:
+        0 4px 20px rgba(255, 107, 107, 0.4),
+        0 8px 40px rgba(255, 107, 107, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .cta-button:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        0 6px 25px rgba(255, 107, 107, 0.5),
+        0 12px 50px rgba(255, 107, 107, 0.3);
+    }
+
+    .cta-button:active {
+      transform: scale(0.98);
+    }
+
+    @keyframes buttonAppear {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Button shine effect */
+    .cta-button::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(
+        45deg,
+        transparent,
+        rgba(255, 255, 255, 0.15),
+        transparent
+      );
+      animation: buttonShine 3s ease-in-out infinite;
+    }
+
+    @keyframes buttonShine {
+      0% { transform: translateX(-100%) rotate(45deg); }
+      50%, 100% { transform: translateX(100%) rotate(45deg); }
+    }
+
+    .button-icon {
+      display: inline-block;
+      margin-right: 8px;
+      animation: sparkle 2s ease-in-out infinite;
+    }
+
+    @keyframes sparkle {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      50% { transform: scale(1.3) rotate(15deg); }
+    }
+
+    /* =============================================
+       FEATURE PILLS
+       ============================================= */
+    .feature-pills {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      opacity: 0;
+      animation: pillsAppear 0.6s ease-out 2.8s forwards;
+    }
+
+    @keyframes pillsAppear {
+      to { opacity: 1; }
+    }
+
+    .pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .pill-icon {
+      font-size: 12px;
+    }
+
+    /* =============================================
+       FLOATING PARTICLES
+       ============================================= */
+    .particles {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: #FF6B6B;
+      border-radius: 50%;
+      opacity: 0;
+      animation: particleFloat 6s ease-in-out infinite;
+    }
+
+    .particle:nth-child(1) { top: 15%; left: 10%; animation-delay: 0s; }
+    .particle:nth-child(2) { top: 25%; right: 15%; animation-delay: 1s; background: #a855f7; }
+    .particle:nth-child(3) { top: 60%; left: 8%; animation-delay: 2s; background: #FFD700; }
+    .particle:nth-child(4) { top: 70%; right: 12%; animation-delay: 3s; }
+    .particle:nth-child(5) { top: 85%; left: 20%; animation-delay: 4s; background: #a855f7; }
+    .particle:nth-child(6) { top: 40%; right: 8%; animation-delay: 2.5s; background: #FFD700; }
+
+    @keyframes particleFloat {
+      0%, 100% {
+        transform: translateY(0) scale(1);
+        opacity: 0.4;
+      }
+      50% {
+        transform: translateY(-25px) scale(1.5);
+        opacity: 0.8;
+      }
+    }
+
+    /* =============================================
+       REPLAY BUTTON
+       ============================================= */
+    .replay-btn {
+      margin-top: 32px;
+      padding: 12px 24px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .replay-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: #FF6B6B;
+    }
+
+    /* =============================================
+       INFO PANEL
+       ============================================= */
+    .info-panel {
+      margin-top: 40px;
+      padding: 24px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      max-width: 500px;
+      text-align: left;
+    }
+
+    .info-panel h3 {
+      font-size: 16px;
+      margin-bottom: 16px;
+      color: #FF6B6B;
+    }
+
+    .info-panel ul {
+      list-style: none;
+    }
+
+    .info-panel li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.7);
+      line-height: 1.4;
+    }
+
+    .info-panel li::before {
+      content: '✓';
+      color: #10b981;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-wrapper">
+    <h1 class="demo-title">Animated Onboarding Demo</h1>
+    <p class="demo-subtitle">AI background from Kie.ai + CSS animations</p>
+
+    <div class="phone-container">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <!-- AI-Generated Background -->
+          <div class="ai-background">
+            <img src="https://tempfile.aiquickdraw.com/image-format-converter/1767817325070-ubrrrpx1ux.png" alt="AI Background" />
+            <div class="bg-overlay"></div>
+          </div>
+
+          <!-- Floating particles -->
+          <div class="particles">
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+          </div>
+
+          <!-- Main content -->
+          <div class="onboarding-content">
+            <!-- Orbit system -->
+            <div class="orbit-container">
+              <div class="center-glow"></div>
+
+              <!-- Main photo -->
+              <div class="main-photo">
+                <img src="/optimized/demo/Screenshot_1.webp" alt="Main" onerror="this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=250&fit=crop'" />
+                <span class="ai-badge">AI POWERED</span>
+              </div>
+
+              <!-- Inner orbit -->
+              <div class="orbit-ring inner">
+                <div class="orbit-photo style-pink">
+                  <img src="/optimized/demo/Screenshot_2.webp" alt="Style 1" onerror="this.src='https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop'" />
+                  <span class="style-label">Business</span>
+                </div>
+                <div class="orbit-photo style-purple">
+                  <img src="/optimized/demo/Screenshot_3.webp" alt="Style 2" onerror="this.src='https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop'" />
+                  <span class="style-label">Creative</span>
+                </div>
+                <div class="orbit-photo style-gold">
+                  <img src="/optimized/demo/Screenshot_4.webp" alt="Style 3" onerror="this.src='https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&h=100&fit=crop'" />
+                  <span class="style-label">Lifestyle</span>
+                </div>
+                <div class="orbit-photo style-pink">
+                  <img src="/optimized/demo/Screenshot_5.webp" alt="Style 4" onerror="this.src='https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&h=100&fit=crop'" />
+                  <span class="style-label">Portrait</span>
+                </div>
+              </div>
+
+              <!-- Outer orbit -->
+              <div class="orbit-ring outer">
+                <div class="orbit-photo style-purple">
+                  <img src="/optimized/demo/Screenshot_6.webp" alt="Extra 1" onerror="this.src='https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=100&h=100&fit=crop'" />
+                </div>
+                <div class="orbit-photo style-gold">
+                  <img src="/optimized/demo/Screenshot_7.webp" alt="Extra 2" onerror="this.src='https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&h=100&fit=crop'" />
+                </div>
+                <div class="orbit-photo style-pink">
+                  <img src="/optimized/demo/Screenshot_8.webp" alt="Extra 3" onerror="this.src='https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=100&h=100&fit=crop'" />
+                </div>
+                <div class="orbit-photo style-purple">
+                  <img src="/optimized/demo/Screenshot_9.webp" alt="Extra 4" onerror="this.src='https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=100&h=100&fit=crop'" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Text -->
+            <div class="text-content">
+              <p class="tagline">AI Photo Studio</p>
+              <h1 class="logo">PinGlass</h1>
+              <p class="subtitle">23 профессиональных портрета за 5 минут</p>
+
+              <button class="cta-button" onclick="replayAnimation()">
+                <span class="button-icon">✨</span>
+                Создать аватар
+              </button>
+
+              <div class="feature-pills">
+                <div class="pill">
+                  <span class="pill-icon">🎯</span>
+                  23 фото
+                </div>
+                <div class="pill">
+                  <span class="pill-icon">⚡</span>
+                  5 минут
+                </div>
+                <div class="pill">
+                  <span class="pill-icon">🔒</span>
+                  Безопасно
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="replay-btn" onclick="replayAnimation()">
+      🔄 Перезапустить анимацию
+    </button>
+
+    <div class="info-panel">
+      <h3>Что здесь происходит:</h3>
+      <ul>
+        <li>Фон — реальное AI-изображение от Kie.ai (Nano Banana Pro)</li>
+        <li>Плавное появление фона с fade-in эффектом</li>
+        <li>Главное фото появляется с bounce-эффектом</li>
+        <li>Голографическая рамка с градиентной анимацией</li>
+        <li>Орбиты вращаются в разные стороны</li>
+        <li>Мини-фото появляются по очереди с pop-эффектом</li>
+        <li>Текст и кнопка появляются с задержкой</li>
+        <li>Плавающие частицы на фоне</li>
+        <li>Кнопка с shine-эффектом и hover-состоянием</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    function replayAnimation() {
+      // Force animation restart
+      const screen = document.querySelector('.phone-screen');
+      screen.style.display = 'none';
+      screen.offsetHeight; // Trigger reflow
+      screen.style.display = '';
+
+      // Clone and replace to restart all animations
+      const clone = screen.cloneNode(true);
+      screen.parentNode.replaceChild(clone, screen);
+    }
+  </script>
+</body>
+</html>

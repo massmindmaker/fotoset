@@ -2,25 +2,33 @@ import { NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 
 // GET: Get earnings history
+// Supports both Telegram users (telegram_user_id) and Web users (neon_user_id)
 export async function GET(request: NextRequest) {
   try {
     const telegramUserIdParam = request.nextUrl.searchParams.get("telegram_user_id")
+    const neonUserId = request.nextUrl.searchParams.get("neon_user_id")
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "20")
     const offset = parseInt(request.nextUrl.searchParams.get("offset") || "0")
 
-    if (!telegramUserIdParam) {
-      return NextResponse.json({ error: "telegram_user_id required" }, { status: 400 })
+    if (!telegramUserIdParam && !neonUserId) {
+      return NextResponse.json({ error: "telegram_user_id or neon_user_id required" }, { status: 400 })
     }
 
-    const telegramUserId = parseInt(telegramUserIdParam)
-    if (isNaN(telegramUserId)) {
-      return NextResponse.json({ error: "Invalid telegram_user_id" }, { status: 400 })
+    // Get user by telegram_user_id or neon_user_id
+    let user
+    if (neonUserId) {
+      user = await sql`
+        SELECT id FROM users WHERE neon_user_id = ${neonUserId}
+      `.then((rows: any[]) => rows[0])
+    } else {
+      const telegramUserId = parseInt(telegramUserIdParam!)
+      if (isNaN(telegramUserId)) {
+        return NextResponse.json({ error: "Invalid telegram_user_id" }, { status: 400 })
+      }
+      user = await sql`
+        SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
+      `.then((rows: any[]) => rows[0])
     }
-
-    // Get user by telegram_user_id
-    const user = await sql`
-      SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
-    `.then((rows: any[]) => rows[0])
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
