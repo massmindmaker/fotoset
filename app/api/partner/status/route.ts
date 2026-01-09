@@ -4,25 +4,25 @@ import { sql } from "@/lib/db"
 /**
  * GET /api/partner/status
  * Check partner status and application status
- * Supports both Telegram users (telegram_user_id) and Web users (neon_user_id)
+ * Supports both Telegram users (telegram_user_id) and Web users (neon_auth_id)
  */
 export async function GET(request: NextRequest) {
   try {
     const telegramUserId = request.nextUrl.searchParams.get("telegram_user_id")
-    const neonUserId = request.nextUrl.searchParams.get("neon_user_id")
+    const neonUserId = request.nextUrl.searchParams.get("neon_auth_id")
 
     if (!telegramUserId && !neonUserId) {
       return NextResponse.json(
-        { success: false, error: "telegram_user_id or neon_user_id required" },
+        { success: false, error: "telegram_user_id or neon_auth_id required" },
         { status: 400 }
       )
     }
 
-    // Get user by telegram_user_id or neon_user_id
+    // Get user by telegram_user_id or neon_auth_id
     let userResult
     if (neonUserId) {
       userResult = await sql`
-        SELECT id FROM users WHERE neon_user_id = ${neonUserId}
+        SELECT id FROM users WHERE neon_auth_id = ${neonUserId}
       `
     } else {
       userResult = await sql`

@@ -15,21 +15,21 @@ function generateCode(): string {
 }
 
 // GET: Get partner statistics
-// Supports both Telegram users (telegram_user_id) and Web users (neon_user_id)
+// Supports both Telegram users (telegram_user_id) and Web users (neon_auth_id)
 export async function GET(request: NextRequest) {
   try {
     const telegramUserIdParam = request.nextUrl.searchParams.get("telegram_user_id")
-    const neonUserId = request.nextUrl.searchParams.get("neon_user_id")
+    const neonUserId = request.nextUrl.searchParams.get("neon_auth_id")
 
     if (!telegramUserIdParam && !neonUserId) {
-      return NextResponse.json({ error: "telegram_user_id or neon_user_id required" }, { status: 400 })
+      return NextResponse.json({ error: "telegram_user_id or neon_auth_id required" }, { status: 400 })
     }
 
-    // Get user by telegram_user_id or neon_user_id (don't create - require existing user)
+    // Get user by telegram_user_id or neon_auth_id (don't create - require existing user)
     let user
     if (neonUserId) {
       user = await sql`
-        SELECT id FROM users WHERE neon_user_id = ${neonUserId}
+        SELECT id FROM users WHERE neon_auth_id = ${neonUserId}
       `.then((rows: any[]) => rows[0])
     } else {
       const telegramUserId = parseInt(telegramUserIdParam!)
