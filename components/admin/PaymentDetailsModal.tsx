@@ -27,18 +27,23 @@ interface PaymentDetailsModalProps {
 
 interface PaymentDetails {
   id: number
-  tbank_payment_id: string
+  tbank_payment_id: string | null
+  provider_payment_id: string | null
   user_id: number
   telegram_user_id: string
+  telegram_username: string | null
   amount: number
+  currency: string
   tier_id: string
   photo_count: number
   status: string
-  email: string | null
-  error_code: string | null
-  error_message: string | null
-  refund_id: string | null
+  refund_status: string | null
+  refund_amount: number | null
   refund_reason: string | null
+  refund_at: string | null
+  is_test_mode: boolean
+  generation_consumed: boolean
+  consumed_at: string | null
   created_at: string
   updated_at: string
   // Related data
@@ -51,6 +56,8 @@ interface PaymentDetails {
   original_amount: number | null
   original_currency: string | null
   exchange_rate: number | null
+  rate_locked_at: string | null
+  rate_expires_at: string | null
   telegram_charge_id: string | null
   stars_amount: number | null
   ton_tx_hash: string | null
@@ -203,7 +210,10 @@ export function PaymentDetailsModal({ paymentId, isOpen, onClose, onRefund }: Pa
               </h2>
               {payment && (
                 <p className="text-sm text-slate-500">
-                  T-Bank: {payment.tbank_payment_id}
+                  {payment.provider === 'tbank' && payment.tbank_payment_id && `T-Bank: ${payment.tbank_payment_id}`}
+                  {payment.provider === 'stars' && payment.telegram_charge_id && `Stars: ${payment.telegram_charge_id}`}
+                  {payment.provider === 'ton' && payment.ton_tx_hash && `TON: ${payment.ton_tx_hash.slice(0, 16)}...`}
+                  {!payment.tbank_payment_id && !payment.telegram_charge_id && !payment.ton_tx_hash && `Provider: ${payment.provider}`}
                 </p>
               )}
             </div>
@@ -249,9 +259,9 @@ export function PaymentDetailsModal({ paymentId, isOpen, onClose, onRefund }: Pa
                   </p>
                 </div>
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                  <p className="text-xs text-slate-500 mb-1">Email</p>
+                  <p className="text-xs text-slate-500 mb-1">Режим</p>
                   <p className="text-slate-900 font-medium">
-                    {payment.email || '—'}
+                    {payment.is_test_mode ? 'Тестовый' : 'Боевой'}
                   </p>
                 </div>
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -283,6 +293,12 @@ export function PaymentDetailsModal({ paymentId, isOpen, onClose, onRefund }: Pa
                     <p className="text-slate-500">Telegram ID</p>
                     <p className="text-slate-900 font-mono">{payment.telegram_user_id}</p>
                   </div>
+                  {payment.telegram_username && (
+                    <div className="col-span-2">
+                      <p className="text-slate-500">Telegram Username</p>
+                      <p className="text-slate-900">@{payment.telegram_username}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -410,46 +426,51 @@ export function PaymentDetailsModal({ paymentId, isOpen, onClose, onRefund }: Pa
                 )}
               </div>
 
-              {/* Error Info */}
-              {(payment.error_code || payment.error_message) && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+              {/* Generation Status */}
+              {payment.generation_consumed && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
                   <div className="flex items-center gap-3 mb-2">
-                    <AlertCircle className="w-4 h-4 text-red-600" />
-                    <p className="text-sm font-medium text-red-700">Ошибка</p>
+                    <CheckCircle className="w-4 h-4 text-emerald-600" />
+                    <p className="text-sm font-medium text-emerald-700">Генерация использована</p>
                   </div>
-                  {payment.error_code && (
-                    <p className="text-sm text-red-600">
-                      <strong>Код:</strong> {payment.error_code}
-                    </p>
-                  )}
-                  {payment.error_message && (
-                    <p className="text-sm text-red-600 mt-1">
-                      {payment.error_message}
+                  {payment.consumed_at && (
+                    <p className="text-sm text-emerald-600">
+                      {formatDate(payment.consumed_at)}
                     </p>
                   )}
                 </div>
               )}
 
               {/* Refund Info */}
-              {payment.refund_id && (
+              {payment.refund_status && (
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
                   <div className="flex items-center gap-3 mb-2">
                     <Undo2 className="w-4 h-4 text-blue-600" />
                     <p className="text-sm font-medium text-blue-700">Возврат</p>
                   </div>
                   <p className="text-sm text-blue-600">
-                    <strong>ID:</strong> {payment.refund_id}
+                    <strong>Статус:</strong> {payment.refund_status}
                   </p>
+                  {payment.refund_amount && (
+                    <p className="text-sm text-blue-600 mt-1">
+                      <strong>Сумма:</strong> {payment.refund_amount} ₽
+                    </p>
+                  )}
                   {payment.refund_reason && (
                     <p className="text-sm text-blue-600 mt-1">
                       <strong>Причина:</strong> {payment.refund_reason}
+                    </p>
+                  )}
+                  {payment.refund_at && (
+                    <p className="text-sm text-blue-600 mt-1">
+                      <strong>Дата:</strong> {formatDate(payment.refund_at)}
                     </p>
                   )}
                 </div>
               )}
 
               {/* Refund Form */}
-              {payment.status === 'succeeded' && !payment.refund_id && (
+              {payment.status === 'succeeded' && !payment.refund_status && (
                 <>
                   {!showRefundForm ? (
                     <button

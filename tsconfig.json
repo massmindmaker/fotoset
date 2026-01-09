@@ -45,6 +45,7 @@
   ],
   "exclude": [
     "node_modules",
-    "tests"
+    "tests",
+    "**/__tests__/**"
   ]
 }

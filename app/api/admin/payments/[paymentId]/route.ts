@@ -36,28 +36,28 @@ export async function GET(
       SELECT
         p.id,
         p.tbank_payment_id,
+        p.provider_payment_id,
         p.user_id,
         u.telegram_user_id,
         u.telegram_username,
         p.amount,
+        p.currency,
         p.tier_id,
         p.photo_count,
         p.status,
         p.refund_status,
-        p.refund_id,
         p.refund_amount,
         p.refund_reason,
         p.refund_at,
-        p.email,
-        p.error_code,
-        p.error_message,
         p.is_test_mode,
+        p.generation_consumed,
+        p.consumed_at,
         p.created_at,
         p.updated_at,
-        p.avatar_id,
+        p.consumed_avatar_id as avatar_id,
         a.name as avatar_name,
         a.status as avatar_status,
-        (SELECT COUNT(*) FROM generated_photos WHERE avatar_id = p.avatar_id)::int as photos_generated,
+        (SELECT COUNT(*) FROM generated_photos WHERE avatar_id = p.consumed_avatar_id)::int as photos_generated,
         -- Multi-provider columns
         COALESCE(p.provider, 'tbank') as provider,
         p.telegram_charge_id,
@@ -68,10 +68,12 @@ export async function GET(
         p.ton_confirmations,
         p.original_currency,
         p.original_amount,
-        p.exchange_rate
+        p.exchange_rate,
+        p.rate_locked_at,
+        p.rate_expires_at
       FROM payments p
       LEFT JOIN users u ON u.id = p.user_id
-      LEFT JOIN avatars a ON a.id = p.avatar_id
+      LEFT JOIN avatars a ON a.id = p.consumed_avatar_id
       WHERE p.id = ${paymentIdNum}
     `
 
