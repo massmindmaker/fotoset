@@ -14,7 +14,8 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  ExternalLink
+  ExternalLink,
+  Gift
 } from 'lucide-react'
 
 interface UserDetailsModalProps {
@@ -85,6 +86,8 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<UserDetails | null>(null)
   const [activeTab, setActiveTab] = useState<TabId>('overview')
+  const [grantingPro, setGrantingPro] = useState(false)
+  const [grantProMessage, setGrantProMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   useEffect(() => {
     if (isOpen && userId) {
@@ -113,6 +116,49 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
     }
   }
 
+  const handleGrantPro = async (tierId: 'starter' | 'standard' | 'premium' = 'premium') => {
+    if (!userId || grantingPro) return
+
+    const confirmed = window.confirm(
+      `Выдать пользователю бесплатный доступ к тарифу "${tierId}"?\n\nЭто создаст запись об оплате с нулевой суммой.`
+    )
+    if (!confirmed) return
+
+    try {
+      setGrantingPro(true)
+      setGrantProMessage(null)
+
+      const response = await fetch(`/api/admin/users/${userId}/grant-pro`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier_id: tierId })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to grant Pro status')
+      }
+
+      setGrantProMessage({
+        type: 'success',
+        text: `Pro доступ выдан: ${result.data.tier_id} (${result.data.photo_count} фото)`
+      })
+
+      // Refresh user data to show new payment
+      await fetchUserDetails()
+
+      // Notify parent if needed
+      onAction?.()
+    } catch (err) {
+      setGrantProMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Ошибка выдачи Pro'
+      })
+    } finally {
+      setGrantingPro(false)
+    }
+  }
 
   if (!isOpen) return null
 
@@ -165,6 +211,20 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Grant Pro Button */}
+            <button
+              onClick={() => handleGrantPro('premium')}
+              disabled={grantingPro || loading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-pink-700 bg-pink-50 hover:bg-pink-100 border border-pink-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Выдать бесплатный Pro доступ"
+            >
+              {grantingPro ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Gift className="w-4 h-4" />
+              )}
+              <span>Выдать Pro</span>
+            </button>
             <button
               onClick={onClose}
               className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
@@ -173,6 +233,22 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
             </button>
           </div>
         </div>
+
+        {/* Grant Pro Message */}
+        {grantProMessage && (
+          <div className={`mx-4 mt-2 p-2 rounded-lg text-sm ${
+            grantProMessage.type === 'success'
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              : 'bg-red-50 text-red-700 border border-red-200'
+          }`}>
+            {grantProMessage.type === 'success' ? (
+              <CheckCircle className="w-4 h-4 inline mr-1" />
+            ) : (
+              <AlertCircle className="w-4 h-4 inline mr-1" />
+            )}
+            {grantProMessage.text}
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex border-b border-slate-200 px-4 overflow-x-auto bg-white">
