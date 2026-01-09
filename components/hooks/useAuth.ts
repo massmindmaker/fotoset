@@ -90,6 +90,8 @@ export function useAuth() {
 
       console.log("[TG] WebApp state:", {
         hasTg: !!tg,
+        hasInitData: !!(tg?.initData && tg.initData.length > 0),
+        initDataLength: tg?.initData?.length || 0,
         hasUser: !!tg?.initDataUnsafe?.user,
         userId: tg?.initDataUnsafe?.user?.id,
         platform: tg?.platform,
@@ -98,8 +100,12 @@ export function useAuth() {
       if (abortController.signal.aborted) return
 
       // CASE 1: Telegram WebApp user
-      if (tg?.initDataUnsafe?.user?.id) {
-        const tgUser = tg.initDataUnsafe.user
+      // IMPORTANT: Check BOTH initData (signed data) AND initDataUnsafe
+      // initDataUnsafe may contain stale data in browser, but initData will be empty
+      const hasValidTelegramAuth = tg?.initData && tg.initData.length > 0 && tg?.initDataUnsafe?.user?.id
+
+      if (hasValidTelegramAuth) {
+        const tgUser = tg!.initDataUnsafe!.user!
         const identifier: UserIdentifier = {
           type: "telegram",
           visibleUserId: tgUser.id,
