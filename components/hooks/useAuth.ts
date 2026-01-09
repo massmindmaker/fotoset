@@ -231,6 +231,81 @@ export function useAuth() {
     setAuthStatus('success')
   }, [])
 
+  // ══════════════════════════════════════════════════════════════
+  // TELEGRAM INTEGRATION: Theme Sync
+  // ══════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp
+    if (!tg) return
+
+    const syncTheme = () => {
+      const tgTheme = tg.colorScheme || 'light'
+      setTheme(tgTheme as 'dark' | 'light')
+      document.documentElement.classList.remove('dark', 'light')
+      document.documentElement.classList.add(tgTheme)
+      console.log("[TG] Theme synced:", tgTheme)
+    }
+
+    // Initial sync
+    syncTheme()
+
+    // Listen for theme changes
+    tg.onEvent('themeChanged', syncTheme)
+
+    return () => {
+      try {
+        tg.offEvent('themeChanged', syncTheme)
+      } catch { /* ignore */ }
+    }
+  }, [])
+
+  // ══════════════════════════════════════════════════════════════
+  // TELEGRAM INTEGRATION: Viewport Height for CSS
+  // ══════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp
+    if (!tg) return
+
+    const setViewportHeight = () => {
+      const vh = tg.viewportStableHeight || window.innerHeight
+      document.documentElement.style.setProperty('--tg-vh', `${vh}px`)
+      console.log("[TG] Viewport height set:", vh)
+    }
+
+    // Initial set
+    setViewportHeight()
+
+    // Listen for viewport changes
+    tg.onEvent('viewportChanged', setViewportHeight)
+
+    return () => {
+      try {
+        tg.offEvent('viewportChanged', setViewportHeight)
+      } catch { /* ignore */ }
+    }
+  }, [])
+
+  // ══════════════════════════════════════════════════════════════
+  // TELEGRAM INTEGRATION: Haptic Feedback Helpers
+  // ══════════════════════════════════════════════════════════════
+  const hapticImpact = useCallback((style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft' = 'light') => {
+    try {
+      window.Telegram?.WebApp?.HapticFeedback?.impactOccurred(style)
+    } catch { /* silent fail on non-Telegram */ }
+  }, [])
+
+  const hapticNotification = useCallback((type: 'success' | 'error' | 'warning') => {
+    try {
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred(type)
+    } catch { /* silent fail on non-Telegram */ }
+  }, [])
+
+  const hapticSelection = useCallback(() => {
+    try {
+      window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+    } catch { /* silent fail on non-Telegram */ }
+  }, [])
+
   return {
     userIdentifier,
     authStatus,
@@ -242,6 +317,10 @@ export function useAuth() {
     toggleTheme,
     showMessage,
     setWebUser,
+    // Telegram haptic feedback
+    hapticImpact,
+    hapticNotification,
+    hapticSelection,
   }
 }
 
