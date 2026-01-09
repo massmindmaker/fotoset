@@ -91,7 +91,7 @@ const ReferralPanel = lazy(() => import("./referral-panel").then((m) => ({ defau
 
 export default function PersonaApp() {
   // Custom hooks
-  const { userIdentifier, authStatus, telegramUserId, isWebUser, neonUserId, theme, toggleTheme, showMessage, setWebUser } = useAuth()
+  const { userIdentifier, authStatus, telegramUserId, isWebUser, neonUserId, theme, toggleTheme, showMessage, setWebUser, hapticImpact, hapticNotification, hapticSelection } = useAuth()
   const { data: neonSession, isPending: isNeonAuthPending } = useSession() // Neon Auth session for web users
   const { personas, setPersonas, loadAvatarsFromServer, createPersona, updatePersona, deletePersona, getPersona } = useAvatars()
   const { isGenerating, setIsGenerating, generationProgress, setGenerationProgress, fileToBase64 } = useGeneration()
@@ -367,6 +367,8 @@ export default function PersonaApp() {
   }, [authStatus, userIdentifier, loadAvatarsFromServer, setPersonas, setIsGenerating, setGenerationProgress, showMessage, startPolling, stopPolling])
 
   // Handle Neon Auth session for web users (after Google login redirect)
+  // NOTE: Removed viewState.view and personas.length from deps to prevent infinite loops
+  // These values are checked inside but shouldn't trigger re-runs
   useEffect(() => {
     console.log('[Auth] Neon session check:', {
       isPending: isNeonAuthPending,
@@ -374,8 +376,6 @@ export default function PersonaApp() {
       hasUser: !!neonSession?.user,
       userId: neonSession?.user?.id,
       authStatus,
-      currentView: viewState.view,
-      hasUserIdentifier: !!userIdentifier,
     })
 
     if (isNeonAuthPending) return // Wait for session to load
@@ -401,17 +401,11 @@ export default function PersonaApp() {
         // Mark onboarding complete and show dashboard
         localStorage.setItem("pinglass_onboarding_complete", "true")
         setViewState({ view: "DASHBOARD" })
-      } else if (viewState.view === "ONBOARDING") {
-        // Already logged in via Neon Auth, skip onboarding
-        console.log('[Auth] Neon user already logged in, checking if should skip onboarding')
-        const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"
-        if (onboardingComplete || personas.length > 0) {
-          console.log('[Auth] Skipping onboarding, showing DASHBOARD')
-          setViewState({ view: "DASHBOARD" })
-        }
       }
+      // Note: Skip auto-redirect to DASHBOARD from ONBOARDING -
+      // main useEffect handles this based on loaded avatars
     }
-  }, [neonSession, isNeonAuthPending, authStatus, viewState.view, personas.length, setWebUser, userIdentifier])
+  }, [neonSession, isNeonAuthPending, authStatus, setWebUser])
 
   // Save view state when it changes
   useEffect(() => {
@@ -422,20 +416,32 @@ export default function PersonaApp() {
 
   // Load photos from server when navigating to RESULTS view
   // Also acts as aggressive fallback if polling doesn't update photos properly
+  // NOTE: Using refs for values that change frequently to prevent dependency cycles
+  const generationProgressRef = useRef(generationProgress)
+  const isGeneratingRef = useRef(isGenerating)
+  const personasRef = useRef(personas)
+
+  useEffect(() => {
+    generationProgressRef.current = generationProgress
+    isGeneratingRef.current = isGenerating
+    personasRef.current = personas
+  }, [generationProgress, isGenerating, personas])
+
   useEffect(() => {
     const loadPhotosForResults = async () => {
       if (viewState.view !== "RESULTS" || !("personaId" in viewState)) return
 
       const avatarId = viewState.personaId
-      const persona = personas.find((p) => p.id === avatarId)
+      const persona = personasRef.current.find((p) => p.id === avatarId)
       if (!persona) return
 
       const localPhotoCount = persona.generatedAssets?.length || 0
+      const generating = isGeneratingRef.current
 
       // ALWAYS load during generation to ensure photos appear
       // Also load if no photos locally or status is ready
       const shouldLoad =
-        isGenerating ||  // Always check during generation
+        generating ||  // Always check during generation
         localPhotoCount === 0 ||
         persona.status === "ready" ||
         persona.status === "processing"
@@ -461,7 +467,8 @@ export default function PersonaApp() {
                 updatePersona(avatarId, { generatedAssets: newAssets })
 
                 // If we got all expected photos and were generating, mark as complete
-                if (isGenerating && serverPhotoCount >= generationProgress.total && generationProgress.total > 0) {
+                const progress = generationProgressRef.current
+                if (generating && serverPhotoCount >= progress.total && progress.total > 0) {
                   console.log("[Fallback] All photos loaded, marking generation complete")
                   updatePersona(avatarId, { status: "ready" })
                   setIsGenerating(false)
@@ -484,15 +491,15 @@ export default function PersonaApp() {
     // This ensures photos appear even if main polling has issues
     let intervalId: NodeJS.Timeout | null = null
     if (viewState.view === "RESULTS" && "personaId" in viewState) {
-      // Use faster interval during active generation
-      const intervalMs = isGenerating ? 3000 : 10000
+      // Use faster interval during active generation (checked via ref)
+      const intervalMs = isGeneratingRef.current ? 3000 : 10000
       intervalId = setInterval(loadPhotosForResults, intervalMs)
     }
 
     return () => {
       if (intervalId) clearInterval(intervalId)
     }
-  }, [viewState, personas, updatePersona, isGenerating, generationProgress.total, setIsGenerating, setGenerationProgress])
+  }, [viewState, updatePersona, setIsGenerating, setGenerationProgress])
 
   // Recovery: if view requires persona but it's missing, redirect to DASHBOARD
   useEffect(() => {
@@ -512,6 +519,64 @@ export default function PersonaApp() {
       }
     }
   }, [isReady, viewState, getPersona, isGenerating, isSyncing])
+
+  // ══════════════════════════════════════════════════════════════
+  // TELEGRAM INTEGRATION: Back Button
+  // ══════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp
+    if (!tg?.BackButton) return
+
+    // Show back button for non-root views
+    const showBackButton = viewState.view !== 'DASHBOARD' && viewState.view !== 'ONBOARDING'
+
+    if (showBackButton) {
+      const handleBackClick = () => {
+        hapticImpact('light')
+        setViewState({ view: 'DASHBOARD' })
+      }
+
+      tg.BackButton.onClick(handleBackClick)
+      tg.BackButton.show()
+      console.log("[TG] Back button shown for view:", viewState.view)
+
+      return () => {
+        try {
+          tg.BackButton.offClick(handleBackClick)
+          tg.BackButton.hide()
+        } catch { /* ignore */ }
+      }
+    } else {
+      try {
+        tg.BackButton.hide()
+      } catch { /* ignore */ }
+    }
+  }, [viewState.view, hapticImpact])
+
+  // ══════════════════════════════════════════════════════════════
+  // TELEGRAM INTEGRATION: Closing Confirmation During Generation
+  // ══════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp
+    if (!tg) return
+
+    if (isGenerating) {
+      try {
+        tg.enableClosingConfirmation()
+        console.log("[TG] Closing confirmation enabled during generation")
+      } catch { /* ignore */ }
+    } else {
+      try {
+        tg.disableClosingConfirmation()
+      } catch { /* ignore */ }
+    }
+
+    return () => {
+      try {
+        tg.disableClosingConfirmation()
+      } catch { /* ignore */ }
+    }
+  }, [isGenerating])
 
   // Complete onboarding
   const completeOnboarding = useCallback(async () => {

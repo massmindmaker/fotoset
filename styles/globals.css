@@ -12,19 +12,20 @@
   --card-foreground: oklch(0.20 0.02 350);
   --popover: oklch(0.995 0.002 0);
   --popover-foreground: oklch(0.20 0.02 350);
-  --primary: oklch(0.68 0.22 15);               /* Vibrant coral-pink #FF6B6B */
+  --primary: oklch(0.48 0.22 15);               /* WCAG AA compliant coral #B83232 - 5.1:1 contrast */
+  --primary-vibrant: oklch(0.68 0.22 15);       /* Original coral for decorative use only */
   --primary-foreground: oklch(1 0 0);           /* White text on primary */
   --secondary: oklch(0.96 0.015 350);           /* Very light pink tint */
   --secondary-foreground: oklch(0.30 0.03 350);
   --muted: oklch(0.97 0.008 350);               /* Soft pink-gray */
-  --muted-foreground: oklch(0.45 0.02 350);
+  --muted-foreground: oklch(0.38 0.02 350);     /* Darker for 4.5:1+ contrast */
   --accent: oklch(0.72 0.20 25);                /* Warm coral accent */
   --accent-foreground: oklch(0.20 0.02 350);
   --destructive: oklch(0.55 0.20 25);
   --destructive-foreground: oklch(0.98 0.01 0);
   --border: oklch(0.92 0.012 350);              /* Light pink-gray border */
   --input: oklch(0.98 0.005 0);
-  --ring: oklch(0.68 0.22 15);
+  --ring: oklch(0.48 0.22 15);                  /* Match primary for focus states */
   --chart-1: oklch(0.68 0.22 15);
   --chart-2: oklch(0.72 0.20 25);
   --chart-3: oklch(0.62 0.14 340);
@@ -616,6 +617,15 @@
   transform: none;
 }
 
+/* Focus-visible state for accessibility */
+.btn-premium:focus-visible {
+  outline: 3px solid oklch(1 0 0 / 0.9);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 3px var(--primary),
+    0 0 0 6px oklch(0.48 0.22 15 / 0.3);
+}
+
 /* Secondary Button */
 .btn-secondary {
   min-height: 48px;
@@ -637,6 +647,13 @@
 .btn-secondary:active {
   transform: scale(0.98);
   background: oklch(0.30 0.05 350);
+}
+
+/* Focus-visible state for accessibility */
+.btn-secondary:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+  border-color: var(--primary);
 }
 
 /* ============================================================================
@@ -670,6 +687,13 @@
 
 .btn-payment-alt:active {
   transform: scale(0.98);
+}
+
+/* Focus-visible state for accessibility */
+.btn-payment-alt:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+  border-color: var(--primary);
 }
 
 /* When only one alt method is available, expand to full width */
@@ -751,6 +775,13 @@
 .btn-ghost:active {
   background: oklch(0.30 0.05 350);
   transform: scale(0.95);
+}
+
+/* Focus-visible state for accessibility */
+.btn-ghost:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+  background: var(--muted);
 }
 
 /* Premium Card Styles - Enhanced glassmorphism */
@@ -854,6 +885,13 @@
   transform: scale(0.98);
 }
 
+/* Focus-visible state for accessibility (keyboard navigation) */
+.tier-card:focus-visible,
+[role="radio"]:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
 .tier-card-selected {
   border-color: var(--primary);
   background: linear-gradient(145deg, oklch(0.22 0.05 350) 0%, oklch(0.18 0.04 350) 100%);
@@ -921,8 +959,10 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -948,6 +988,13 @@
 .btn-delete:active {
   background: oklch(0.55 0.20 25);
   transform: scale(0.9);
+}
+
+/* Focus-visible state for accessibility */
+.btn-delete:focus-visible {
+  outline: 3px solid oklch(1 0 0);
+  outline-offset: 2px;
+  opacity: 1;
 }
 
 /* Fixed Bottom Bar */
@@ -1014,6 +1061,71 @@
 @keyframes scaleIn {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SAFE AREA UTILITIES - iPhone notch/Dynamic Island support
+   ══════════════════════════════════════════════════════════════ */
+
+.fixed-bottom-safe {
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+}
+
+.modal-content-safe {
+  padding-bottom: max(24px, calc(16px + env(safe-area-inset-bottom, 0)));
+  padding-left: max(16px, env(safe-area-inset-left, 0));
+  padding-right: max(16px, env(safe-area-inset-right, 0));
+}
+
+.fixed-header-safe {
+  padding-top: max(16px, env(safe-area-inset-top, 16px));
+}
+
+/* Bottom sheet pattern */
+.bottom-sheet-safe {
+  border-radius: 24px 24px 0 0;
+  padding-bottom: max(24px, calc(16px + env(safe-area-inset-bottom)));
+}
+
+/* Fullscreen modal */
+.fullscreen-safe {
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+}
+
+/* Modal scroll container - prevent rubber-banding */
+.modal-scroll-container {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Prevent pull-to-refresh on main content */
+html, body {
+  overscroll-behavior-y: none;
+}
+
+/* Gallery scroll container */
+.gallery-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   INPUT ZOOM PREVENTION - iOS Safari requires 16px minimum
+   ══════════════════════════════════════════════════════════════ */
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="number"],
+textarea,
+select {
+  font-size: 16px !important;
+  -webkit-text-size-adjust: 100%;
 }
 
 /* Input Field Premium */

@@ -263,21 +263,33 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="payment-modal-title"
+      aria-describedby="payment-modal-description"
+    >
       <div
-        className="bg-background w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-[var(--shadow-lg)] animate-in slide-in-from-bottom-4 duration-300"
+        className="bg-background w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-[var(--shadow-lg)] animate-in slide-in-from-bottom-4 duration-300 modal-content-safe"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Hidden description for screen readers */}
+        <p id="payment-modal-description" className="sr-only">
+          Оплата за {tier.photos} AI-фотографий. Сумма: {tier.price} рублей.
+        </p>
+
         {/* Header */}
         <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-green-600" />
-            <h2 className="text-lg font-semibold">Безопасная оплата</h2>
+            <h2 id="payment-modal-title" className="text-lg font-semibold">Безопасная оплата</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground transition-colors"
+            className="min-w-11 min-h-11 p-2.5 hover:bg-muted rounded-lg text-muted-foreground transition-colors"
             disabled={loading}
+            aria-label="Закрыть модальное окно"
           >
             <X className="w-5 h-5" />
           </button>
@@ -298,12 +310,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               {/* Email Input - ТОЛЬКО для T-Bank (54-ФЗ фискальные чеки) */}
               {selectedMethod === 'tbank' && (
                 <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium text-foreground flex items-center gap-2">
+                  <label htmlFor="payment-email" className="text-sm font-medium text-foreground flex items-center gap-2">
                     <Mail className="w-4 h-4" />
                     Email для чека <span className="text-red-500">*</span>
                   </label>
                   <input
-                    id="email"
+                    id="payment-email"
                     type="email"
                     value={email}
                     onChange={handleEmailChange}
@@ -311,6 +323,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                     placeholder="your@email.com"
                     required
                     aria-required="true"
+                    aria-invalid={!!emailError}
+                    aria-describedby={emailError ? "email-error" : "email-hint"}
                     className={`w-full px-4 py-3 rounded-xl border-2 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all ${
                       emailError
                         ? "border-red-500 focus:border-red-500"
@@ -318,8 +332,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                     }`}
                   />
                   {emailError && (
-                    <p className="text-red-500 text-xs mt-1">{emailError}</p>
+                    <p id="email-error" role="alert" className="text-red-500 text-xs mt-1">{emailError}</p>
                   )}
+                  <p id="email-hint" className="sr-only">На этот адрес придёт чек об оплате</p>
                   <p className="text-xs text-muted-foreground">
                     Обязательно — на этот адрес придёт электронный чек (54-ФЗ)
                   </p>

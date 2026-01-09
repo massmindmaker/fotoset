@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { useCallback, useRef } from "react"
 import { ArrowLeft, Sparkles, CheckCircle2, Loader2, Star, Percent } from "lucide-react"
 import type { Persona, PricingTier } from "./types"
 import { Card, CardHeader, CardContent } from "@/components/ui/card"
@@ -29,7 +30,53 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
   selectedTier,
   onSelectTier,
   pricingTiers,
-}) => (
+}) => {
+  const radioGroupRef = useRef<HTMLDivElement>(null)
+
+  // Keyboard navigation for radio group (WCAG 2.1 compliant)
+  const handleKeyDown = useCallback((e: React.KeyboardEvent, currentIndex: number) => {
+    const tiers = pricingTiers
+    let newIndex = currentIndex
+
+    switch (e.key) {
+      case 'ArrowDown':
+      case 'ArrowRight':
+        e.preventDefault()
+        newIndex = (currentIndex + 1) % tiers.length
+        break
+      case 'ArrowUp':
+      case 'ArrowLeft':
+        e.preventDefault()
+        newIndex = (currentIndex - 1 + tiers.length) % tiers.length
+        break
+      case 'Enter':
+      case ' ':
+        e.preventDefault()
+        if (selectedTier) {
+          onUpgrade(selectedTier)
+        }
+        return
+      case 'Home':
+        e.preventDefault()
+        newIndex = 0
+        break
+      case 'End':
+        e.preventDefault()
+        newIndex = tiers.length - 1
+        break
+      default:
+        return
+    }
+
+    onSelectTier(tiers[newIndex])
+    // Focus the new card
+    const cards = radioGroupRef.current?.querySelectorAll('[role="radio"]')
+    if (cards?.[newIndex]) {
+      (cards[newIndex] as HTMLElement).focus()
+    }
+  }, [pricingTiers, onSelectTier, onUpgrade, selectedTier])
+
+  return (
   <div className="space-y-6 pb-24 sm:pb-6">
     <div className="flex items-center gap-3">
       <button
@@ -44,11 +91,13 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
         <p className="text-sm text-muted-foreground">PINGLASS</p>
       </div>
     </div>
-    <div className="space-y-3" role="radiogroup" aria-label="Выберите пакет фотографий">
-      {pricingTiers.map((tier) => (
+    <div className="space-y-3" role="radiogroup" aria-label="Выберите пакет фотографий" ref={radioGroupRef}>
+      {pricingTiers.map((tier, index) => (
         <Card
           key={tier.id}
           onClick={() => onSelectTier(tier)}
+          onKeyDown={(e) => handleKeyDown(e, index)}
+          tabIndex={selectedTier?.id === tier.id ? 0 : -1}
           className={cn(
             "w-full cursor-pointer transition-all hover-lift active-press shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]",
             selectedTier?.id === tier.id
@@ -137,6 +186,7 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
       </Button>
     </div>
   </div>
-)
+  )
+}
 
 export default TierSelectView
