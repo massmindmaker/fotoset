@@ -118,7 +118,7 @@ export function useAuth() {
         console.log("[TG] Auth success:", tgUser.id, tgUser.username || tgUser.first_name)
 
         // Handle start_param (passed via Telegram deep link)
-        const startParam = tg.initDataUnsafe?.start_param
+        const startParam = tg!.initDataUnsafe?.start_param
         if (startParam) {
           console.log("[TG] start_param:", startParam)
 
@@ -177,8 +177,8 @@ export function useAuth() {
           }
         }
 
-        try { tg.ready() } catch { /* ignore */ }
-        try { tg.expand() } catch { /* ignore */ }
+        try { tg!.ready() } catch { /* ignore */ }
+        try { tg!.expand() } catch { /* ignore */ }
         return
       }
 
