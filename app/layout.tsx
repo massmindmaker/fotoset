@@ -19,7 +19,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5, // WCAG 2.1 - allow zoom for accessibility
   userScalable: true, // WCAG 2.1 Level AA requirement
-  themeColor: "#1a0a10",
+  themeColor: "#fef7f8", // Light pink theme
   viewportFit: "cover",
 }
 
@@ -29,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ru" className={fontVariables} suppressHydrationWarning>
+    <html lang="ru" className={`${fontVariables} light`} suppressHydrationWarning>
       <head>
         <script src="https://telegram.org/js/telegram-web-app.js" />
       </head>

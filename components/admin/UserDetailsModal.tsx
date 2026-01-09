@@ -10,12 +10,13 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
-  Calendar,
   Clock,
   CheckCircle,
   XCircle,
-  ExternalLink,
-  Gift
+  ChevronDown,
+  ChevronUp,
+  Download,
+  ExternalLink
 } from 'lucide-react'
 
 interface UserDetailsModalProps {
@@ -71,6 +72,11 @@ interface UserDetails {
     error_message: string | null
     created_at: string
     avatar_name: string
+    photos?: Array<{
+      id: number
+      image_url: string
+      prompt_index: number
+    }>
   }>
   referralStats: {
     referral_count: number
@@ -86,8 +92,8 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<UserDetails | null>(null)
   const [activeTab, setActiveTab] = useState<TabId>('overview')
-  const [grantingPro, setGrantingPro] = useState(false)
-  const [grantProMessage, setGrantProMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [expandedJobId, setExpandedJobId] = useState<number | null>(null)
+  const [loadingPhotos, setLoadingPhotos] = useState<number | null>(null)
 
   useEffect(() => {
     if (isOpen && userId) {
@@ -116,47 +122,45 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
     }
   }
 
-  const handleGrantPro = async (tierId: 'starter' | 'standard' | 'premium' = 'premium') => {
-    if (!userId || grantingPro) return
+  const loadJobPhotos = async (jobId: number) => {
+    if (loadingPhotos === jobId) return
 
-    const confirmed = window.confirm(
-      `Выдать пользователю бесплатный доступ к тарифу "${tierId}"?\n\nЭто создаст запись об оплате с нулевой суммой.`
-    )
-    if (!confirmed) return
+    // Toggle if already expanded
+    if (expandedJobId === jobId) {
+      setExpandedJobId(null)
+      return
+    }
+
+    // Check if photos already loaded
+    const job = data?.jobs.find(j => j.id === jobId)
+    if (job?.photos) {
+      setExpandedJobId(jobId)
+      return
+    }
 
     try {
-      setGrantingPro(true)
-      setGrantProMessage(null)
-
-      const response = await fetch(`/api/admin/users/${userId}/grant-pro`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier_id: tierId })
-      })
+      setLoadingPhotos(jobId)
+      const response = await fetch(`/api/admin/generations/${jobId}/photos`)
+      if (!response.ok) throw new Error('Failed to load photos')
 
       const result = await response.json()
 
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to grant Pro status')
-      }
-
-      setGrantProMessage({
-        type: 'success',
-        text: `Pro доступ выдан: ${result.data.tier_id} (${result.data.photo_count} фото)`
+      // Update data with photos
+      setData(prev => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          jobs: prev.jobs.map(j =>
+            j.id === jobId ? { ...j, photos: result.photos } : j
+          )
+        }
       })
 
-      // Refresh user data to show new payment
-      await fetchUserDetails()
-
-      // Notify parent if needed
-      onAction?.()
+      setExpandedJobId(jobId)
     } catch (err) {
-      setGrantProMessage({
-        type: 'error',
-        text: err instanceof Error ? err.message : 'Ошибка выдачи Pro'
-      })
+      console.error('Failed to load photos:', err)
     } finally {
-      setGrantingPro(false)
+      setLoadingPhotos(null)
     }
   }
 
@@ -210,45 +214,13 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Grant Pro Button */}
-            <button
-              onClick={() => handleGrantPro('premium')}
-              disabled={grantingPro || loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-pink-700 bg-pink-50 hover:bg-pink-100 border border-pink-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Выдать бесплатный Pro доступ"
-            >
-              {grantingPro ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Gift className="w-4 h-4" />
-              )}
-              <span>Выдать Pro</span>
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-
-        {/* Grant Pro Message */}
-        {grantProMessage && (
-          <div className={`mx-4 mt-2 p-2 rounded-lg text-sm ${
-            grantProMessage.type === 'success'
-              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}>
-            {grantProMessage.type === 'success' ? (
-              <CheckCircle className="w-4 h-4 inline mr-1" />
-            ) : (
-              <AlertCircle className="w-4 h-4 inline mr-1" />
-            )}
-            {grantProMessage.text}
-          </div>
-        )}
 
         {/* Tabs */}
         <div className="flex border-b border-slate-200 px-4 overflow-x-auto bg-white">
@@ -546,64 +518,104 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
                   {data.jobs.length === 0 ? (
                     <p className="text-center text-slate-500 py-8">Нет генераций</p>
                   ) : (
-                    <table className="w-full">
-                      <thead>
-                        <tr className="text-left text-xs text-slate-600 uppercase font-semibold">
-                          <th className="pb-3">ID</th>
-                          <th className="pb-3">Аватар</th>
-                          <th className="pb-3">Стиль</th>
-                          <th className="pb-3">Прогресс</th>
-                          <th className="pb-3">Статус</th>
-                          <th className="pb-3">Дата</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200">
-                        {data.jobs.map(job => (
-                          <tr key={job.id} className="hover:bg-slate-50">
-                            <td className="py-3 font-mono text-sm text-slate-600">
-                              #{job.id}
-                            </td>
-                            <td className="py-3 text-slate-800 font-medium">
+                    <div className="space-y-2">
+                      {data.jobs.map(job => (
+                        <div key={job.id} className="border border-slate-200 rounded-lg overflow-hidden">
+                          {/* Job Header - Clickable */}
+                          <button
+                            onClick={() => loadJobPhotos(job.id)}
+                            className="w-full flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors text-left"
+                          >
+                            <span className="font-mono text-sm text-slate-500">#{job.id}</span>
+                            <span className="text-slate-800 font-medium flex-1">
                               {job.avatar_name || `Avatar #${job.avatar_id}`}
-                            </td>
-                            <td className="py-3 text-sm text-slate-600">
-                              {job.style_id}
-                            </td>
-                            <td className="py-3">
-                              <div className="flex items-center gap-2">
-                                <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-pink-500 rounded-full transition-all"
-                                    style={{
-                                      width: `${(job.completed_photos / job.total_photos) * 100}%`
-                                    }}
-                                  />
-                                </div>
-                                <span className="text-xs text-slate-600 font-medium">
-                                  {job.completed_photos}/{job.total_photos}
-                                </span>
+                            </span>
+                            <span className="text-sm text-slate-600">{job.style_id}</span>
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-pink-500 rounded-full transition-all"
+                                  style={{
+                                    width: `${(job.completed_photos / job.total_photos) * 100}%`
+                                  }}
+                                />
                               </div>
-                            </td>
-                            <td className="py-3">
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                                job.status === 'completed'
-                                  ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                                  : job.status === 'processing'
-                                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                                    : job.status === 'failed'
-                                      ? 'bg-red-100 text-red-700 border border-red-300'
-                                      : 'bg-amber-100 text-amber-700 border border-amber-300'
-                              }`}>
-                                {job.status}
+                              <span className="text-xs text-slate-600 font-medium w-12">
+                                {job.completed_photos}/{job.total_photos}
                               </span>
-                            </td>
-                            <td className="py-3 text-sm text-slate-600">
+                            </div>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                              job.status === 'completed'
+                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                                : job.status === 'processing'
+                                  ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                                  : job.status === 'failed'
+                                    ? 'bg-red-100 text-red-700 border border-red-300'
+                                    : 'bg-amber-100 text-amber-700 border border-amber-300'
+                            }`}>
+                              {job.status}
+                            </span>
+                            <span className="text-sm text-slate-500 w-36 text-right">
                               {formatDate(job.created_at)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </span>
+                            {loadingPhotos === job.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                            ) : expandedJobId === job.id ? (
+                              <ChevronUp className="w-4 h-4 text-slate-400" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-slate-400" />
+                            )}
+                          </button>
+
+                          {/* Photos Grid - Expandable */}
+                          {expandedJobId === job.id && job.photos && (
+                            <div className="border-t border-slate-200 p-4 bg-slate-50">
+                              {job.photos.length === 0 ? (
+                                <p className="text-center text-slate-500 py-4">Нет фото</p>
+                              ) : (
+                                <div className="grid grid-cols-4 gap-3">
+                                  {job.photos.map(photo => (
+                                    <div
+                                      key={photo.id}
+                                      className="relative group aspect-square rounded-lg overflow-hidden bg-slate-200"
+                                    >
+                                      <img
+                                        src={photo.image_url}
+                                        alt={`Photo ${photo.prompt_index + 1}`}
+                                        className="w-full h-full object-cover"
+                                        loading="lazy"
+                                      />
+                                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                        <a
+                                          href={photo.image_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="p-2 bg-white/90 rounded-lg hover:bg-white transition-colors"
+                                          title="Открыть"
+                                        >
+                                          <ExternalLink className="w-4 h-4 text-slate-700" />
+                                        </a>
+                                        <a
+                                          href={photo.image_url}
+                                          download={`photo-${job.id}-${photo.prompt_index + 1}.jpg`}
+                                          className="p-2 bg-white/90 rounded-lg hover:bg-white transition-colors"
+                                          title="Скачать"
+                                        >
+                                          <Download className="w-4 h-4 text-slate-700" />
+                                        </a>
+                                      </div>
+                                      <span className="absolute bottom-1 right-1 text-xs bg-black/60 text-white px-1.5 py-0.5 rounded">
+                                        #{photo.prompt_index + 1}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
