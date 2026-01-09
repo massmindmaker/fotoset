@@ -337,7 +337,9 @@ export default function PersonaApp() {
         // Normal flow: check if onboarding already completed
         const onboardingComplete = localStorage.getItem("pinglass_onboarding_complete") === "true"
 
-        if (onboardingComplete && loadedAvatars.length > 0) {
+        // FIX: For web users, onboardingComplete alone is enough to skip onboarding
+        // Don't require avatars - user may be new with no avatars yet
+        if (onboardingComplete) {
           console.log("[Init] Onboarding complete, showing DASHBOARD", {
             avatarsCount: loadedAvatars.length
           })
