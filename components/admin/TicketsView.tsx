@@ -151,15 +151,26 @@ function StatusBadge({ status }: { status: TicketStatus }) {
 }
 
 function SLAIndicator({ deadline, status }: { deadline: string | null; status: TicketStatus }) {
+  // Early return for resolved/closed tickets or missing deadline
   if (!deadline || status === 'resolved' || status === 'closed') {
     return <span className="text-sm text-slate-400">-</span>
   }
 
-  const now = new Date()
+  // Parse deadline and validate it's a valid date
   const deadlineDate = new Date(deadline)
-  const diff = deadlineDate.getTime() - now.getTime()
+  if (isNaN(deadlineDate.getTime())) {
+    return <span className="text-sm text-slate-400">-</span>
+  }
+
+  const now = Date.now()
+  const diff = deadlineDate.getTime() - now
   const hoursLeft = Math.floor(diff / (1000 * 60 * 60))
   const minutesLeft = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+
+  // Safety check for NaN values
+  if (isNaN(hoursLeft) || isNaN(minutesLeft)) {
+    return <span className="text-sm text-slate-400">-</span>
+  }
 
   if (diff < 0) {
     // SLA breached
@@ -254,7 +265,10 @@ function StatsCards({ stats, isLoading }: { stats: TicketStats | null; isLoading
 
   if (!stats) return null
 
-  const formatTime = (minutes: number) => {
+  const formatTime = (minutes: number | null | undefined) => {
+    if (minutes === null || minutes === undefined || isNaN(minutes) || minutes === 0) {
+      return '—'
+    }
     if (minutes < 60) return `${Math.round(minutes)}м`
     const hours = Math.floor(minutes / 60)
     const mins = Math.round(minutes % 60)

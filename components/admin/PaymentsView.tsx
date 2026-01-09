@@ -97,6 +97,11 @@ export function PaymentsView() {
       if (filters.provider) params.append('provider', filters.provider)
 
       const response = await fetch(`/api/admin/payments?${params}`)
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Ошибка сервера`)
+      }
+
       const data = await response.json()
 
       if (!data.success) {

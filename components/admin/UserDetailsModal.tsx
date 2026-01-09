@@ -278,13 +278,13 @@ export function UserDetailsModal({ userId, isOpen, onClose, onAction }: UserDeta
                             const succeededPayments = data.payments.filter(p => p.status === 'succeeded')
                             const rubTotal = succeededPayments
                               .filter(p => p.provider === 'tbank')
-                              .reduce((sum, p) => sum + p.amount, 0)
+                              .reduce((sum, p) => sum + Number(p.amount || 0), 0)
                             const tonTotal = succeededPayments
                               .filter(p => p.provider === 'ton')
-                              .reduce((sum, p) => sum + (p.ton_amount || 0), 0)
+                              .reduce((sum, p) => sum + Number(p.ton_amount || 0), 0)
                             const starsTotal = succeededPayments
                               .filter(p => p.provider === 'stars')
-                              .reduce((sum, p) => sum + (p.stars_amount || 0), 0)
+                              .reduce((sum, p) => sum + Number(p.stars_amount || 0), 0)
                             
                             return (
                               <>
