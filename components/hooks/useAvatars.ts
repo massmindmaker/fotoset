@@ -17,8 +17,11 @@ export function useAvatars() {
       let url: string
       if (identifier.type === 'web' && identifier.neonUserId) {
         url = `/api/avatars?include_photos=true&neon_user_id=${identifier.neonUserId}`
+      } else if (identifier.type === 'telegram' && identifier.telegramUserId) {
+        url = `/api/avatars?include_photos=true&telegram_user_id=${identifier.telegramUserId}`
       } else {
-        url = `/api/avatars?include_photos=true&telegram_user_id=${identifier.telegramUserId ?? identifier.visibleUserId}`
+        console.error("[Avatars] No valid user identifier for loading avatars")
+        return []
       }
       const res = await fetch(url)
       if (!res.ok) return []

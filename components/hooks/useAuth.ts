@@ -318,7 +318,8 @@ export function useAuth() {
   return {
     userIdentifier,
     authStatus,
-    telegramUserId: userIdentifier?.telegramUserId ?? userIdentifier?.visibleUserId,
+    // IMPORTANT: Only return telegramUserId for actual Telegram users, not visibleUserId fallback
+    telegramUserId: userIdentifier?.type === 'telegram' ? userIdentifier?.telegramUserId : undefined,
     neonUserId: userIdentifier?.neonUserId,
     isWebUser: userIdentifier?.type === 'web',
     isTelegramUser: userIdentifier?.type === 'telegram',
