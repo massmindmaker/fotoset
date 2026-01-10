@@ -115,21 +115,28 @@ export function validateEnvOrThrow(): void {
     console.warn(`[Env Validation] WARNING: ${warning}`)
   }
 
-  // Throw on errors
+  // Log errors as warnings instead of throwing
+  // This allows the app to start even with missing non-critical vars
+  // Critical functionality will fail gracefully at runtime
   if (!result.valid) {
     const errorMessage = [
-      '[Env Validation] CRITICAL: Application cannot start due to missing environment variables:',
+      '[Env Validation] WARNING: Some environment variables are missing:',
       '',
       ...result.errors.map(e => `  - ${e}`),
       '',
-      'Please set these environment variables and restart the application.'
+      'Some features may not work. Please set these environment variables.'
     ].join('\n')
 
     console.error(errorMessage)
-    throw new Error(`Missing required environment variables: ${result.errors.join('; ')}`)
-  }
 
-  console.log('[Env Validation] All required environment variables are set')
+    // Only throw for DATABASE_URL - the only truly critical var
+    const hasDatabaseUrl = process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== ''
+    if (!hasDatabaseUrl) {
+      throw new Error('DATABASE_URL is required - application cannot start without database connection')
+    }
+  } else {
+    console.log('[Env Validation] All required environment variables are set')
+  }
 }
 
 /**
