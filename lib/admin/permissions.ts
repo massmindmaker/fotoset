@@ -10,6 +10,7 @@ export type AdminAction =
   | 'users.edit'
   | 'users.ban'
   | 'users.grant_pro'
+  | 'users.set_partner'
   | 'users.message'
   | 'users.regenerate'
   // Payment actions
@@ -48,7 +49,7 @@ export type AdminAction =
 const PERMISSIONS: Record<AdminRole, AdminAction[]> = {
   super_admin: [
     // All permissions
-    'users.view', 'users.edit', 'users.ban', 'users.grant_pro', 'users.message', 'users.regenerate',
+    'users.view', 'users.edit', 'users.ban', 'users.grant_pro', 'users.set_partner', 'users.message', 'users.regenerate',
     'payments.view', 'payments.refund', 'payments.export',
     'generations.view', 'generations.retry',
     'referrals.view', 'referrals.approve_withdrawal',
@@ -60,7 +61,7 @@ const PERMISSIONS: Record<AdminRole, AdminAction[]> = {
   ],
   admin: [
     // Most permissions except admin management
-    'users.view', 'users.edit', 'users.ban', 'users.grant_pro', 'users.message', 'users.regenerate',
+    'users.view', 'users.edit', 'users.ban', 'users.grant_pro', 'users.set_partner', 'users.message', 'users.regenerate',
     'payments.view', 'payments.refund', 'payments.export',
     'generations.view', 'generations.retry',
     'referrals.view', 'referrals.approve_withdrawal',

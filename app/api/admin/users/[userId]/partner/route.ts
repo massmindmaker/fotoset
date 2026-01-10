@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { getCurrentSession } from "@/lib/admin/session"
+import { hasPermission, type AdminRole } from "@/lib/admin/permissions"
 
 /**
  * POST /api/admin/users/[userId]/partner
@@ -18,6 +19,15 @@ export async function POST(
         { status: 401 }
       )
     }
+
+    // SECURITY: Check permission for setting partner status
+    if (!hasPermission(admin.role as AdminRole, 'users.set_partner')) {
+      return NextResponse.json(
+        { success: false, error: "Insufficient permissions" },
+        { status: 403 }
+      )
+    }
+
     const { userId } = await params
     const { isPartner, commissionRate = 50 } = await request.json()
 

@@ -15,6 +15,7 @@ import {
   getExtensionFromContentType,
   type ImageType,
 } from "@/lib/r2"
+import { getAuthenticatedUser } from "@/lib/auth-middleware"
 
 const logger = createLogger("Upload")
 
@@ -145,11 +146,18 @@ const ALLOWED_TYPES = [
  * }
  */
 export async function POST(request: NextRequest) {
-  // SECURITY: Require Telegram authentication
-  const telegramUserId = request.headers.get("x-telegram-user-id")
-  if (!telegramUserId) {
-    return error("UNAUTHORIZED", "Telegram authentication required")
+  // SECURITY: Require authenticated user (Telegram with initData verification OR Neon Auth)
+  // SECURITY FIX: Removed x-telegram-user-id header trust - now requires cryptographic verification
+  const authUser = await getAuthenticatedUser(request)
+  if (!authUser) {
+    return error("UNAUTHORIZED", "Authentication required. Provide valid initData or Neon Auth session.")
   }
+
+  logger.info("Upload request authenticated", {
+    userId: authUser.user.id,
+    authMethod: authUser.authMethod,
+    telegramUserId: authUser.telegramUserId,
+  })
 
   // Check R2 configuration
   if (!isR2Configured()) {

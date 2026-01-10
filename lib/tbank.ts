@@ -25,7 +25,7 @@ export interface TBankPayment {
   ErrorCode?: string
   Message?: string
   TerminalKey?: string
-  Status?: "NEW" | "CONFIRMED" | "REJECTED" | "AUTHORIZED" | "PARTIAL_REFUNDED" | "REFUNDED" | "CANCELED"
+  Status?: "NEW" | "CONFIRMED" | "REJECTED" | "AUTHORIZED" | "PARTIAL_REFUNDED" | "REFUNDED" | "CANCELED" | "DEADLINE_EXPIRED"
   PaymentId?: string
   OrderId?: string
   Amount?: number

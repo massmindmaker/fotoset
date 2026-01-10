@@ -29,7 +29,8 @@ export const qstashReceiver =
 export interface GenerationJobPayload {
   jobId: number
   avatarId: number
-  telegramUserId: number
+  telegramUserId?: number  // Optional: only for Telegram users (web users use neonUserId)
+  neonUserId?: string      // Optional: only for web users
   styleId: string
   photoCount: number
   referenceImages: string[] // base64 encoded

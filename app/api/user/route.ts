@@ -2,36 +2,56 @@ import { type NextRequest, NextResponse } from "next/server"
 import { findOrCreateUser } from "@/lib/user-identity"
 import { sql } from "@/lib/db"
 import { trackReferralApplied } from "@/lib/sentry-events"
+import { validateTelegramInitData } from "@/lib/telegram-auth"
 
 /**
  * POST /api/user
  *
  * TELEGRAM WEBAPP AUTHENTICATION
- * - Accepts telegramUserId from Telegram WebApp SDK (initDataUnsafe.user.id)
+ * - SECURITY: Requires initData with HMAC signature verification
  * - Creates or returns existing user
  * - Optionally saves referral code to pending_referral_code field
  * - markOnboardingComplete: increments referrer's count when user finishes onboarding
  *
- * NOTE: In Telegram WebApp context, we trust initDataUnsafe.user.id
- * because the app is only accessible through Telegram
+ * SECURITY FIX: Now requires cryptographically verified initData
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { telegramUserId, telegramUsername, referralCode, markOnboardingComplete } = body as {
-      telegramUserId?: number
-      telegramUsername?: string
+    const { initData, referralCode, markOnboardingComplete } = body as {
+      initData?: string
       referralCode?: string
       markOnboardingComplete?: boolean
     }
 
-    // Require telegramUserId
-    if (!telegramUserId || typeof telegramUserId !== "number") {
+    // SECURITY: Require and validate Telegram initData
+    if (!initData) {
       return NextResponse.json(
-        { error: "telegramUserId is required" },
+        { error: "initData is required for Telegram authentication" },
         { status: 400 }
       )
     }
+
+    const botToken = process.env.TELEGRAM_BOT_TOKEN
+    if (!botToken) {
+      console.error("[User API] TELEGRAM_BOT_TOKEN not configured")
+      return NextResponse.json(
+        { error: "Server misconfigured" },
+        { status: 500 }
+      )
+    }
+
+    const validation = validateTelegramInitData(initData, botToken)
+    if (!validation || !validation.user?.id) {
+      console.warn("[User API] Invalid initData signature")
+      return NextResponse.json(
+        { error: "Invalid Telegram authentication" },
+        { status: 401 }
+      )
+    }
+
+    const telegramUserId = validation.user.id
+    const telegramUsername = validation.user.username
 
     // Find or create user (with optional referral code and username)
     const user = await findOrCreateUser({

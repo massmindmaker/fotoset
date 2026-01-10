@@ -10,6 +10,8 @@
 
 import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
+import { getPaymentState } from "@/lib/tbank"
+import { processReferralEarning } from "@/lib/referral-earnings"
 
 // Vercel Cron configuration
 export const dynamic = "force-dynamic"
@@ -67,7 +69,7 @@ export async function GET(request: Request) {
     }[] = []
 
     for (const payment of stalePayments) {
-      console.log(`[Cron] Expiring stale payment:`, {
+      console.log(`[Cron] Checking stale payment:`, {
         id: payment.id,
         tbankPaymentId: payment.tbank_payment_id,
         userId: payment.user_id,
@@ -76,26 +78,77 @@ export async function GET(request: Request) {
       })
 
       try {
-        // Mark payment as expired
-        await sql`
-          UPDATE payments
-          SET
-            status = 'expired',
-            updated_at = NOW()
-          WHERE id = ${payment.id}
-        `
+        // CRITICAL: Check T-Bank status before marking as expired
+        // This prevents losing payments that were actually completed
+        let action = 'expired'
+
+        if (payment.tbank_payment_id) {
+          try {
+            const tbankState = await getPaymentState(payment.tbank_payment_id)
+            console.log(`[Cron] T-Bank status for ${payment.tbank_payment_id}: ${tbankState.Status}`)
+
+            if (tbankState.Status === 'CONFIRMED' || tbankState.Status === 'AUTHORIZED') {
+              // Payment was actually successful! Update to succeeded
+              await sql`
+                UPDATE payments
+                SET
+                  status = 'succeeded',
+                  updated_at = NOW()
+                WHERE id = ${payment.id}
+              `
+              action = 'confirmed_by_tbank'
+
+              // Process referral earning for recovered payment
+              await processReferralEarning(payment.id, payment.user_id)
+              console.log(`[Cron] Payment ${payment.id} recovered - marked as succeeded (was ${tbankState.Status} in T-Bank)`)
+            } else if (tbankState.Status === 'REJECTED' || tbankState.Status === 'CANCELED' || tbankState.Status === 'DEADLINE_EXPIRED') {
+              // Payment definitely failed, safe to expire
+              await sql`
+                UPDATE payments
+                SET
+                  status = 'expired',
+                  updated_at = NOW()
+                WHERE id = ${payment.id}
+              `
+              action = 'expired'
+              console.log(`[Cron] Payment ${payment.id} marked as expired (T-Bank: ${tbankState.Status})`)
+            } else {
+              // Still processing at T-Bank, skip for now
+              action = 'skipped_still_processing'
+              console.log(`[Cron] Payment ${payment.id} still processing at T-Bank (${tbankState.Status}), skipping`)
+            }
+          } catch (tbankErr) {
+            // T-Bank API error - expire as fallback (conservative approach)
+            console.warn(`[Cron] T-Bank API error for ${payment.tbank_payment_id}:`, tbankErr)
+            await sql`
+              UPDATE payments
+              SET
+                status = 'expired',
+                updated_at = NOW()
+              WHERE id = ${payment.id}
+            `
+            action = 'expired_tbank_error'
+          }
+        } else {
+          // No T-Bank payment ID, just expire
+          await sql`
+            UPDATE payments
+            SET
+              status = 'expired',
+              updated_at = NOW()
+            WHERE id = ${payment.id}
+          `
+        }
 
         results.push({
           paymentId: payment.tbank_payment_id || payment.id.toString(),
           userId: payment.user_id,
           minutesOld: Math.round(payment.minutes_since_created),
-          action: "expired",
+          action,
         })
-
-        console.log(`[Cron] Payment ${payment.id} marked as expired`)
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "Unknown error"
-        console.error(`[Cron] Failed to expire payment ${payment.id}:`, errorMsg)
+        console.error(`[Cron] Failed to process payment ${payment.id}:`, errorMsg)
 
         results.push({
           paymentId: payment.tbank_payment_id || payment.id.toString(),

@@ -9,16 +9,19 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const telegramUserId = searchParams.get("telegram_user_id")
+    const neonUserId = searchParams.get("neon_user_id")
     let paymentId = searchParams.get("payment_id")
 
     log.debug(" Check:", {
       telegramUserId,
+      neonUserId,
       paymentId,
     })
 
-    // SECURITY: Require telegramUserId (Telegram-only authentication)
-    if (!telegramUserId || telegramUserId.trim().length === 0) {
-      return NextResponse.json({ error: "telegram_user_id is required" }, { status: 400 })
+    // SECURITY: Require at least one user identifier (Telegram OR Web)
+    if ((!telegramUserId || telegramUserId.trim().length === 0) &&
+        (!neonUserId || neonUserId.trim().length === 0)) {
+      return NextResponse.json({ error: "telegram_user_id or neon_user_id is required" }, { status: 400 })
     }
 
     if (!process.env.DATABASE_URL) {
@@ -26,11 +29,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ paid: false, status: "pending", testMode: true })
     }
 
-    // Find or create user (Telegram-only)
+    // Find or create user (Telegram OR Web)
     let user
     try {
       user = await findOrCreateUser({
-        telegramUserId: parseInt(telegramUserId)
+        telegramUserId: telegramUserId ? parseInt(telegramUserId) : undefined,
+        neonUserId: neonUserId || undefined,
       })
     } catch (dbError) {
       log.error(" Database error:", dbError)

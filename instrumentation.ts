@@ -1,9 +1,18 @@
-// This file is used to instrument the application with Sentry.
+// This file is used to instrument the application with Sentry and validate environment.
 // It's called by Next.js when the app starts.
 // https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    // Validate environment variables at startup
+    const { validateEnvOrThrow, ensureQstashTable } = await import("./lib/env-validation");
+    validateEnvOrThrow();
+
+    // Ensure critical tables exist (non-blocking)
+    ensureQstashTable().catch(err => {
+      console.warn("[Startup] QStash table check failed:", err);
+    });
+
     // Server-side Sentry initialization
     await import("./sentry.server.config");
   }

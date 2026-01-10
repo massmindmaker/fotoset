@@ -29,6 +29,7 @@ import {
   getUserIdentifier,
   verifyResourceOwnershipWithIdentifier,
 } from "@/lib/auth-utils"
+import { getAuthenticatedUser } from "@/lib/auth-middleware"
 import {
   trackGenerationStarted,
   trackGenerationCompleted,
@@ -346,18 +347,25 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields (referenceImages optional if useStoredReferences=true)
     // provider: 'tbank' | 'stars' | 'ton' - for multi-payment support
-    const { telegramUserId, avatarId, styleId, referenceImages, photoCount, useStoredReferences, provider = 'tbank' } = body
+    const { avatarId, styleId, referenceImages, photoCount, useStoredReferences, provider = 'tbank' } = body
 
-    // Require Telegram user ID (no deviceId fallback)
-    if (!telegramUserId) {
-      return error("UNAUTHORIZED", "telegramUserId is required")
+    // SECURITY FIX: Use getAuthenticatedUser which requires cryptographic verification
+    // Removed direct telegramUserId/neonUserId from body - must be verified via initData or Neon Auth session
+    const authUser = await getAuthenticatedUser(request, body)
+    if (!authUser) {
+      return error("UNAUTHORIZED", "Authentication required. Provide valid initData or Neon Auth session.")
     }
 
-    // NaN validation for telegramUserId
-    const tgId = typeof telegramUserId === 'number' ? telegramUserId : parseInt(String(telegramUserId))
-    if (isNaN(tgId)) {
-      return error("VALIDATION_ERROR", "Invalid telegramUserId format")
-    }
+    // Extract verified user identifiers from authenticated user
+    const tgId = authUser.telegramUserId
+    const neonUserId = authUser.neonAuthId
+
+    logger.info("Generation request authenticated", {
+      userId: authUser.user.id,
+      authMethod: authUser.authMethod,
+      telegramUserId: tgId,
+      neonUserId,
+    })
 
     const requiredFields = useStoredReferences
       ? ["avatarId", "styleId"]
@@ -377,11 +385,15 @@ export async function POST(request: NextRequest) {
       // Fetch stored reference photos from database
       logger.info("Using stored reference images", { avatarId })
 
-      // Verify the avatar belongs to this user (telegram_user_id only)
+      // Verify the avatar belongs to this user (Telegram OR Web)
       const avatarCheck = await sql`
         SELECT a.id FROM avatars a
         JOIN users u ON a.user_id = u.id
-        WHERE u.telegram_user_id = ${tgId} AND a.id = ${parseInt(avatarId)}
+        WHERE a.id = ${parseInt(avatarId)}
+          AND (
+            (${tgId}::BIGINT IS NOT NULL AND u.telegram_user_id = ${tgId})
+            OR (${neonUserId || null}::TEXT IS NOT NULL AND u.neon_auth_id = ${neonUserId || null})
+          )
       `.then((rows: any[]) => rows[0])
 
       if (!avatarCheck) {
@@ -423,9 +435,9 @@ export async function POST(request: NextRequest) {
       requestedPhotos: photoCount,
     })
 
-    // Find or create user with telegram_user_id only
-    const user = await findOrCreateUser({ telegramUserId: tgId })
-    logger.info("User resolved", { userId: user.id, telegramUserId: tgId })
+    // User already authenticated and resolved via getAuthenticatedUser
+    const user = authUser.user
+    logger.info("User resolved", { userId: user.id, telegramUserId: tgId, neonUserId })
 
     // ============================================================================
     // Payment Validation
@@ -688,6 +700,7 @@ export async function POST(request: NextRequest) {
         jobId: job.id,
         avatarId: dbAvatarId,
         telegramUserId: tgId,
+        neonUserId,  // Support web users via Neon Auth
         styleId,
         photoCount: totalPhotos,
         referenceImages: validReferenceImages,
@@ -765,10 +778,10 @@ export async function GET(request: NextRequest) {
     return error("VALIDATION_ERROR", "Either job_id or avatar_id is required")
   }
 
-  // SECURITY: Get user identifier for ownership verification
+  // SECURITY: Get user identifier for ownership verification (Telegram OR Web)
   const identifier = getUserIdentifier(request)
 
-  if (!identifier.telegramUserId) {
+  if (!identifier.telegramUserId && !identifier.neonUserId) {
     return error("UNAUTHORIZED", "Authentication required")
   }
 

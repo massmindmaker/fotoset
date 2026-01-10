@@ -197,46 +197,60 @@ export class TonProvider implements IPaymentProvider {
     if (commentMatch) {
       const paymentId = parseInt(commentMatch[1], 10)
 
-      const payment = await sql`
-        SELECT id, ton_amount, rate_expires_at
-        FROM payments
+      // SECURITY FIX: Use atomic UPDATE with RETURNING to prevent race conditions
+      // The UPDATE will only succeed if status='pending' and no ton_tx_hash is set
+      // This prevents double-spending where two transactions try to claim the same payment
+      const newStatus = data.confirmations >= REQUIRED_CONFIRMATIONS
+        ? 'succeeded'
+        : 'processing'
+
+      const updatedPayment = await sql`
+        UPDATE payments
+        SET status = ${newStatus},
+            ton_tx_hash = ${data.txHash},
+            ton_sender_address = ${data.senderAddress},
+            ton_confirmations = ${data.confirmations},
+            updated_at = NOW()
         WHERE id = ${paymentId}
           AND provider = 'ton'
           AND status = 'pending'
+          AND ton_tx_hash IS NULL
+          AND ABS(COALESCE(ton_amount, 0) - ${data.amount}) <= COALESCE(ton_amount, 0) * 0.01
+        RETURNING id, ton_amount
       `.then((rows: any[]) => rows[0])
 
-      if (payment) {
-        // Verify amount (allow 1% tolerance for network fees)
-        const expectedAmount = Number(payment.ton_amount)
-        const receivedAmount = data.amount
-        const tolerance = expectedAmount * 0.01
+      if (updatedPayment) {
+        // Successfully claimed the payment atomically
+        console.log(`[TON] Payment ${paymentId} claimed by tx ${data.txHash}`)
 
-        if (Math.abs(receivedAmount - expectedAmount) <= tolerance) {
-          // Check if rate hasn't expired
-          const rateExpired = payment.rate_expires_at && new Date(payment.rate_expires_at) < new Date()
-
-          const newStatus = data.confirmations >= REQUIRED_CONFIRMATIONS
-            ? 'succeeded'
-            : 'processing'
-
-          await sql`
-            UPDATE payments
-            SET status = ${newStatus},
-                ton_tx_hash = ${data.txHash},
-                ton_sender_address = ${data.senderAddress},
-                ton_confirmations = ${data.confirmations},
-                updated_at = NOW()
-            WHERE id = ${paymentId}
-          `
-
-          // User access is determined by having a successful payment, not by is_pro flag
-
-          return {
-            success: true,
-            paymentId,
-            status: newStatus as any,
-          }
+        return {
+          success: true,
+          paymentId,
+          status: newStatus as any,
         }
+      }
+
+      // If update didn't match, check why
+      const existingPayment = await sql`
+        SELECT id, status, ton_tx_hash, ton_amount
+        FROM payments
+        WHERE id = ${paymentId} AND provider = 'ton'
+      `.then((rows: any[]) => rows[0])
+
+      if (existingPayment) {
+        if (existingPayment.ton_tx_hash) {
+          // Already has a transaction - potential double-spending attempt
+          console.warn(`[TON] Payment ${paymentId} already has tx ${existingPayment.ton_tx_hash}, rejecting tx ${data.txHash}`)
+          return { success: false, error: 'Payment already claimed by another transaction' }
+        }
+        if (existingPayment.status !== 'pending') {
+          console.log(`[TON] Payment ${paymentId} status is ${existingPayment.status}, not pending`)
+          return { success: false, error: `Payment status is ${existingPayment.status}` }
+        }
+        // Amount mismatch
+        const expectedAmount = Number(existingPayment.ton_amount)
+        console.warn(`[TON] Payment ${paymentId} amount mismatch: expected ${expectedAmount}, got ${data.amount}`)
+        return { success: false, error: 'Amount mismatch' }
       }
     }
 

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { getCurrentSession } from "@/lib/admin/session"
+import { getCurrentSession, type AdminSession } from "@/lib/admin/session"
+import { hasPermission, type AdminRole } from "@/lib/admin/permissions"
 
 /**
  * POST /api/admin/users/[userId]/grant-pro
@@ -23,6 +24,14 @@ export async function POST(
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }
+      )
+    }
+
+    // SECURITY: Check permission for granting Pro status
+    if (!hasPermission(session.role as AdminRole, 'users.grant_pro')) {
+      return NextResponse.json(
+        { success: false, error: "Insufficient permissions" },
+        { status: 403 }
       )
     }
 
@@ -73,6 +82,37 @@ export async function POST(
     }
 
     const user = users[0]
+
+    // SECURITY FIX: Prevent abuse - check for existing unused admin-granted payments
+    // Admin can only grant one free payment at a time per user
+    const existingGranted = await sql`
+      SELECT id, tier_id, photo_count, photos_used, created_at
+      FROM payments
+      WHERE user_id = ${userIdNum}
+        AND provider = 'admin'
+        AND status = 'succeeded'
+        AND (photos_used IS NULL OR photos_used < photo_count)
+      ORDER BY created_at DESC
+      LIMIT 1
+    `
+
+    if (existingGranted.length > 0) {
+      const existing = existingGranted[0]
+      return NextResponse.json(
+        {
+          success: false,
+          error: "User already has unused admin-granted access",
+          existing: {
+            payment_id: existing.id,
+            tier_id: existing.tier_id,
+            photo_count: existing.photo_count,
+            photos_used: existing.photos_used || 0,
+            granted_at: existing.created_at
+          }
+        },
+        { status: 409 }  // Conflict
+      )
+    }
 
     // Generate a unique granted payment ID
     const grantedPaymentId = `granted_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`

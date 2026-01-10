@@ -199,8 +199,8 @@ export async function POST(request: Request) {
     // IDEMPOTENCY: Mark message as processed to prevent duplicate execution
     if (messageId) {
       await sql`
-        INSERT INTO qstash_processed_messages (message_id, job_id, processed_at)
-        VALUES (${messageId}, ${jobId}, NOW())
+        INSERT INTO qstash_processed_messages (message_id, endpoint, job_id, processed_at)
+        VALUES (${messageId}, 'jobs/process', ${jobId}, NOW())
         ON CONFLICT (message_id) DO NOTHING
       `.catch((err: Error) => {
         console.warn("[Jobs/Process] Failed to record idempotency key:", err.message)

@@ -68,7 +68,32 @@ async function refundTBank(
     const { cancelPayment } = await import('../tbank')
     const { sql } = await import('../db')
 
+    // RACE CONDITION FIX: Atomic lock before calling external API
+    // Only proceed if payment is in refundable state
+    const lockResult = await sql`
+      UPDATE payments
+      SET refund_status = 'processing', updated_at = NOW()
+      WHERE id = ${payment.id}
+        AND status = 'succeeded'
+        AND COALESCE(refund_status, 'none') NOT IN ('processing', 'completed')
+      RETURNING id
+    `
+
+    if (lockResult.length === 0) {
+      console.warn('[RefundDispatcher] Payment already being refunded or completed', {
+        paymentId: payment.id,
+      })
+      return {
+        success: false,
+        provider: 'tbank',
+        manualRefund: false,
+        manualInstructions: 'Payment already refunded or refund in progress',
+      }
+    }
+
     if (!payment.tbank_payment_id) {
+      // Revert lock status
+      await sql`UPDATE payments SET refund_status = 'none' WHERE id = ${payment.id}`
       console.error('[RefundDispatcher] T-Bank payment without tbank_payment_id', {
         paymentId: payment.id,
       })
@@ -104,7 +129,7 @@ async function refundTBank(
 
     const result = await cancelPayment(payment.tbank_payment_id, undefined, receipt)
 
-    // Update payment status
+    // Update payment status - refund successful
     await sql`
       UPDATE payments
       SET status = 'refunded',
@@ -134,6 +159,12 @@ async function refundTBank(
       error: errorMessage,
     })
 
+    // Revert lock status on failure
+    try {
+      const { sql } = await import('../db')
+      await sql`UPDATE payments SET refund_status = 'failed' WHERE id = ${payment.id}`
+    } catch { /* ignore */ }
+
     return {
       success: false,
       provider: 'tbank',
@@ -154,7 +185,30 @@ async function refundStars(
   try {
     const { sql } = await import('../db')
 
+    // RACE CONDITION FIX: Atomic lock before calling external API
+    const lockResult = await sql`
+      UPDATE payments
+      SET refund_status = 'processing', updated_at = NOW()
+      WHERE id = ${payment.id}
+        AND status = 'succeeded'
+        AND COALESCE(refund_status, 'none') NOT IN ('processing', 'completed')
+      RETURNING id
+    `
+
+    if (lockResult.length === 0) {
+      console.warn('[RefundDispatcher] Stars payment already being refunded', {
+        paymentId: payment.id,
+      })
+      return {
+        success: false,
+        provider: 'stars',
+        manualRefund: false,
+        manualInstructions: 'Payment already refunded or refund in progress',
+      }
+    }
+
     if (!payment.telegram_charge_id || !payment.user_id) {
+      await sql`UPDATE payments SET refund_status = 'none' WHERE id = ${payment.id}`
       console.error('[RefundDispatcher] Stars payment missing charge ID or user', {
         paymentId: payment.id,
       })
@@ -172,6 +226,7 @@ async function refundStars(
     `.then((rows: any[]) => rows[0])
 
     if (!userResult?.telegram_user_id) {
+      await sql`UPDATE payments SET refund_status = 'none' WHERE id = ${payment.id}`
       console.error('[RefundDispatcher] User without telegram_user_id', {
         paymentId: payment.id,
         userId: payment.user_id,
@@ -186,6 +241,7 @@ async function refundStars(
 
     const botToken = process.env.TELEGRAM_BOT_TOKEN
     if (!botToken) {
+      await sql`UPDATE payments SET refund_status = 'none' WHERE id = ${payment.id}`
       console.error('[RefundDispatcher] TELEGRAM_BOT_TOKEN not configured')
       return {
         success: false,
@@ -216,6 +272,7 @@ async function refundStars(
     const result = await response.json()
 
     if (!result.ok) {
+      await sql`UPDATE payments SET refund_status = 'failed' WHERE id = ${payment.id}`
       console.error('[RefundDispatcher] Telegram API error', {
         paymentId: payment.id,
         error: result.description,
@@ -228,7 +285,7 @@ async function refundStars(
       }
     }
 
-    // Update payment status
+    // Update payment status - refund successful
     await sql`
       UPDATE payments
       SET status = 'refunded',
@@ -257,6 +314,12 @@ async function refundStars(
       paymentId: payment.id,
       error: errorMessage,
     })
+
+    // Revert lock status on failure
+    try {
+      const { sql } = await import('../db')
+      await sql`UPDATE payments SET refund_status = 'failed' WHERE id = ${payment.id}`
+    } catch { /* ignore */ }
 
     return {
       success: false,
@@ -291,6 +354,206 @@ function refundTon(
     provider: 'ton',
     manualRefund: true,
     manualInstructions: instructions,
+  }
+}
+
+/**
+ * Partial refund for generations with some failed photos
+ * Calculates proportional refund based on failed/total ratio
+ *
+ * @param avatarId - Avatar ID for the generation
+ * @param userId - User ID who made the payment
+ * @param failedPhotos - Number of failed photos
+ * @param totalPhotos - Total photos expected
+ * @returns Partial refund result
+ */
+export async function partialRefundForGeneration(
+  avatarId: number,
+  userId: number,
+  failedPhotos: number,
+  totalPhotos: number
+): Promise<{ success: boolean; refundedPaymentId?: string; refundAmount?: number; error?: string }> {
+  const { sql } = await import('../db')
+
+  // Calculate refund percentage (failed / total)
+  const refundPercentage = failedPhotos / totalPhotos
+
+  console.log('[RefundDispatcher] Partial refund for generation', {
+    avatarId,
+    userId,
+    failedPhotos,
+    totalPhotos,
+    refundPercentage: `${(refundPercentage * 100).toFixed(1)}%`,
+  })
+
+  try {
+    // Find payment linked to the generation job
+    const paymentResult = await sql`
+      SELECT p.* FROM generation_jobs gj
+      JOIN payments p ON gj.payment_id = p.id
+      WHERE gj.avatar_id = ${avatarId}
+        AND p.status = 'succeeded'
+      ORDER BY gj.created_at DESC
+      LIMIT 1
+    `.then((rows: any[]) => rows[0])
+
+    if (!paymentResult) {
+      // Fallback: latest succeeded payment for user
+      const fallbackPayment = await sql`
+        SELECT * FROM payments
+        WHERE user_id = ${userId}
+          AND status = 'succeeded'
+        ORDER BY created_at DESC
+        LIMIT 1
+      `.then((rows: any[]) => rows[0])
+
+      if (!fallbackPayment) {
+        console.warn('[RefundDispatcher] No payment found for partial refund', {
+          avatarId,
+          userId,
+        })
+        return { success: false, error: 'No payment found' }
+      }
+
+      // Use fallback with partial amount
+      return await executePartialRefund(
+        fallbackPayment as PaymentDB,
+        refundPercentage,
+        failedPhotos,
+        totalPhotos
+      )
+    }
+
+    // Execute partial refund
+    return await executePartialRefund(
+      paymentResult as PaymentDB,
+      refundPercentage,
+      failedPhotos,
+      totalPhotos
+    )
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('[RefundDispatcher] Partial refund failed', {
+      avatarId,
+      userId,
+      error: errorMessage,
+    })
+
+    return { success: false, error: errorMessage }
+  }
+}
+
+/**
+ * Execute partial refund for a specific payment
+ */
+async function executePartialRefund(
+  payment: PaymentDB,
+  refundPercentage: number,
+  failedPhotos: number,
+  totalPhotos: number
+): Promise<{ success: boolean; refundedPaymentId?: string; refundAmount?: number; error?: string }> {
+  const { cancelPayment } = await import('../tbank')
+  const { sql } = await import('../db')
+
+  // Calculate refund amount (round to nearest ruble)
+  const originalAmount = Number(payment.amount)
+  const refundAmount = Math.round(originalAmount * refundPercentage)
+
+  // Minimum refund check (T-Bank has 1 RUB minimum)
+  if (refundAmount < 1) {
+    console.log('[RefundDispatcher] Partial refund too small, skipping', {
+      paymentId: payment.id,
+      refundAmount,
+    })
+    return { success: true, refundAmount: 0, error: 'Refund amount too small' }
+  }
+
+  const provider = payment.provider || 'tbank'
+  const reason = `Partial: ${failedPhotos}/${totalPhotos} failed`
+
+  console.log('[RefundDispatcher] Executing partial refund', {
+    paymentId: payment.id,
+    provider,
+    originalAmount,
+    refundAmount,
+    failedPhotos,
+    totalPhotos,
+  })
+
+  // Only T-Bank supports partial refunds via API
+  if (provider === 'tbank') {
+    // Atomic lock
+    const lockResult = await sql`
+      UPDATE payments
+      SET refund_status = 'processing', updated_at = NOW()
+      WHERE id = ${payment.id}
+        AND status = 'succeeded'
+        AND COALESCE(refund_status, 'none') NOT IN ('processing', 'completed')
+      RETURNING id
+    `
+
+    if (lockResult.length === 0) {
+      return { success: false, error: 'Payment already refunded or in progress' }
+    }
+
+    if (!payment.tbank_payment_id) {
+      await sql`UPDATE payments SET refund_status = 'none' WHERE id = ${payment.id}`
+      return { success: false, error: 'Missing T-Bank payment ID' }
+    }
+
+    try {
+      // Fiscal receipt for partial refund
+      const amountInKopeks = Math.round(refundAmount * 100)
+      const receipt = {
+        Email: 'noreply@pinglass.ru',
+        Taxation: 'usn_income_outcome' as const,
+        Items: [{
+          Name: `Частичный возврат - ${failedPhotos} фото не сгенерированы`,
+          Price: amountInKopeks,
+          Quantity: 1,
+          Amount: amountInKopeks,
+          Tax: 'none' as const,
+          PaymentMethod: 'full_payment' as const,
+          PaymentObject: 'service' as const,
+        }],
+      }
+
+      // Call T-Bank with partial amount
+      const result = await cancelPayment(payment.tbank_payment_id, refundAmount, receipt)
+
+      // Update payment - partial refund
+      await sql`
+        UPDATE payments
+        SET refund_status = 'partial',
+            refund_reason = ${reason},
+            refund_at = NOW(),
+            refund_amount = ${refundAmount},
+            updated_at = NOW()
+        WHERE id = ${payment.id}
+      `
+
+      console.log('[RefundDispatcher] Partial refund successful', {
+        paymentId: payment.tbank_payment_id,
+        refundAmount,
+        status: result.Status,
+      })
+
+      return {
+        success: true,
+        refundedPaymentId: payment.id?.toString(),
+        refundAmount,
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      await sql`UPDATE payments SET refund_status = 'failed' WHERE id = ${payment.id}`
+      return { success: false, error: `T-Bank API: ${errorMessage}` }
+    }
+  }
+
+  // Stars and TON don't support partial refunds - return manual instructions
+  return {
+    success: false,
+    error: `${provider} doesn't support partial refunds. Manual refund needed: ${refundAmount} of ${originalAmount}`,
   }
 }
 

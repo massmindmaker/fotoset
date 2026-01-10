@@ -4,6 +4,7 @@ import { initPayment, HAS_CREDENTIALS, type PaymentMethod, type Receipt } from "
 import { findOrCreateUser } from "@/lib/user-identity"
 import { paymentLogger as log } from "@/lib/logger"
 import { getTBankCredentials } from "@/lib/admin/mode"
+import { checkRateLimit, recordLoginAttempt, getClientIP } from "@/lib/admin/rate-limit"
 
 // Default pricing tiers (fallback if admin settings not configured)
 const DEFAULT_TIER_PRICES: Record<string, { price: number; photos: number; discount?: number }> = {
@@ -12,8 +13,36 @@ const DEFAULT_TIER_PRICES: Record<string, { price: number; photos: number; disco
   premium: { price: 1499, photos: 23 },
 }
 
+// Rate limit configuration for payment creation
+// More permissive than login (10 attempts per 15 minutes)
+const PAYMENT_RATE_LIMIT = {
+  maxAttempts: 10,
+  windowMinutes: 15,
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY FIX: Rate limiting for payment creation to prevent abuse
+    const clientIP = getClientIP(request)
+    const rateLimit = await checkRateLimit(clientIP)
+
+    if (!rateLimit.allowed) {
+      log.warn("Payment rate limit exceeded", { ip: clientIP, blocked: rateLimit.blocked })
+      return NextResponse.json(
+        {
+          error: "Слишком много запросов. Попробуйте позже.",
+          code: "RATE_LIMIT_EXCEEDED",
+          retryAfter: Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000),
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000).toString(),
+          },
+        }
+      )
+    }
+
     const { telegramUserId, neonUserId, email, paymentMethod, tierId, photoCount, referralCode, avatarId } = await request.json() as {
       telegramUserId?: number
       neonUserId?: string  // Web authentication via Neon Auth
@@ -62,10 +91,20 @@ export async function POST(request: NextRequest) {
     }
 
     // CRITICAL: Email is required for 54-ФЗ fiscal receipts
-    if (!email || typeof email !== 'string' || !email.trim()) {
-      return NextResponse.json({
-        error: "Email обязателен для получения электронного чека (54-ФЗ)"
-      }, { status: 400 })
+    // For Telegram users without email, generate a fallback address
+    let effectiveEmail = email?.trim() || ''
+
+    if (!effectiveEmail) {
+      if (telegramUserId) {
+        // Generate fallback email for Telegram users
+        effectiveEmail = `user_${telegramUserId}@telegram.pinglass.app`
+        log.debug("Using fallback email for Telegram user:", { telegramUserId, email: effectiveEmail })
+      } else {
+        // Web users MUST provide email
+        return NextResponse.json({
+          error: "Email обязателен для получения электронного чека (54-ФЗ)"
+        }, { status: 400 })
+      }
     }
 
     // Fetch dynamic pricing from admin settings
@@ -139,7 +178,7 @@ export async function POST(request: NextRequest) {
     // Receipt must use the SAME value that will be sent as Amount parameter
     const amountInKopeks = Math.round(amount * 100)
     const receipt: Receipt = {
-      Email: email.trim(),
+      Email: effectiveEmail,
       Taxation: "usn_income_outcome", // УСН Доходы-Расходы
       Items: [{
         Name: `PinGlass - ${tier.photos} AI фото`,

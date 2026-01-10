@@ -8,7 +8,10 @@ import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { checkKieTaskStatus } from "@/lib/kie"
 import { uploadFromUrl, generatePromptKey, isR2Configured } from "@/lib/r2"
-import { autoRefundForFailedGeneration } from "@/lib/payments/refund-dispatcher"
+import { autoRefundForFailedGeneration, partialRefundForGeneration } from "@/lib/payments/refund-dispatcher"
+
+// Threshold for partial success (if >= this % succeed, treat as partial success)
+const PARTIAL_SUCCESS_THRESHOLD = 0.70 // 70%
 
 // Vercel cron requires GET
 export async function GET() {
@@ -199,40 +202,16 @@ async function checkJobCompletion() {
     }
 
     // All tasks are either completed or failed
-    const failedPhotos = job.failed_tasks
+    const completedPhotos = Number(job.completed_tasks)
+    const failedPhotos = Number(job.failed_tasks)
+    const totalPhotos = Number(job.total_photos)
+    const successRate = completedPhotos / totalPhotos
 
-    if (failedPhotos > 0) {
-      console.log(`[Poll Kie Tasks] Job ${job.id}: ${failedPhotos}/${job.total_photos} photos failed - triggering refund`)
-
-      // Get user for refund
-      const avatarData = await sql`
-        SELECT user_id FROM avatars WHERE id = ${job.avatar_id}
-      `.then((rows: any[]) => rows[0])
-
-      if (avatarData?.user_id) {
-        const refundResult = await autoRefundForFailedGeneration(job.avatar_id, avatarData.user_id)
-        console.log(`[Poll Kie Tasks] Auto-refund result:`, refundResult)
-      }
-
+    if (failedPhotos === 0) {
+      // All photos successful - mark as completed
       await sql`
         UPDATE generation_jobs
-        SET status = 'failed',
-            error_message = ${`${failedPhotos}/${job.total_photos} photos failed - payment refunded`},
-            updated_at = NOW()
-        WHERE id = ${job.id}
-      `
-
-      await sql`
-        UPDATE avatars
-        SET status = 'draft', updated_at = NOW()
-        WHERE id = ${job.avatar_id}
-      `
-
-    } else {
-      // All photos successful
-      await sql`
-        UPDATE generation_jobs
-        SET status = 'completed', completed_photos = ${job.completed_tasks}, updated_at = NOW()
+        SET status = 'completed', completed_photos = ${completedPhotos}, updated_at = NOW()
         WHERE id = ${job.id}
       `
 
@@ -242,10 +221,83 @@ async function checkJobCompletion() {
         WHERE id = ${job.avatar_id}
       `
 
-      console.log(`[Poll Kie Tasks] Job ${job.id} completed successfully - all ${job.total_photos} photos generated`)
+      console.log(`[Poll Kie Tasks] Job ${job.id} completed successfully - all ${totalPhotos} photos generated`)
 
       // Send photos to Telegram automatically
       await sendPhotosToTelegram(job.avatar_id)
+
+    } else if (successRate >= PARTIAL_SUCCESS_THRESHOLD) {
+      // PARTIAL SUCCESS: Most photos succeeded (>=70%)
+      // Deliver completed photos + proportional refund for failed ones
+      console.log(`[Poll Kie Tasks] Job ${job.id}: Partial success - ${completedPhotos}/${totalPhotos} succeeded (${(successRate * 100).toFixed(1)}%)`)
+
+      // Get user for partial refund
+      const avatarData = await sql`
+        SELECT user_id FROM avatars WHERE id = ${job.avatar_id}
+      `.then((rows: any[]) => rows[0])
+
+      if (avatarData?.user_id) {
+        // Proportional refund for failed photos only
+        const refundResult = await partialRefundForGeneration(
+          job.avatar_id,
+          avatarData.user_id,
+          failedPhotos,
+          totalPhotos
+        )
+        console.log(`[Poll Kie Tasks] Partial refund result:`, refundResult)
+      }
+
+      // Mark job as partial (not failed - photos are delivered)
+      await sql`
+        UPDATE generation_jobs
+        SET status = 'partial',
+            completed_photos = ${completedPhotos},
+            error_message = ${`${failedPhotos}/${totalPhotos} photos failed - partial refund issued`},
+            updated_at = NOW()
+        WHERE id = ${job.id}
+      `
+
+      // Avatar status is 'partial' - user can view completed photos
+      await sql`
+        UPDATE avatars
+        SET status = 'partial', updated_at = NOW()
+        WHERE id = ${job.avatar_id}
+      `
+
+      console.log(`[Poll Kie Tasks] Job ${job.id} partial success - ${completedPhotos} photos delivered, ${failedPhotos} refunded`)
+
+      // Send completed photos to Telegram
+      await sendPhotosToTelegram(job.avatar_id)
+
+    } else {
+      // FULL FAILURE: Too many photos failed (<70% success)
+      // Full refund, no photos delivered
+      console.log(`[Poll Kie Tasks] Job ${job.id}: Full failure - only ${completedPhotos}/${totalPhotos} succeeded (${(successRate * 100).toFixed(1)}%) - triggering full refund`)
+
+      // Get user for full refund
+      const avatarData = await sql`
+        SELECT user_id FROM avatars WHERE id = ${job.avatar_id}
+      `.then((rows: any[]) => rows[0])
+
+      if (avatarData?.user_id) {
+        const refundResult = await autoRefundForFailedGeneration(job.avatar_id, avatarData.user_id)
+        console.log(`[Poll Kie Tasks] Full refund result:`, refundResult)
+      }
+
+      await sql`
+        UPDATE generation_jobs
+        SET status = 'failed',
+            error_message = ${`${failedPhotos}/${totalPhotos} photos failed (${(successRate * 100).toFixed(0)}% success) - full refund issued`},
+            updated_at = NOW()
+        WHERE id = ${job.id}
+      `
+
+      // Reset avatar to draft (user can retry)
+      await sql`
+        UPDATE avatars
+        SET status = 'draft', updated_at = NOW()
+        WHERE id = ${job.avatar_id}
+      `
     }
   }
 }

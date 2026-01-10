@@ -1,0 +1,3761 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PinGlass - Interactive Design System v8</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #FF6B6B;
+      --primary-light: #FF8E8E;
+      --primary-dark: #E54545;
+      --accent: #8B5CF6;
+      --accent-light: #A78BFA;
+      --success: #10B981;
+      --success-light: #D1FAE5;
+      --warning: #F59E0B;
+      --warning-light: #FEF3C7;
+      --danger: #EF4444;
+      --danger-light: #FEE2E2;
+      --info: #3B82F6;
+      --info-light: #DBEAFE;
+      --bg-main: #F8F9FC;
+      --bg-card: #FFFFFF;
+      --bg-dark: #0F172A;
+      --text-primary: #1F2937;
+      --text-secondary: #4B5563;
+      --text-muted: #6B7280;
+      --border-light: #E2E8F0;
+      --border-medium: #CBD5E1;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --shadow-lg: 0 12px 28px rgba(0,0,0,0.12);
+      --shadow-xl: 0 25px 50px rgba(0,0,0,0.2);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+      --font-main: 'Inter', -apple-system, sans-serif;
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-main);
+      background: var(--bg-dark);
+      min-height: 100vh;
+      color: var(--text-primary);
+    }
+
+    /* ============================================
+       TOP NAVIGATION
+    ============================================ */
+    .top-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      z-index: 1000;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .top-nav-logo {
+      font-size: 18px;
+      font-weight: 800;
+      color: white;
+    }
+
+    .top-nav-logo span {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .top-nav-tabs {
+      display: flex;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .top-nav-tab {
+      padding: 10px 18px;
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.6);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .top-nav-tab:hover {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+
+    .top-nav-tab.active {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: white;
+    }
+
+    .top-nav-info {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    /* ============================================
+       MAIN CONTENT AREA
+    ============================================ */
+    .main-content {
+      padding-top: 70px;
+      min-height: 100vh;
+    }
+
+    .view-container {
+      display: none;
+    }
+
+    .view-container.active {
+      display: block;
+    }
+
+    /* ============================================
+       ADMIN PANEL LAYOUT
+    ============================================ */
+    .admin-layout {
+      display: flex;
+      min-height: calc(100vh - 70px);
+    }
+
+    .admin-sidebar {
+      width: 240px;
+      background: white;
+      border-right: 1px solid var(--border-light);
+      padding: 20px 0;
+      flex-shrink: 0;
+    }
+
+    .admin-sidebar-section {
+      margin-bottom: 24px;
+    }
+
+    .admin-sidebar-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 0 20px;
+      margin-bottom: 8px;
+    }
+
+    .admin-sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .admin-sidebar-item:hover {
+      background: var(--bg-main);
+      color: var(--text-primary);
+    }
+
+    .admin-sidebar-item.active {
+      background: linear-gradient(90deg, rgba(255,107,107,0.1), transparent);
+      color: var(--primary);
+      border-right: 3px solid var(--primary);
+    }
+
+    .admin-sidebar-item span {
+      font-size: 16px;
+    }
+
+    .admin-sidebar-badge {
+      margin-left: auto;
+      background: var(--danger);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 10px;
+    }
+
+    .admin-main {
+      flex: 1;
+      background: var(--bg-main);
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .admin-page {
+      display: none;
+    }
+
+    .admin-page.active {
+      display: block;
+    }
+
+    /* ============================================
+       PAGE HEADER
+    ============================================ */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .page-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    /* ============================================
+       BUTTONS
+    ============================================ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-main);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s var(--ease-out);
+      border: none;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      box-shadow: 0 4px 12px rgba(255,107,107,0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(255,107,107,0.4);
+    }
+
+    .btn-secondary {
+      background: white;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-light);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-warning {
+      background: var(--warning);
+      color: white;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg-main);
+    }
+
+    .btn-icon {
+      padding: 10px;
+      width: 40px;
+      height: 40px;
+      justify-content: center;
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .btn-lg {
+      padding: 14px 24px;
+      font-size: 15px;
+    }
+
+    /* ============================================
+       CARDS
+    ============================================ */
+    .card {
+      background: white;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-light);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .card-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border-light);
+      background: var(--bg-main);
+    }
+
+    /* ============================================
+       KPI CARDS
+    ============================================ */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: white;
+      border-radius: var(--radius-md);
+      padding: 20px;
+      border: 1px solid var(--border-light);
+    }
+
+    .kpi-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .kpi-value.success { color: var(--success); }
+    .kpi-value.danger { color: var(--danger); }
+    .kpi-value.warning { color: var(--warning); }
+
+    .kpi-change {
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .kpi-change.positive { color: var(--success); }
+    .kpi-change.negative { color: var(--danger); }
+
+    /* ============================================
+       TABLES
+    ============================================ */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: var(--bg-main);
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .data-table td {
+      padding: 14px 16px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .data-table tr:hover td {
+      background: var(--bg-main);
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* ============================================
+       BADGES
+    ============================================ */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-success { background: var(--success-light); color: #065F46; }
+    .badge-warning { background: var(--warning-light); color: #92400E; }
+    .badge-danger { background: var(--danger-light); color: #991B1B; }
+    .badge-info { background: var(--info-light); color: #1E40AF; }
+    .badge-neutral { background: #F1F5F9; color: #475569; }
+    .badge-premium {
+      background: linear-gradient(135deg, var(--accent), #6366F1);
+      color: white;
+    }
+
+    /* ============================================
+       FORM ELEMENTS
+    ============================================ */
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-main);
+      font-size: 14px;
+      color: var(--text-primary);
+      transition: all 0.2s;
+    }
+
+    .form-input:hover { border-color: var(--border-medium); }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(255,107,107,0.15);
+    }
+
+    .form-textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-main);
+      font-size: 14px;
+      color: var(--text-primary);
+      resize: vertical;
+      min-height: 100px;
+      transition: all 0.2s;
+    }
+
+    .form-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(255,107,107,0.15);
+    }
+
+    .form-select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-main);
+      font-size: 14px;
+      color: var(--text-primary);
+      background: white;
+      cursor: pointer;
+    }
+
+    .form-select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .form-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .form-row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* ============================================
+       MODAL SYSTEM
+    ============================================ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 20px;
+      animation: fadeIn 0.2s var(--ease-out);
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal {
+      background: white;
+      border-radius: var(--radius-xl);
+      width: 100%;
+      max-width: 560px;
+      max-height: 90vh;
+      overflow: hidden;
+      box-shadow: var(--shadow-xl);
+      animation: modalSlideUp 0.3s var(--ease-spring);
+    }
+
+    .modal.wide { max-width: 720px; }
+    .modal.extra-wide { max-width: 900px; }
+    .modal.full { max-width: 1100px; }
+
+    @keyframes modalSlideUp {
+      from { opacity: 0; transform: translateY(20px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .modal-close {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-main);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 18px;
+      transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+      background: var(--border-light);
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      padding: 24px;
+      overflow-y: auto;
+      max-height: 70vh;
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border-light);
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      background: var(--bg-main);
+    }
+
+    /* ============================================
+       TABS
+    ============================================ */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border-light);
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      padding: 12px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab:hover { color: var(--text-primary); }
+
+    .tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* ============================================
+       PROMPTS TESTING UI
+    ============================================ */
+    .prompts-layout {
+      display: grid;
+      grid-template-columns: 350px 1fr 350px;
+      gap: 20px;
+      height: calc(100vh - 118px);
+    }
+
+    .prompts-sidebar {
+      background: white;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-light);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .prompts-sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .prompts-search {
+      display: flex;
+      gap: 8px;
+    }
+
+    .prompts-search input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+    }
+
+    .prompts-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .prompt-item {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-light);
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .prompt-item:hover {
+      background: var(--bg-main);
+    }
+
+    .prompt-item.active {
+      background: linear-gradient(90deg, rgba(255,107,107,0.1), transparent);
+      border-left: 3px solid var(--primary);
+    }
+
+    .prompt-item.selected {
+      background: rgba(139, 92, 246, 0.1);
+    }
+
+    .prompt-checkbox {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .prompt-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .prompt-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .prompt-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .prompt-category {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--bg-main);
+      color: var(--text-muted);
+    }
+
+    .prompt-category.professional { background: var(--info-light); color: #1E40AF; }
+    .prompt-category.lifestyle { background: var(--success-light); color: #065F46; }
+    .prompt-category.creative { background: var(--accent); color: white; }
+
+    .prompts-editor {
+      background: white;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-light);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .prompts-editor-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .prompts-editor-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .prompts-editor-body {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .prompt-textarea {
+      width: 100%;
+      min-height: 200px;
+      padding: 16px;
+      border: 1.5px solid var(--border-light);
+      border-radius: var(--radius-md);
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-primary);
+      resize: vertical;
+      transition: all 0.2s;
+    }
+
+    .prompt-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(255,107,107,0.15);
+    }
+
+    .prompt-variables {
+      margin-top: 16px;
+      padding: 14px;
+      background: var(--bg-main);
+      border-radius: var(--radius-md);
+    }
+
+    .prompt-variables-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .prompt-variable {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: white;
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      font-size: 12px;
+      margin-right: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .prompt-variable:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .prompt-variable code {
+      background: var(--bg-main);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 11px;
+    }
+
+    .prompts-results {
+      background: white;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-light);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .prompts-results-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .prompts-results-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .prompts-results-body {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+    }
+
+    .test-result {
+      margin-bottom: 16px;
+    }
+
+    .test-result-image {
+      width: 100%;
+      aspect-ratio: 1;
+      background: linear-gradient(135deg, #F1F5F9, #E2E8F0);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      color: var(--text-muted);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .test-result-image.loading::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    .test-result-info {
+      margin-top: 12px;
+      padding: 12px;
+      background: var(--bg-main);
+      border-radius: var(--radius-sm);
+    }
+
+    .test-result-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .test-result-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* ============================================
+       PROMPT PACKS
+    ============================================ */
+    .packs-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .pack-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-light);
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .pack-card:hover {
+      border-color: var(--primary);
+      box-shadow: var(--shadow-md);
+    }
+
+    .pack-card.active {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(255,107,107,0.15);
+    }
+
+    .pack-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .pack-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .pack-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .pack-description {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .pack-stats {
+      display: flex;
+      gap: 16px;
+    }
+
+    .pack-stat {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .pack-stat strong {
+      color: var(--text-primary);
+    }
+
+    /* ============================================
+       BATCH TEST PANEL
+    ============================================ */
+    .batch-panel {
+      background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(255,107,107,0.1));
+      border: 1px solid rgba(139,92,246,0.2);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .batch-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .batch-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .batch-count {
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .batch-selected {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .batch-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: white;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .batch-item-remove {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--bg-main);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .batch-item-remove:hover {
+      background: var(--danger-light);
+      color: var(--danger);
+    }
+
+    .batch-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    /* ============================================
+       DETAIL ROWS
+    ============================================ */
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .detail-row:last-child { border-bottom: none; }
+
+    .detail-label {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .detail-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .detail-value.success { color: var(--success); }
+    .detail-value.danger { color: var(--danger); }
+
+    /* ============================================
+       TIMELINE
+    ============================================ */
+    .timeline {
+      position: relative;
+      padding-left: 24px;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 7px;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      background: var(--border-light);
+    }
+
+    .timeline-item {
+      position: relative;
+      padding-bottom: 20px;
+    }
+
+    .timeline-item:last-child { padding-bottom: 0; }
+
+    .timeline-dot {
+      position: absolute;
+      left: -24px;
+      top: 4px;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border: 3px solid var(--primary);
+      border-radius: 50%;
+    }
+
+    .timeline-dot.success { border-color: var(--success); }
+    .timeline-dot.warning { border-color: var(--warning); }
+    .timeline-dot.danger { border-color: var(--danger); }
+
+    .timeline-content {
+      background: var(--bg-main);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+    }
+
+    .timeline-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .timeline-text {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .timeline-time {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* ============================================
+       ALERT BOXES
+    ============================================ */
+    .alert {
+      display: flex;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      margin-bottom: 20px;
+    }
+
+    .alert-info {
+      background: var(--info-light);
+      border: 1px solid rgba(59,130,246,0.2);
+    }
+
+    .alert-warning {
+      background: var(--warning-light);
+      border: 1px solid rgba(245,158,11,0.2);
+    }
+
+    .alert-danger {
+      background: var(--danger-light);
+      border: 1px solid rgba(239,68,68,0.2);
+    }
+
+    .alert-success {
+      background: var(--success-light);
+      border: 1px solid rgba(16,185,129,0.2);
+    }
+
+    .alert-icon { font-size: 20px; flex-shrink: 0; }
+
+    .alert-content { flex: 1; }
+
+    .alert-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .alert-text {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* ============================================
+       USER HEADER
+    ============================================ */
+    .user-header {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .user-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .user-info h3 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .user-info p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .user-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* ============================================
+       STATS GRID
+    ============================================ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: var(--bg-main);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .stat-value.success { color: var(--success); }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ============================================
+       PHOTOS GRID
+    ============================================ */
+    .photos-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .photo-thumb {
+      aspect-ratio: 1;
+      background: linear-gradient(135deg, #F1F5F9, #E2E8F0);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: transform 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .photo-thumb:hover {
+      transform: scale(1.02);
+    }
+
+    .photo-thumb-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      opacity: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.2s;
+    }
+
+    .photo-thumb:hover .photo-thumb-overlay {
+      opacity: 1;
+    }
+
+    /* ============================================
+       INFO BLOCK
+    ============================================ */
+    .info-block {
+      background: var(--bg-main);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .info-block-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .info-block-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* ============================================
+       MOBILE PHONE PREVIEW
+    ============================================ */
+    .phone-preview-container {
+      padding: 40px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+
+    .phone-frame {
+      width: 375px;
+      height: 812px;
+      background: var(--bg-main);
+      border-radius: 52px;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        0 80px 160px -40px rgba(0,0,0,0.5),
+        0 0 0 1px rgba(255,255,255,0.1),
+        inset 0 0 0 12px var(--bg-dark),
+        inset 0 0 0 13px rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+
+    .phone-notch {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 150px;
+      height: 34px;
+      background: var(--bg-dark);
+      border-radius: 0 0 22px 22px;
+      z-index: 50;
+    }
+
+    .phone-content {
+      position: absolute;
+      top: 54px;
+      left: 0;
+      right: 0;
+      bottom: 34px;
+      overflow-y: auto;
+      background: var(--bg-main);
+    }
+
+    .phone-home {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 134px;
+      height: 5px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================================
+     TOP NAVIGATION
+============================================ -->
+<nav class="top-nav">
+  <div class="top-nav-logo">Pin<span>Glass</span></div>
+  <div class="top-nav-tabs">
+    <button class="top-nav-tab active" data-view="admin">Admin Panel</button>
+    <button class="top-nav-tab" data-view="partner">Partner Cabinet</button>
+    <button class="top-nav-tab" data-view="mobile">Mobile Screens</button>
+  </div>
+  <div class="top-nav-info">Design System v8</div>
+</nav>
+
+<!-- ============================================
+     MAIN CONTENT
+============================================ -->
+<main class="main-content">
+
+  <!-- ============================================
+       ADMIN PANEL VIEW
+  ============================================ -->
+  <div class="view-container active" id="view-admin">
+    <div class="admin-layout">
+      <!-- Sidebar -->
+      <aside class="admin-sidebar">
+        <div class="admin-sidebar-section">
+          <div class="admin-sidebar-title">Overview</div>
+          <button class="admin-sidebar-item active" data-page="dashboard">
+            <span>📊</span> Dashboard
+          </button>
+          <button class="admin-sidebar-item" data-page="logs">
+            <span>📋</span> Logs
+          </button>
+        </div>
+        <div class="admin-sidebar-section">
+          <div class="admin-sidebar-title">Data</div>
+          <button class="admin-sidebar-item" data-page="users">
+            <span>👥</span> Users
+          </button>
+          <button class="admin-sidebar-item" data-page="payments">
+            <span>💳</span> Payments
+          </button>
+          <button class="admin-sidebar-item" data-page="generations">
+            <span>⚡</span> Generations
+          </button>
+        </div>
+        <div class="admin-sidebar-section">
+          <div class="admin-sidebar-title">Content</div>
+          <button class="admin-sidebar-item" data-page="prompts">
+            <span>✨</span> Prompts
+            <span class="admin-sidebar-badge">NEW</span>
+          </button>
+          <button class="admin-sidebar-item" data-page="packs">
+            <span>📦</span> Prompt Packs
+          </button>
+        </div>
+        <div class="admin-sidebar-section">
+          <div class="admin-sidebar-title">Revenue</div>
+          <button class="admin-sidebar-item" data-page="referrals">
+            <span>🎁</span> Referrals
+          </button>
+          <button class="admin-sidebar-item" data-page="partners">
+            <span>👑</span> Partners
+            <span class="admin-sidebar-badge">3</span>
+          </button>
+        </div>
+        <div class="admin-sidebar-section">
+          <div class="admin-sidebar-title">Support</div>
+          <button class="admin-sidebar-item" data-page="telegram">
+            <span>📱</span> Telegram
+          </button>
+          <button class="admin-sidebar-item" data-page="support">
+            <span>🎫</span> Tickets
+            <span class="admin-sidebar-badge">5</span>
+          </button>
+        </div>
+        <div class="admin-sidebar-section">
+          <div class="admin-sidebar-title">System</div>
+          <button class="admin-sidebar-item" data-page="settings">
+            <span>⚙️</span> Settings
+          </button>
+        </div>
+
+        <!-- Demo Section -->
+        <div class="admin-sidebar-section">
+          <div class="admin-sidebar-title">UI Components</div>
+          <button class="admin-sidebar-item" onclick="openModal('empty-state-demo')">
+            <span>📋</span> Empty States
+          </button>
+          <button class="admin-sidebar-item" onclick="openModal('loading-demo')">
+            <span>⏳</span> Loading States
+          </button>
+          <button class="admin-sidebar-item" onclick="openModal('error-demo')">
+            <span>❌</span> Error States
+          </button>
+          <button class="admin-sidebar-item" onclick="showToast('Test notification!', 'success')">
+            <span>🔔</span> Test Toast
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <div class="admin-main">
+
+        <!-- DASHBOARD PAGE -->
+        <div class="admin-page active" id="page-dashboard">
+          <div class="page-header">
+            <h1 class="page-title">Dashboard</h1>
+            <div class="page-actions">
+              <button class="btn btn-secondary">Export</button>
+              <button class="btn btn-primary">+ New Generation</button>
+            </div>
+          </div>
+
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">Total Revenue</div>
+              <div class="kpi-value success">892,400 ₽</div>
+              <div class="kpi-change positive">+12.5% vs last month</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Users</div>
+              <div class="kpi-value">2,847</div>
+              <div class="kpi-change positive">+156 this week</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Generations</div>
+              <div class="kpi-value">8,924</div>
+              <div class="kpi-change positive">+324 today</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Conversion</div>
+              <div class="kpi-value">34.2%</div>
+              <div class="kpi-change negative">-2.1% vs last week</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Recent Activity</span>
+              <button class="btn btn-ghost btn-sm">View All</button>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Action</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Time</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>@anna_photo</strong></td>
+                  <td>Payment</td>
+                  <td><strong style="color: var(--success)">999 ₽</strong></td>
+                  <td><span class="badge badge-success">Completed</span></td>
+                  <td>2 min ago</td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openModal('payment-details')">View</button></td>
+                </tr>
+                <tr>
+                  <td><strong>@designer_pro</strong></td>
+                  <td>Generation</td>
+                  <td>23 photos</td>
+                  <td><span class="badge badge-info">Processing</span></td>
+                  <td>5 min ago</td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openModal('generation-details')">View</button></td>
+                </tr>
+                <tr>
+                  <td><strong>@maria_style</strong></td>
+                  <td>Support Ticket</td>
+                  <td>—</td>
+                  <td><span class="badge badge-warning">Open</span></td>
+                  <td>12 min ago</td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openModal('ticket-details')">View</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- USERS PAGE -->
+        <div class="admin-page" id="page-users">
+          <div class="page-header">
+            <h1 class="page-title">Users</h1>
+            <div class="page-actions">
+              <input type="text" class="form-input" placeholder="Search users..." style="width: 250px;">
+              <button class="btn btn-secondary" onclick="openModal('bulk-actions')">⚡ Bulk</button>
+              <button class="btn btn-secondary" onclick="openModal('export')">📥 Export</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Telegram ID</th>
+                  <th>Status</th>
+                  <th>Purchases</th>
+                  <th>Revenue</th>
+                  <th>Registered</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>@designer_pro</strong></td>
+                  <td>123456789</td>
+                  <td><span class="badge badge-premium">Partner 50%</span></td>
+                  <td>3</td>
+                  <td><strong>2,997 ₽</strong></td>
+                  <td>10 Jan 2026</td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openModal('user-details')">View</button></td>
+                </tr>
+                <tr>
+                  <td><strong>@anna_photo</strong></td>
+                  <td>987654321</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td>1</td>
+                  <td><strong>999 ₽</strong></td>
+                  <td>10 Jan 2026</td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openModal('user-details')">View</button></td>
+                </tr>
+                <tr>
+                  <td><strong>@photo_lover</strong></td>
+                  <td>456789123</td>
+                  <td><span class="badge badge-neutral">Free</span></td>
+                  <td>0</td>
+                  <td><strong>0 ₽</strong></td>
+                  <td>9 Jan 2026</td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openModal('user-details')">View</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PAYMENTS PAGE -->
+        <div class="admin-page" id="page-payments">
+          <div class="page-header">
+            <h1 class="page-title">Payments</h1>
+            <div class="page-actions">
+              <select class="form-select" style="width: 150px;">
+                <option>All Providers</option>
+                <option>T-Bank</option>
+                <option>Stars</option>
+                <option>TON</option>
+              </select>
+              <button class="btn btn-secondary">Export</button>
+            </div>
+          </div>
+
+          <div class="kpi-grid" style="grid-template-columns: repeat(5, 1fr);">
+            <div class="kpi-card">
+              <div class="kpi-label">Today</div>
+              <div class="kpi-value success">24,500 ₽</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">This Week</div>
+              <div class="kpi-value">156,200 ₽</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">This Month</div>
+              <div class="kpi-value">892,400 ₽</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Refunded</div>
+              <div class="kpi-value danger">12,500 ₽</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Avg Check</div>
+              <div class="kpi-value">987 ₽</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>User</th>
+                  <th>Amount</th>
+                  <th>Provider</th>
+                  <th>Tier</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>#PAY-2847</td>
+                  <td><strong>@anna_photo</strong></td>
+                  <td><strong style="color: var(--success)">999 ₽</strong></td>
+                  <td><span class="badge badge-info">T-Bank</span></td>
+                  <td>Standard</td>
+                  <td><span class="badge badge-success">Succeeded</span></td>
+                  <td>10 Jan 14:32</td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openModal('payment-details')">View</button></td>
+                </tr>
+                <tr>
+                  <td>#PAY-2846</td>
+                  <td><strong>@designer_pro</strong></td>
+                  <td><strong style="color: var(--success)">1,499 ₽</strong></td>
+                  <td><span class="badge badge-premium">Stars</span></td>
+                  <td>Premium</td>
+                  <td><span class="badge badge-success">Succeeded</span></td>
+                  <td>10 Jan 12:15</td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openModal('payment-details')">View</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- GENERATIONS PAGE -->
+        <div class="admin-page" id="page-generations">
+          <div class="page-header">
+            <h1 class="page-title">Generations</h1>
+            <div class="page-actions">
+              <select class="form-select" style="width: 150px;">
+                <option>All Status</option>
+                <option>Completed</option>
+                <option>Processing</option>
+                <option>Failed</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Job ID</th>
+                  <th>User</th>
+                  <th>Style</th>
+                  <th>Provider</th>
+                  <th>Progress</th>
+                  <th>Duration</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>#GEN-8924</td>
+                  <td><strong>@anna_photo</strong></td>
+                  <td>Professional</td>
+                  <td>Kie.ai</td>
+                  <td>23/23</td>
+                  <td>4m 32s</td>
+                  <td><span class="badge badge-success">Completed</span></td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openModal('generation-details')">View</button></td>
+                </tr>
+                <tr>
+                  <td>#GEN-8925</td>
+                  <td><strong>@photo_lover</strong></td>
+                  <td>Lifestyle</td>
+                  <td>Kie.ai</td>
+                  <td>18/23</td>
+                  <td>—</td>
+                  <td><span class="badge badge-danger">Failed</span></td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openModal('generation-failed')">View</button></td>
+                </tr>
+                <tr>
+                  <td>#GEN-8926</td>
+                  <td><strong>@designer_pro</strong></td>
+                  <td>Creative</td>
+                  <td>Replicate</td>
+                  <td>12/23</td>
+                  <td>2m 15s...</td>
+                  <td><span class="badge badge-info">Processing</span></td>
+                  <td><button class="btn btn-ghost btn-sm">View</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PROMPTS PAGE (Enhanced) -->
+        <div class="admin-page" id="page-prompts">
+          <div class="page-header">
+            <h1 class="page-title">Prompt Testing Lab</h1>
+            <div class="page-actions">
+              <button class="btn btn-secondary" onclick="openModal('prompt-import')">📥 Import</button>
+              <button class="btn btn-primary" onclick="openModal('prompt-create')">+ New Prompt</button>
+            </div>
+          </div>
+
+          <!-- Batch Test Panel -->
+          <div class="batch-panel" id="batch-panel" style="display: none;">
+            <div class="batch-header">
+              <div class="batch-title">🧪 Batch Test Mode</div>
+              <div class="batch-count"><span id="batch-count">0</span> prompts selected</div>
+            </div>
+            <div class="batch-selected" id="batch-selected">
+              <!-- Selected prompts will appear here -->
+            </div>
+            <div class="batch-actions">
+              <button class="btn btn-secondary" onclick="clearBatch()">Clear All</button>
+              <button class="btn btn-secondary" onclick="openModal('add-to-pack')">📦 Add to Pack</button>
+              <button class="btn btn-primary btn-lg" onclick="runBatchTest()">🚀 Run Batch Test</button>
+            </div>
+          </div>
+
+          <div class="prompts-layout">
+            <!-- Prompts List -->
+            <div class="prompts-sidebar">
+              <div class="prompts-sidebar-header">
+                <div class="prompts-search">
+                  <input type="text" placeholder="Search prompts..." id="prompt-search">
+                  <button class="btn btn-icon btn-secondary">🔍</button>
+                </div>
+                <div style="display: flex; gap: 4px; margin-top: 12px;">
+                  <button class="btn btn-sm btn-secondary" style="flex: 1;" onclick="filterPrompts('all')">All</button>
+                  <button class="btn btn-sm btn-ghost" onclick="filterPrompts('professional')">Pro</button>
+                  <button class="btn btn-sm btn-ghost" onclick="filterPrompts('lifestyle')">Life</button>
+                  <button class="btn btn-sm btn-ghost" onclick="filterPrompts('creative')">Art</button>
+                </div>
+              </div>
+              <div class="prompts-list">
+                <div class="prompt-item active" onclick="selectPrompt(this, 1)">
+                  <input type="checkbox" class="prompt-checkbox" onclick="event.stopPropagation(); toggleBatch(1, 'LinkedIn Headshot')">
+                  <div class="prompt-info">
+                    <div class="prompt-name">#1 LinkedIn Headshot</div>
+                    <div class="prompt-meta">
+                      <span class="prompt-category professional">Professional</span>
+                      <span style="font-size: 11px; color: var(--text-muted);">98% success</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="prompt-item" onclick="selectPrompt(this, 2)">
+                  <input type="checkbox" class="prompt-checkbox" onclick="event.stopPropagation(); toggleBatch(2, 'Corporate Portrait')">
+                  <div class="prompt-info">
+                    <div class="prompt-name">#2 Corporate Portrait</div>
+                    <div class="prompt-meta">
+                      <span class="prompt-category professional">Professional</span>
+                      <span style="font-size: 11px; color: var(--text-muted);">95% success</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="prompt-item" onclick="selectPrompt(this, 3)">
+                  <input type="checkbox" class="prompt-checkbox" onclick="event.stopPropagation(); toggleBatch(3, 'Business Casual')">
+                  <div class="prompt-info">
+                    <div class="prompt-name">#3 Business Casual</div>
+                    <div class="prompt-meta">
+                      <span class="prompt-category professional">Professional</span>
+                      <span style="font-size: 11px; color: var(--text-muted);">92% success</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="prompt-item" onclick="selectPrompt(this, 4)">
+                  <input type="checkbox" class="prompt-checkbox" onclick="event.stopPropagation(); toggleBatch(4, 'Coffee Shop')">
+                  <div class="prompt-info">
+                    <div class="prompt-name">#4 Coffee Shop</div>
+                    <div class="prompt-meta">
+                      <span class="prompt-category lifestyle">Lifestyle</span>
+                      <span style="font-size: 11px; color: var(--text-muted);">89% success</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="prompt-item" onclick="selectPrompt(this, 5)">
+                  <input type="checkbox" class="prompt-checkbox" onclick="event.stopPropagation(); toggleBatch(5, 'Street Style')">
+                  <div class="prompt-info">
+                    <div class="prompt-name">#5 Street Style</div>
+                    <div class="prompt-meta">
+                      <span class="prompt-category lifestyle">Lifestyle</span>
+                      <span style="font-size: 11px; color: var(--text-muted);">87% success</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="prompt-item" onclick="selectPrompt(this, 6)">
+                  <input type="checkbox" class="prompt-checkbox" onclick="event.stopPropagation(); toggleBatch(6, 'Neon Glow')">
+                  <div class="prompt-info">
+                    <div class="prompt-name">#6 Neon Glow</div>
+                    <div class="prompt-meta">
+                      <span class="prompt-category creative">Creative</span>
+                      <span style="font-size: 11px; color: var(--text-muted);">85% success</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="prompt-item" onclick="selectPrompt(this, 7)">
+                  <input type="checkbox" class="prompt-checkbox" onclick="event.stopPropagation(); toggleBatch(7, 'Cinematic')">
+                  <div class="prompt-info">
+                    <div class="prompt-name">#7 Cinematic</div>
+                    <div class="prompt-meta">
+                      <span class="prompt-category creative">Creative</span>
+                      <span style="font-size: 11px; color: var(--text-muted);">91% success</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Prompt Editor -->
+            <div class="prompts-editor">
+              <div class="prompts-editor-header">
+                <div class="prompts-editor-title">#1 LinkedIn Headshot</div>
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn btn-secondary btn-sm">Duplicate</button>
+                  <button class="btn btn-primary btn-sm">💾 Save</button>
+                </div>
+              </div>
+              <div class="prompts-editor-body">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Prompt Name</label>
+                    <input type="text" class="form-input" value="LinkedIn Headshot">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select class="form-select">
+                      <option selected>Professional</option>
+                      <option>Lifestyle</option>
+                      <option>Creative</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Prompt Text</label>
+                  <textarea class="prompt-textarea" id="prompt-text">A professional headshot portrait of {subject}, wearing smart business attire, neutral studio background with soft gradient lighting, natural makeup, confident and approachable expression, soft studio lighting with subtle rim light, shot with 85mm lens at f/2.8, high-end corporate photography style, 4K quality</textarea>
+                </div>
+
+                <div class="prompt-variables">
+                  <div class="prompt-variables-title">Available Variables (click to insert)</div>
+                  <span class="prompt-variable" onclick="insertVariable('{subject}')">
+                    <code>{subject}</code> Person description
+                  </span>
+                  <span class="prompt-variable" onclick="insertVariable('{gender}')">
+                    <code>{gender}</code> Male/Female
+                  </span>
+                  <span class="prompt-variable" onclick="insertVariable('{age}')">
+                    <code>{age}</code> Age range
+                  </span>
+                  <span class="prompt-variable" onclick="insertVariable('{style}')">
+                    <code>{style}</code> Style modifier
+                  </span>
+                  <span class="prompt-variable" onclick="insertVariable('{ethnicity}')">
+                    <code>{ethnicity}</code> Ethnicity
+                  </span>
+                </div>
+
+                <div class="form-row-3" style="margin-top: 20px;">
+                  <div class="form-group">
+                    <label class="form-label">Provider</label>
+                    <select class="form-select">
+                      <option>Auto</option>
+                      <option selected>Kie.ai</option>
+                      <option>Replicate</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Priority</label>
+                    <input type="number" class="form-input" value="1" min="1" max="23">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select class="form-select">
+                      <option selected>Active</option>
+                      <option>Disabled</option>
+                      <option>Testing</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-light);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <span class="form-label" style="margin-bottom: 0;">Negative Prompt</span>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); cursor: pointer;">
+                      <input type="checkbox" checked> Use default
+                    </label>
+                  </div>
+                  <textarea class="form-textarea" style="min-height: 80px;" disabled>blurry, low quality, distorted, deformed, ugly, bad anatomy, wrong proportions, watermark, text, logo</textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Test Results -->
+            <div class="prompts-results">
+              <div class="prompts-results-header">
+                <span class="prompts-results-title">Test Results</span>
+                <button class="btn btn-primary btn-sm" onclick="runSingleTest()">🧪 Run Test</button>
+              </div>
+              <div class="prompts-results-body">
+                <div class="test-result">
+                  <div class="test-result-image loading">
+                    📸
+                  </div>
+                  <div class="test-result-info">
+                    <div class="test-result-meta">
+                      <span>Kie.ai</span>
+                      <span>12.3s</span>
+                    </div>
+                    <div class="test-result-actions">
+                      <button class="btn btn-sm btn-secondary">👍</button>
+                      <button class="btn btn-sm btn-secondary">👎</button>
+                      <button class="btn btn-sm btn-secondary">📥</button>
+                      <button class="btn btn-sm btn-success">✓ Approve</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="test-result">
+                  <div class="test-result-image">
+                    📸
+                  </div>
+                  <div class="test-result-info">
+                    <div class="test-result-meta">
+                      <span>Kie.ai</span>
+                      <span>11.8s</span>
+                    </div>
+                    <div class="test-result-actions">
+                      <button class="btn btn-sm btn-secondary">👍</button>
+                      <button class="btn btn-sm btn-secondary">👎</button>
+                      <button class="btn btn-sm btn-secondary">📥</button>
+                      <button class="btn btn-sm btn-success">✓ Approve</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">
+                  <p>Run a test to see results here</p>
+                  <p style="font-size: 11px; margin-top: 4px;">Tests use reference images from test user</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROMPT PACKS PAGE -->
+        <div class="admin-page" id="page-packs">
+          <div class="page-header">
+            <h1 class="page-title">Prompt Packs</h1>
+            <div class="page-actions">
+              <button class="btn btn-primary" onclick="openModal('pack-create')">+ New Pack</button>
+            </div>
+          </div>
+
+          <div class="packs-grid">
+            <div class="pack-card active" onclick="selectPack(this)">
+              <div class="pack-header">
+                <div class="pack-icon">💼</div>
+                <span class="badge badge-success">Active</span>
+              </div>
+              <div class="pack-name">Professional</div>
+              <div class="pack-description">Business portraits for LinkedIn, resumes, and corporate profiles</div>
+              <div class="pack-stats">
+                <span class="pack-stat"><strong>9</strong> prompts</span>
+                <span class="pack-stat"><strong>94%</strong> success</span>
+              </div>
+            </div>
+
+            <div class="pack-card" onclick="selectPack(this)">
+              <div class="pack-header">
+                <div class="pack-icon" style="background: linear-gradient(135deg, var(--success), #059669);">🌿</div>
+                <span class="badge badge-success">Active</span>
+              </div>
+              <div class="pack-name">Lifestyle</div>
+              <div class="pack-description">Casual everyday photos for social media and dating profiles</div>
+              <div class="pack-stats">
+                <span class="pack-stat"><strong>9</strong> prompts</span>
+                <span class="pack-stat"><strong>89%</strong> success</span>
+              </div>
+            </div>
+
+            <div class="pack-card" onclick="selectPack(this)">
+              <div class="pack-header">
+                <div class="pack-icon" style="background: linear-gradient(135deg, var(--accent), #6366F1);">🎨</div>
+                <span class="badge badge-success">Active</span>
+              </div>
+              <div class="pack-name">Creative</div>
+              <div class="pack-description">Artistic portraits with creative lighting and unique compositions</div>
+              <div class="pack-stats">
+                <span class="pack-stat"><strong>5</strong> prompts</span>
+                <span class="pack-stat"><strong>87%</strong> success</span>
+              </div>
+            </div>
+
+            <div class="pack-card" onclick="selectPack(this)">
+              <div class="pack-header">
+                <div class="pack-icon" style="background: linear-gradient(135deg, var(--warning), #D97706);">🧪</div>
+                <span class="badge badge-warning">Testing</span>
+              </div>
+              <div class="pack-name">Experimental</div>
+              <div class="pack-description">New prompts being tested before production release</div>
+              <div class="pack-stats">
+                <span class="pack-stat"><strong>12</strong> prompts</span>
+                <span class="pack-stat"><strong>78%</strong> success</span>
+              </div>
+            </div>
+
+            <div class="pack-card" onclick="selectPack(this)">
+              <div class="pack-header">
+                <div class="pack-icon" style="background: linear-gradient(135deg, #EC4899, #DB2777);">👗</div>
+                <span class="badge badge-neutral">Draft</span>
+              </div>
+              <div class="pack-name">Fashion</div>
+              <div class="pack-description">High fashion and editorial style portraits</div>
+              <div class="pack-stats">
+                <span class="pack-stat"><strong>7</strong> prompts</span>
+                <span class="pack-stat"><strong>—</strong> not tested</span>
+              </div>
+            </div>
+
+            <div class="pack-card" style="border-style: dashed; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 180px;" onclick="openModal('pack-create')">
+              <div style="font-size: 32px; margin-bottom: 12px;">+</div>
+              <div style="font-size: 14px; font-weight: 600; color: var(--text-muted);">Create New Pack</div>
+            </div>
+          </div>
+
+          <!-- Selected Pack Details -->
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+              <span class="card-title">Professional Pack - Prompts</span>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary btn-sm">Reorder</button>
+                <button class="btn btn-secondary btn-sm">+ Add Prompt</button>
+              </div>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 40px;">#</th>
+                  <th>Prompt Name</th>
+                  <th>Success Rate</th>
+                  <th>Avg Time</th>
+                  <th>Uses</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td>
+                  <td><strong>LinkedIn Headshot</strong></td>
+                  <td><span style="color: var(--success)">98%</span></td>
+                  <td>12.3s</td>
+                  <td>1,234</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm">Edit</button>
+                    <button class="btn btn-ghost btn-sm">🧪</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>2</td>
+                  <td><strong>Corporate Portrait</strong></td>
+                  <td><span style="color: var(--success)">95%</span></td>
+                  <td>11.8s</td>
+                  <td>987</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm">Edit</button>
+                    <button class="btn btn-ghost btn-sm">🧪</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>3</td>
+                  <td><strong>Business Casual</strong></td>
+                  <td><span style="color: var(--success)">92%</span></td>
+                  <td>13.1s</td>
+                  <td>856</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm">Edit</button>
+                    <button class="btn btn-ghost btn-sm">🧪</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PARTNERS PAGE -->
+        <div class="admin-page" id="page-partners">
+          <div class="page-header">
+            <h1 class="page-title">Partner Applications</h1>
+          </div>
+
+          <div class="tabs">
+            <button class="tab active">Pending (3)</button>
+            <button class="tab">Approved</button>
+            <button class="tab">Rejected</button>
+          </div>
+
+          <div class="card">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Audience</th>
+                  <th>Current Referrals</th>
+                  <th>Revenue Generated</th>
+                  <th>Applied</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>@beauty_blogger</strong></td>
+                  <td>146K total</td>
+                  <td>23</td>
+                  <td><strong style="color: var(--success)">11,500 ₽</strong></td>
+                  <td>2 days ago</td>
+                  <td><button class="btn btn-primary btn-sm" onclick="openModal('partner-application')">Review</button></td>
+                </tr>
+                <tr>
+                  <td><strong>@photo_master</strong></td>
+                  <td>45K total</td>
+                  <td>8</td>
+                  <td><strong style="color: var(--success)">4,500 ₽</strong></td>
+                  <td>5 days ago</td>
+                  <td><button class="btn btn-primary btn-sm" onclick="openModal('partner-application')">Review</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SUPPORT PAGE -->
+        <div class="admin-page" id="page-support">
+          <div class="page-header">
+            <h1 class="page-title">Support Tickets</h1>
+          </div>
+
+          <div class="card">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Ticket</th>
+                  <th>User</th>
+                  <th>Subject</th>
+                  <th>Category</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>#TKT-1234</td>
+                  <td><strong>@maria_style</strong></td>
+                  <td>Фотографии не генерируются</td>
+                  <td><span class="badge badge-info">Generation</span></td>
+                  <td><span class="badge badge-danger">High</span></td>
+                  <td><span class="badge badge-warning">Open</span></td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openModal('ticket-details')">View</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Other pages would go here -->
+        <div class="admin-page" id="page-logs">
+          <div class="page-header"><h1 class="page-title">Logs</h1></div>
+          <div class="card"><div class="card-body">Logs content...</div></div>
+        </div>
+        <div class="admin-page" id="page-referrals">
+          <div class="page-header"><h1 class="page-title">Referrals</h1></div>
+          <div class="card"><div class="card-body">Referrals content...</div></div>
+        </div>
+        <div class="admin-page" id="page-telegram">
+          <div class="page-header"><h1 class="page-title">Telegram</h1></div>
+          <div class="card"><div class="card-body">Telegram content...</div></div>
+        </div>
+        <div class="admin-page" id="page-settings">
+          <div class="page-header"><h1 class="page-title">Settings</h1></div>
+          <div class="card"><div class="card-body">Settings content...</div></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       PARTNER CABINET VIEW
+  ============================================ -->
+  <div class="view-container" id="view-partner">
+    <div class="admin-layout">
+      <aside class="admin-sidebar">
+        <div style="padding: 20px; border-bottom: 1px solid var(--border-light);">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--accent)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 18px;">A</div>
+            <div>
+              <div style="font-weight: 700; color: var(--text-primary);">@designer_pro</div>
+              <span class="badge badge-premium">Partner 50%</span>
+            </div>
+          </div>
+          <div style="background: var(--bg-main); border-radius: var(--radius-md); padding: 12px; text-align: center;">
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Available Balance</div>
+            <div style="font-size: 24px; font-weight: 800; color: var(--success);">12,450 ₽</div>
+          </div>
+        </div>
+        <div class="admin-sidebar-section" style="margin-top: 20px;">
+          <button class="admin-sidebar-item active" data-partner-page="partner-dashboard">
+            <span>📊</span> Dashboard
+          </button>
+          <button class="admin-sidebar-item" data-partner-page="partner-referrals">
+            <span>👥</span> Referrals
+          </button>
+          <button class="admin-sidebar-item" data-partner-page="partner-payouts">
+            <span>💰</span> Payouts
+          </button>
+          <button class="admin-sidebar-item" data-partner-page="partner-promo">
+            <span>📦</span> Promo Materials
+          </button>
+          <button class="admin-sidebar-item" data-partner-page="partner-stats">
+            <span>📈</span> Statistics
+          </button>
+        </div>
+      </aside>
+      <div class="admin-main">
+        <div class="admin-page active" id="partner-dashboard">
+          <div class="page-header">
+            <h1 class="page-title">Partner Dashboard</h1>
+            <button class="btn btn-primary" onclick="openModal('withdrawal')">💸 Withdraw</button>
+          </div>
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">Total Earnings</div>
+              <div class="kpi-value success">44,450 ₽</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Total Referrals</div>
+              <div class="kpi-value">89</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Conversion Rate</div>
+              <div class="kpi-value">32%</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">This Month</div>
+              <div class="kpi-value success">+8,450 ₽</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Recent Referrals</span>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Registered</th>
+                  <th>Purchase</th>
+                  <th>Your Commission</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>@anna_***</td>
+                  <td>10 Jan 2026</td>
+                  <td>999 ₽</td>
+                  <td><strong style="color: var(--success)">499.50 ₽</strong></td>
+                  <td><span class="badge badge-success">Credited</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- Other partner pages would go here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       MOBILE SCREENS VIEW
+  ============================================ -->
+  <div class="view-container" id="view-mobile">
+    <div class="phone-preview-container">
+      <div style="text-align: center; color: white; margin-bottom: 20px; width: 100%;">
+        <h2 style="font-size: 24px; font-weight: 800; margin-bottom: 8px;">Mobile App Screens</h2>
+        <p style="color: rgba(255,255,255,0.6);">Preview of mobile app views</p>
+      </div>
+
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-content" style="padding: 20px; background: var(--bg-main);">
+          <div style="text-align: center; padding: 60px 20px;">
+            <div style="font-size: 64px; margin-bottom: 20px;">📸</div>
+            <h2 style="font-size: 24px; font-weight: 800; color: var(--text-primary); margin-bottom: 12px;">PinGlass</h2>
+            <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">AI-портреты за 5 минут</p>
+            <button class="btn btn-primary btn-lg" style="margin-top: 32px;">Начать</button>
+          </div>
+        </div>
+        <div class="phone-home"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ============================================
+     MODALS
+============================================ -->
+
+<!-- User Details Modal -->
+<div class="modal-overlay" id="modal-user-details">
+  <div class="modal wide">
+    <div class="modal-header">
+      <span class="modal-title">👤 User Details</span>
+      <button class="modal-close" onclick="closeModal('user-details')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="user-header">
+        <div class="user-avatar">D</div>
+        <div class="user-info">
+          <h3>@designer_pro</h3>
+          <p>Telegram ID: 123456789</p>
+          <div class="user-badges">
+            <span class="badge badge-success">Active</span>
+            <span class="badge badge-premium">Partner 50%</span>
+          </div>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value">3</div>
+          <div class="stat-label">Avatars</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value success">2,997 ₽</div>
+          <div class="stat-label">Total Paid</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">12</div>
+          <div class="stat-label">Referrals</div>
+        </div>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Registered</span>
+        <span class="detail-value">10 января 2026, 14:32</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Last Active</span>
+        <span class="detail-value">Сегодня, 15:20</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Referral Code</span>
+        <span class="detail-value">DESIGN123</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger">🚫 Ban User</button>
+      <button class="btn btn-secondary" onclick="closeModal('user-details')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Payment Details Modal -->
+<div class="modal-overlay" id="modal-payment-details">
+  <div class="modal wide">
+    <div class="modal-header">
+      <span class="modal-title">💳 Payment #PAY-2847</span>
+      <button class="modal-close" onclick="closeModal('payment-details')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-success">
+        <span class="alert-icon">✅</span>
+        <div class="alert-content">
+          <div class="alert-title">Payment Successful</div>
+          <div class="alert-text">Оплачено 10 янв 2026 в 14:32 через T-Bank</div>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+          <h4 style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px;">Payment Info</h4>
+          <div class="detail-row">
+            <span class="detail-label">Amount</span>
+            <span class="detail-value success">999 ₽</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Provider</span>
+            <span class="detail-value"><span class="badge badge-info">T-Bank</span></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Tier</span>
+            <span class="detail-value">Standard (15 фото)</span>
+          </div>
+        </div>
+        <div>
+          <h4 style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px;">User</h4>
+          <div class="detail-row">
+            <span class="detail-label">Username</span>
+            <span class="detail-value">@anna_photo</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Referral</span>
+            <span class="detail-value">DESIGN123</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Commission</span>
+            <span class="detail-value success">499.50 ₽</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger">💸 Refund</button>
+      <button class="btn btn-secondary" onclick="closeModal('payment-details')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generation Details Modal -->
+<div class="modal-overlay" id="modal-generation-details">
+  <div class="modal extra-wide">
+    <div class="modal-header">
+      <span class="modal-title">⚡ Generation #GEN-8924</span>
+      <button class="modal-close" onclick="closeModal('generation-details')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info">
+        <span class="alert-icon">✨</span>
+        <div class="alert-content">
+          <div class="alert-title">Generation Completed</div>
+          <div class="alert-text">23/23 фото сгенерировано за 4 мин 32 сек</div>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+        <div class="detail-row">
+          <span class="detail-label">Style</span>
+          <span class="detail-value">Professional</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Provider</span>
+          <span class="detail-value"><span class="badge badge-info">Kie.ai</span></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">API Cost</span>
+          <span class="detail-value">$0.46</span>
+        </div>
+      </div>
+      <h4 style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px;">Generated Photos</h4>
+      <div class="photos-grid">
+        <div class="photo-thumb">📸</div>
+        <div class="photo-thumb">📸</div>
+        <div class="photo-thumb">📸</div>
+        <div class="photo-thumb">📸</div>
+        <div class="photo-thumb">📸</div>
+        <div class="photo-thumb">📸</div>
+        <div class="photo-thumb">📸</div>
+        <div class="photo-thumb">📸</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary">📥 Download All</button>
+      <button class="btn btn-secondary" onclick="closeModal('generation-details')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generation Failed Modal -->
+<div class="modal-overlay" id="modal-generation-failed">
+  <div class="modal wide">
+    <div class="modal-header">
+      <span class="modal-title">❌ Generation #GEN-8925</span>
+      <button class="modal-close" onclick="closeModal('generation-failed')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-danger">
+        <span class="alert-icon">❌</span>
+        <div class="alert-content">
+          <div class="alert-title">Generation Failed</div>
+          <div class="alert-text">Error: API rate limit exceeded. 18/23 photos generated.</div>
+        </div>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Progress</span>
+        <span class="detail-value" style="color: var(--warning)">18/23 (78%)</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Error Code</span>
+        <span class="detail-value danger">RATE_LIMIT</span>
+      </div>
+      <div style="background: #1E293B; border-radius: var(--radius-md); padding: 16px; font-family: monospace; font-size: 12px; color: #94A3B8; margin-top: 16px;">
+        <div style="color: #EF4444;">❌ 14:45:32 - Photo 19: API rate limit exceeded</div>
+        <div style="color: #F59E0B;">⚠️ 14:45:30 - Retry 3/3 for photo 19</div>
+        <div style="color: #10B981;">✓ 14:42:00 - Photo 18 completed</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger">💸 Refund</button>
+      <button class="btn btn-warning">🔄 Retry (5 photos)</button>
+      <button class="btn btn-primary">🔀 Switch Provider</button>
+    </div>
+  </div>
+</div>
+
+<!-- Partner Application Modal -->
+<div class="modal-overlay" id="modal-partner-application">
+  <div class="modal wide">
+    <div class="modal-header">
+      <span class="modal-title">👑 Partner Application</span>
+      <button class="modal-close" onclick="closeModal('partner-application')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="user-header">
+        <div class="user-avatar" style="background: linear-gradient(135deg, var(--warning), var(--primary));">B</div>
+        <div class="user-info">
+          <h3>@beauty_blogger</h3>
+          <p>Telegram ID: 456789123</p>
+          <div class="user-badges">
+            <span class="badge badge-warning">Pending Review</span>
+          </div>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value">5</div>
+          <div class="stat-label">Own Purchases</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">23</div>
+          <div class="stat-label">Current Referrals</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value success">11,500 ₽</div>
+          <div class="stat-label">Referred Revenue</div>
+        </div>
+      </div>
+      <div class="info-block">
+        <div class="info-block-title">📱 Social Media</div>
+        <div class="info-block-text">
+          Instagram: @beauty_blogger_official (45K)<br>
+          Telegram: @beauty_channel (12K)<br>
+          TikTok: @beautyblogger (89K)
+        </div>
+      </div>
+      <div class="info-block">
+        <div class="info-block-title">💬 Why they want to be a partner</div>
+        <div class="info-block-text">
+          "Я бьюти-блогер и создаю контент о фотографии. Хочу рекомендовать PinGlass своей аудитории."
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger">❌ Reject</button>
+      <button class="btn btn-secondary">💬 Request Info</button>
+      <button class="btn btn-success">✅ Approve (50%)</button>
+    </div>
+  </div>
+</div>
+
+<!-- Support Ticket Modal -->
+<div class="modal-overlay" id="modal-ticket-details">
+  <div class="modal wide">
+    <div class="modal-header">
+      <span class="modal-title">🎫 Ticket #TKT-1234</span>
+      <button class="modal-close" onclick="closeModal('ticket-details')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom: 16px;">
+        <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">Фотографии не генерируются, зависло на 50%</h3>
+        <div style="display: flex; gap: 8px;">
+          <span class="badge badge-warning">Open</span>
+          <span class="badge badge-info">Generation Issue</span>
+        </div>
+      </div>
+      <div class="info-block">
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--warning), var(--primary)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">M</div>
+          <div style="flex: 1;">
+            <div style="font-size: 13px; font-weight: 600;">@maria_style</div>
+            <div style="font-size: 11px; color: var(--text-muted);">15:45</div>
+          </div>
+        </div>
+        <div style="margin-top: 12px; padding: 12px; background: white; border-radius: var(--radius-sm); font-size: 13px; line-height: 1.5;">
+          Здравствуйте! Оплатила генерацию 23 фото, но процесс завис на 50%. Жду уже 20 минут. Что делать?
+        </div>
+      </div>
+      <div class="form-group">
+        <textarea class="form-textarea" placeholder="Type your reply..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-success">✅ Resolve</button>
+      <button class="btn btn-primary">📤 Send Reply</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add to Pack Modal -->
+<div class="modal-overlay" id="modal-add-to-pack">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">📦 Add to Pack</span>
+      <button class="modal-close" onclick="closeModal('add-to-pack')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Select a pack to add <strong id="add-pack-count">0</strong> selected prompts:</p>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-main); border-radius: var(--radius-sm); cursor: pointer;">
+          <input type="radio" name="pack" value="professional">
+          <span style="font-size: 18px;">💼</span>
+          <span style="font-weight: 600;">Professional</span>
+          <span style="margin-left: auto; font-size: 12px; color: var(--text-muted);">9 prompts</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-main); border-radius: var(--radius-sm); cursor: pointer;">
+          <input type="radio" name="pack" value="lifestyle">
+          <span style="font-size: 18px;">🌿</span>
+          <span style="font-weight: 600;">Lifestyle</span>
+          <span style="margin-left: auto; font-size: 12px; color: var(--text-muted);">9 prompts</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-main); border-radius: var(--radius-sm); cursor: pointer;">
+          <input type="radio" name="pack" value="creative">
+          <span style="font-size: 18px;">🎨</span>
+          <span style="font-weight: 600;">Creative</span>
+          <span style="margin-left: auto; font-size: 12px; color: var(--text-muted);">5 prompts</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-main); border-radius: var(--radius-sm); cursor: pointer;">
+          <input type="radio" name="pack" value="experimental">
+          <span style="font-size: 18px;">🧪</span>
+          <span style="font-weight: 600;">Experimental</span>
+          <span style="margin-left: auto; font-size: 12px; color: var(--text-muted);">12 prompts</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('add-to-pack')">Cancel</button>
+      <button class="btn btn-primary">Add to Pack</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pack Create Modal -->
+<div class="modal-overlay" id="modal-pack-create">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">📦 Create New Pack</span>
+      <button class="modal-close" onclick="closeModal('pack-create')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Pack Name</label>
+        <input type="text" class="form-input" placeholder="e.g., Fashion Editorial">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" placeholder="Describe this prompt pack..."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Icon</label>
+          <select class="form-select">
+            <option>💼 Business</option>
+            <option>🌿 Nature</option>
+            <option>🎨 Art</option>
+            <option>👗 Fashion</option>
+            <option>🧪 Experimental</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-select">
+            <option>Draft</option>
+            <option>Testing</option>
+            <option>Active</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('pack-create')">Cancel</button>
+      <button class="btn btn-primary">Create Pack</button>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt Create Modal -->
+<div class="modal-overlay" id="modal-prompt-create">
+  <div class="modal wide">
+    <div class="modal-header">
+      <span class="modal-title">✨ Create New Prompt</span>
+      <button class="modal-close" onclick="closeModal('prompt-create')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Prompt Name</label>
+          <input type="text" class="form-input" placeholder="e.g., Sunset Portrait">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select class="form-select">
+            <option>Professional</option>
+            <option>Lifestyle</option>
+            <option>Creative</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Prompt Text</label>
+        <textarea class="form-textarea" style="min-height: 150px;" placeholder="A professional portrait of {subject}..."></textarea>
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">Provider</label>
+          <select class="form-select">
+            <option>Auto</option>
+            <option>Kie.ai</option>
+            <option>Replicate</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Priority</label>
+          <input type="number" class="form-input" value="1" min="1" max="23">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Pack</label>
+          <select class="form-select">
+            <option>None</option>
+            <option>Professional</option>
+            <option>Lifestyle</option>
+            <option>Creative</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('prompt-create')">Cancel</button>
+      <button class="btn btn-secondary">🧪 Test First</button>
+      <button class="btn btn-primary">Create Prompt</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================
+     CONFIRMATION DIALOGS
+============================================ -->
+
+<!-- Confirm Ban User -->
+<div class="modal-overlay" id="modal-confirm-ban">
+  <div class="modal" style="max-width: 420px;">
+    <div class="modal-header">
+      <span class="modal-title">⚠️ Confirm Ban</span>
+      <button class="modal-close" onclick="closeModal('confirm-ban')">×</button>
+    </div>
+    <div class="modal-body" style="text-align: center; padding: 32px;">
+      <div style="width: 64px; height: 64px; background: var(--danger-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 28px;">
+        🚫
+      </div>
+      <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 12px;">Ban this user?</h3>
+      <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+        <strong>@maria_photo</strong> will lose access to all features. This action can be reversed.
+      </p>
+      <div class="form-group" style="text-align: left;">
+        <label class="form-label">Reason (optional)</label>
+        <select class="form-select">
+          <option>Select reason...</option>
+          <option>Violation of Terms of Service</option>
+          <option>Suspicious payment activity</option>
+          <option>Spam or abuse</option>
+          <option>Chargebacks</option>
+          <option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content: center; gap: 12px;">
+      <button class="btn btn-secondary btn-lg" onclick="closeModal('confirm-ban')">Cancel</button>
+      <button class="btn btn-danger btn-lg" onclick="closeModal('confirm-ban'); showToast('User banned successfully', 'success')">🚫 Ban User</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete -->
+<div class="modal-overlay" id="modal-confirm-delete">
+  <div class="modal" style="max-width: 420px;">
+    <div class="modal-header">
+      <span class="modal-title">🗑️ Confirm Delete</span>
+      <button class="modal-close" onclick="closeModal('confirm-delete')">×</button>
+    </div>
+    <div class="modal-body" style="text-align: center; padding: 32px;">
+      <div style="width: 64px; height: 64px; background: var(--danger-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 28px;">
+        🗑️
+      </div>
+      <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 12px;">Delete this item?</h3>
+      <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">
+        This action <strong>cannot be undone</strong>. All associated data will be permanently removed.
+      </p>
+    </div>
+    <div class="modal-footer" style="justify-content: center; gap: 12px;">
+      <button class="btn btn-secondary btn-lg" onclick="closeModal('confirm-delete')">Cancel</button>
+      <button class="btn btn-danger btn-lg" onclick="closeModal('confirm-delete'); showToast('Item deleted', 'success')">🗑️ Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Refund -->
+<div class="modal-overlay" id="modal-confirm-refund">
+  <div class="modal" style="max-width: 480px;">
+    <div class="modal-header">
+      <span class="modal-title">💸 Process Refund</span>
+      <button class="modal-close" onclick="closeModal('confirm-refund')">×</button>
+    </div>
+    <div class="modal-body" style="padding: 24px;">
+      <div style="background: var(--warning-light); border-radius: var(--radius-md); padding: 16px; margin-bottom: 20px; display: flex; gap: 12px;">
+        <span style="font-size: 20px;">⚠️</span>
+        <div>
+          <strong style="color: #92400E;">This will refund payment to customer</strong>
+          <p style="color: #92400E; font-size: 13px; margin-top: 4px;">The refund will be processed through T-Bank and may take 3-5 business days.</p>
+        </div>
+      </div>
+
+      <div style="background: var(--bg-main); border-radius: var(--radius-md); padding: 16px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+          <span style="color: var(--text-muted);">Payment ID</span>
+          <strong>PAY-2847</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+          <span style="color: var(--text-muted);">Amount</span>
+          <strong style="color: var(--danger);">999 ₽</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">User</span>
+          <strong>@maria_photo</strong>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Refund amount</label>
+        <div style="display: flex; gap: 12px;">
+          <button class="btn btn-secondary" style="flex: 1;" onclick="document.getElementById('refund-amount').value = '999'">Full (999 ₽)</button>
+          <button class="btn btn-secondary" style="flex: 1;" onclick="document.getElementById('refund-amount').value = '499'">Partial</button>
+        </div>
+        <input type="number" id="refund-amount" class="form-input" value="999" style="margin-top: 12px;">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Reason</label>
+        <select class="form-select">
+          <option>Select reason...</option>
+          <option>Customer request</option>
+          <option>Generation failed</option>
+          <option>Quality issues</option>
+          <option>Duplicate payment</option>
+          <option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('confirm-refund')">Cancel</button>
+      <button class="btn btn-warning" onclick="closeModal('confirm-refund'); showToast('Refund processed: 999 ₽', 'success')">💸 Process Refund</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Cancel Generation -->
+<div class="modal-overlay" id="modal-confirm-cancel-gen">
+  <div class="modal" style="max-width: 420px;">
+    <div class="modal-header">
+      <span class="modal-title">⏹️ Cancel Generation</span>
+      <button class="modal-close" onclick="closeModal('confirm-cancel-gen')">×</button>
+    </div>
+    <div class="modal-body" style="text-align: center; padding: 32px;">
+      <div style="width: 64px; height: 64px; background: var(--warning-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 28px;">
+        ⏹️
+      </div>
+      <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 12px;">Cancel this generation?</h3>
+      <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">
+        Generation #GEN-8926 is currently in progress (12/23 photos). Canceling will stop the process and partial results will be lost.
+      </p>
+    </div>
+    <div class="modal-footer" style="justify-content: center; gap: 12px;">
+      <button class="btn btn-secondary btn-lg" onclick="closeModal('confirm-cancel-gen')">Keep Running</button>
+      <button class="btn btn-warning btn-lg" onclick="closeModal('confirm-cancel-gen'); showToast('Generation cancelled', 'warning')">⏹️ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================
+     AVATAR DETAILS MODAL
+============================================ -->
+<div class="modal-overlay" id="modal-avatar-details">
+  <div class="modal extra-wide">
+    <div class="modal-header">
+      <span class="modal-title">🖼️ Avatar: Business Portrait</span>
+      <button class="modal-close" onclick="closeModal('avatar-details')">×</button>
+    </div>
+    <div class="modal-body" style="padding: 0; max-height: 70vh; overflow-y: auto;">
+      <!-- Avatar Info -->
+      <div style="padding: 20px; background: var(--bg-main); border-bottom: 1px solid var(--border-light);">
+        <div style="display: flex; gap: 20px; align-items: center;">
+          <div style="width: 80px; height: 80px; border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--primary), var(--accent)); display: flex; align-items: center; justify-content: center; font-size: 32px; color: white;">
+            👔
+          </div>
+          <div style="flex: 1;">
+            <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">Business Portrait</h3>
+            <p style="color: var(--text-muted); font-size: 13px;">Created Jan 8, 2026 • Style: Professional</p>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <span class="badge badge-success">✓ Complete</span>
+              <span class="badge badge-info">23 photos</span>
+              <span class="badge badge-neutral">Pack: Professional</span>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 24px; font-weight: 800; color: var(--success);">23/23</div>
+            <div style="font-size: 12px; color: var(--text-muted);">Generated</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Photo Grid -->
+      <div style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h4 style="font-size: 14px; font-weight: 700;">Generated Photos</h4>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-sm btn-secondary">📥 Download All</button>
+            <button class="btn btn-sm btn-secondary">🔄 Regenerate Failed</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;">
+          <div style="aspect-ratio: 1; background: linear-gradient(135deg, #FFE5E5, #FFD0D0); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s; position: relative;" onclick="this.classList.toggle('selected')" class="photo-thumb">
+            <span style="font-size: 24px;">👔</span>
+            <span style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">#1</span>
+            <div class="photo-check" style="position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; background: var(--success); border-radius: 50%; display: none; align-items: center; justify-content: center; color: white; font-size: 12px;">✓</div>
+          </div>
+          <div style="aspect-ratio: 1; background: linear-gradient(135deg, #E5F0FF, #D0E5FF); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative;" class="photo-thumb">
+            <span style="font-size: 24px;">💼</span>
+            <span style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">#2</span>
+          </div>
+          <div style="aspect-ratio: 1; background: linear-gradient(135deg, #F0E5FF, #E0D0FF); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative;" class="photo-thumb">
+            <span style="font-size: 24px;">🏢</span>
+            <span style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">#3</span>
+          </div>
+          <div style="aspect-ratio: 1; background: linear-gradient(135deg, #E5FFE5, #D0FFD0); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative;" class="photo-thumb">
+            <span style="font-size: 24px;">📊</span>
+            <span style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">#4</span>
+          </div>
+          <div style="aspect-ratio: 1; background: linear-gradient(135deg, #FFF5E5, #FFE5D0); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative;" class="photo-thumb">
+            <span style="font-size: 24px;">☕</span>
+            <span style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">#5</span>
+          </div>
+          <div style="aspect-ratio: 1; background: var(--danger-light); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative;" class="photo-thumb">
+            <span style="font-size: 24px;">❌</span>
+            <span style="font-size: 10px; color: var(--danger); margin-top: 4px;">Failed</span>
+          </div>
+          <!-- More photos would follow... -->
+          <div style="aspect-ratio: 1; background: linear-gradient(135deg, #FFE5F0, #FFD0E5); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <span style="font-size: 24px;">🎨</span>
+            <span style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">#7</span>
+          </div>
+          <div style="aspect-ratio: 1; background: linear-gradient(135deg, #E5FFFF, #D0FFFF); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <span style="font-size: 24px;">🌟</span>
+            <span style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">#8</span>
+          </div>
+          <div style="aspect-ratio: 1; background: linear-gradient(135deg, #FFF0F5, #FFE0EA); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <span style="font-size: 24px;">✨</span>
+            <span style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">#9</span>
+          </div>
+          <div style="aspect-ratio: 1; background: var(--bg-main); border: 2px dashed var(--border-medium); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">
+            +14 more
+          </div>
+        </div>
+      </div>
+
+      <!-- Generation Details -->
+      <div style="padding: 20px; border-top: 1px solid var(--border-light);">
+        <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 12px;">Generation Info</h4>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+          <div style="background: var(--bg-main); padding: 12px; border-radius: var(--radius-md);">
+            <div style="font-size: 12px; color: var(--text-muted);">Provider</div>
+            <div style="font-size: 14px; font-weight: 600;">Kie.ai</div>
+          </div>
+          <div style="background: var(--bg-main); padding: 12px; border-radius: var(--radius-md);">
+            <div style="font-size: 12px; color: var(--text-muted);">Duration</div>
+            <div style="font-size: 14px; font-weight: 600;">8m 32s</div>
+          </div>
+          <div style="background: var(--bg-main); padding: 12px; border-radius: var(--radius-md);">
+            <div style="font-size: 12px; color: var(--text-muted);">Cost</div>
+            <div style="font-size: 14px; font-weight: 600;">$2.30</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('avatar-details')">Close</button>
+      <button class="btn btn-danger" onclick="openModal('confirm-delete')">🗑️ Delete Avatar</button>
+      <button class="btn btn-primary">📥 Export All</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================
+     NOTIFICATION CENTER
+============================================ -->
+<div class="modal-overlay" id="modal-notifications">
+  <div class="modal wide" style="max-height: 80vh;">
+    <div class="modal-header">
+      <span class="modal-title">🔔 Notifications</span>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-sm btn-ghost">Mark all read</button>
+        <button class="modal-close" onclick="closeModal('notifications')">×</button>
+      </div>
+    </div>
+    <div class="modal-body" style="padding: 0; max-height: 60vh; overflow-y: auto;">
+      <!-- Notification Item - Unread -->
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-light); background: rgba(255,107,107,0.05); cursor: pointer;" onclick="this.style.background = 'white'">
+        <div style="display: flex; gap: 12px;">
+          <div style="width: 40px; height: 40px; background: var(--warning-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">
+            ⚠️
+          </div>
+          <div style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <strong style="font-size: 14px;">Generation Failed</strong>
+              <span style="font-size: 11px; color: var(--text-muted);">2 min ago</span>
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">Generation #GEN-8925 failed for @maria_photo. Reason: API timeout after 3 retries.</p>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <button class="btn btn-sm btn-secondary">View Details</button>
+              <button class="btn btn-sm btn-primary">Retry</button>
+            </div>
+          </div>
+          <div style="width: 8px; height: 8px; background: var(--primary); border-radius: 50%; flex-shrink: 0;"></div>
+        </div>
+      </div>
+
+      <!-- Notification Item - Unread -->
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-light); background: rgba(255,107,107,0.05); cursor: pointer;">
+        <div style="display: flex; gap: 12px;">
+          <div style="width: 40px; height: 40px; background: linear-gradient(135deg, var(--accent), #6366F1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; color: white;">
+            👑
+          </div>
+          <div style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <strong style="font-size: 14px;">New Partner Application</strong>
+              <span style="font-size: 11px; color: var(--text-muted);">15 min ago</span>
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">@beauty_blogger (125K followers) applied for partner status. Channel: Beauty & Lifestyle.</p>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <button class="btn btn-sm btn-success">Approve</button>
+              <button class="btn btn-sm btn-secondary">Review</button>
+            </div>
+          </div>
+          <div style="width: 8px; height: 8px; background: var(--primary); border-radius: 50%; flex-shrink: 0;"></div>
+        </div>
+      </div>
+
+      <!-- Notification Item - Read -->
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-light); cursor: pointer;">
+        <div style="display: flex; gap: 12px;">
+          <div style="width: 40px; height: 40px; background: var(--success-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">
+            💰
+          </div>
+          <div style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <strong style="font-size: 14px; color: var(--text-secondary);">Large Payment Received</strong>
+              <span style="font-size: 11px; color: var(--text-muted);">1 hour ago</span>
+            </div>
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">Payment of 4,999 ₽ received from @vip_client. Premium tier purchase.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notification Item - Read -->
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-light); cursor: pointer;">
+        <div style="display: flex; gap: 12px;">
+          <div style="width: 40px; height: 40px; background: var(--danger-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">
+            🚨
+          </div>
+          <div style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <strong style="font-size: 14px; color: var(--text-secondary);">Refund Request</strong>
+              <span style="font-size: 11px; color: var(--text-muted);">3 hours ago</span>
+            </div>
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">@unhappy_user requested refund for PAY-2840. Reason: "Photos don't look like me"</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notification Item - Read -->
+      <div style="padding: 16px 20px; cursor: pointer;">
+        <div style="display: flex; gap: 12px;">
+          <div style="width: 40px; height: 40px; background: var(--info-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">
+            📊
+          </div>
+          <div style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <strong style="font-size: 14px; color: var(--text-secondary);">Daily Report Ready</strong>
+              <span style="font-size: 11px; color: var(--text-muted);">Yesterday</span>
+            </div>
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">Jan 8 report: 47 users, 23 payments (21,450 ₽), 89% success rate.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content: center;">
+      <button class="btn btn-secondary">View All Notifications</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================
+     BULK ACTIONS MODAL
+============================================ -->
+<div class="modal-overlay" id="modal-bulk-actions">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">⚡ Bulk Actions</span>
+      <button class="modal-close" onclick="closeModal('bulk-actions')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="background: var(--info-light); border-radius: var(--radius-md); padding: 14px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
+        <span style="font-size: 20px;">ℹ️</span>
+        <span style="font-size: 13px; color: #1E40AF;"><strong>5 items selected</strong> - Choose action to apply</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <button class="btn btn-secondary btn-lg" style="justify-content: flex-start;" onclick="closeModal('bulk-actions'); showToast('Exporting 5 items...', 'info')">
+          📥 Export Selected
+        </button>
+        <button class="btn btn-secondary btn-lg" style="justify-content: flex-start;" onclick="closeModal('bulk-actions'); openModal('confirm-ban')">
+          🚫 Ban Selected Users
+        </button>
+        <button class="btn btn-secondary btn-lg" style="justify-content: flex-start;">
+          📧 Send Message to Selected
+        </button>
+        <button class="btn btn-secondary btn-lg" style="justify-content: flex-start;">
+          🏷️ Add Tag to Selected
+        </button>
+        <button class="btn btn-danger btn-lg" style="justify-content: flex-start;" onclick="closeModal('bulk-actions'); openModal('confirm-delete')">
+          🗑️ Delete Selected
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================
+     EXPORT MODAL
+============================================ -->
+<div class="modal-overlay" id="modal-export">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">📥 Export Data</span>
+      <button class="modal-close" onclick="closeModal('export')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Export Format</label>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+          <label style="display: flex; flex-direction: column; align-items: center; padding: 20px; border: 2px solid var(--primary); border-radius: var(--radius-md); cursor: pointer; background: rgba(255,107,107,0.05);">
+            <input type="radio" name="export-format" value="csv" checked style="display: none;">
+            <span style="font-size: 28px; margin-bottom: 8px;">📊</span>
+            <strong>CSV</strong>
+            <span style="font-size: 11px; color: var(--text-muted);">Excel compatible</span>
+          </label>
+          <label style="display: flex; flex-direction: column; align-items: center; padding: 20px; border: 2px solid var(--border-light); border-radius: var(--radius-md); cursor: pointer;">
+            <input type="radio" name="export-format" value="json" style="display: none;">
+            <span style="font-size: 28px; margin-bottom: 8px;">📋</span>
+            <strong>JSON</strong>
+            <span style="font-size: 11px; color: var(--text-muted);">For developers</span>
+          </label>
+          <label style="display: flex; flex-direction: column; align-items: center; padding: 20px; border: 2px solid var(--border-light); border-radius: var(--radius-md); cursor: pointer;">
+            <input type="radio" name="export-format" value="xlsx" style="display: none;">
+            <span style="font-size: 28px; margin-bottom: 8px;">📗</span>
+            <strong>XLSX</strong>
+            <span style="font-size: 11px; color: var(--text-muted);">Native Excel</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Date Range</label>
+        <div class="form-row">
+          <input type="date" class="form-input" value="2026-01-01">
+          <input type="date" class="form-input" value="2026-01-09">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Include Fields</label>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <label style="display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: var(--bg-main); border-radius: 20px; cursor: pointer; font-size: 13px;">
+            <input type="checkbox" checked> ID
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: var(--bg-main); border-radius: 20px; cursor: pointer; font-size: 13px;">
+            <input type="checkbox" checked> Username
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: var(--bg-main); border-radius: 20px; cursor: pointer; font-size: 13px;">
+            <input type="checkbox" checked> Email
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: var(--bg-main); border-radius: 20px; cursor: pointer; font-size: 13px;">
+            <input type="checkbox" checked> Amount
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: var(--bg-main); border-radius: 20px; cursor: pointer; font-size: 13px;">
+            <input type="checkbox" checked> Status
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: var(--bg-main); border-radius: 20px; cursor: pointer; font-size: 13px;">
+            <input type="checkbox" checked> Date
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: var(--bg-main); border-radius: 20px; cursor: pointer; font-size: 13px;">
+            <input type="checkbox"> Metadata
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('export')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('export'); showToast('Export started, downloading...', 'success')">📥 Export</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================
+     PARTNER: WITHDRAWAL REQUEST MODAL
+============================================ -->
+<div class="modal-overlay" id="modal-withdrawal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">💸 Withdraw Funds</span>
+      <button class="modal-close" onclick="closeModal('withdrawal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="background: linear-gradient(135deg, var(--success-light), #A7F3D0); border-radius: var(--radius-lg); padding: 24px; text-align: center; margin-bottom: 24px;">
+        <div style="font-size: 12px; color: #065F46; margin-bottom: 4px;">Available Balance</div>
+        <div style="font-size: 36px; font-weight: 800; color: #065F46;">12,450 ₽</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Withdrawal Amount</label>
+        <input type="number" class="form-input" placeholder="Enter amount" value="12450">
+        <div class="form-hint">Minimum withdrawal: 1,000 ₽</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Payment Method</label>
+        <select class="form-select">
+          <option>Bank Card (Visa •••• 4242)</option>
+          <option>Bank Card (MC •••• 8888)</option>
+          <option>+ Add new card</option>
+        </select>
+      </div>
+
+      <div style="background: var(--bg-main); border-radius: var(--radius-md); padding: 16px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+          <span style="color: var(--text-muted); font-size: 13px;">Withdrawal amount</span>
+          <span style="font-weight: 600;">12,450 ₽</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+          <span style="color: var(--text-muted); font-size: 13px;">Processing fee (0%)</span>
+          <span style="font-weight: 600;">0 ₽</span>
+        </div>
+        <div style="border-top: 1px solid var(--border-light); padding-top: 8px; margin-top: 8px; display: flex; justify-content: space-between;">
+          <span style="font-weight: 600;">You will receive</span>
+          <span style="font-weight: 700; color: var(--success);">12,450 ₽</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('withdrawal')">Cancel</button>
+      <button class="btn btn-success" onclick="closeModal('withdrawal'); showToast('Withdrawal request submitted!', 'success')">💸 Request Withdrawal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================
+     EMPTY STATE COMPONENT
+============================================ -->
+<div class="modal-overlay" id="modal-empty-state-demo">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">📋 Empty State Examples</span>
+      <button class="modal-close" onclick="closeModal('empty-state-demo')">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- Empty State: No Results -->
+      <div style="text-align: center; padding: 40px 20px; background: var(--bg-main); border-radius: var(--radius-lg); margin-bottom: 16px;">
+        <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
+        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">No results found</h3>
+        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">Try adjusting your search or filter criteria</p>
+        <button class="btn btn-secondary">Clear Filters</button>
+      </div>
+
+      <!-- Empty State: No Data -->
+      <div style="text-align: center; padding: 40px 20px; background: var(--bg-main); border-radius: var(--radius-lg);">
+        <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">No payments yet</h3>
+        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">Payments will appear here once users make purchases</p>
+        <button class="btn btn-primary">View Documentation</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================
+     LOADING STATE COMPONENT
+============================================ -->
+<div class="modal-overlay" id="modal-loading-demo">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">⏳ Loading State Examples</span>
+      <button class="modal-close" onclick="closeModal('loading-demo')">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- Skeleton Loader -->
+      <div style="margin-bottom: 24px;">
+        <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 12px;">TABLE SKELETON</div>
+        <div style="background: white; border-radius: var(--radius-md); border: 1px solid var(--border-light); overflow: hidden;">
+          <div style="padding: 12px 16px; background: var(--bg-main); display: flex; gap: 16px;">
+            <div style="width: 120px; height: 12px; background: linear-gradient(90deg, #E2E8F0, #F1F5F9, #E2E8F0); border-radius: 4px; animation: shimmer 1.5s infinite;"></div>
+            <div style="width: 80px; height: 12px; background: linear-gradient(90deg, #E2E8F0, #F1F5F9, #E2E8F0); border-radius: 4px; animation: shimmer 1.5s infinite;"></div>
+            <div style="width: 100px; height: 12px; background: linear-gradient(90deg, #E2E8F0, #F1F5F9, #E2E8F0); border-radius: 4px; animation: shimmer 1.5s infinite;"></div>
+          </div>
+          <div style="padding: 14px 16px; border-bottom: 1px solid var(--border-light); display: flex; gap: 16px;">
+            <div style="width: 140px; height: 14px; background: linear-gradient(90deg, #E2E8F0, #F1F5F9, #E2E8F0); border-radius: 4px; animation: shimmer 1.5s infinite;"></div>
+            <div style="width: 60px; height: 14px; background: linear-gradient(90deg, #E2E8F0, #F1F5F9, #E2E8F0); border-radius: 4px; animation: shimmer 1.5s infinite;"></div>
+            <div style="width: 90px; height: 14px; background: linear-gradient(90deg, #E2E8F0, #F1F5F9, #E2E8F0); border-radius: 4px; animation: shimmer 1.5s infinite;"></div>
+          </div>
+          <div style="padding: 14px 16px; border-bottom: 1px solid var(--border-light); display: flex; gap: 16px;">
+            <div style="width: 120px; height: 14px; background: linear-gradient(90deg, #E2E8F0, #F1F5F9, #E2E8F0); border-radius: 4px; animation: shimmer 1.5s infinite;"></div>
+            <div style="width: 70px; height: 14px; background: linear-gradient(90deg, #E2E8F0, #F1F5F9, #E2E8F0); border-radius: 4px; animation: shimmer 1.5s infinite;"></div>
+            <div style="width: 80px; height: 14px; background: linear-gradient(90deg, #E2E8F0, #F1F5F9, #E2E8F0); border-radius: 4px; animation: shimmer 1.5s infinite;"></div>
+          </div>
+          <div style="padding: 14px 16px; display: flex; gap: 16px;">
+            <div style="width: 100px; height: 14px; background: linear-gradient(90deg, #E2E8F0, #F1F5F9, #E2E8F0); border-radius: 4px; animation: shimmer 1.5s infinite;"></div>
+            <div style="width: 50px; height: 14px; background: linear-gradient(90deg, #E2E8F0, #F1F5F9, #E2E8F0); border-radius: 4px; animation: shimmer 1.5s infinite;"></div>
+            <div style="width: 110px; height: 14px; background: linear-gradient(90deg, #E2E8F0, #F1F5F9, #E2E8F0); border-radius: 4px; animation: shimmer 1.5s infinite;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Spinner -->
+      <div style="margin-bottom: 24px;">
+        <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 12px;">SPINNER</div>
+        <div style="display: flex; gap: 24px; align-items: center; justify-content: center; padding: 24px; background: var(--bg-main); border-radius: var(--radius-md);">
+          <div class="spinner" style="width: 24px; height: 24px; border: 3px solid var(--border-light); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+          <div class="spinner" style="width: 32px; height: 32px; border: 3px solid var(--border-light); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+          <div class="spinner" style="width: 40px; height: 40px; border: 4px solid var(--border-light); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+        </div>
+      </div>
+
+      <!-- Button Loading -->
+      <div>
+        <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 12px;">BUTTON STATES</div>
+        <div style="display: flex; gap: 12px;">
+          <button class="btn btn-primary" disabled style="opacity: 0.7;">
+            <span class="spinner" style="width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite;"></span>
+            Loading...
+          </button>
+          <button class="btn btn-secondary" disabled style="opacity: 0.7;">
+            <span class="spinner" style="width: 14px; height: 14px; border: 2px solid var(--border-light); border-top-color: var(--text-secondary); border-radius: 50%; animation: spin 0.8s linear infinite;"></span>
+            Processing...
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+
+<!-- ============================================
+     ERROR STATE COMPONENT
+============================================ -->
+<div class="modal-overlay" id="modal-error-demo">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">❌ Error State Examples</span>
+      <button class="modal-close" onclick="closeModal('error-demo')">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- API Error -->
+      <div style="text-align: center; padding: 32px 20px; background: var(--danger-light); border-radius: var(--radius-lg); margin-bottom: 16px;">
+        <div style="font-size: 48px; margin-bottom: 16px;">🔌</div>
+        <h3 style="font-size: 16px; font-weight: 700; color: #991B1B; margin-bottom: 8px;">Connection Error</h3>
+        <p style="color: #991B1B; font-size: 13px; margin-bottom: 16px;">Unable to connect to the server. Please check your internet connection.</p>
+        <button class="btn btn-danger">🔄 Retry</button>
+      </div>
+
+      <!-- Timeout Error -->
+      <div style="text-align: center; padding: 32px 20px; background: var(--warning-light); border-radius: var(--radius-lg);">
+        <div style="font-size: 48px; margin-bottom: 16px;">⏱️</div>
+        <h3 style="font-size: 16px; font-weight: 700; color: #92400E; margin-bottom: 8px;">Request Timeout</h3>
+        <p style="color: #92400E; font-size: 13px; margin-bottom: 16px;">The request took too long. The server might be busy.</p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button class="btn btn-secondary">Cancel</button>
+          <button class="btn btn-warning">🔄 Try Again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================
+     TOAST NOTIFICATIONS CONTAINER
+============================================ -->
+<div id="toast-container" style="position: fixed; bottom: 24px; right: 24px; z-index: 3000; display: flex; flex-direction: column; gap: 12px;"></div>
+
+<script>
+  // View switching (top nav)
+  document.querySelectorAll('.top-nav-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.top-nav-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('view-' + tab.dataset.view).classList.add('active');
+    });
+  });
+
+  // Admin sidebar navigation
+  document.querySelectorAll('.admin-sidebar-item[data-page]').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.admin-sidebar-item[data-page]').forEach(i => i.classList.remove('active'));
+      document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
+      item.classList.add('active');
+      document.getElementById('page-' + item.dataset.page).classList.add('active');
+    });
+  });
+
+  // Partner sidebar navigation
+  document.querySelectorAll('.admin-sidebar-item[data-partner-page]').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.admin-sidebar-item[data-partner-page]').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+
+  // Modal functions
+  function openModal(name) {
+    document.getElementById('modal-' + name).classList.add('active');
+  }
+
+  function closeModal(name) {
+    document.getElementById('modal-' + name).classList.remove('active');
+  }
+
+  // Close modal on overlay click
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.classList.remove('active');
+      }
+    });
+  });
+
+  // Prompt selection
+  function selectPrompt(element, id) {
+    document.querySelectorAll('.prompt-item').forEach(p => p.classList.remove('active'));
+    element.classList.add('active');
+  }
+
+  // Batch testing
+  let batchSelected = new Map();
+
+  function toggleBatch(id, name) {
+    if (batchSelected.has(id)) {
+      batchSelected.delete(id);
+    } else {
+      batchSelected.set(id, name);
+    }
+    updateBatchPanel();
+  }
+
+  function updateBatchPanel() {
+    const panel = document.getElementById('batch-panel');
+    const countEl = document.getElementById('batch-count');
+    const selectedEl = document.getElementById('batch-selected');
+    const addPackCount = document.getElementById('add-pack-count');
+
+    if (batchSelected.size > 0) {
+      panel.style.display = 'block';
+      countEl.textContent = batchSelected.size;
+      if (addPackCount) addPackCount.textContent = batchSelected.size;
+
+      selectedEl.innerHTML = '';
+      batchSelected.forEach((name, id) => {
+        const item = document.createElement('div');
+        item.className = 'batch-item';
+        item.innerHTML = `
+          ${name}
+          <button class="batch-item-remove" onclick="toggleBatch(${id}, '${name}'); document.querySelector('.prompt-checkbox[onclick*="${id}"]').checked = false;">×</button>
+        `;
+        selectedEl.appendChild(item);
+      });
+    } else {
+      panel.style.display = 'none';
+    }
+  }
+
+  function clearBatch() {
+    batchSelected.clear();
+    document.querySelectorAll('.prompt-checkbox').forEach(cb => cb.checked = false);
+    updateBatchPanel();
+  }
+
+  function runBatchTest() {
+    alert('Running batch test for ' + batchSelected.size + ' prompts...');
+  }
+
+  function runSingleTest() {
+    alert('Running single prompt test...');
+  }
+
+  // Insert variable into prompt
+  function insertVariable(variable) {
+    const textarea = document.getElementById('prompt-text');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    textarea.value = text.substring(0, start) + variable + text.substring(end);
+    textarea.focus();
+    textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+  }
+
+  // Filter prompts
+  function filterPrompts(category) {
+    // In real implementation, this would filter the list
+    console.log('Filtering by:', category);
+  }
+
+  // Select pack
+  function selectPack(element) {
+    document.querySelectorAll('.pack-card').forEach(p => p.classList.remove('active'));
+    element.classList.add('active');
+  }
+
+  // Toast Notifications
+  function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+
+    const colors = {
+      success: { bg: '#D1FAE5', border: '#10B981', text: '#065F46', icon: '✓' },
+      error: { bg: '#FEE2E2', border: '#EF4444', text: '#991B1B', icon: '✕' },
+      warning: { bg: '#FEF3C7', border: '#F59E0B', text: '#92400E', icon: '⚠' },
+      info: { bg: '#DBEAFE', border: '#3B82F6', text: '#1E40AF', icon: 'ℹ' }
+    };
+
+    const c = colors[type] || colors.info;
+
+    toast.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      background: ${c.bg};
+      border: 1px solid ${c.border};
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      font-size: 14px;
+      font-weight: 500;
+      color: ${c.text};
+      animation: toastSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      min-width: 280px;
+    `;
+
+    toast.innerHTML = `
+      <span style="font-size: 18px;">${c.icon}</span>
+      <span style="flex: 1;">${message}</span>
+      <button onclick="this.parentElement.remove()" style="background: none; border: none; font-size: 18px; cursor: pointer; color: ${c.text}; opacity: 0.6;">×</button>
+    `;
+
+    container.appendChild(toast);
+
+    // Auto-remove after 4 seconds
+    setTimeout(() => {
+      toast.style.animation = 'toastSlideOut 0.3s ease forwards';
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
+  }
+
+  // Add demo buttons in header
+  const topNav = document.querySelector('.top-nav');
+  const demoBtn = document.createElement('button');
+  demoBtn.className = 'btn btn-sm btn-secondary';
+  demoBtn.style.marginLeft = 'auto';
+  demoBtn.innerHTML = '🔔';
+  demoBtn.onclick = () => openModal('notifications');
+  topNav.appendChild(demoBtn);
+
+  // Add toast animation
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes toastSlideIn {
+      from { opacity: 0; transform: translateX(100px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes toastSlideOut {
+      from { opacity: 1; transform: translateX(0); }
+      to { opacity: 0; transform: translateX(100px); }
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Demo triggers - uncomment to test
+  // setTimeout(() => showToast('Welcome to PinGlass Admin!', 'info'), 1000);
+  // setTimeout(() => showToast('Generation completed successfully', 'success'), 2000);
+</script>
+
+</body>
+</html>

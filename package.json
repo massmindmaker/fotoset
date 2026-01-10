@@ -36,6 +36,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@sentry/nextjs": "^8",
     "@stackframe/stack-shared": "^2.8.56",
+    "@tonconnect/ui-react": "^2.3.1",
     "@types/bcryptjs": "^2.4.6",
     "@upstash/qstash": "^2.8.4",
     "@vercel/analytics": "latest",

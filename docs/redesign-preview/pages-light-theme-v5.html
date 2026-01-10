@@ -1,0 +1,2038 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PinGlass - App Screens v5 (Missing + Admin)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #FF6B6B;
+      --primary-light: #FF8E8E;
+      --primary-dark: #E85555;
+      --accent: #9B7BFF;
+      --accent-light: #B39DFF;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+      --info: #3B82F6;
+
+      --bg-main: #F8F9FC;
+      --bg-card: #FFFFFF;
+      --bg-elevated: #FEFEFE;
+
+      --text-primary: #1F2937;
+      --text-secondary: #4B5563;
+      --text-muted: #9CA3AF;
+
+      --border-light: rgba(0, 0, 0, 0.06);
+      --border-medium: rgba(0, 0, 0, 0.1);
+
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+      --shadow-glow: 0 4px 20px rgba(255, 107, 107, 0.25);
+
+      --radius-sm: 12px;
+      --radius-md: 16px;
+      --radius-lg: 20px;
+      --radius-xl: 24px;
+
+      --font-main: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-main);
+      background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 32px;
+      color: #fff;
+    }
+
+    .section-header h2 {
+      font-size: 28px;
+      font-weight: 900;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .section-header p {
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+    }
+
+    .screens-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 48px;
+      justify-content: center;
+      align-items: flex-start;
+      margin-bottom: 80px;
+    }
+
+    /* Phone Frame */
+    .phone-wrapper { position: relative; flex-shrink: 0; }
+
+    .phone-label {
+      position: absolute;
+      top: -36px;
+      left: 0; right: 0;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .phone-frame {
+      width: 375px;
+      height: 812px;
+      background: var(--bg-main);
+      border-radius: 48px;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        0 60px 120px -30px rgba(0, 0, 0, 0.4),
+        0 0 0 12px #1a1a2e,
+        0 0 0 14px rgba(255, 255, 255, 0.1);
+    }
+
+    .notch {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 160px;
+      height: 36px;
+      background: #000;
+      border-radius: 0 0 24px 24px;
+      z-index: 50;
+    }
+
+    .status-bar {
+      position: absolute;
+      top: 14px;
+      left: 28px; right: 28px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+      z-index: 40;
+    }
+
+    .home-indicator {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 140px;
+      height: 5px;
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 3px;
+      z-index: 50;
+    }
+
+    .page-content {
+      position: absolute;
+      top: 56px;
+      left: 0; right: 0; bottom: 40px;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .page-content::-webkit-scrollbar { display: none; }
+
+    /* Modal Overlay */
+    .modal-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    .modal-box {
+      background: var(--bg-card);
+      border-radius: var(--radius-xl);
+      padding: 24px;
+      width: 100%;
+      max-width: 320px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 24px;
+    }
+
+    .modal-icon.danger { background: #FEE2E2; }
+    .modal-icon.warning { background: #FEF3C7; }
+    .modal-icon.success { background: #D1FAE5; }
+    .modal-icon.info { background: #DBEAFE; }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .modal-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+      text-align: center;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 14px;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .modal-btn.cancel {
+      background: var(--bg-main);
+      color: var(--text-secondary);
+    }
+
+    .modal-btn.danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .modal-btn.primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: white;
+    }
+
+    /* Buttons */
+    .btn-primary {
+      width: 100%;
+      padding: 16px 24px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      border: none;
+      border-radius: var(--radius-md);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .btn-secondary {
+      width: 100%;
+      padding: 14px 24px;
+      background: var(--bg-main);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Form Elements */
+    .form-group { margin-bottom: 16px; }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      color: var(--text-primary);
+      background: var(--bg-card);
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .form-textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      color: var(--text-primary);
+      background: var(--bg-card);
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      border: 1px solid var(--border-light);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Ban Screen */
+    .ban-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .ban-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: #FEE2E2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      margin-bottom: 24px;
+    }
+
+    /* Network Error */
+    .network-error {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .network-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: #FEF3C7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      margin-bottom: 24px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    /* Withdraw Form */
+    .withdraw-card {
+      background: linear-gradient(135deg, #F0FDF4, #DCFCE7);
+      border: 2px solid #86EFAC;
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .balance-display {
+      font-size: 32px;
+      font-weight: 900;
+      color: var(--success);
+      margin-bottom: 4px;
+    }
+
+    .balance-label {
+      font-size: 13px;
+      color: #166534;
+    }
+
+    /* Earnings List */
+    .earning-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .earning-item:last-child { border-bottom: none; }
+
+    .earning-amount {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--success);
+    }
+
+    .earning-date {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Partner Form */
+    .partner-benefits {
+      background: linear-gradient(135deg, #FDF4FF, #F3E8FF);
+      border: 2px solid #D8B4FE;
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .partner-benefit-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .partner-benefit-item:last-child { margin-bottom: 0; }
+
+    .benefit-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--primary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .benefit-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .benefit-text strong {
+      color: var(--text-primary);
+    }
+
+    /* ========================================
+       ADMIN PANEL STYLES
+    ======================================== */
+    .admin-frame {
+      width: 1200px;
+      min-height: 800px;
+      background: #F1F5F9;
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    .admin-header {
+      background: white;
+      border-bottom: 1px solid #E2E8F0;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .admin-logo {
+      font-size: 20px;
+      font-weight: 800;
+      color: #1E293B;
+    }
+
+    .admin-logo span {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .admin-user {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .admin-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .admin-nav {
+      background: white;
+      border-bottom: 1px solid #E2E8F0;
+      padding: 0 24px;
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+    }
+
+    .admin-nav-item {
+      padding: 14px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #64748B;
+      text-decoration: none;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .admin-nav-item:hover {
+      color: #1E293B;
+    }
+
+    .admin-nav-item.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .admin-content {
+      padding: 24px;
+      min-height: 600px;
+    }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid #E2E8F0;
+    }
+
+    .kpi-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #64748B;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: #1E293B;
+      margin-bottom: 4px;
+    }
+
+    .kpi-change {
+      font-size: 12px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .kpi-change.positive { color: var(--success); }
+    .kpi-change.negative { color: var(--danger); }
+
+    /* Admin Tables */
+    .admin-table-card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #E2E8F0;
+      overflow: hidden;
+    }
+
+    .admin-table-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #E2E8F0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .admin-table-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1E293B;
+    }
+
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .admin-table th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748B;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: #F8FAFC;
+      border-bottom: 1px solid #E2E8F0;
+    }
+
+    .admin-table td {
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #334155;
+      border-bottom: 1px solid #F1F5F9;
+    }
+
+    .admin-table tr:hover td {
+      background: #F8FAFC;
+    }
+
+    /* Status Badges */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-badge.success { background: #D1FAE5; color: #065F46; }
+    .status-badge.warning { background: #FEF3C7; color: #92400E; }
+    .status-badge.danger { background: #FEE2E2; color: #991B1B; }
+    .status-badge.info { background: #DBEAFE; color: #1E40AF; }
+    .status-badge.neutral { background: #F1F5F9; color: #475569; }
+
+    /* Admin Buttons */
+    .admin-btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .admin-btn.primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .admin-btn.secondary {
+      background: #F1F5F9;
+      color: #475569;
+    }
+
+    .admin-btn.danger {
+      background: #FEE2E2;
+      color: #DC2626;
+    }
+
+    /* Charts placeholder */
+    .chart-placeholder {
+      background: linear-gradient(135deg, #F8FAFC, #F1F5F9);
+      border-radius: 12px;
+      height: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #94A3B8;
+      font-size: 14px;
+    }
+
+    /* Admin Modal */
+    .admin-modal-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .admin-modal {
+      background: white;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    .admin-modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #E2E8F0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .admin-modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1E293B;
+    }
+
+    .admin-modal-close {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: #F1F5F9;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748B;
+    }
+
+    .admin-modal-body {
+      padding: 24px;
+      overflow-y: auto;
+      max-height: 60vh;
+    }
+
+    .admin-modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid #E2E8F0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    /* Detail rows */
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #F1F5F9;
+    }
+
+    .detail-row:last-child { border-bottom: none; }
+
+    .detail-label {
+      font-size: 13px;
+      color: #64748B;
+    }
+
+    .detail-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: #1E293B;
+    }
+
+    /* Command Palette */
+    .command-palette {
+      background: white;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 560px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      overflow: hidden;
+    }
+
+    .command-input-wrapper {
+      padding: 16px;
+      border-bottom: 1px solid #E2E8F0;
+    }
+
+    .command-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      font-size: 15px;
+      background: #F8FAFC;
+    }
+
+    .command-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: white;
+    }
+
+    .command-results {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .command-section {
+      padding: 8px 16px;
+    }
+
+    .command-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #94A3B8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .command-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .command-item:hover, .command-item.selected {
+      background: #F1F5F9;
+    }
+
+    .command-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: #F1F5F9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .command-text {
+      font-size: 14px;
+      color: #1E293B;
+    }
+
+    .command-shortcut {
+      margin-left: auto;
+      font-size: 11px;
+      color: #94A3B8;
+      background: #F1F5F9;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* Login Page */
+    .login-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100%;
+      background: linear-gradient(135deg, #F8FAFC, #E2E8F0);
+      padding: 40px;
+    }
+
+    .login-card {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+    }
+
+    .login-logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .login-logo h1 {
+      font-size: 28px;
+      font-weight: 900;
+    }
+
+    .login-logo h1 span {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .login-logo p {
+      font-size: 14px;
+      color: #64748B;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================================
+     SECTION 1: MISSING MOBILE MODALS
+============================================ -->
+
+<div class="section-header">
+  <h2>Missing Mobile Modals</h2>
+  <p>Modals that exist in code but not in design</p>
+</div>
+
+<div class="screens-row">
+
+  <!-- DELETE AVATAR CONFIRMATION -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Delete Avatar</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+      <div class="page-content" style="background: var(--bg-main);">
+        <!-- Background content -->
+        <div style="opacity: 0.3; filter: blur(2px);">
+          <div style="height: 200px; background: #ddd; border-radius: 16px; margin-bottom: 16px;"></div>
+        </div>
+      </div>
+      <!-- Modal Overlay -->
+      <div class="modal-overlay">
+        <div class="modal-box">
+          <div class="modal-icon danger">🗑️</div>
+          <h3 class="modal-title">Удалить аватар?</h3>
+          <p class="modal-text">Все сгенерированные фотографии и загруженные референсы будут удалены безвозвратно.</p>
+          <div class="modal-buttons">
+            <button class="modal-btn cancel">Отмена</button>
+            <button class="modal-btn danger">Удалить</button>
+          </div>
+        </div>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- DELETE PHOTOS BEFORE GENERATION -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Delete Old Photos</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+      <div class="page-content" style="background: var(--bg-main); opacity: 0.3; filter: blur(2px);"></div>
+      <div class="modal-overlay">
+        <div class="modal-box">
+          <div class="modal-icon warning">📸</div>
+          <h3 class="modal-title">Заменить фотографии?</h3>
+          <p class="modal-text">У вас уже есть <strong>23 фото</strong>. Новая генерация удалит старые и создаст новые в выбранном стиле.</p>
+          <div class="modal-buttons">
+            <button class="modal-btn cancel">Отмена</button>
+            <button class="modal-btn primary">Заменить</button>
+          </div>
+        </div>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- WITHDRAW MODAL -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Withdraw Modal</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+      <div class="page-content" style="background: var(--bg-main); opacity: 0.3; filter: blur(2px);"></div>
+      <div class="modal-overlay">
+        <div class="modal-box" style="max-width: 340px;">
+          <h3 class="modal-title" style="margin-bottom: 16px;">Вывод средств</h3>
+
+          <div class="withdraw-card">
+            <div class="balance-display">1,250 ₽</div>
+            <div class="balance-label">Доступно к выводу</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Сумма вывода</label>
+            <input type="text" class="form-input" value="1,250" placeholder="Минимум 500 ₽">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Номер карты</label>
+            <input type="text" class="form-input" placeholder="0000 0000 0000 0000">
+          </div>
+
+          <div style="background: #FEF3C7; border-radius: 12px; padding: 12px; margin-bottom: 16px; font-size: 12px; color: #92400E;">
+            <strong>НДФЛ 13%:</strong> 163 ₽<br>
+            <strong>К выплате:</strong> 1,087 ₽
+          </div>
+
+          <button class="btn-primary">💳 Вывести</button>
+        </div>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="screens-row">
+
+  <!-- PARTNER APPLICATION FORM -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Partner Application</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+      <div class="page-content" style="background: var(--bg-main); opacity: 0.3; filter: blur(2px);"></div>
+      <div class="modal-overlay">
+        <div class="modal-box" style="max-width: 340px;">
+          <h3 class="modal-title" style="margin-bottom: 16px;">👑 Стать партнёром</h3>
+
+          <div class="partner-benefits">
+            <div class="partner-benefit-item">
+              <div class="benefit-icon">💰</div>
+              <div class="benefit-text"><strong>50% комиссия</strong> вместо 10%</div>
+            </div>
+            <div class="partner-benefit-item">
+              <div class="benefit-icon">📊</div>
+              <div class="benefit-text"><strong>Персональная статистика</strong> и аналитика</div>
+            </div>
+            <div class="partner-benefit-item">
+              <div class="benefit-icon">⚡</div>
+              <div class="benefit-text"><strong>Приоритетная поддержка</strong></div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Telegram канал / блог</label>
+            <input type="text" class="form-input" placeholder="@channel или ссылка">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Аудитория</label>
+            <input type="text" class="form-input" placeholder="Примерное количество">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Как планируете продвигать?</label>
+            <textarea class="form-textarea" placeholder="Опишите ваш план..."></textarea>
+          </div>
+
+          <button class="btn-primary">Отправить заявку</button>
+        </div>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- EARNINGS HISTORY -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Earnings History</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+      <div class="page-content" style="background: var(--bg-main); opacity: 0.3; filter: blur(2px);"></div>
+      <div class="modal-overlay">
+        <div class="modal-box" style="max-width: 340px;">
+          <h3 class="modal-title" style="margin-bottom: 16px;">📈 История начислений</h3>
+
+          <div class="card" style="max-height: 320px; overflow-y: auto;">
+            <div class="earning-item">
+              <div>
+                <div class="earning-amount">+50 ₽</div>
+                <div class="earning-date">Сегодня, 14:32</div>
+              </div>
+              <span class="status-badge success">Начислено</span>
+            </div>
+            <div class="earning-item">
+              <div>
+                <div class="earning-amount">+100 ₽</div>
+                <div class="earning-date">Вчера, 09:15</div>
+              </div>
+              <span class="status-badge success">Начислено</span>
+            </div>
+            <div class="earning-item">
+              <div>
+                <div class="earning-amount">+50 ₽</div>
+                <div class="earning-date">12 янв, 18:45</div>
+              </div>
+              <span class="status-badge success">Начислено</span>
+            </div>
+            <div class="earning-item">
+              <div>
+                <div class="earning-amount">+150 ₽</div>
+                <div class="earning-date">10 янв, 12:00</div>
+              </div>
+              <span class="status-badge success">Начислено</span>
+            </div>
+            <div class="earning-item">
+              <div>
+                <div class="earning-amount">-500 ₽</div>
+                <div class="earning-date">8 янв, 16:20</div>
+              </div>
+              <span class="status-badge info">Выведено</span>
+            </div>
+          </div>
+
+          <button class="btn-secondary" style="margin-top: 16px;">Закрыть</button>
+        </div>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- NETWORK ERROR -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Network Error</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>⚠️</span>
+      </div>
+      <div class="page-content">
+        <div class="network-error">
+          <div class="network-icon">📡</div>
+          <h2 style="font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">Нет соединения</h2>
+          <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px; max-width: 260px;">Проверьте подключение к интернету и попробуйте снова</p>
+          <button class="btn-primary" style="width: auto; padding: 14px 32px;">
+            🔄 Повторить
+          </button>
+        </div>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="screens-row">
+
+  <!-- BAN SCREEN -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Ban Screen</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+      <div class="page-content">
+        <div class="ban-screen">
+          <div class="ban-icon">🚫</div>
+          <h2 style="font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">Доступ ограничен</h2>
+          <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px; max-width: 260px; line-height: 1.5;">
+            Ваш аккаунт был заблокирован за нарушение правил использования сервиса.
+          </p>
+          <div style="background: #FEE2E2; border-radius: 12px; padding: 16px; max-width: 280px;">
+            <p style="font-size: 13px; color: #991B1B; margin-bottom: 8px;"><strong>Причина:</strong></p>
+            <p style="font-size: 13px; color: #7F1D1D;">Загрузка запрещённого контента</p>
+          </div>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 24px;">
+            Для обжалования: support@pinglass.ru
+          </p>
+        </div>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- PARTNER STATUS: PENDING -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Partner Pending</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+      <div class="page-content" style="background: var(--bg-main); opacity: 0.3; filter: blur(2px);"></div>
+      <div class="modal-overlay">
+        <div class="modal-box">
+          <div class="modal-icon info">⏳</div>
+          <h3 class="modal-title">Заявка на рассмотрении</h3>
+          <p class="modal-text">Мы проверяем вашу заявку на партнёрство. Обычно это занимает 1-2 рабочих дня.</p>
+          <div style="background: #DBEAFE; border-radius: 12px; padding: 12px; margin-bottom: 16px; font-size: 12px; color: #1E40AF; text-align: center;">
+            Подана: 10 января 2026
+          </div>
+          <button class="btn-secondary">Понятно</button>
+        </div>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- PARTNER STATUS: REJECTED -->
+  <div class="phone-wrapper">
+    <div class="phone-label">Partner Rejected</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>100%</span>
+      </div>
+      <div class="page-content" style="background: var(--bg-main); opacity: 0.3; filter: blur(2px);"></div>
+      <div class="modal-overlay">
+        <div class="modal-box">
+          <div class="modal-icon danger">❌</div>
+          <h3 class="modal-title">Заявка отклонена</h3>
+          <p class="modal-text">К сожалению, мы не можем одобрить вашу заявку на данный момент.</p>
+          <div style="background: #FEE2E2; border-radius: 12px; padding: 12px; margin-bottom: 16px; font-size: 12px; color: #991B1B;">
+            <strong>Причина:</strong><br>
+            Недостаточная аудитория для партнёрской программы
+          </div>
+          <button class="btn-secondary">Понятно</button>
+        </div>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================
+     SECTION 2: ADMIN PANEL
+============================================ -->
+
+<div class="section-header" style="margin-top: 60px;">
+  <h2>Admin Panel</h2>
+  <p>Full admin interface design</p>
+</div>
+
+<!-- ADMIN LOGIN -->
+<div class="screens-row">
+  <div style="position: relative;">
+    <div class="phone-label" style="position: absolute; top: -36px; left: 0; right: 0;">Admin Login</div>
+    <div class="admin-frame" style="width: 800px; min-height: 600px;">
+      <div class="login-container">
+        <div class="login-card">
+          <div class="login-logo">
+            <h1>Pin<span>Glass</span></h1>
+            <p>Admin Panel</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Username</label>
+            <input type="text" class="form-input" placeholder="admin">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" class="form-input" placeholder="••••••••">
+          </div>
+
+          <button class="btn-primary" style="margin-top: 8px;">
+            Войти в панель
+          </button>
+
+          <p style="text-align: center; font-size: 12px; color: #94A3B8; margin-top: 16px;">
+            Доступ только для администраторов
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN DASHBOARD -->
+<div class="screens-row">
+  <div style="position: relative;">
+    <div class="phone-label" style="position: absolute; top: -36px; left: 0; right: 0;">Admin Dashboard</div>
+    <div class="admin-frame">
+      <div class="admin-header">
+        <div class="admin-logo">Pin<span>Glass</span> Admin</div>
+        <div class="admin-user">
+          <span style="font-size: 13px; color: #64748B;">admin@pinglass.ru</span>
+          <div class="admin-avatar">A</div>
+        </div>
+      </div>
+
+      <div class="admin-nav">
+        <a class="admin-nav-item active">📊 Dashboard</a>
+        <a class="admin-nav-item">📋 Logs</a>
+        <a class="admin-nav-item">👥 Users</a>
+        <a class="admin-nav-item">💳 Payments</a>
+        <a class="admin-nav-item">⚡ Generations</a>
+        <a class="admin-nav-item">✨ Prompts</a>
+        <a class="admin-nav-item">🎁 Referrals</a>
+        <a class="admin-nav-item">👑 Partners</a>
+        <a class="admin-nav-item">📱 Telegram</a>
+        <a class="admin-nav-item">🎫 Support</a>
+        <a class="admin-nav-item">⚙️ Settings</a>
+      </div>
+
+      <div class="admin-content">
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Revenue Today</div>
+            <div class="kpi-value">24,500 ₽</div>
+            <div class="kpi-change positive">↑ 12% vs yesterday</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">New Users</div>
+            <div class="kpi-value">156</div>
+            <div class="kpi-change positive">↑ 8% vs yesterday</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Generations</div>
+            <div class="kpi-value">89</div>
+            <div class="kpi-change negative">↓ 3% vs yesterday</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Success Rate</div>
+            <div class="kpi-value">94.2%</div>
+            <div class="kpi-change positive">↑ 1.5%</div>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px;">
+          <div class="admin-table-card">
+            <div class="admin-table-header">
+              <span class="admin-table-title">Revenue (7 days)</span>
+            </div>
+            <div style="padding: 20px;">
+              <div class="chart-placeholder">📈 Revenue Chart</div>
+            </div>
+          </div>
+          <div class="admin-table-card">
+            <div class="admin-table-header">
+              <span class="admin-table-title">Tiers Distribution</span>
+            </div>
+            <div style="padding: 20px;">
+              <div class="chart-placeholder">🥧 Pie Chart</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="admin-table-card">
+          <div class="admin-table-header">
+            <span class="admin-table-title">Recent Activity</span>
+            <button class="admin-btn secondary">View All</button>
+          </div>
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Event</th>
+                <th>User</th>
+                <th>Details</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>14:32</td>
+                <td>Payment</td>
+                <td>@user123</td>
+                <td>Premium tier - 1,499 ₽</td>
+                <td><span class="status-badge success">Success</span></td>
+              </tr>
+              <tr>
+                <td>14:28</td>
+                <td>Generation</td>
+                <td>@designer</td>
+                <td>23 photos completed</td>
+                <td><span class="status-badge success">Done</span></td>
+              </tr>
+              <tr>
+                <td>14:15</td>
+                <td>Registration</td>
+                <td>@newuser</td>
+                <td>Via Telegram</td>
+                <td><span class="status-badge info">New</span></td>
+              </tr>
+              <tr>
+                <td>14:10</td>
+                <td>Referral</td>
+                <td>@partner</td>
+                <td>+75 ₽ commission</td>
+                <td><span class="status-badge success">Credited</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN USERS -->
+<div class="screens-row">
+  <div style="position: relative;">
+    <div class="phone-label" style="position: absolute; top: -36px; left: 0; right: 0;">Admin Users</div>
+    <div class="admin-frame">
+      <div class="admin-header">
+        <div class="admin-logo">Pin<span>Glass</span> Admin</div>
+        <div class="admin-user">
+          <span style="font-size: 13px; color: #64748B;">admin@pinglass.ru</span>
+          <div class="admin-avatar">A</div>
+        </div>
+      </div>
+
+      <div class="admin-nav">
+        <a class="admin-nav-item">📊 Dashboard</a>
+        <a class="admin-nav-item">📋 Logs</a>
+        <a class="admin-nav-item active">👥 Users</a>
+        <a class="admin-nav-item">💳 Payments</a>
+        <a class="admin-nav-item">⚡ Generations</a>
+        <a class="admin-nav-item">✨ Prompts</a>
+        <a class="admin-nav-item">🎁 Referrals</a>
+        <a class="admin-nav-item">👑 Partners</a>
+        <a class="admin-nav-item">📱 Telegram</a>
+        <a class="admin-nav-item">🎫 Support</a>
+        <a class="admin-nav-item">⚙️ Settings</a>
+      </div>
+
+      <div class="admin-content">
+        <!-- Filters -->
+        <div style="display: flex; gap: 12px; margin-bottom: 20px; align-items: center;">
+          <input type="text" class="form-input" placeholder="🔍 Search users..." style="max-width: 300px;">
+          <select class="form-input" style="max-width: 150px;">
+            <option>All Status</option>
+            <option>Active</option>
+            <option>Banned</option>
+          </select>
+          <select class="form-input" style="max-width: 150px;">
+            <option>Last 7 days</option>
+            <option>Last 30 days</option>
+            <option>All time</option>
+          </select>
+          <button class="admin-btn primary" style="margin-left: auto;">Export CSV</button>
+        </div>
+
+        <!-- Users Table -->
+        <div class="admin-table-card">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Platform</th>
+                <th>Avatars</th>
+                <th>Payments</th>
+                <th>Status</th>
+                <th>Registered</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>#1234</td>
+                <td>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #E2E8F0;"></div>
+                    <div>
+                      <div style="font-weight: 600;">@designer_pro</div>
+                      <div style="font-size: 11px; color: #94A3B8;">ID: 123456789</div>
+                    </div>
+                  </div>
+                </td>
+                <td>📱 Telegram</td>
+                <td>3</td>
+                <td>2,997 ₽</td>
+                <td><span class="status-badge success">Active</span></td>
+                <td>10 янв 2026</td>
+                <td>
+                  <button class="admin-btn secondary">View</button>
+                </td>
+              </tr>
+              <tr>
+                <td>#1233</td>
+                <td>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #E2E8F0;"></div>
+                    <div>
+                      <div style="font-weight: 600;">john@email.com</div>
+                      <div style="font-size: 11px; color: #94A3B8;">Web user</div>
+                    </div>
+                  </div>
+                </td>
+                <td>🌐 Web</td>
+                <td>1</td>
+                <td>499 ₽</td>
+                <td><span class="status-badge success">Active</span></td>
+                <td>9 янв 2026</td>
+                <td>
+                  <button class="admin-btn secondary">View</button>
+                </td>
+              </tr>
+              <tr>
+                <td>#1232</td>
+                <td>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #FEE2E2;"></div>
+                    <div>
+                      <div style="font-weight: 600;">@bad_user</div>
+                      <div style="font-size: 11px; color: #94A3B8;">ID: 987654321</div>
+                    </div>
+                  </div>
+                </td>
+                <td>📱 Telegram</td>
+                <td>0</td>
+                <td>0 ₽</td>
+                <td><span class="status-badge danger">Banned</span></td>
+                <td>8 янв 2026</td>
+                <td>
+                  <button class="admin-btn secondary">View</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+          <span style="font-size: 13px; color: #64748B;">Showing 1-10 of 1,234 users</span>
+          <div style="display: flex; gap: 4px;">
+            <button class="admin-btn secondary">← Prev</button>
+            <button class="admin-btn primary">1</button>
+            <button class="admin-btn secondary">2</button>
+            <button class="admin-btn secondary">3</button>
+            <button class="admin-btn secondary">Next →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN USER DETAILS MODAL -->
+<div class="screens-row">
+  <div style="position: relative;">
+    <div class="phone-label" style="position: absolute; top: -36px; left: 0; right: 0;">User Details Modal</div>
+    <div class="admin-frame" style="min-height: 700px;">
+      <div class="admin-header" style="opacity: 0.5;">
+        <div class="admin-logo">Pin<span>Glass</span> Admin</div>
+      </div>
+      <div class="admin-nav" style="opacity: 0.5;">
+        <a class="admin-nav-item active">👥 Users</a>
+      </div>
+
+      <!-- Modal Overlay -->
+      <div class="admin-modal-overlay">
+        <div class="admin-modal" style="max-width: 600px;">
+          <div class="admin-modal-header">
+            <span class="admin-modal-title">User Details</span>
+            <button class="admin-modal-close">✕</button>
+          </div>
+          <div class="admin-modal-body">
+            <!-- User Header -->
+            <div style="display: flex; gap: 16px; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #E2E8F0;">
+              <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--accent)); display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: 700;">D</div>
+              <div>
+                <h3 style="font-size: 18px; font-weight: 700; color: #1E293B; margin-bottom: 4px;">@designer_pro</h3>
+                <p style="font-size: 13px; color: #64748B;">Telegram ID: 123456789</p>
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                  <span class="status-badge success">Active</span>
+                  <span class="status-badge info">Partner 50%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;">
+              <div style="background: #F8FAFC; border-radius: 12px; padding: 16px; text-align: center;">
+                <div style="font-size: 24px; font-weight: 800; color: #1E293B;">3</div>
+                <div style="font-size: 12px; color: #64748B;">Avatars</div>
+              </div>
+              <div style="background: #F8FAFC; border-radius: 12px; padding: 16px; text-align: center;">
+                <div style="font-size: 24px; font-weight: 800; color: var(--success);">2,997 ₽</div>
+                <div style="font-size: 12px; color: #64748B;">Total Paid</div>
+              </div>
+              <div style="background: #F8FAFC; border-radius: 12px; padding: 16px; text-align: center;">
+                <div style="font-size: 24px; font-weight: 800; color: #1E293B;">12</div>
+                <div style="font-size: 12px; color: #64748B;">Referrals</div>
+              </div>
+            </div>
+
+            <!-- Details -->
+            <div class="detail-row">
+              <span class="detail-label">Registered</span>
+              <span class="detail-value">10 января 2026, 14:32</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Last Active</span>
+              <span class="detail-value">Сегодня, 15:20</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Referral Code</span>
+              <span class="detail-value">DESIGN123</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Referral Balance</span>
+              <span class="detail-value">1,250 ₽</span>
+            </div>
+          </div>
+          <div class="admin-modal-footer">
+            <button class="admin-btn danger">🚫 Ban User</button>
+            <button class="admin-btn secondary">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN PAYMENTS -->
+<div class="screens-row">
+  <div style="position: relative;">
+    <div class="phone-label" style="position: absolute; top: -36px; left: 0; right: 0;">Admin Payments</div>
+    <div class="admin-frame">
+      <div class="admin-header">
+        <div class="admin-logo">Pin<span>Glass</span> Admin</div>
+        <div class="admin-user">
+          <div class="admin-avatar">A</div>
+        </div>
+      </div>
+
+      <div class="admin-nav">
+        <a class="admin-nav-item">📊 Dashboard</a>
+        <a class="admin-nav-item">📋 Logs</a>
+        <a class="admin-nav-item">👥 Users</a>
+        <a class="admin-nav-item active">💳 Payments</a>
+        <a class="admin-nav-item">⚡ Generations</a>
+        <a class="admin-nav-item">✨ Prompts</a>
+        <a class="admin-nav-item">🎁 Referrals</a>
+        <a class="admin-nav-item">👑 Partners</a>
+        <a class="admin-nav-item">📱 Telegram</a>
+        <a class="admin-nav-item">🎫 Support</a>
+        <a class="admin-nav-item">⚙️ Settings</a>
+      </div>
+
+      <div class="admin-content">
+        <!-- Summary Cards -->
+        <div class="kpi-grid" style="grid-template-columns: repeat(5, 1fr);">
+          <div class="kpi-card">
+            <div class="kpi-label">Today</div>
+            <div class="kpi-value">24,500 ₽</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">This Week</div>
+            <div class="kpi-value">156,200 ₽</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">This Month</div>
+            <div class="kpi-value">892,400 ₽</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Refunded</div>
+            <div class="kpi-value" style="color: var(--danger);">12,500 ₽</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Avg Check</div>
+            <div class="kpi-value">987 ₽</div>
+          </div>
+        </div>
+
+        <!-- Payments Table -->
+        <div class="admin-table-card">
+          <div class="admin-table-header">
+            <span class="admin-table-title">All Payments</span>
+            <div style="display: flex; gap: 8px;">
+              <select class="form-input" style="max-width: 120px; padding: 8px 12px;">
+                <option>All</option>
+                <option>T-Bank</option>
+                <option>Stars</option>
+                <option>TON</option>
+              </select>
+              <button class="admin-btn secondary">Export</button>
+            </div>
+          </div>
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Amount</th>
+                <th>Provider</th>
+                <th>Tier</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>#P-4521</td>
+                <td>@designer_pro</td>
+                <td style="font-weight: 700;">1,499 ₽</td>
+                <td>💳 T-Bank</td>
+                <td>Premium</td>
+                <td><span class="status-badge success">Paid</span></td>
+                <td>10 янв, 14:32</td>
+                <td><button class="admin-btn secondary">View</button></td>
+              </tr>
+              <tr>
+                <td>#P-4520</td>
+                <td>@user123</td>
+                <td style="font-weight: 700;">999 ₽</td>
+                <td>⭐ Stars</td>
+                <td>Standard</td>
+                <td><span class="status-badge success">Paid</span></td>
+                <td>10 янв, 14:15</td>
+                <td><button class="admin-btn secondary">View</button></td>
+              </tr>
+              <tr>
+                <td>#P-4519</td>
+                <td>@crypto_fan</td>
+                <td style="font-weight: 700;">1,499 ₽</td>
+                <td>💎 TON</td>
+                <td>Premium</td>
+                <td><span class="status-badge warning">Pending</span></td>
+                <td>10 янв, 13:45</td>
+                <td><button class="admin-btn secondary">View</button></td>
+              </tr>
+              <tr>
+                <td>#P-4518</td>
+                <td>@newbie</td>
+                <td style="font-weight: 700;">499 ₽</td>
+                <td>💳 T-Bank</td>
+                <td>Starter</td>
+                <td><span class="status-badge danger">Refunded</span></td>
+                <td>10 янв, 12:00</td>
+                <td><button class="admin-btn secondary">View</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMMAND PALETTE -->
+<div class="screens-row">
+  <div style="position: relative;">
+    <div class="phone-label" style="position: absolute; top: -36px; left: 0; right: 0;">Command Palette (⌘K)</div>
+    <div class="admin-frame" style="min-height: 600px;">
+      <div class="admin-header" style="opacity: 0.3; filter: blur(2px);">
+        <div class="admin-logo">Pin<span>Glass</span> Admin</div>
+      </div>
+
+      <div class="admin-modal-overlay">
+        <div class="command-palette">
+          <div class="command-input-wrapper">
+            <input type="text" class="command-input" placeholder="Type a command or search..." value="user">
+          </div>
+          <div class="command-results">
+            <div class="command-section">
+              <div class="command-section-title">Pages</div>
+              <div class="command-item selected">
+                <div class="command-icon">👥</div>
+                <span class="command-text">Users</span>
+                <span class="command-shortcut">G U</span>
+              </div>
+              <div class="command-item">
+                <div class="command-icon">👤</div>
+                <span class="command-text">User Details Modal</span>
+              </div>
+            </div>
+            <div class="command-section">
+              <div class="command-section-title">Actions</div>
+              <div class="command-item">
+                <div class="command-icon">🔍</div>
+                <span class="command-text">Search User by ID</span>
+              </div>
+              <div class="command-item">
+                <div class="command-icon">➕</div>
+                <span class="command-text">Create Test User</span>
+              </div>
+              <div class="command-item">
+                <div class="command-icon">📤</div>
+                <span class="command-text">Export Users CSV</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN GENERATIONS -->
+<div class="screens-row">
+  <div style="position: relative;">
+    <div class="phone-label" style="position: absolute; top: -36px; left: 0; right: 0;">Admin Generations</div>
+    <div class="admin-frame">
+      <div class="admin-header">
+        <div class="admin-logo">Pin<span>Glass</span> Admin</div>
+        <div class="admin-user">
+          <div class="admin-avatar">A</div>
+        </div>
+      </div>
+
+      <div class="admin-nav">
+        <a class="admin-nav-item">📊 Dashboard</a>
+        <a class="admin-nav-item">📋 Logs</a>
+        <a class="admin-nav-item">👥 Users</a>
+        <a class="admin-nav-item">💳 Payments</a>
+        <a class="admin-nav-item active">⚡ Generations</a>
+        <a class="admin-nav-item">✨ Prompts</a>
+        <a class="admin-nav-item">🎁 Referrals</a>
+        <a class="admin-nav-item">👑 Partners</a>
+        <a class="admin-nav-item">📱 Telegram</a>
+        <a class="admin-nav-item">🎫 Support</a>
+        <a class="admin-nav-item">⚙️ Settings</a>
+      </div>
+
+      <div class="admin-content">
+        <!-- Stats -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Today</div>
+            <div class="kpi-value">89</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">In Progress</div>
+            <div class="kpi-value" style="color: var(--warning);">12</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Failed</div>
+            <div class="kpi-value" style="color: var(--danger);">3</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Success Rate</div>
+            <div class="kpi-value" style="color: var(--success);">96.6%</div>
+          </div>
+        </div>
+
+        <!-- Generations Table -->
+        <div class="admin-table-card">
+          <div class="admin-table-header">
+            <span class="admin-table-title">All Generations</span>
+            <select class="form-input" style="max-width: 150px; padding: 8px 12px;">
+              <option>All Status</option>
+              <option>Completed</option>
+              <option>In Progress</option>
+              <option>Failed</option>
+            </select>
+          </div>
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Job ID</th>
+                <th>User</th>
+                <th>Avatar</th>
+                <th>Photos</th>
+                <th>Provider</th>
+                <th>Status</th>
+                <th>Duration</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>#J-8901</td>
+                <td>@designer</td>
+                <td>Business Pro</td>
+                <td>23/23</td>
+                <td>Kie.ai</td>
+                <td><span class="status-badge success">✓ Done</span></td>
+                <td>4m 32s</td>
+                <td><button class="admin-btn secondary">View</button></td>
+              </tr>
+              <tr>
+                <td>#J-8900</td>
+                <td>@user123</td>
+                <td>Creative</td>
+                <td>15/23</td>
+                <td>Kie.ai</td>
+                <td><span class="status-badge warning">⏳ 65%</span></td>
+                <td>2m 15s</td>
+                <td><button class="admin-btn secondary">View</button></td>
+              </tr>
+              <tr>
+                <td>#J-8899</td>
+                <td>@newbie</td>
+                <td>Lifestyle</td>
+                <td>8/23</td>
+                <td>Replicate</td>
+                <td><span class="status-badge danger">✗ Failed</span></td>
+                <td>1m 45s</td>
+                <td>
+                  <button class="admin-btn danger">Retry</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN SETTINGS -->
+<div class="screens-row">
+  <div style="position: relative;">
+    <div class="phone-label" style="position: absolute; top: -36px; left: 0; right: 0;">Admin Settings</div>
+    <div class="admin-frame">
+      <div class="admin-header">
+        <div class="admin-logo">Pin<span>Glass</span> Admin</div>
+        <div class="admin-user">
+          <div class="admin-avatar">A</div>
+        </div>
+      </div>
+
+      <div class="admin-nav">
+        <a class="admin-nav-item">📊 Dashboard</a>
+        <a class="admin-nav-item">📋 Logs</a>
+        <a class="admin-nav-item">👥 Users</a>
+        <a class="admin-nav-item">💳 Payments</a>
+        <a class="admin-nav-item">⚡ Generations</a>
+        <a class="admin-nav-item">✨ Prompts</a>
+        <a class="admin-nav-item">🎁 Referrals</a>
+        <a class="admin-nav-item">👑 Partners</a>
+        <a class="admin-nav-item">📱 Telegram</a>
+        <a class="admin-nav-item">🎫 Support</a>
+        <a class="admin-nav-item active">⚙️ Settings</a>
+      </div>
+
+      <div class="admin-content">
+        <div style="display: grid; grid-template-columns: 250px 1fr; gap: 24px;">
+          <!-- Settings Nav -->
+          <div class="admin-table-card" style="padding: 16px; height: fit-content;">
+            <div style="font-weight: 700; color: #1E293B; margin-bottom: 16px;">Settings</div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <a style="padding: 10px 12px; background: #F1F5F9; border-radius: 8px; color: var(--primary); font-weight: 500; text-decoration: none; font-size: 13px;">💰 Pricing</a>
+              <a style="padding: 10px 12px; border-radius: 8px; color: #64748B; font-size: 13px; text-decoration: none;">🔑 API Keys</a>
+              <a style="padding: 10px 12px; border-radius: 8px; color: #64748B; font-size: 13px; text-decoration: none;">🎁 Referral System</a>
+              <a style="padding: 10px 12px; border-radius: 8px; color: #64748B; font-size: 13px; text-decoration: none;">📱 Telegram Bot</a>
+              <a style="padding: 10px 12px; border-radius: 8px; color: #64748B; font-size: 13px; text-decoration: none;">🔔 Notifications</a>
+              <a style="padding: 10px 12px; border-radius: 8px; color: #64748B; font-size: 13px; text-decoration: none;">🛡️ Security</a>
+            </div>
+          </div>
+
+          <!-- Settings Content -->
+          <div class="admin-table-card" style="padding: 24px;">
+            <h3 style="font-size: 18px; font-weight: 700; color: #1E293B; margin-bottom: 24px;">Pricing Tiers</h3>
+
+            <!-- Tier 1 -->
+            <div style="background: #F8FAFC; border-radius: 12px; padding: 20px; margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="font-weight: 700; color: #1E293B;">Starter</h4>
+                <span class="status-badge success">Active</span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label">Photos</label>
+                  <input type="number" class="form-input" value="7">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label">Price (₽)</label>
+                  <input type="number" class="form-input" value="499">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label">Stars</label>
+                  <input type="number" class="form-input" value="250">
+                </div>
+              </div>
+            </div>
+
+            <!-- Tier 2 -->
+            <div style="background: linear-gradient(135deg, #FFF7ED, #FFEDD5); border: 2px solid #FDBA74; border-radius: 12px; padding: 20px; margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="font-weight: 700; color: #1E293B;">Standard</h4>
+                <span class="status-badge warning">Popular</span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label">Photos</label>
+                  <input type="number" class="form-input" value="15">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label">Price (₽)</label>
+                  <input type="number" class="form-input" value="999">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label">Stars</label>
+                  <input type="number" class="form-input" value="500">
+                </div>
+              </div>
+            </div>
+
+            <!-- Tier 3 -->
+            <div style="background: #F8FAFC; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="font-weight: 700; color: #1E293B;">Premium</h4>
+                <span class="status-badge success">Active</span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label">Photos</label>
+                  <input type="number" class="form-input" value="23">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label">Price (₽)</label>
+                  <input type="number" class="form-input" value="1499">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label">Stars</label>
+                  <input type="number" class="form-input" value="750">
+                </div>
+              </div>
+            </div>
+
+            <button class="admin-btn primary" style="width: auto;">💾 Save Changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5); font-size: 14px;">
+  PinGlass Design System v5 - Missing Modals + Admin Panel<br>
+  Created: January 2026
+</div>
+
+</body>
+</html>

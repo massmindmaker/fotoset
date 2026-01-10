@@ -67,22 +67,31 @@ export async function POST(request: NextRequest) {
 
     const phoneValue = payoutMethod === "sbp" ? phone : null
 
-    // ATOMIC OPERATION: Calculate available balance, create withdrawal, and update balance in one query
-    // This prevents race conditions where two withdrawals could be created simultaneously
+    // SECURITY FIX: Use FOR UPDATE SKIP LOCKED to prevent race conditions
+    // This ensures only one withdrawal request can process at a time per user
+    // The lock is held until the transaction commits
     const result = await sql`
-      WITH available AS (
+      WITH locked_balance AS (
+        -- Lock the user's balance row to prevent concurrent withdrawals
         SELECT
-          rb.balance - COALESCE(pending.total, 0) as available_amount,
-          rb.user_id,
-          rb.balance
+          rb.balance,
+          rb.user_id
         FROM referral_balances rb
-        LEFT JOIN (
-          SELECT user_id, SUM(amount) as total
-          FROM referral_withdrawals
-          WHERE status IN ('pending', 'processing')
-          GROUP BY user_id
-        ) pending ON pending.user_id = rb.user_id
         WHERE rb.user_id = ${userId}
+        FOR UPDATE SKIP LOCKED
+      ),
+      pending_total AS (
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM referral_withdrawals
+        WHERE user_id = ${userId} AND status IN ('pending', 'processing')
+      ),
+      available AS (
+        SELECT
+          lb.balance - pt.total as available_amount,
+          lb.user_id,
+          lb.balance
+        FROM locked_balance lb
+        CROSS JOIN pending_total pt
       ),
       create_withdrawal AS (
         INSERT INTO referral_withdrawals

@@ -221,6 +221,7 @@ export async function getAuthenticatedUser(
   body?: Record<string, unknown>
 ): Promise<AuthenticatedUser | null> {
   // Method 1: Check Telegram initData (header or body)
+  // SECURITY: Only trust cryptographically signed initData, NOT direct telegramUserId
   const telegramInitData =
     request.headers.get('x-telegram-init-data') ||
     (body?.initData as string) ||
@@ -243,27 +244,8 @@ export async function getAuthenticatedUser(
     }
   }
 
-  // Method 1b: Check direct telegramUserId (legacy support)
-  const directTelegramId = body?.telegramUserId || body?.telegram_user_id;
-  if (directTelegramId) {
-    const telegramUserId =
-      typeof directTelegramId === 'number'
-        ? directTelegramId
-        : parseInt(String(directTelegramId));
-
-    if (!isNaN(telegramUserId)) {
-      try {
-        const user = await findOrCreateTelegramUser(telegramUserId);
-        return {
-          user,
-          authMethod: 'telegram',
-          telegramUserId,
-        };
-      } catch (error) {
-        console.error('[Auth] Direct Telegram user error:', error);
-      }
-    }
-  }
+  // SECURITY FIX: Removed legacy fallback for direct telegramUserId (was vulnerable to spoofing)
+  // Method 1b REMOVED - telegramUserId must be verified via initData signature
 
   // Method 2: Check Neon Auth session
   const stackUser = await getStackUserInfo();
