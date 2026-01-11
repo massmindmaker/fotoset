@@ -32,6 +32,12 @@ dist-ssr
 .serena/memories/
 
 .env*.local
+.env.prod-check*
+.env.vercel-check
+.env.prod
+.env.vercel
+.env.vercel-prod
+
 /photos/
 test-replicate-local.mjs
 
