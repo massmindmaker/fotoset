@@ -2,16 +2,19 @@
 
 import type React from "react"
 import { useState, useEffect, useCallback } from "react"
-import { X, Check, Loader2, Mail, ShieldCheck, CreditCard, Coins, Star } from "lucide-react"
+import { X, Check, Loader2, Mail, ShieldCheck, CreditCard, Coins, Star, Image } from "lucide-react"
 import { extractErrorMessage, getErrorMessage } from "@/lib/error-utils"
 import { usePaymentMethods } from "./hooks/usePaymentMethods"
-import { Input } from "@/components/ui/input"
+import { usePricing } from "./hooks/usePricing"
+import { useTonConnect } from "@/lib/tonconnect/provider"
 import { Button } from "@/components/ui/button"
 
 interface PricingTier {
   id: string
   photos: number
   price: number
+  originalPrice?: number
+  discount?: number
   popular?: boolean
 }
 
@@ -19,10 +22,10 @@ interface PaymentModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
-  telegramUserId?: number  // Telegram authentication (optional)
-  neonUserId?: string  // Web authentication via Neon Auth (optional)
-  tier: PricingTier
-  personaId?: string  // For post-payment redirect to generation
+  telegramUserId?: number
+  neonUserId?: string
+  tier?: PricingTier // Optional - if not provided, show tier selection
+  personaId?: string
 }
 
 interface PaymentResponse {
@@ -31,16 +34,33 @@ interface PaymentResponse {
   testMode: boolean
 }
 
-export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, telegramUserId, neonUserId, tier, personaId }) => {
+// Default tier features for display
+const TIER_FEATURES: Record<string, string[]> = {
+  starter: ["До 23 фото", "На выбор"],
+  standard: ["До 23 фото", "На выбор", "Безопасно"],
+  premium: ["До 23 фото", "На выбор", "Фото не сохраняются"],
+}
+
+export const PaymentModal: React.FC<PaymentModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  telegramUserId,
+  neonUserId,
+  tier: initialTier,
+  personaId
+}) => {
   const [step, setStep] = useState<"FORM" | "PROCESSING" | "REDIRECT" | "SUCCESS" | "ERROR" | "STARS_WAITING" | "TON_PAYMENT">("FORM")
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [emailError, setEmailError] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
   const [selectedMethod, setSelectedMethod] = useState<'tbank' | 'stars' | 'ton'>('tbank')
+  const [selectedTierId, setSelectedTierId] = useState<string>(initialTier?.id || 'standard')
+
   // Stars payment polling
   const [starsPaymentId, setStarsPaymentId] = useState<string | null>(null)
-  // TON payment data for showing wallet info
+  // TON payment data
   const [tonPaymentData, setTonPaymentData] = useState<{
     walletAddress: string
     amount: number
@@ -49,8 +69,18 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
     tonLink: string
   } | null>(null)
 
-  // Fetch available payment methods from API
+  // Fetch available payment methods and pricing
   const { methods, altMethodsCount, isLoading: methodsLoading } = usePaymentMethods()
+  const { tiers, isLoading: pricingLoading } = usePricing()
+
+  // TonConnect hook
+  const { wallet, connect: connectWallet, sendTransaction } = useTonConnect()
+
+  // Check if running in Telegram WebApp
+  const isTelegram = typeof window !== 'undefined' && !!window.Telegram?.WebApp?.initData
+
+  // Get selected tier from pricing or use initial
+  const selectedTier = tiers.find(t => t.id === selectedTierId) || initialTier || tiers[1] // Default to standard
 
   // Reset state when modal opens
   useEffect(() => {
@@ -61,8 +91,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
       setErrorMessage("")
       setStarsPaymentId(null)
       setTonPaymentData(null)
+      if (initialTier) {
+        setSelectedTierId(initialTier.id)
+      }
     }
-  }, [isOpen])
+  }, [isOpen, initialTier])
 
   // Poll Stars payment status
   useEffect(() => {
@@ -88,9 +121,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
       } catch (error) {
         console.error("[Stars] Polling error:", error)
       }
-    }, 3000) // Poll every 3 seconds
+    }, 3000)
 
-    // Stop polling after 5 minutes
     const timeout = setTimeout(() => {
       clearInterval(pollInterval)
       if (!isCancelled && step === "STARS_WAITING") {
@@ -104,7 +136,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
       clearInterval(pollInterval)
       clearTimeout(timeout)
     }
-  }, [step, starsPaymentId, onSuccess])
+  }, [step, starsPaymentId, telegramUserId, onSuccess])
 
   const validateEmail = (value: string): boolean => {
     if (!value.trim()) {
@@ -128,35 +160,33 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
     }
   }
 
-  const handlePayment = useCallback(async () => {
+  // T-Bank payment handler
+  const handleTBankPayment = useCallback(async () => {
     if (!validateEmail(email)) return
+    if (!selectedTier) return
 
-    // Validate at least one auth method present
     if (!telegramUserId && !neonUserId) {
-      console.error("[Payment] Missing authentication")
       setErrorMessage("Требуется авторизация")
       setStep("ERROR")
       return
     }
 
     setLoading(true)
+    setSelectedMethod('tbank')
     setStep("PROCESSING")
     setErrorMessage("")
 
     try {
-      // NOTE: Referral code is now stored in DB (user.pending_referral_code)
-      // No localStorage needed - API reads referral code directly from DB
       const response = await fetch("/api/payment/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          telegramUserId,  // Telegram authentication (optional)
-          neonUserId,  // Web authentication (optional)
+          telegramUserId,
+          neonUserId,
           email: email.trim(),
-          tierId: tier.id,
-          photoCount: tier.photos,
-          avatarId: personaId, // For auto-generation after payment
-          // referralCode removed - API uses DB field pending_referral_code
+          tierId: selectedTier.id,
+          photoCount: selectedTier.photos,
+          avatarId: personaId,
         }),
       })
 
@@ -166,12 +196,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         throw new Error(extractErrorMessage(data, "Ошибка создания платежа"))
       }
 
-      // Always redirect to T-Bank payment page (works for both test and production)
-      // In test mode, user enters test card data manually on T-Bank form:
-      // Success: 4111 1111 1111 1111, Fail: 5555 5555 5555 5599
       if (data.confirmationUrl) {
-        // NOTE: No localStorage needed - telegram_user_id is passed via URL after payment
-        // and avatar info is stored in Neon DB
         setStep("REDIRECT")
         window.location.href = data.confirmationUrl
       } else {
@@ -184,36 +209,29 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
     } finally {
       setLoading(false)
     }
-  }, [email, telegramUserId, neonUserId, tier, personaId])
+  }, [email, telegramUserId, neonUserId, selectedTier, personaId])
 
-  // Handle alternative payment methods (Stars, TON)
-  // Note: Stars and TON payments require Telegram (they are Telegram-specific)
-  const handleAltPayment = useCallback(async (method: 'stars' | 'ton') => {
-    // Stars and TON require Telegram authentication
-    if (!telegramUserId) {
-      console.error("[Payment] Stars/TON require Telegram")
-      setErrorMessage("Для оплаты Stars/TON требуется авторизация через Telegram")
+  // Stars payment handler
+  const handleStarsPayment = useCallback(async () => {
+    if (!telegramUserId || !selectedTier) {
+      setErrorMessage("Для оплаты Stars требуется Telegram")
       setStep("ERROR")
       return
     }
 
     setLoading(true)
+    setSelectedMethod('stars')
     setStep("PROCESSING")
     setErrorMessage("")
 
     try {
-      // Call the appropriate payment endpoint
-      const endpoint = method === 'stars'
-        ? "/api/payment/stars/create"
-        : "/api/payment/ton/create"
-
-      const response = await fetch(endpoint, {
+      const response = await fetch("/api/payment/stars/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           telegramUserId,
-          tierId: tier.id,
-          photoCount: tier.photos,
+          tierId: selectedTier.id,
+          photoCount: selectedTier.photos,
           avatarId: personaId,
         }),
       })
@@ -224,43 +242,105 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         throw new Error(extractErrorMessage(data, "Ошибка создания платежа"))
       }
 
-      // Handle response based on method
-      if (method === 'stars') {
-        // Stars: Show invoice in Telegram (handled by Bot API)
-        if (data.invoiceUrl) {
-          setStep("REDIRECT")
-          window.location.href = data.invoiceUrl
-        } else {
-          // Invoice sent via Telegram - show waiting screen with polling
-          setStarsPaymentId(data.paymentId)
-          setStep("STARS_WAITING")
-        }
-      } else if (method === 'ton') {
-        // TON: Show wallet info first, let user click to open wallet
-        // API returns: walletAddress, tonAmount, comment (payment ID), tonLink (ready deep link)
-        if (data.walletAddress) {
-          setTonPaymentData({
-            walletAddress: data.walletAddress,
-            amount: data.tonAmount,
-            comment: data.comment,
-            paymentId: data.paymentId,
-            tonLink: data.tonLink,
-          })
-          setStep("TON_PAYMENT")
-        } else {
-          throw new Error("Не получен адрес кошелька")
-        }
+      if (data.invoiceUrl) {
+        setStep("REDIRECT")
+        window.location.href = data.invoiceUrl
+      } else {
+        setStarsPaymentId(data.paymentId)
+        setStep("STARS_WAITING")
       }
     } catch (error) {
-      console.error(`${method} payment error:`, error)
+      console.error("Stars payment error:", error)
       setErrorMessage(getErrorMessage(error, "Произошла ошибка"))
       setStep("ERROR")
     } finally {
       setLoading(false)
     }
-  }, [telegramUserId, tier, personaId])
+  }, [telegramUserId, selectedTier, personaId])
+
+  // TON payment handler with TonConnect
+  const handleTonPayment = useCallback(async () => {
+    if (!telegramUserId || !selectedTier) {
+      setErrorMessage("Для оплаты TON требуется Telegram")
+      setStep("ERROR")
+      return
+    }
+
+    setLoading(true)
+    setSelectedMethod('ton')
+    setStep("PROCESSING")
+    setErrorMessage("")
+
+    try {
+      // First, create TON payment on server to get wallet address
+      const response = await fetch("/api/payment/ton/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          telegramUserId,
+          tierId: selectedTier.id,
+          photoCount: selectedTier.photos,
+          avatarId: personaId,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(extractErrorMessage(data, "Ошибка создания платежа"))
+      }
+
+      if (data.walletAddress) {
+        setTonPaymentData({
+          walletAddress: data.walletAddress,
+          amount: data.tonAmount,
+          comment: data.comment,
+          paymentId: data.paymentId,
+          tonLink: data.tonLink,
+        })
+        setStep("TON_PAYMENT")
+      } else {
+        throw new Error("Не получен адрес кошелька")
+      }
+    } catch (error) {
+      console.error("TON payment error:", error)
+      setErrorMessage(getErrorMessage(error, "Произошла ошибка"))
+      setStep("ERROR")
+    } finally {
+      setLoading(false)
+    }
+  }, [telegramUserId, selectedTier, personaId])
+
+  // Send TON via TonConnect
+  const handleTonConnectSend = useCallback(async () => {
+    if (!tonPaymentData || !wallet.connected) return
+
+    setLoading(true)
+    try {
+      const txHash = await sendTransaction(
+        tonPaymentData.walletAddress,
+        tonPaymentData.amount,
+        tonPaymentData.comment
+      )
+
+      if (txHash) {
+        setStep("SUCCESS")
+        onSuccess()
+      } else {
+        throw new Error("Транзакция не была отправлена")
+      }
+    } catch (error) {
+      console.error("TonConnect send error:", error)
+      setErrorMessage(getErrorMessage(error, "Ошибка отправки транзакции"))
+      setStep("ERROR")
+    } finally {
+      setLoading(false)
+    }
+  }, [tonPaymentData, wallet.connected, sendTransaction, onSuccess])
 
   if (!isOpen) return null
+
+  const isLoadingData = methodsLoading || pricingLoading
 
   return (
     <div
@@ -268,19 +348,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
       role="dialog"
       aria-modal="true"
       aria-labelledby="payment-modal-title"
-      aria-describedby="payment-modal-description"
     >
       <div
-        className="bg-background w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-[var(--shadow-lg)] animate-in slide-in-from-bottom-4 duration-300 modal-content-safe"
+        className="bg-background w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-[var(--shadow-lg)] animate-in slide-in-from-bottom-4 duration-300 modal-content-safe max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Hidden description for screen readers */}
-        <p id="payment-modal-description" className="sr-only">
-          Оплата за {tier.photos} AI-фотографий. Сумма: {tier.price} рублей.
-        </p>
-
         {/* Header */}
-        <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+        <div className="sticky top-0 z-10 p-4 border-b border-border flex justify-between items-center bg-background/95 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-green-600" />
             <h2 id="payment-modal-title" className="text-lg font-semibold">Безопасная оплата</h2>
@@ -289,42 +363,88 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
             onClick={onClose}
             className="min-w-11 min-h-11 p-2.5 hover:bg-muted rounded-lg text-muted-foreground transition-colors"
             disabled={loading}
-            aria-label="Закрыть модальное окно"
+            aria-label="Закрыть"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-4 pb-6">
           {step === "FORM" && (
-            <div className="space-y-6">
-              {/* Price */}
-              <div className="text-center pb-4 border-b border-border">
-                <div className="text-4xl font-bold text-primary">{tier.price} ₽</div>
-                <p className="text-muted-foreground text-sm mt-1">
-                  PinGlass Pro — {tier.photos} AI-фотографий
-                </p>
+            <div className="space-y-4">
+              {/* Tier Selection Cards */}
+              <div className="space-y-3">
+                {tiers.map((tier) => (
+                  <button
+                    key={tier.id}
+                    onClick={() => setSelectedTierId(tier.id)}
+                    className={`w-full p-4 rounded-2xl border-2 transition-all text-left relative ${
+                      selectedTierId === tier.id
+                        ? 'border-primary bg-primary/5 shadow-md'
+                        : 'border-border hover:border-primary/50 bg-background'
+                    }`}
+                  >
+                    {/* Popular badge */}
+                    {tier.popular && (
+                      <span className="absolute -top-2 right-4 px-2 py-0.5 bg-primary text-white text-xs font-medium rounded-full">
+                        Хит
+                      </span>
+                    )}
+
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xl font-bold">{tier.photos} фото</span>
+                        </div>
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                          tier.id === 'starter' ? 'bg-gray-100 text-gray-600' :
+                          tier.id === 'standard' ? 'bg-purple-100 text-purple-600' :
+                          'bg-amber-100 text-amber-600'
+                        }`}>
+                          {tier.id === 'starter' ? 'Starter' : tier.id === 'standard' ? 'Standard' : 'Premium'}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-bold">{tier.price}</span>
+                        <span className="text-lg text-muted-foreground ml-1">₽</span>
+                        {tier.originalPrice && tier.originalPrice > tier.price && (
+                          <div className="text-sm text-muted-foreground line-through">
+                            {tier.originalPrice} ₽
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Feature tags */}
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {(TIER_FEATURES[tier.id] || []).map((feature, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2.5 py-1 bg-muted rounded-full text-xs text-muted-foreground"
+                        >
+                          {feature}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                ))}
               </div>
 
-              {/* Email Input - ТОЛЬКО для T-Bank (54-ФЗ фискальные чеки) */}
-              {selectedMethod === 'tbank' && (
-                <div className="space-y-2">
+              {/* Email Input - only for T-Bank */}
+              {methods.tbank.enabled && (
+                <div className="space-y-2 pt-2">
                   <label htmlFor="payment-email" className="text-sm font-medium text-foreground flex items-center gap-2">
                     <Mail className="w-4 h-4" />
-                    Email для чека <span className="text-red-500">*</span>
+                    Email для чека
                   </label>
                   <input
                     id="payment-email"
                     type="email"
                     value={email}
                     onChange={handleEmailChange}
-                    onBlur={() => validateEmail(email)}
+                    onBlur={() => email && validateEmail(email)}
                     placeholder="your@email.com"
-                    required
-                    aria-required="true"
-                    aria-invalid={!!emailError}
-                    aria-describedby={emailError ? "email-error" : "email-hint"}
                     className={`w-full px-4 py-3 rounded-xl border-2 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all ${
                       emailError
                         ? "border-red-500 focus:border-red-500"
@@ -332,91 +452,68 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                     }`}
                   />
                   {emailError && (
-                    <p id="email-error" role="alert" className="text-red-500 text-xs mt-1">{emailError}</p>
+                    <p role="alert" className="text-red-500 text-xs">{emailError}</p>
                   )}
-                  <p id="email-hint" className="sr-only">На этот адрес придёт чек об оплате</p>
-                  <p className="text-xs text-muted-foreground">
-                    Обязательно — на этот адрес придёт электронный чек (54-ФЗ)
-                  </p>
                 </div>
               )}
 
-              {/* T-Bank Primary Button */}
-              {methods.tbank.enabled && (
-                <Button
-                  onClick={() => { setSelectedMethod('tbank'); handlePayment() }}
-                  disabled={loading || (selectedMethod === 'tbank' && !email.trim()) || methodsLoading}
-                  variant="gradient"
-                  size="xl"
-                  className="w-full"
-                >
-                  {loading && selectedMethod === 'tbank' ? (
-                    <>
+              {/* Payment Buttons */}
+              <div className="space-y-3 pt-4">
+                {/* T-Bank (Card) - Always visible */}
+                {methods.tbank.enabled && (
+                  <Button
+                    onClick={handleTBankPayment}
+                    disabled={loading || isLoadingData}
+                    className="w-full h-14 rounded-xl text-base font-semibold bg-gradient-to-r from-[#FF6B6B] to-[#FF8E53] hover:from-[#FF5252] hover:to-[#FF7043] text-white shadow-lg hover:shadow-xl transition-all"
+                  >
+                    {loading && selectedMethod === 'tbank' ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Обработка...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="w-5 h-5" />
-                      Оплатить картой {tier.price} ₽
-                    </>
-                  )}
-                </Button>
-              )}
+                    ) : (
+                      <>
+                        <CreditCard className="w-5 h-5 mr-2" />
+                        Оплатить картой {selectedTier?.price || 0} ₽
+                      </>
+                    )}
+                  </Button>
+                )}
 
-              {/* Divider + Alternative Methods */}
-              {methods.tbank.enabled && altMethodsCount > 0 && (
-                <div className="payment-divider">
-                  <span>или</span>
-                </div>
-              )}
+                {/* Stars - Only in Telegram */}
+                {methods.stars.enabled && isTelegram && (
+                  <Button
+                    onClick={handleStarsPayment}
+                    disabled={loading || isLoadingData}
+                    variant="outline"
+                    className="w-full h-14 rounded-xl text-base font-semibold border-2 border-amber-300 bg-white hover:bg-amber-50 text-gray-800"
+                  >
+                    {loading && selectedMethod === 'stars' ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <Star className="w-5 h-5 mr-2 text-amber-500 fill-amber-500" />
+                        Оплатить в Stars
+                      </>
+                    )}
+                  </Button>
+                )}
 
-              {/* Alternative Payment Methods (Stars, TON) */}
-              {altMethodsCount > 0 && (
-                <div className="grid grid-cols-2 gap-3">
-                  {methods.ton.enabled && (
-                    <Button
-                      onClick={() => { setSelectedMethod('ton'); handleAltPayment('ton') }}
-                      disabled={loading || methodsLoading}
-                      variant="secondary"
-                      className="w-full h-11 rounded-xl gap-2 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]"
-                    >
-                      {loading && selectedMethod === 'ton' ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Coins className="w-4 h-4" />
-                          <span>{methods.ton.pricing?.[tier.id] || '—'} TON</span>
-                        </>
-                      )}
-                    </Button>
-                  )}
-                  {methods.stars.enabled && (
-                    <Button
-                      onClick={() => { setSelectedMethod('stars'); handleAltPayment('stars') }}
-                      disabled={loading || methodsLoading}
-                      variant="outline"
-                      className="w-full h-11 rounded-xl gap-2 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]"
-                    >
-                      {loading && selectedMethod === 'stars' ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Star className="w-4 h-4" />
-                          <span>{methods.stars.pricing?.[tier.id] || '—'} XTR</span>
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              )}
-
-              {/* Security Note */}
-              <p className="text-xs text-center text-muted-foreground">
-                {selectedMethod === 'tbank' && 'Платёж защищён шифрованием T-Bank'}
-                {selectedMethod === 'stars' && 'Оплата через Telegram Stars'}
-                {selectedMethod === 'ton' && 'Оплата криптовалютой TON'}
-              </p>
+                {/* TON - Only in Telegram */}
+                {methods.ton.enabled && isTelegram && (
+                  <Button
+                    onClick={handleTonPayment}
+                    disabled={loading || isLoadingData}
+                    className="w-full h-14 rounded-xl text-base font-semibold bg-[#0098EA] hover:bg-[#0088D4] text-white"
+                  >
+                    {loading && selectedMethod === 'ton' ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <Coins className="w-5 h-5 mr-2" />
+                        Оплатить в TON
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 
@@ -434,32 +531,28 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
             <div className="flex flex-col items-center py-12">
               <Loader2 className="animate-spin w-12 h-12 text-primary mb-4" />
               <p className="text-lg font-medium">Переход к оплате...</p>
-              <p className="text-muted-foreground text-sm mt-1">Вы будете перенаправлены на страницу банка</p>
+              <p className="text-muted-foreground text-sm mt-1">Вы будете перенаправлены</p>
             </div>
           )}
 
           {step === "SUCCESS" && (
             <div className="flex flex-col items-center py-12">
-              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
                 <Check className="w-8 h-8 text-green-600" />
               </div>
               <p className="text-lg font-medium">Оплата успешна!</p>
-              <p className="text-muted-foreground text-sm mt-1">Чек отправлен на {email}</p>
+              <p className="text-muted-foreground text-sm mt-1">Начинаем генерацию...</p>
             </div>
           )}
 
           {step === "ERROR" && (
             <div className="flex flex-col items-center py-12">
-              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
                 <X className="w-8 h-8 text-red-600" />
               </div>
               <p className="text-lg font-medium">Ошибка оплаты</p>
-              <p className="text-muted-foreground text-sm mt-1 text-center">{errorMessage}</p>
-              <Button
-                onClick={() => setStep("FORM")}
-                variant="default"
-                className="mt-4"
-              >
+              <p className="text-muted-foreground text-sm mt-1 text-center px-4">{errorMessage}</p>
+              <Button onClick={() => setStep("FORM")} variant="default" className="mt-4">
                 Попробовать снова
               </Button>
             </div>
@@ -467,7 +560,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
 
           {step === "STARS_WAITING" && (
             <div className="flex flex-col items-center py-12">
-              <div className="w-20 h-20 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-4">
+              <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mb-4">
                 <Star className="w-10 h-10 text-blue-500" />
               </div>
               <p className="text-lg font-medium">Откройте Telegram</p>
@@ -479,60 +572,91 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span className="text-sm">Ожидание оплаты...</span>
               </div>
-              <Button
-                onClick={() => setStep("FORM")}
-                variant="ghost"
-                className="mt-4 text-sm"
-              >
+              <Button onClick={() => setStep("FORM")} variant="ghost" className="mt-4 text-sm">
                 Отмена
               </Button>
             </div>
           )}
 
           {step === "TON_PAYMENT" && tonPaymentData && (
-            <div className="flex flex-col items-center py-8">
-              <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-4">
-                <Coins className="w-8 h-8 text-blue-500" />
+            <div className="flex flex-col items-center py-6">
+              <div className="w-16 h-16 rounded-full bg-[#0098EA]/10 flex items-center justify-center mb-4">
+                <Coins className="w-8 h-8 text-[#0098EA]" />
               </div>
               <p className="text-lg font-medium mb-2">Оплата через TON</p>
 
               {/* Amount */}
-              <div className="text-3xl font-bold text-primary mb-4">
+              <div className="text-3xl font-bold text-[#0098EA] mb-4">
                 {tonPaymentData.amount} TON
               </div>
 
-              {/* Wallet Address */}
-              <div className="w-full bg-muted/50 rounded-xl p-4 mb-4">
-                <p className="text-xs text-muted-foreground mb-1">Адрес кошелька:</p>
-                <p className="text-sm font-mono break-all select-all">
-                  {tonPaymentData.walletAddress}
-                </p>
-                <p className="text-xs text-muted-foreground mt-2 mb-1">Комментарий (обязательно):</p>
-                <p className="text-sm font-mono select-all">
-                  {tonPaymentData.comment}
-                </p>
-              </div>
+              {/* TonConnect Option */}
+              {wallet.connected ? (
+                <div className="w-full space-y-3">
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+                    <p className="text-sm text-green-700">
+                      Кошелёк подключён: {wallet.address?.slice(0, 6)}...{wallet.address?.slice(-4)}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleTonConnectSend}
+                    disabled={loading}
+                    className="w-full h-14 rounded-xl text-base font-semibold bg-[#0098EA] hover:bg-[#0088D4] text-white"
+                  >
+                    {loading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <Coins className="w-5 h-5 mr-2" />
+                        Отправить {tonPaymentData.amount} TON
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <div className="w-full space-y-3">
+                  <Button
+                    onClick={connectWallet}
+                    disabled={wallet.loading}
+                    className="w-full h-14 rounded-xl text-base font-semibold bg-[#0098EA] hover:bg-[#0088D4] text-white"
+                  >
+                    {wallet.loading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <Coins className="w-5 h-5 mr-2" />
+                        Подключить кошелёк
+                      </>
+                    )}
+                  </Button>
 
-              <p className="text-xs text-muted-foreground text-center mb-4">
-                Нажмите кнопку ниже, чтобы открыть ваш TON кошелёк.<br />
-                Обязательно укажите комментарий при переводе!
-              </p>
+                  {/* Fallback - manual payment */}
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-border"></div>
+                    </div>
+                    <div className="relative flex justify-center text-xs">
+                      <span className="bg-background px-2 text-muted-foreground">или</span>
+                    </div>
+                  </div>
 
-              <Button
-                onClick={() => window.location.href = tonPaymentData.tonLink}
-                variant="gradient"
-                size="xl"
-                className="w-full"
-              >
-                <Coins className="w-5 h-5" />
-                Открыть кошелёк
-              </Button>
+                  <div className="bg-muted/50 rounded-xl p-4 text-sm">
+                    <p className="text-muted-foreground mb-2">Переведите вручную:</p>
+                    <p className="font-mono text-xs break-all mb-2">{tonPaymentData.walletAddress}</p>
+                    <p className="text-muted-foreground text-xs">Комментарий: <span className="font-mono">{tonPaymentData.comment}</span></p>
+                  </div>
 
-              <Button
-                onClick={() => setStep("FORM")}
-                variant="ghost"
-                className="mt-3 text-sm"
-              >
+                  <Button
+                    onClick={() => window.location.href = tonPaymentData.tonLink}
+                    variant="outline"
+                    className="w-full h-11 rounded-xl"
+                  >
+                    Открыть кошелёк
+                  </Button>
+                </div>
+              )}
+
+              <Button onClick={() => setStep("FORM")} variant="ghost" className="mt-4 text-sm">
                 Отмена
               </Button>
             </div>
