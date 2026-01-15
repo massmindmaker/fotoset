@@ -22,11 +22,6 @@ export function AdminNavigation() {
       exact: true,
     },
     {
-      href: "/admin/logs",
-      icon: <Activity className="w-4 h-4" />,
-      label: "Logs",
-    },
-    {
       href: "/admin/users",
       icon: <Users className="w-4 h-4" />,
       label: "Users",
@@ -65,6 +60,11 @@ export function AdminNavigation() {
       href: "/admin/tickets",
       icon: <Ticket className="w-4 h-4" />,
       label: "Support",
+    },
+    {
+      href: "/admin/logs",
+      icon: <Activity className="w-4 h-4" />,
+      label: "Logs",
     },
     {
       href: "/admin/settings",

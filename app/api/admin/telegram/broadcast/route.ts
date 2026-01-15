@@ -35,14 +35,14 @@ export async function POST(request: NextRequest) {
     const {
       message,
       photoUrl,
-      target = 'all', // 'all' | 'paid' | 'active' | 'specific'
+      target = 'all', // 'all' | 'paid' | 'active' | 'partners' | 'specific'
       userIds = [],   // for target='specific'
       parseMode = 'HTML',
       preview = false // if true, just return count without sending
     } = body as {
       message: string
       photoUrl?: string
-      target: 'all' | 'paid' | 'active' | 'specific'
+      target: 'all' | 'paid' | 'active' | 'partners' | 'specific'
       userIds?: number[]
       parseMode?: 'HTML' | 'Markdown'
       preview?: boolean
@@ -86,6 +86,18 @@ export async function POST(request: NextRequest) {
               OR p.created_at > NOW() - interval '30 days'
               OR u.created_at > NOW() - interval '30 days'
             )
+        `
+        break
+
+      case 'partners':
+        // Partners from referral program (is_partner = true)
+        userQuery = sql`
+          SELECT DISTINCT u.id, u.telegram_user_id, u.telegram_username
+          FROM users u
+          JOIN referral_balances rb ON rb.user_id = u.id
+          WHERE rb.is_partner = true
+            AND u.telegram_user_id IS NOT NULL
+            AND u.is_banned = false
         `
         break
 

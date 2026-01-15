@@ -17,7 +17,7 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode 
 // Manifest URL for TonConnect protocol
 const MANIFEST_URL = typeof window !== 'undefined'
   ? `${window.location.origin}/tonconnect-manifest.json`
-  : 'https://pinglass.app/tonconnect-manifest.json'
+  : 'https://pinglass.ru/tonconnect-manifest.json'
 
 // Telegram Mini App return URL (critical for wallet connection in TMA)
 // This URL is used by wallets to redirect back to our TMA after connection/transaction

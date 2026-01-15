@@ -21,7 +21,10 @@ import {
   Strikethrough,
   ChevronDown,
   ChevronUp,
-  AlertTriangle
+  AlertTriangle,
+  Crown,
+  Upload,
+  X
 } from "lucide-react"
 
 interface Broadcast {
@@ -38,7 +41,7 @@ interface Broadcast {
   completed_at: string | null
 }
 
-type TargetType = 'all' | 'paid' | 'active' | 'specific'
+type TargetType = 'all' | 'paid' | 'active' | 'partners' | 'specific'
 
 const TARGET_OPTIONS: { value: TargetType; label: string; description: string; icon: React.ReactNode }[] = [
   {
@@ -60,6 +63,12 @@ const TARGET_OPTIONS: { value: TargetType; label: string; description: string; i
     icon: <Activity className="w-5 h-5" />
   },
   {
+    value: 'partners',
+    label: 'Партнёры',
+    description: 'Только партнёры реферальной программы',
+    icon: <Crown className="w-5 h-5" />
+  },
+  {
     value: 'specific',
     label: 'Конкретные пользователи',
     description: 'Укажите Telegram ID через запятую',
@@ -74,8 +83,12 @@ export function TelegramBroadcastView() {
   // Message state
   const [message, setMessage] = useState('')
   const [photoUrl, setPhotoUrl] = useState('')
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [target, setTarget] = useState<TargetType>('all')
   const [specificIds, setSpecificIds] = useState('')
+  const [isDragging, setIsDragging] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
 
   // UI state
   const [loading, setLoading] = useState(false)
@@ -107,6 +120,99 @@ export function TelegramBroadcastView() {
   useEffect(() => {
     loadHistory()
   }, [loadHistory])
+
+  // Handle file upload to R2
+  const uploadPhoto = async (file: File): Promise<string | null> => {
+    setUploadingPhoto(true)
+    try {
+      // Create form data
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('folder', 'broadcasts')
+
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!res.ok) {
+        throw new Error('Upload failed')
+      }
+
+      const data = await res.json()
+      return data.url
+    } catch (err) {
+      console.error('Photo upload error:', err)
+      setError('Не удалось загрузить фото')
+      return null
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
+
+  // Handle file selection (drag-drop or click)
+  const handleFileSelect = async (file: File) => {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Пожалуйста, выберите изображение')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Размер файла не должен превышать 5MB')
+      return
+    }
+
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+    setError(null)
+
+    // Upload to R2
+    const uploadedUrl = await uploadPhoto(file)
+    if (uploadedUrl) {
+      setPhotoUrl(uploadedUrl)
+    }
+  }
+
+  // Drag and drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) {
+      handleFileSelect(files[0])
+    }
+  }
+
+  // Remove photo
+  const removePhoto = () => {
+    if (photoPreview) {
+      URL.revokeObjectURL(photoPreview)
+    }
+    setPhotoFile(null)
+    setPhotoPreview(null)
+    setPhotoUrl('')
+  }
 
   // Preview target count
   const handlePreview = async () => {
@@ -184,7 +290,7 @@ export function TelegramBroadcastView() {
       if (data.success) {
         setSuccess(`Рассылка создана! ID: ${data.broadcastId}, сообщений в очереди: ${data.queuedCount}`)
         setMessage('')
-        setPhotoUrl('')
+        removePhoto() // Clear photo state
         setPreviewCount(null)
         loadHistory()
       } else {
@@ -286,19 +392,79 @@ export function TelegramBroadcastView() {
           </div>
         )}
 
-        {/* Photo URL */}
+        {/* Photo Upload (Drag & Drop) */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-muted-foreground mb-2">
             <ImageIcon className="w-4 h-4 inline mr-1" />
             Фото (опционально)
           </label>
-          <input
-            type="url"
-            value={photoUrl}
-            onChange={(e) => setPhotoUrl(e.target.value)}
-            placeholder="https://example.com/image.jpg"
-            className="w-full px-4 py-3 bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
-          />
+
+          {photoPreview ? (
+            // Photo preview with remove button
+            <div className="relative inline-block">
+              <img
+                src={photoPreview}
+                alt="Preview"
+                className="max-h-48 rounded-xl border border-border"
+              />
+              <button
+                onClick={removePhoto}
+                className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                title="Удалить фото"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              {uploadingPhoto && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
+                  <Loader2 className="w-8 h-8 animate-spin text-white" />
+                </div>
+              )}
+              {photoUrl && !uploadingPhoto && (
+                <div className="absolute bottom-2 left-2 px-2 py-1 bg-green-500/80 text-white text-xs rounded-lg flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Загружено
+                </div>
+              )}
+            </div>
+          ) : (
+            // Drag & drop zone
+            <div
+              onDragEnter={handleDragEnter}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`
+                relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer
+                transition-all duration-200
+                ${isDragging
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border hover:border-primary/50 hover:bg-muted/30'
+                }
+              `}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleFileSelect(file)
+                }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+              <Upload className={`w-10 h-10 mx-auto mb-3 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
+              <p className="text-sm text-muted-foreground">
+                {isDragging ? (
+                  <span className="text-primary font-medium">Отпустите для загрузки</span>
+                ) : (
+                  <>
+                    <span className="font-medium">Перетащите фото сюда</span>
+                    <br />
+                    <span className="text-xs">или нажмите для выбора (до 5MB)</span>
+                  </>
+                )}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Message Editor */}
