@@ -222,13 +222,25 @@ export async function getAuthenticatedUser(
 ): Promise<AuthenticatedUser | null> {
   // Method 1: Check Telegram initData (header or body)
   // SECURITY: Only trust cryptographically signed initData, NOT direct telegramUserId
-  const telegramInitData =
-    request.headers.get('x-telegram-init-data') ||
-    (body?.initData as string) ||
-    (body?.telegramInitData as string);
+  const initDataFromHeader = request.headers.get('x-telegram-init-data');
+  const initDataFromBody = (body?.initData as string) || (body?.telegramInitData as string);
+  const telegramInitData = initDataFromHeader || initDataFromBody;
+
+  console.log('[Auth] getAuthenticatedUser called:', {
+    hasInitDataHeader: !!initDataFromHeader,
+    hasInitDataBody: !!initDataFromBody,
+    initDataLength: telegramInitData?.length || 0,
+    bodyKeys: body ? Object.keys(body) : [],
+  });
 
   if (telegramInitData) {
     const validation = validateTelegramInitData(telegramInitData);
+
+    console.log('[Auth] Telegram initData validation:', {
+      valid: validation.valid,
+      userId: validation.userId,
+      username: validation.username,
+    });
 
     if (validation.valid && validation.userId) {
       try {

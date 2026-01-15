@@ -521,10 +521,18 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   </Button>
                 )}
 
-                {/* TON - Always show when enabled, handle connection inside */}
+                {/* TON - Always show "Оплатить в TON", connect wallet on click if needed */}
                 {methods.ton.enabled && isTelegram && (
                   <Button
-                    onClick={wallet.connected ? handleTonPayment : connect}
+                    onClick={async () => {
+                      if (!wallet.connected) {
+                        // Open wallet connection modal first
+                        await connect()
+                      } else {
+                        // Wallet connected - proceed to payment
+                        await handleTonPayment()
+                      }
+                    }}
                     disabled={loading || isLoadingData || wallet.loading}
                     variant={wallet.connected ? "default" : "outline"}
                     className={`w-full h-14 rounded-xl text-base font-semibold ${
@@ -538,17 +546,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     ) : wallet.loading ? (
                       <>
                         <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Проверка кошелька...
-                      </>
-                    ) : wallet.connected ? (
-                      <>
-                        <Coins className="w-5 h-5 mr-2" />
-                        Оплатить в TON
+                        Подключение...
                       </>
                     ) : (
                       <>
                         <Coins className="w-5 h-5 mr-2" />
-                        Подключить TON кошелёк
+                        Оплатить в TON
                       </>
                     )}
                   </Button>

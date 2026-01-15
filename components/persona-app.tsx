@@ -241,17 +241,28 @@ export default function PersonaApp() {
               // Clear pending generation from DB
               await fetch(`/api/user/pending-generation?telegram_user_id=${tgId}`, { method: "DELETE" })
 
-              // Start generation
-              console.log("[Init] Starting generation for avatar:", targetAvatarId)
+              // Start generation - get Telegram initData for secure authentication
+              const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null
+              const initData = tg?.initData || ''
+
+              console.log("[Init] Starting generation for avatar:", targetAvatarId, {
+                hasInitData: !!initData,
+                initDataLength: initData.length
+              })
+
               const genRes = await fetch("/api/generate", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                  "Content-Type": "application/json",
+                  ...(initData && { "x-telegram-init-data": initData })
+                },
                 body: JSON.stringify({
-                  telegramUserId: tgId,
                   avatarId: targetAvatarId,
                   styleId: "pinglass",
                   photoCount: tierPhotos,
                   useStoredReferences: true,
+                  // Pass initData in body as fallback
+                  initData: initData || undefined,
                 }),
               })
               const genData = await genRes.json()
