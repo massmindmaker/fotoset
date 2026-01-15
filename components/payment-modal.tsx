@@ -74,7 +74,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const { tiers, isLoading: pricingLoading } = usePricing()
 
   // TonConnect hook
-  const { wallet, sendTransaction } = useTonConnect()
+  const { wallet, connect, sendTransaction } = useTonConnect()
 
   // Check if running in Telegram WebApp
   const isTelegram = typeof window !== 'undefined' && !!window.Telegram?.WebApp?.initData
@@ -373,63 +373,88 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         <div className="p-4 pb-6">
           {step === "FORM" && (
             <div className="space-y-4">
-              {/* Tier Selection Cards */}
-              <div className="space-y-3">
-                {tiers.map((tier) => (
-                  <button
-                    key={tier.id}
-                    onClick={() => setSelectedTierId(tier.id)}
-                    className={`w-full p-4 rounded-2xl border-2 transition-all text-left relative ${
-                      selectedTierId === tier.id
-                        ? 'border-primary bg-primary/5 shadow-md'
-                        : 'border-border hover:border-primary/50 bg-background'
-                    }`}
-                  >
-                    {/* Popular badge */}
-                    {tier.popular && (
-                      <span className="absolute -top-2 right-4 px-2 py-0.5 bg-primary text-white text-xs font-medium rounded-full">
-                        Хит
-                      </span>
-                    )}
-
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xl font-bold">{tier.photos} фото</span>
-                        </div>
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                          tier.id === 'starter' ? 'bg-gray-100 text-gray-600' :
-                          tier.id === 'standard' ? 'bg-purple-100 text-purple-600' :
-                          'bg-amber-100 text-amber-600'
-                        }`}>
-                          {tier.id === 'starter' ? 'Starter' : tier.id === 'standard' ? 'Standard' : 'Premium'}
+              {/* Tier Selection Cards - Only show if no tier was pre-selected */}
+              {!initialTier && (
+                <div className="space-y-3">
+                  {tiers.map((tier) => (
+                    <button
+                      key={tier.id}
+                      onClick={() => setSelectedTierId(tier.id)}
+                      className={`w-full p-4 rounded-2xl border-2 transition-all text-left relative ${
+                        selectedTierId === tier.id
+                          ? 'border-primary bg-primary/5 shadow-md'
+                          : 'border-border hover:border-primary/50 bg-background'
+                      }`}
+                    >
+                      {/* Popular badge */}
+                      {tier.popular && (
+                        <span className="absolute -top-2 right-4 px-2 py-0.5 bg-primary text-white text-xs font-medium rounded-full">
+                          Хит
                         </span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-2xl font-bold">{tier.price}</span>
-                        <span className="text-lg text-muted-foreground ml-1">₽</span>
-                        {tier.originalPrice && tier.originalPrice > tier.price && (
-                          <div className="text-sm text-muted-foreground line-through">
-                            {tier.originalPrice} ₽
+                      )}
+
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xl font-bold">{tier.photos} фото</span>
                           </div>
-                        )}
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                            tier.id === 'starter' ? 'bg-gray-100 text-gray-600' :
+                            tier.id === 'standard' ? 'bg-purple-100 text-purple-600' :
+                            'bg-amber-100 text-amber-600'
+                          }`}>
+                            {tier.id === 'starter' ? 'Starter' : tier.id === 'standard' ? 'Standard' : 'Premium'}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-2xl font-bold">{tier.price}</span>
+                          <span className="text-lg text-muted-foreground ml-1">₽</span>
+                          {tier.originalPrice && tier.originalPrice > tier.price && (
+                            <div className="text-sm text-muted-foreground line-through">
+                              {tier.originalPrice} ₽
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Feature tags */}
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {(TIER_FEATURES[tier.id] || []).map((feature, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2.5 py-1 bg-muted rounded-full text-xs text-muted-foreground"
+                          >
+                            {feature}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Selected Tier Summary - Show when tier is pre-selected */}
+              {initialTier && selectedTier && (
+                <div className="p-4 bg-muted/50 rounded-2xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <Image className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-semibold">{selectedTier.photos} фотографий</p>
+                        <p className="text-sm text-muted-foreground">Выбранный пакет</p>
                       </div>
                     </div>
-
-                    {/* Feature tags */}
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {(TIER_FEATURES[tier.id] || []).map((feature, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2.5 py-1 bg-muted rounded-full text-xs text-muted-foreground"
-                        >
-                          {feature}
-                        </span>
-                      ))}
+                    <div className="text-right">
+                      <p className="text-2xl font-bold">{selectedTier.price} ₽</p>
+                      {selectedTier.originalPrice && selectedTier.originalPrice > selectedTier.price && (
+                        <p className="text-sm text-muted-foreground line-through">{selectedTier.originalPrice} ₽</p>
+                      )}
                     </div>
-                  </button>
-                ))}
-              </div>
+                  </div>
+                </div>
+              )}
 
               {/* Email Input - only for T-Bank */}
               {methods.tbank.enabled && (
@@ -496,19 +521,34 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   </Button>
                 )}
 
-                {/* TON - Only if wallet connected */}
-                {methods.ton.enabled && isTelegram && wallet.connected && (
+                {/* TON - Always show when enabled, handle connection inside */}
+                {methods.ton.enabled && isTelegram && (
                   <Button
-                    onClick={handleTonPayment}
-                    disabled={loading || isLoadingData}
-                    className="w-full h-14 rounded-xl text-base font-semibold bg-[#0098EA] hover:bg-[#0088D4] text-white"
+                    onClick={wallet.connected ? handleTonPayment : connect}
+                    disabled={loading || isLoadingData || wallet.loading}
+                    variant={wallet.connected ? "default" : "outline"}
+                    className={`w-full h-14 rounded-xl text-base font-semibold ${
+                      wallet.connected
+                        ? 'bg-[#0098EA] hover:bg-[#0088D4] text-white'
+                        : 'border-2 border-[#0098EA] bg-white hover:bg-[#0098EA]/5 text-[#0098EA]'
+                    }`}
                   >
                     {loading && selectedMethod === 'ton' ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
+                    ) : wallet.loading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Проверка кошелька...
+                      </>
+                    ) : wallet.connected ? (
                       <>
                         <Coins className="w-5 h-5 mr-2" />
                         Оплатить в TON
+                      </>
+                    ) : (
+                      <>
+                        <Coins className="w-5 h-5 mr-2" />
+                        Подключить TON кошелёк
                       </>
                     )}
                   </Button>
