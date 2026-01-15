@@ -3,6 +3,8 @@
  * Sends notifications when photo generation completes
  */
 
+import { fetchWithTimeout, TIMEOUTS } from "./fetch-with-timeout"
+
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 
 interface NotificationResult {
@@ -30,12 +32,13 @@ export async function sendGenerationNotification(
 
   try {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://pinglass.app"
-    
-    const response = await fetch(
+
+    const response = await fetchWithTimeout(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        timeout: TIMEOUTS.TELEGRAM_API,
         body: JSON.stringify({
           chat_id: telegramUserId,
           photo: thumbnailUrl,
@@ -56,7 +59,7 @@ export async function sendGenerationNotification(
     )
 
     const result = await response.json()
-    
+
     if (!result.ok) {
       console.error("[Telegram] Notification failed:", result.description)
       return { success: false, error: result.description }
@@ -85,12 +88,13 @@ export async function sendTextNotification(
 
   try {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://pinglass.app"
-    
-    const response = await fetch(
+
+    const response = await fetchWithTimeout(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        timeout: TIMEOUTS.TELEGRAM_API,
         body: JSON.stringify({
           chat_id: telegramUserId,
           text: message,

@@ -1154,15 +1154,25 @@ export default function PersonaApp() {
     try {
       const referenceImages = await Promise.all(p.images.slice(0, 14).map((img) => fileToBase64(img.file)))
 
+      // Get Telegram initData for secure authentication
+      const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null
+      const initData = tg?.initData || ''
+
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(initData && { "x-telegram-init-data": initData })
+        },
         body: JSON.stringify({
-          telegramUserId,
           avatarId: p.id,
           styleId: "pinglass",
           photoCount: tier.photos,
           referenceImages,
+          // Pass initData in body as fallback
+          initData: initData || undefined,
+          // Keep neonUserId for web auth
+          neonUserId: neonUserId || undefined,
         }),
       })
 

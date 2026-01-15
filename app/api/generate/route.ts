@@ -38,6 +38,7 @@ import {
   trackQStashSuccess,
 } from "@/lib/sentry-events"
 import { autoRefundForFailedGeneration } from "@/lib/payments/refund-dispatcher"
+import { checkGenerationRateLimit } from "@/lib/generation-rate-limit"
 
 const logger = createLogger("Generate")
 
@@ -53,9 +54,9 @@ const GENERATION_CONFIG = {
   maxRetries: 2,               // Max retries for failed generations
 }
 
-// NOTE: Rate limiting removed (2025-12-20)
-// In-memory rate limiting doesn't work on Vercel serverless
-// Protection: Telegram auth + payment barrier + Google API quotas
+// NOTE: Database-based rate limiting added (2026-01-15)
+// Limits: 3 concurrent generations, 60s cooldown between starts
+// Additional protection: Telegram auth + payment barrier + Google API quotas
 
 // ============================================================================
 // Background Generation
@@ -366,6 +367,21 @@ export async function POST(request: NextRequest) {
       telegramUserId: tgId,
       neonUserId,
     })
+
+    // Rate limiting: 3 concurrent generations, 60s cooldown
+    const rateLimit = await checkGenerationRateLimit(authUser.user.id)
+    if (!rateLimit.allowed) {
+      logger.warn("Rate limit exceeded", {
+        userId: authUser.user.id,
+        reason: rateLimit.reason,
+        currentCount: rateLimit.currentCount,
+        cooldownRemaining: rateLimit.cooldownRemaining,
+      })
+      return error("RATE_LIMIT_EXCEEDED", rateLimit.reason || "Too many generation requests", {
+        currentCount: rateLimit.currentCount,
+        cooldownRemaining: rateLimit.cooldownRemaining,
+      })
+    }
 
     const requiredFields = useStoredReferences
       ? ["avatarId", "styleId"]

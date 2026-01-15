@@ -197,17 +197,30 @@ export async function uploadFromUrl(
   imageUrl: string,
   key: string
 ): Promise<UploadResult> {
-  const response = await fetch(imageUrl)
+  // Add timeout to prevent hanging on slow external images
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 20000) // 20s timeout
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
+  try {
+    const response = await fetch(imageUrl, { signal: controller.signal })
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
+    }
+
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const contentType = response.headers.get("content-type") || "image/jpeg"
+
+    return uploadImage(buffer, key, contentType)
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Image download timeout after 20s: ${imageUrl}`)
+    }
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
   }
-
-  const arrayBuffer = await response.arrayBuffer()
-  const buffer = Buffer.from(arrayBuffer)
-  const contentType = response.headers.get("content-type") || "image/jpeg"
-
-  return uploadImage(buffer, key, contentType)
 }
 
 // ============================================================================
