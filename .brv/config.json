@@ -1,0 +1,9 @@
+{
+  "project": "pinglass",
+  "displayName": "PinGlass (Fotoset)",
+  "description": "AI photo portrait generation app - 23 professional photos in various styles",
+  "team": "pinglass-team",
+  "space": "production",
+  "codingAgent": "claude-code",
+  "createdAt": "2026-01-13T00:00:00Z"
+}
