@@ -36,7 +36,7 @@ interface WalletState {
 // TonConnect context value
 interface TonConnectContextValue {
   wallet: WalletState
-  connect: () => Promise<void>
+  connect: () => Promise<boolean>
   disconnect: () => Promise<void>
   sendTransaction: (to: string, amount: number, comment?: string) => Promise<string | null>
 }
@@ -70,85 +70,82 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
   // Initialize TonConnect UI
   useEffect(() => {
     let mounted = true
+    let unsubscribe: (() => void) | null = null
 
     async function initTonConnect() {
       try {
-        // Dynamic import to avoid SSR issues
-        const { TonConnectUI } = await import('@tonconnect/ui-react')
-        
+        // Dynamic import from @tonconnect/ui (vanilla JS) to avoid SSR issues
+        // Note: @tonconnect/ui-react exports TonConnectUIProvider, not TonConnectUI class
+        const { TonConnectUI } = await import('@tonconnect/ui')
+
         if (!mounted) return
 
         // Check if running in Telegram Mini App context
         const isTMA = typeof window !== 'undefined' && !!window.Telegram?.WebApp?.initData
 
+        // Build actionsConfiguration based on environment
+        // For connection, don't set skipRedirectToWallet - allow wallets to open
         const ui = new TonConnectUI({
           manifestUrl: MANIFEST_URL,
-          // CRITICAL: Set actionsConfiguration for Telegram Mini Apps
-          // Without this, wallet cannot redirect back to the app after connection
-          actionsConfiguration: {
-            // twaReturnUrl is used by wallets in Telegram to return to our Mini App
-            twaReturnUrl: TG_BOT_RETURN_URL,
-            // returnStrategy for non-TMA wallets (Tonkeeper browser, etc)
+          actionsConfiguration: isTMA ? {
+            twaReturnUrl: TG_BOT_RETURN_URL as `${string}://${string}`,
             returnStrategy: 'back',
-            // Skip redirect confirmation in TMA context for smoother UX
-            skipRedirectToWallet: 'ios',
+          } : {
+            returnStrategy: 'back',
           },
         })
-
-        // Set UI options for better TMA integration
-        // Note: must reassign entire object, not modify properties
-        ui.uiOptions = {
-          actionsConfiguration: {
-            twaReturnUrl: TG_BOT_RETURN_URL,
-            returnStrategy: 'back',
-            skipRedirectToWallet: 'ios',
-          }
-        }
 
         console.log('[TonConnect] Initialized:', {
           isTMA,
           manifestUrl: MANIFEST_URL,
-          twaReturnUrl: TG_BOT_RETURN_URL,
+          twaReturnUrl: isTMA ? TG_BOT_RETURN_URL : 'N/A',
         })
 
         // Restore connection from storage
-        await ui.connectionRestored
+        const restored = await ui.connectionRestored
+        console.log('[TonConnect] Connection restored:', restored)
+
+        if (!mounted) return
 
         setTonConnectUI(ui)
 
-        // Subscribe to connection changes
-        ui.onStatusChange((wallet: any) => {
-          if (wallet) {
-            setWallet({
-              connected: true,
-              address: wallet.account.address,
-              publicKey: wallet.account.publicKey ?? null,
-              walletName: wallet.device.appName,
-              loading: false
-            })
-          } else {
-            setWallet({
-              ...defaultWalletState,
-              loading: false
-            })
-          }
-        })
+        // Subscribe to connection changes - this is the single source of truth
+        unsubscribe = ui.onStatusChange(
+          (walletInfo: any) => {
+            if (!mounted) return
 
-        // Check initial state
-        if (ui.connected && ui.wallet) {
-          setWallet({
-            connected: true,
-            address: ui.wallet.account.address,
-            publicKey: ui.wallet.account.publicKey ?? null,
-            walletName: ui.wallet.device.appName,
-            loading: false
-          })
-        } else {
+            if (walletInfo) {
+              console.log('[TonConnect] Wallet connected:', walletInfo.account.address)
+              setWallet({
+                connected: true,
+                address: walletInfo.account.address,
+                publicKey: walletInfo.account.publicKey ?? null,
+                walletName: walletInfo.device.appName,
+                loading: false
+              })
+            } else {
+              console.log('[TonConnect] Wallet disconnected')
+              setWallet({
+                ...defaultWalletState,
+                loading: false
+              })
+            }
+          },
+          (error: any) => {
+            console.error('[TonConnect] Status change error:', error)
+          }
+        )
+
+        // Set initial loading to false if not connected
+        // The onStatusChange callback will handle connected state
+        if (!ui.connected) {
           setWallet(prev => ({ ...prev, loading: false }))
         }
       } catch (error) {
         console.error('[TonConnect] Failed to initialize:', error)
-        setWallet(prev => ({ ...prev, loading: false }))
+        if (mounted) {
+          setWallet(prev => ({ ...prev, loading: false }))
+        }
       }
     }
 
@@ -156,31 +153,44 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
 
     return () => {
       mounted = false
+      // Properly cleanup subscription
+      if (unsubscribe) {
+        unsubscribe()
+      }
     }
   }, [])
 
   // Connect wallet
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (): Promise<boolean> => {
     if (!tonConnectUI) {
       console.warn('[TonConnect] UI not initialized')
-      return
+      return false
     }
 
     try {
       console.log('[TonConnect] Opening modal...')
-      // Ensure twaReturnUrl and returnStrategy are set before opening modal
-      // Must reassign entire object, not modify properties
-      tonConnectUI.uiOptions = {
-        actionsConfiguration: {
-          twaReturnUrl: TG_BOT_RETURN_URL,
-          returnStrategy: 'back',
-          skipRedirectToWallet: 'ios',
+      // Check if in TMA context
+      const isTMA = typeof window !== 'undefined' && !!window.Telegram?.WebApp?.initData
+
+      // Set appropriate return URL for TMA before opening modal
+      // Don't use skipRedirectToWallet for connect - allow wallet to open
+      if (isTMA) {
+        tonConnectUI.uiOptions = {
+          actionsConfiguration: {
+            twaReturnUrl: TG_BOT_RETURN_URL as `${string}://${string}`,
+            returnStrategy: 'back',
+          }
         }
       }
+
       await tonConnectUI.openModal()
-      console.log('[TonConnect] Modal opened')
+      console.log('[TonConnect] Modal opened, waiting for connection...')
+
+      // Return true to indicate modal was opened (connection happens async)
+      return true
     } catch (error) {
       console.error('[TonConnect] Connect error:', error)
+      return false
     }
   }, [tonConnectUI])
 
@@ -201,8 +211,8 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
 
   // Send transaction
   const sendTransaction = useCallback(async (
-    to: string, 
-    amount: number, 
+    to: string,
+    amount: number,
     comment?: string
   ): Promise<string | null> => {
     if (!tonConnectUI || !wallet.connected) {
@@ -211,6 +221,21 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
     }
 
     try {
+      // Check if in TMA context
+      const isTMA = typeof window !== 'undefined' && !!window.Telegram?.WebApp?.initData
+
+      // Set skipRedirectToWallet for transactions (not for connect)
+      // This prevents redirect issues on iOS when there are async calls before transaction
+      if (isTMA) {
+        tonConnectUI.uiOptions = {
+          actionsConfiguration: {
+            twaReturnUrl: TG_BOT_RETURN_URL as `${string}://${string}`,
+            returnStrategy: 'back',
+            skipRedirectToWallet: 'ios', // Only for sendTransaction!
+          }
+        }
+      }
+
       // Amount in nanotons (1 TON = 10^9 nanotons)
       const amountNano = BigInt(Math.floor(amount * 1e9))
 
@@ -225,7 +250,9 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
         ]
       }
 
+      console.log('[TonConnect] Sending transaction:', { to, amount, comment })
       const result = await tonConnectUI.sendTransaction(transaction)
+      console.log('[TonConnect] Transaction sent:', result.boc)
       return result.boc // Transaction hash
     } catch (error) {
       console.error('[TonConnect] Transaction error:', error)
