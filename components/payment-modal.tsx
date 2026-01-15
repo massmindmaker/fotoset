@@ -74,7 +74,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const { tiers, isLoading: pricingLoading } = usePricing()
 
   // TonConnect hook
-  const { wallet, connect: connectWallet, sendTransaction } = useTonConnect()
+  const { wallet, sendTransaction } = useTonConnect()
 
   // Check if running in Telegram WebApp
   const isTelegram = typeof window !== 'undefined' && !!window.Telegram?.WebApp?.initData
@@ -496,8 +496,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   </Button>
                 )}
 
-                {/* TON - Only in Telegram */}
-                {methods.ton.enabled && isTelegram && (
+                {/* TON - Only if wallet connected */}
+                {methods.ton.enabled && isTelegram && wallet.connected && (
                   <Button
                     onClick={handleTonPayment}
                     disabled={loading || isLoadingData}
@@ -590,71 +590,26 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 {tonPaymentData.amount} TON
               </div>
 
-              {/* TonConnect Option */}
-              {wallet.connected ? (
-                <div className="w-full space-y-3">
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
-                    <p className="text-sm text-green-700">
-                      Кошелёк подключён: {wallet.address?.slice(0, 6)}...{wallet.address?.slice(-4)}
-                    </p>
-                  </div>
-                  <Button
-                    onClick={handleTonConnectSend}
-                    disabled={loading}
-                    className="w-full h-14 rounded-xl text-base font-semibold bg-[#0098EA] hover:bg-[#0088D4] text-white"
-                  >
-                    {loading ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <>
-                        <Coins className="w-5 h-5 mr-2" />
-                        Отправить {tonPaymentData.amount} TON
-                      </>
-                    )}
-                  </Button>
-                </div>
-              ) : (
-                <div className="w-full space-y-3">
-                  <Button
-                    onClick={connectWallet}
-                    disabled={wallet.loading}
-                    className="w-full h-14 rounded-xl text-base font-semibold bg-[#0098EA] hover:bg-[#0088D4] text-white"
-                  >
-                    {wallet.loading ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <>
-                        <Coins className="w-5 h-5 mr-2" />
-                        Подключить кошелёк
-                      </>
-                    )}
-                  </Button>
+              {/* Wallet info */}
+              <p className="text-sm text-muted-foreground mb-4">
+                С кошелька {wallet.address?.slice(0, 6)}...{wallet.address?.slice(-4)}
+              </p>
 
-                  {/* Fallback - manual payment */}
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-border"></div>
-                    </div>
-                    <div className="relative flex justify-center text-xs">
-                      <span className="bg-background px-2 text-muted-foreground">или</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-muted/50 rounded-xl p-4 text-sm">
-                    <p className="text-muted-foreground mb-2">Переведите вручную:</p>
-                    <p className="font-mono text-xs break-all mb-2">{tonPaymentData.walletAddress}</p>
-                    <p className="text-muted-foreground text-xs">Комментарий: <span className="font-mono">{tonPaymentData.comment}</span></p>
-                  </div>
-
-                  <Button
-                    onClick={() => window.location.href = tonPaymentData.tonLink}
-                    variant="outline"
-                    className="w-full h-11 rounded-xl"
-                  >
-                    Открыть кошелёк
-                  </Button>
-                </div>
-              )}
+              {/* Single payment button */}
+              <Button
+                onClick={handleTonConnectSend}
+                disabled={loading}
+                className="w-full h-14 rounded-xl text-base font-semibold bg-[#0098EA] hover:bg-[#0088D4] text-white"
+              >
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    <Coins className="w-5 h-5 mr-2" />
+                    Оплатить {tonPaymentData.amount} TON
+                  </>
+                )}
+              </Button>
 
               <Button onClick={() => setStep("FORM")} variant="ghost" className="mt-4 text-sm">
                 Отмена
