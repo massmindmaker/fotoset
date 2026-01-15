@@ -88,16 +88,20 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
           actionsConfiguration: {
             // twaReturnUrl is used by wallets in Telegram to return to our Mini App
             twaReturnUrl: TG_BOT_RETURN_URL,
+            // returnStrategy for non-TMA wallets (Tonkeeper browser, etc)
+            returnStrategy: 'back',
             // Skip redirect confirmation in TMA context for smoother UX
-            skipRedirectToWallet: isTMA ? 'ios' : undefined,
+            skipRedirectToWallet: 'ios',
           },
         })
 
         // Set UI options for better TMA integration
-        // actionsConfiguration.twaReturnUrl is the correct path
+        // Note: must reassign entire object, not modify properties
         ui.uiOptions = {
           actionsConfiguration: {
             twaReturnUrl: TG_BOT_RETURN_URL,
+            returnStrategy: 'back',
+            skipRedirectToWallet: 'ios',
           }
         }
 
@@ -164,10 +168,13 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
 
     try {
       console.log('[TonConnect] Opening modal...')
-      // Ensure twaReturnUrl is set before opening modal
+      // Ensure twaReturnUrl and returnStrategy are set before opening modal
+      // Must reassign entire object, not modify properties
       tonConnectUI.uiOptions = {
         actionsConfiguration: {
           twaReturnUrl: TG_BOT_RETURN_URL,
+          returnStrategy: 'back',
+          skipRedirectToWallet: 'ios',
         }
       }
       await tonConnectUI.openModal()

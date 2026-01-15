@@ -68,6 +68,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     paymentId: string
     tonLink: string
   } | null>(null)
+  // Flag to auto-proceed with TON payment after wallet connects
+  const [pendingTonPayment, setPendingTonPayment] = useState(false)
 
   // Fetch available payment methods and pricing
   const { methods, altMethodsCount, isLoading: methodsLoading } = usePaymentMethods()
@@ -91,11 +93,25 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       setErrorMessage("")
       setStarsPaymentId(null)
       setTonPaymentData(null)
+      setPendingTonPayment(false)
       if (initialTier) {
         setSelectedTierId(initialTier.id)
       }
     }
   }, [isOpen, initialTier])
+
+  // Auto-proceed with TON payment when wallet connects
+  useEffect(() => {
+    if (pendingTonPayment && wallet.connected && !wallet.loading && step === "FORM") {
+      console.log('[Payment] Wallet connected, auto-starting TON payment')
+      setPendingTonPayment(false)
+      // Call handleTonPayment after state update
+      setTimeout(() => {
+        handleTonPayment()
+      }, 100)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingTonPayment, wallet.connected, wallet.loading, step])
 
   // Poll Stars payment status
   useEffect(() => {
@@ -526,8 +542,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <Button
                     onClick={async () => {
                       if (!wallet.connected) {
-                        // Open wallet connection modal first
+                        // Set flag to auto-proceed after wallet connects
+                        setPendingTonPayment(true)
+                        // Open wallet connection modal
                         await connect()
+                        // Note: handleTonPayment will be called by useEffect when wallet.connected becomes true
                       } else {
                         // Wallet connected - proceed to payment
                         await handleTonPayment()
