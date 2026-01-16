@@ -35,14 +35,20 @@ async function getHandler() {
   return cachedHandler;
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ path: string[] }> }
+) {
   const handler = await getHandler();
   if (!handler) return notConfiguredHandler();
-  return handler.GET(request);
+  return handler.GET(request, context);
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ path: string[] }> }
+) {
   const handler = await getHandler();
   if (!handler) return notConfiguredHandler();
-  return handler.POST(request);
+  return handler.POST(request, context);
 }
