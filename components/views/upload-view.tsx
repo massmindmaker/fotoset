@@ -30,13 +30,19 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
     }
   }, []) // Empty deps: cleanup only on unmount
 
+  const MAX_PHOTOS = 8 // Kie.ai API limit: max 8 reference images
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || typeof window === "undefined") return
     const newImages: Array<{ id: string; file: File; previewUrl: string }> = []
     const MAX_FILE_SIZE = 30 * 1024 * 1024
     const VALID_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]
 
-    for (let i = 0; i < e.target.files.length; i++) {
+    // Calculate available slots (silently limit to MAX_PHOTOS)
+    const availableSlots = MAX_PHOTOS - persona.images.length
+    if (availableSlots <= 0) return
+
+    for (let i = 0; i < e.target.files.length && newImages.length < availableSlots; i++) {
       const file = e.target.files[i]
 
       if (!VALID_TYPES.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i)) {
@@ -67,8 +73,9 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
   }
 
   const MIN_PHOTOS = 5  // Minimum photos required to proceed
-  const progress = Math.min(100, (persona.images.length / 20) * 100)
+  const progress = Math.min(100, (persona.images.length / MAX_PHOTOS) * 100)
   const isReady = persona.images.length >= MIN_PHOTOS
+  const isFull = persona.images.length >= MAX_PHOTOS
 
   return (
     <div className="space-y-6 pb-24 sm:pb-6">
@@ -102,7 +109,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
                 "text-xs transition-colors",
                 isReady ? "text-green-600 font-medium" : "text-muted-foreground"
               )}>
-                {persona.images.length}/20 фото
+                {persona.images.length}/{MAX_PHOTOS} фото
               </span>
             </div>
           </div>
@@ -135,14 +142,16 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
       </div>
       {/* Photo Grid - v4 design: rounded-lg, better spacing */}
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/50 active:border-primary/60 hover:bg-primary/5 active:bg-primary/10 transition-all flex flex-col items-center justify-center gap-1.5 group touch-manipulation min-h-[80px] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]"
-          aria-label="Добавить фото"
-        >
-          <Plus className="w-7 h-7 sm:w-6 sm:h-6 text-muted-foreground group-hover:text-primary transition-colors" />
-          <span className="text-[11px] sm:text-[10px] text-muted-foreground group-hover:text-primary font-medium transition-colors">Добавить</span>
-        </button>
+        {!isFull && (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/50 active:border-primary/60 hover:bg-primary/5 active:bg-primary/10 transition-all flex flex-col items-center justify-center gap-1.5 group touch-manipulation min-h-[80px] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]"
+            aria-label="Добавить фото"
+          >
+            <Plus className="w-7 h-7 sm:w-6 sm:h-6 text-muted-foreground group-hover:text-primary transition-colors" />
+            <span className="text-[11px] sm:text-[10px] text-muted-foreground group-hover:text-primary font-medium transition-colors">Добавить</span>
+          </button>
+        )}
         <input
           type="file"
           multiple
@@ -165,7 +174,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
           </div>
         ))}
         {/* Skeleton placeholders для визуализации оставшихся слотов */}
-        {persona.images.length < 5 && Array.from({ length: Math.min(3, 5 - persona.images.length) }).map((_, i) => (
+        {!isFull && persona.images.length < MIN_PHOTOS && Array.from({ length: Math.min(3, MIN_PHOTOS - persona.images.length) }).map((_, i) => (
           <div
             key={`skeleton-${i}`}
             onClick={() => fileInputRef.current?.click()}
@@ -195,7 +204,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
           ) : (
             <>
               <Sparkles className="w-5 h-5" />
-              Выбрать стиль
+              Создать
             </>
           )}
         </Button>
