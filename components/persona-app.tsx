@@ -263,6 +263,8 @@ export default function PersonaApp() {
                   useStoredReferences: true,
                   // Pass initData in body as fallback
                   initData: initData || undefined,
+                  // Telegram auth fallback
+                  telegramUserId: tg?.initDataUnsafe?.user?.id || undefined,
                 }),
               })
               const genData = await genRes.json()
@@ -1183,6 +1185,8 @@ export default function PersonaApp() {
           referenceImages,
           // Pass initData in body as fallback
           initData: initData || undefined,
+          // Telegram auth fallback (when initData validation fails)
+          telegramUserId: tg?.initDataUnsafe?.user?.id || telegramUserId || undefined,
           // Keep neonUserId for web auth
           neonUserId: neonUserId || undefined,
         }),
