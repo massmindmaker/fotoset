@@ -128,15 +128,17 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
         })
 
         // Create TonConnectUI instance
-        // Note: actionsConfiguration.twaReturnUrl is for TWA-TWA redirects
         const ui = new TonConnectUI({
           manifestUrl: MANIFEST_URL,
-          actionsConfiguration: {
-            // twaReturnUrl must be set for TMA environment to redirect back after wallet action
-            twaReturnUrl: isTMA ? TG_BOT_RETURN_URL as `${string}://${string}` : undefined,
-            returnStrategy: 'back',
-          },
         })
+
+        // CRITICAL: Set twaReturnUrl in uiOptions for TMA environment
+        // This must be done AFTER creating the instance, not in constructor
+        if (isTMA) {
+          ui.uiOptions = {
+            twaReturnUrl: TG_BOT_RETURN_URL as `${string}://${string}`,
+          }
+        }
 
         debugLog('initialized', {
           isTMA,
@@ -294,20 +296,7 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
     }
 
     try {
-      // Check if in TMA context
-      const isTMA = typeof window !== 'undefined' && !!window.Telegram?.WebApp?.initData
-      debugLog('opening_modal', { isTMA })
-
-      // Set appropriate return URL for TMA before opening modal
-      // Don't use skipRedirectToWallet for connect - allow wallet to open
-      if (isTMA) {
-        tonConnectUI.uiOptions = {
-          actionsConfiguration: {
-            twaReturnUrl: TG_BOT_RETURN_URL as `${string}://${string}`,
-            returnStrategy: 'back',
-          }
-        }
-      }
+      debugLog('opening_modal', { })
 
       await tonConnectUI.openModal()
       debugLog('modal_opened', { waitingForConnection: true })
@@ -347,21 +336,6 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
     }
 
     try {
-      // Check if in TMA context
-      const isTMA = typeof window !== 'undefined' && !!window.Telegram?.WebApp?.initData
-
-      // Set skipRedirectToWallet for transactions (not for connect)
-      // This prevents redirect issues on iOS when there are async calls before transaction
-      if (isTMA) {
-        tonConnectUI.uiOptions = {
-          actionsConfiguration: {
-            twaReturnUrl: TG_BOT_RETURN_URL as `${string}://${string}`,
-            returnStrategy: 'back',
-            skipRedirectToWallet: 'ios', // Only for sendTransaction!
-          }
-        }
-      }
-
       // Amount in nanotons (1 TON = 10^9 nanotons)
       const amountNano = BigInt(Math.floor(amount * 1e9))
 
