@@ -609,15 +609,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                           }, 15000)
 
                           // Open wallet connection modal
-                          const modalOpened = await connect()
-
-                          if (!modalOpened) {
+                          // connect() returns void - use try/catch for error handling
+                          try {
+                            await connect()
+                          } catch (connectError) {
                             // Failed to open modal - reset flag and clean storage
                             clearTimeout(safetyTimeout)
                             setPendingTonPayment(false)
                             localStorage.removeItem(PENDING_TON_STORAGE_KEY)
                             setErrorMessage("Не удалось открыть кошелёк. Убедитесь, что у вас установлен Tonkeeper.")
                             setStep("ERROR")
+                            return
                           }
                           // Note: handleTonPayment will be called by useEffect when wallet.connected becomes true
                         } else {
