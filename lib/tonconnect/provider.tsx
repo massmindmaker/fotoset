@@ -3,29 +3,38 @@
 /**
  * TonConnect Provider - Using official @tonconnect/ui-react
  *
- * IMPORTANT: TonConnectUIProvider must be loaded with SSR disabled
- * to work properly in Telegram Mini Apps.
- * See: https://github.com/ton-connect/sdk/issues/230
+ * CRITICAL: Telegram Mini Apps don't support SSR properly.
+ * TonConnectUIProvider must only be rendered on client side.
  */
 
-import dynamic from 'next/dynamic'
-import { ReactNode } from 'react'
+import { TonConnectUIProvider } from '@tonconnect/ui-react'
+import { ReactNode, useEffect, useState } from 'react'
 
 // Manifest URL - must be accessible from the internet
 const MANIFEST_URL = 'https://fotoset.vercel.app/tonconnect-manifest.json'
-
-// CRITICAL: Load TonConnectUIProvider with SSR disabled
-// This fixes the infinite loading issue in Telegram Mini Apps
-const TonConnectUIProvider = dynamic(
-  () => import('@tonconnect/ui-react').then((mod) => mod.TonConnectUIProvider),
-  { ssr: false }
-)
 
 interface TonConnectProviderProps {
   children: ReactNode
 }
 
 export function TonConnectProvider({ children }: TonConnectProviderProps) {
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  // CRITICAL: Don't render anything on server side
+  // TonConnectUIProvider requires client-side only
+  if (!isClient) {
+    // Return a loading placeholder on server
+    return (
+      <div style={{ minHeight: '100vh' }}>
+        {/* Placeholder during SSR - keeps layout stable */}
+      </div>
+    )
+  }
+
   return (
     <TonConnectUIProvider
       manifestUrl={MANIFEST_URL}

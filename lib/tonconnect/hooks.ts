@@ -1,9 +1,10 @@
 'use client'
 
 /**
- * TonConnect Hooks - Wrapper around official @tonconnect/ui-react hooks
+ * TonConnect Hooks - Using official @tonconnect/ui-react hooks
  *
- * Provides a simplified interface for wallet connection and transactions.
+ * IMPORTANT: These hooks must be used inside TonConnectUIProvider.
+ * The provider handles the SSR case by not rendering until mounted.
  */
 
 import {
