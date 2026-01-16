@@ -18,7 +18,7 @@ import { sql, type User } from './db';
 import { getStackUserInfo, type StackUserInfo } from './neon-auth';
 
 // Auth method types
-export type AuthMethod = 'telegram' | 'neon_auth';
+export type AuthMethod = 'telegram' | 'telegram_fallback' | 'neon_auth';
 
 export interface AuthenticatedUser {
   user: User;
