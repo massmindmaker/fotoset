@@ -71,6 +71,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   // Flag to auto-proceed with TON payment after wallet connects
   const [pendingTonPayment, setPendingTonPayment] = useState(false)
 
+  // LocalStorage key for persistent TON payment intent
+  const PENDING_TON_STORAGE_KEY = 'pinglass_pending_ton_payment'
+
   // Fetch available payment methods and pricing
   const { methods, altMethodsCount, isLoading: methodsLoading } = usePaymentMethods()
   const { tiers, isLoading: pricingLoading } = usePricing()
@@ -83,6 +86,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   // Get selected tier from pricing or use initial
   const selectedTier = tiers.find(t => t.id === selectedTierId) || initialTier || tiers[1] // Default to standard
+
+  // Handle modal close - clear persistent TON payment intent
+  const handleClose = useCallback(() => {
+    // Clear localStorage when user explicitly closes the modal
+    localStorage.removeItem(PENDING_TON_STORAGE_KEY)
+    console.log('[Payment] Modal closed, cleared TON payment intent')
+    onClose()
+  }, [onClose])
 
   // Reset state when modal opens
   useEffect(() => {
@@ -314,11 +325,49 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   }, [telegramUserId, selectedTier, personaId])
 
-  // Auto-proceed with TON payment when wallet connects
+  // Check for persistent TON payment intent from localStorage (survives page reload)
+  useEffect(() => {
+    if (!isOpen || !wallet.connected || wallet.loading) return
+
+    try {
+      const stored = localStorage.getItem(PENDING_TON_STORAGE_KEY)
+      if (stored) {
+        const data = JSON.parse(stored)
+        const age = Date.now() - (data.timestamp || 0)
+
+        // Only proceed if intent is less than 5 minutes old
+        if (age < 5 * 60 * 1000) {
+          console.log('[Payment] Found persistent TON payment intent, wallet connected, proceeding...', data)
+
+          // Clear the stored intent
+          localStorage.removeItem(PENDING_TON_STORAGE_KEY)
+
+          // Set tier if stored
+          if (data.tierId) {
+            setSelectedTierId(data.tierId)
+          }
+
+          // Proceed with TON payment
+          setPendingTonPayment(true)
+        } else {
+          // Intent expired, clean up
+          console.log('[Payment] TON payment intent expired, cleaning up')
+          localStorage.removeItem(PENDING_TON_STORAGE_KEY)
+        }
+      }
+    } catch (e) {
+      console.error('[Payment] Error reading persistent TON intent:', e)
+      localStorage.removeItem(PENDING_TON_STORAGE_KEY)
+    }
+  }, [isOpen, wallet.connected, wallet.loading])
+
+  // Auto-proceed with TON payment when wallet connects (handles both in-memory and restored flags)
   useEffect(() => {
     if (pendingTonPayment && wallet.connected && !wallet.loading && step === "FORM") {
       console.log('[Payment] Wallet connected, auto-starting TON payment')
       setPendingTonPayment(false)
+      // Clear localStorage just in case
+      localStorage.removeItem(PENDING_TON_STORAGE_KEY)
       handleTonPayment()
     }
   }, [pendingTonPayment, wallet.connected, wallet.loading, step, handleTonPayment])
@@ -372,7 +421,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <h2 id="payment-modal-title" className="text-lg font-semibold">Безопасная оплата</h2>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="min-w-11 min-h-11 p-2.5 hover:bg-muted rounded-lg text-muted-foreground transition-colors"
             disabled={loading}
             aria-label="Закрыть"
@@ -539,13 +588,25 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     onClick={async () => {
                       try {
                         if (!wallet.connected) {
-                          // Set flag to auto-proceed after wallet connects
+                          // Set flag to auto-proceed after wallet connects (in-memory)
                           setPendingTonPayment(true)
+
+                          // CRITICAL: Save to localStorage for persistence across page reload
+                          // This handles the TMA redirect flow where user goes to Tonkeeper and back
+                          const pendingData = {
+                            tierId: selectedTier?.id,
+                            personaId: personaId,
+                            timestamp: Date.now()
+                          }
+                          localStorage.setItem(PENDING_TON_STORAGE_KEY, JSON.stringify(pendingData))
+                          console.log('[Payment] Saved TON payment intent to localStorage', pendingData)
+
                           // Open wallet connection modal
                           const modalOpened = await connect()
                           if (!modalOpened) {
-                            // Failed to open modal - reset flag
+                            // Failed to open modal - reset flag and clean storage
                             setPendingTonPayment(false)
+                            localStorage.removeItem(PENDING_TON_STORAGE_KEY)
                             setErrorMessage("Не удалось открыть кошелёк")
                             setStep("ERROR")
                           }
@@ -557,6 +618,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       } catch (error) {
                         console.error('[Payment] TON button error:', error)
                         setPendingTonPayment(false)
+                        localStorage.removeItem(PENDING_TON_STORAGE_KEY)
                         setErrorMessage(getErrorMessage(error, "Ошибка подключения кошелька"))
                         setStep("ERROR")
                       }
