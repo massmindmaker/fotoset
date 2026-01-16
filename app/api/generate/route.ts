@@ -354,7 +354,9 @@ export async function POST(request: NextRequest) {
     // Removed direct telegramUserId/neonUserId from body - must be verified via initData or Neon Auth session
     const authUser = await getAuthenticatedUser(request, body)
     if (!authUser) {
-      return error("UNAUTHORIZED", "Authentication required. Provide valid initData or Neon Auth session.")
+      // DEBUG: Log what we received to understand why auth failed
+      console.error('[Generate] Auth failed, body keys:', Object.keys(body || {}), 'telegramUserId:', body?.telegramUserId)
+      return error("UNAUTHORIZED", "Auth failed v2. Check telegramUserId in body.")
     }
 
     // Extract verified user identifiers from authenticated user
