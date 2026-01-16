@@ -2,10 +2,10 @@
 
 /**
  * TonConnect Provider for PinGlass
- * 
+ *
  * Wraps the application with TonConnect context for wallet connections.
  * Supports: Tonkeeper, OpenMask, MyTonWallet, and other TonConnect-compatible wallets.
- * 
+ *
  * Usage:
  * 1. Wrap your app with <TonConnectProvider>
  * 2. Use useTonConnect() hook to access wallet state
@@ -14,10 +14,35 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
 
+// Debug logging to server (for TMA where console is not accessible)
+const debugLog = async (event: string, data?: Record<string, unknown>) => {
+  const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null
+  const logData = {
+    event,
+    data,
+    timestamp: Date.now(),
+    url: typeof window !== 'undefined' ? window.location.href : 'unknown',
+    isTMA: !!tg?.initData,
+    tgPlatform: tg?.platform || 'unknown',
+    tgVersion: tg?.version || 'unknown',
+    initDataLength: tg?.initData?.length || 0,
+  }
+  console.log('[TonConnect]', event, logData)
+  try {
+    await fetch('/api/debug/tonconnect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(logData),
+    }).catch(() => {}) // Ignore fetch errors
+  } catch {
+    // Ignore
+  }
+}
+
 // Manifest URL for TonConnect protocol
 const MANIFEST_URL = typeof window !== 'undefined'
   ? `${window.location.origin}/tonconnect-manifest.json`
-  : 'https://pinglass.ru/tonconnect-manifest.json'
+  : 'https://fotoset.vercel.app/tonconnect-manifest.json'
 
 // Telegram Mini App return URL (critical for wallet connection in TMA)
 // This URL is used by wallets to redirect back to our TMA after connection/transaction
@@ -71,6 +96,16 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
   useEffect(() => {
     let mounted = true
     let unsubscribe: (() => void) | null = null
+    let initTimeout: NodeJS.Timeout | null = null
+
+    // Safety timeout: if init takes longer than 10 seconds, set loading to false
+    initTimeout = setTimeout(() => {
+      if (mounted && wallet.loading) {
+        console.warn('[TonConnect] Init timeout - setting loading to false')
+        debugLog('init_timeout', { reason: 'TonConnect initialization took too long' })
+        setWallet(prev => ({ ...prev, loading: false }))
+      }
+    }, 10000)
 
     async function initTonConnect() {
       try {
@@ -81,41 +116,51 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
         if (!mounted) return
 
         // Check if running in Telegram Mini App context
-        const isTMA = typeof window !== 'undefined' && !!window.Telegram?.WebApp?.initData
+        const tg = window.Telegram?.WebApp
+        const isTMA = !!tg?.initData
 
-        // Build actionsConfiguration based on environment
-        // For connection, don't set skipRedirectToWallet - allow wallets to open
+        debugLog('pre_init', {
+          isTMA,
+          platform: tg?.platform,
+          version: tg?.version,
+          initDataPresent: !!tg?.initData,
+          manifestUrl: MANIFEST_URL,
+        })
+
+        // Create TonConnectUI instance
+        // Note: actionsConfiguration.twaReturnUrl is for TWA-TWA redirects
         const ui = new TonConnectUI({
           manifestUrl: MANIFEST_URL,
-          actionsConfiguration: isTMA ? {
-            twaReturnUrl: TG_BOT_RETURN_URL as `${string}://${string}`,
-            returnStrategy: 'back',
-          } : {
+          actionsConfiguration: {
+            // twaReturnUrl must be set for TMA environment to redirect back after wallet action
+            twaReturnUrl: isTMA ? TG_BOT_RETURN_URL as `${string}://${string}` : undefined,
             returnStrategy: 'back',
           },
         })
 
-        console.log('[TonConnect] Initialized:', {
+        debugLog('initialized', {
           isTMA,
           manifestUrl: MANIFEST_URL,
           twaReturnUrl: isTMA ? TG_BOT_RETURN_URL : 'N/A',
+          uiCreated: !!ui,
         })
 
-        // Restore connection from storage
-        const restored = await ui.connectionRestored
-        console.log('[TonConnect] Connection restored:', restored)
+        // Subscribe to modal state changes for debugging
+        ui.onModalStateChange((state: any) => {
+          debugLog('modal_state_change', {
+            status: state?.status,
+            closeReason: state?.closeReason,
+          })
+        })
 
-        if (!mounted) return
-
-        setTonConnectUI(ui)
-
-        // Subscribe to connection changes - this is the single source of truth
+        // CRITICAL: Subscribe to status changes BEFORE connectionRestored
+        // This ensures we don't miss the connection event that fires during restoration
         unsubscribe = ui.onStatusChange(
           (walletInfo: any) => {
             if (!mounted) return
 
             if (walletInfo) {
-              console.log('[TonConnect] Wallet connected:', walletInfo.account.address)
+              debugLog('wallet_connected_onStatusChange', { address: walletInfo.account.address })
               setWallet({
                 connected: true,
                 address: walletInfo.account.address,
@@ -124,7 +169,7 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
                 loading: false
               })
             } else {
-              console.log('[TonConnect] Wallet disconnected')
+              debugLog('wallet_disconnected_onStatusChange')
               setWallet({
                 ...defaultWalletState,
                 loading: false
@@ -132,17 +177,35 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
             }
           },
           (error: any) => {
-            console.error('[TonConnect] Status change error:', error)
+            debugLog('status_change_error', { error: String(error) })
           }
         )
 
-        // Set initial loading to false if not connected
-        // The onStatusChange callback will handle connected state
-        if (!ui.connected) {
+        // Now wait for connection restoration from localStorage
+        // The onStatusChange callback above will catch the connection event
+        const restored = await ui.connectionRestored
+        debugLog('connection_restored', { restored })
+
+        if (!mounted) return
+
+        setTonConnectUI(ui)
+
+        // IMPORTANT: After connectionRestored, explicitly check current state
+        // In case onStatusChange didn't fire (edge case), sync state from ui.wallet
+        if (ui.connected && ui.wallet) {
+          debugLog('explicit_state_sync', { address: ui.wallet.account.address })
+          setWallet({
+            connected: true,
+            address: ui.wallet.account.address,
+            publicKey: ui.wallet.account.publicKey ?? null,
+            walletName: ui.wallet.device.appName,
+            loading: false
+          })
+        } else if (!ui.connected) {
           setWallet(prev => ({ ...prev, loading: false }))
         }
       } catch (error) {
-        console.error('[TonConnect] Failed to initialize:', error)
+        debugLog('init_failed', { error: String(error) })
         if (mounted) {
           setWallet(prev => ({ ...prev, loading: false }))
         }
@@ -153,24 +216,87 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
 
     return () => {
       mounted = false
-      // Properly cleanup subscription
+      // Properly cleanup subscription and timeout
       if (unsubscribe) {
         unsubscribe()
+      }
+      if (initTimeout) {
+        clearTimeout(initTimeout)
       }
     }
   }, [])
 
+  // Poll wallet connection status (for TMA where events may be missed)
+  // This is triggered when user returns to the app after connecting wallet
+  useEffect(() => {
+    if (!tonConnectUI) return
+
+    let pollInterval: NodeJS.Timeout | null = null
+
+    const checkConnection = () => {
+      // Log every poll check for debugging
+      const uiConnected = tonConnectUI.connected
+      const uiWallet = tonConnectUI.wallet
+      const stateConnected = wallet.connected
+
+      if (uiConnected && uiWallet && !stateConnected) {
+        debugLog('polling_detected_connection', {
+          address: uiWallet.account.address,
+          walletName: uiWallet.device?.appName,
+        })
+        setWallet({
+          connected: true,
+          address: uiWallet.account.address,
+          publicKey: uiWallet.account.publicKey ?? null,
+          walletName: uiWallet.device.appName,
+          loading: false
+        })
+      }
+    }
+
+    // Handle visibility change (user returns from wallet app)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        debugLog('visibility_change', { visible: true, uiConnected: tonConnectUI?.connected })
+        // Check immediately
+        checkConnection()
+        // Also check after a short delay (wallet state may take time to propagate)
+        setTimeout(checkConnection, 500)
+        setTimeout(checkConnection, 1500)
+      }
+    }
+
+    // Handle focus (for desktop browsers)
+    const handleFocus = () => {
+      debugLog('window_focus', { uiConnected: tonConnectUI?.connected })
+      checkConnection()
+      setTimeout(checkConnection, 500)
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    // Poll every 2 seconds while modal might be open
+    pollInterval = setInterval(checkConnection, 2000)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+      if (pollInterval) clearInterval(pollInterval)
+    }
+  }, [tonConnectUI, wallet.connected])
+
   // Connect wallet
   const connect = useCallback(async (): Promise<boolean> => {
     if (!tonConnectUI) {
-      console.warn('[TonConnect] UI not initialized')
+      debugLog('connect_failed', { reason: 'UI not initialized' })
       return false
     }
 
     try {
-      console.log('[TonConnect] Opening modal...')
       // Check if in TMA context
       const isTMA = typeof window !== 'undefined' && !!window.Telegram?.WebApp?.initData
+      debugLog('opening_modal', { isTMA })
 
       // Set appropriate return URL for TMA before opening modal
       // Don't use skipRedirectToWallet for connect - allow wallet to open
@@ -184,12 +310,12 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
       }
 
       await tonConnectUI.openModal()
-      console.log('[TonConnect] Modal opened, waiting for connection...')
+      debugLog('modal_opened', { waitingForConnection: true })
 
       // Return true to indicate modal was opened (connection happens async)
       return true
     } catch (error) {
-      console.error('[TonConnect] Connect error:', error)
+      debugLog('connect_error', { error: String(error) })
       return false
     }
   }, [tonConnectUI])
@@ -205,7 +331,7 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
         loading: false
       })
     } catch (error) {
-      console.error('[TonConnect] Disconnect error:', error)
+      debugLog('disconnect_error', { error: String(error) })
     }
   }, [tonConnectUI])
 
@@ -216,7 +342,7 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
     comment?: string
   ): Promise<string | null> => {
     if (!tonConnectUI || !wallet.connected) {
-      console.warn('[TonConnect] Wallet not connected')
+      debugLog('send_failed', { reason: 'Wallet not connected' })
       return null
     }
 
@@ -250,12 +376,12 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
         ]
       }
 
-      console.log('[TonConnect] Sending transaction:', { to, amount, comment })
+      debugLog('sending_transaction', { to, amount, comment })
       const result = await tonConnectUI.sendTransaction(transaction)
-      console.log('[TonConnect] Transaction sent:', result.boc)
+      debugLog('transaction_sent', { boc: result.boc?.slice(0, 50) + '...' })
       return result.boc // Transaction hash
     } catch (error) {
-      console.error('[TonConnect] Transaction error:', error)
+      debugLog('transaction_error', { error: String(error) })
       return null
     }
   }, [tonConnectUI, wallet.connected])

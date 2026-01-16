@@ -601,13 +601,22 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                           localStorage.setItem(PENDING_TON_STORAGE_KEY, JSON.stringify(pendingData))
                           console.log('[Payment] Saved TON payment intent to localStorage', pendingData)
 
+                          // Safety timeout: reset pendingTonPayment after 15 seconds if modal doesn't work
+                          const safetyTimeout = setTimeout(() => {
+                            console.log('[Payment] Safety timeout - resetting pendingTonPayment')
+                            setPendingTonPayment(false)
+                            // Don't clear localStorage - user might still be in wallet app
+                          }, 15000)
+
                           // Open wallet connection modal
                           const modalOpened = await connect()
+
                           if (!modalOpened) {
                             // Failed to open modal - reset flag and clean storage
+                            clearTimeout(safetyTimeout)
                             setPendingTonPayment(false)
                             localStorage.removeItem(PENDING_TON_STORAGE_KEY)
-                            setErrorMessage("Не удалось открыть кошелёк")
+                            setErrorMessage("Не удалось открыть кошелёк. Убедитесь, что у вас установлен Tonkeeper.")
                             setStep("ERROR")
                           }
                           // Note: handleTonPayment will be called by useEffect when wallet.connected becomes true
