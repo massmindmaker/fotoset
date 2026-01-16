@@ -3,11 +3,35 @@
  *
  * Server-side authentication using Better Auth via Neon Auth.
  * Use in API routes and server components.
+ *
+ * Only initializes if NEON_AUTH_BASE_URL is configured.
  */
 
-import { createAuthServer } from '@neondatabase/auth/next/server';
+const isNeonAuthConfigured = Boolean(process.env.NEON_AUTH_BASE_URL);
 
-export const authServer = createAuthServer();
+// Lazy-initialized auth server
+let _authServer: ReturnType<typeof import('@neondatabase/auth/next/server').createAuthServer> | null = null;
+
+function getAuthServer() {
+  if (!isNeonAuthConfigured) {
+    return null;
+  }
+  if (!_authServer) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { createAuthServer } = require('@neondatabase/auth/next/server');
+    _authServer = createAuthServer();
+  }
+  return _authServer;
+}
+
+// Export authServer as getter for backward compatibility
+export const authServer = {
+  getSession: async () => {
+    const server = getAuthServer();
+    if (!server) return null;
+    return server.getSession();
+  }
+};
 
 /**
  * User info type from Neon Auth
