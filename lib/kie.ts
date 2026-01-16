@@ -244,8 +244,9 @@ export async function createKieTask(options: KieGenerationOptions): Promise<KieT
     }
 
     // Convert reference images to URLs if needed
+    // Kie.ai API limit: max 8 images per request
     if (options.referenceImages && options.referenceImages.length > 0) {
-      const refs = options.referenceImages.slice(0, 14)
+      const refs = options.referenceImages.slice(0, 8)
       const convertedRefs = await Promise.all(
         refs.map((ref, i) => convertBase64ToUrl(ref, i))
       )
