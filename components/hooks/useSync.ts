@@ -126,7 +126,8 @@ export function useSync() {
       if (persona.images && persona.images.length > 0) {
         console.log("[Sync] Uploading", persona.images.length, "reference photos to R2 (parallel)")
 
-        const imagesToUpload = persona.images.slice(0, 14)
+        // Kie.ai API limit: max 8 reference images
+        const imagesToUpload = persona.images.slice(0, 8)
 
         // Parallel upload with Promise.allSettled
         const uploadPromises = imagesToUpload.map(async (img, i) => {

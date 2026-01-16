@@ -1163,7 +1163,8 @@ export default function PersonaApp() {
     updatePersona(targetPersonaId, { status: "processing" })
 
     try {
-      const referenceImages = await Promise.all(p.images.slice(0, 14).map((img) => fileToBase64(img.file)))
+      // Kie.ai API limit: max 8 reference images
+      const referenceImages = await Promise.all(p.images.slice(0, 8).map((img) => fileToBase64(img.file)))
 
       // Get Telegram initData for secure authentication
       const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null
