@@ -60,7 +60,7 @@ export function TonConnectButton({
         {showDisconnect && isHovered ? (
           <span className="text-red-500">Disconnect</span>
         ) : (
-          <span>{wallet.walletName ? `${wallet.walletName}: ` : ''}{shortAddress}</span>
+          <span>{shortAddress}</span>
         )}
       </Button>
     )
