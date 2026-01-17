@@ -5,6 +5,8 @@
  *
  * Uses @tonconnect/ui directly (not React wrapper) to avoid SSR issues
  * and have full control over the lifecycle.
+ *
+ * v2.0 - Simplified Context-based approach that always renders children
  */
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
