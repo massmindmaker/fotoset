@@ -77,8 +77,12 @@ export function useSync() {
       console.log("[Sync] Using Web authentication (neonUserId):", neonUserId)
       // Continue with neonUserId auth - skip Telegram ID requirement
     } else if (!tgId) {
-      console.error("[Sync] No telegram user ID available from any source!")
-      const errorMsg = "Ошибка: не удалось получить Telegram ID. Закройте и откройте приложение заново через @Pinglass_bot"
+      console.error("[Sync] No authentication available - no Telegram ID and no neonUserId")
+      // Check if we're in Telegram context or web
+      const isInTelegram = !!tg?.initData
+      const errorMsg = isInTelegram
+        ? "Ошибка: не удалось получить Telegram ID. Закройте и откройте приложение заново через @Pinglass_bot"
+        : "Ошибка авторизации. Пожалуйста, войдите в систему."
       if (tg?.showAlert) {
         try {
           tg.showAlert(errorMsg)
@@ -88,7 +92,7 @@ export function useSync() {
       } else {
         alert(errorMsg)
       }
-      throw new Error("Telegram user ID not available")
+      throw new Error("Authentication not available")
     }
 
     // Use neonUserId for web or tgId for Telegram

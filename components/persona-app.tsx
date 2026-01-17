@@ -926,7 +926,8 @@ export default function PersonaApp() {
 
       setIsSyncing(true)
       setIsGenerating(true)
-      const dbId = await syncPersonaToServer(persona, telegramUserId)
+      // Pass neonUserId for web users authentication
+      const dbId = await syncPersonaToServer(persona, telegramUserId, neonUserId)
       console.log("[Upload] Sync complete, DB ID:", dbId)
 
       // Update persona with DB ID
@@ -951,7 +952,7 @@ export default function PersonaApp() {
       setIsSyncing(false)
       setIsGenerating(false)
     }
-  }, [viewState, getActivePersona, getPersona, syncPersonaToServer, telegramUserId, showMessage, setIsSyncing, setIsGenerating, updatePersona, isOnline])
+  }, [viewState, getActivePersona, getPersona, syncPersonaToServer, telegramUserId, neonUserId, showMessage, setIsSyncing, setIsGenerating, updatePersona, isOnline])
 
   // Polling helper - reusable for both new generation and recovery
   // Uses aggressive polling (2s) for real-time photo updates
