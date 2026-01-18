@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
         log.debug("No admin pricing found, using defaults:", DEFAULT_TIER_PRICES)
       }
     } catch (error) {
-      log.warn("Failed to fetch admin pricing, using defaults:", error)
+      log.warn("Failed to fetch admin pricing, using defaults:", error instanceof Error ? { message: error.message } : undefined)
     }
 
     // Validate and get tier pricing
