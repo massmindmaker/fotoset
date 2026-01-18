@@ -12,7 +12,11 @@ import {
 import { usePromptsContext, PhotoPack, PackItem } from './PromptsContext'
 import { PackCard } from './PackCard'
 
-export function PhotoPacksColumn() {
+interface PhotoPacksColumnProps {
+  isMobile?: boolean
+}
+
+export function PhotoPacksColumn({ isMobile = false }: PhotoPacksColumnProps) {
   const { registerPacksRefresh } = usePromptsContext()
 
   const [packs, setPacks] = useState<PhotoPack[]>([])
@@ -212,9 +216,9 @@ export function PhotoPacksColumn() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div className={`flex flex-col bg-white overflow-hidden ${isMobile ? '' : 'h-full rounded-xl border border-slate-200'}`}>
       {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b border-slate-200">
+      <div className={`flex-shrink-0 border-b border-slate-200 ${isMobile ? 'p-3' : 'p-4'}`}>
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
             <Package className="w-5 h-5 text-purple-600" />
