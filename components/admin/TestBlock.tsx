@@ -33,6 +33,8 @@ interface TestBlockProps {
   onUpdate: (id: string, updates: Partial<TestBlockType>) => void
   onRemove: (id: string) => void
   isOnlyBlock?: boolean // Disable remove if it's the only block
+  onPromptSaved?: () => void // Callback when prompt is saved
+  onAddToPack?: (imageUrl: string, prompt?: string) => void // Callback to open pack selector
 }
 
 export function TestBlock({
@@ -41,6 +43,8 @@ export function TestBlock({
   onUpdate,
   onRemove,
   isOnlyBlock = false,
+  onPromptSaved,
+  onAddToPack,
 }: TestBlockProps) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -160,6 +164,8 @@ export function TestBlock({
 
       const data = await response.json()
       setSavedPromptId(data.prompt.id)
+      // Notify parent that prompt was saved (for refreshing SavedPromptsColumn)
+      onPromptSaved?.()
     } catch (error) {
       console.error("[TestBlock] Save error:", error)
       alert("Ошибка сохранения промпта")
@@ -394,7 +400,15 @@ export function TestBlock({
               {/* Add to pack button */}
               <div className="relative flex-1">
                 <button
-                  onClick={() => setShowPackSelector(!showPackSelector)}
+                  onClick={() => {
+                    // Use context popover if callback provided, otherwise use inline selector
+                    if (onAddToPack && block.results?.length) {
+                      const imageUrl = block.results[selectedImageIndex]?.imageUrl || block.results[0]?.imageUrl
+                      onAddToPack(imageUrl, block.prompt)
+                    } else {
+                      setShowPackSelector(!showPackSelector)
+                    }
+                  }}
                   disabled={isAddingToPack}
                   className={`w-full px-4 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${
                     addedToPackId
@@ -412,8 +426,8 @@ export function TestBlock({
                   {addedToPackId ? "Добавлено" : "В пак"}
                 </button>
 
-                {/* Pack selector dropdown */}
-                {showPackSelector && (
+                {/* Inline pack selector dropdown (fallback when onAddToPack not provided) */}
+                {!onAddToPack && showPackSelector && (
                   <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border border-slate-200 z-50 overflow-hidden">
                     <div className="p-2 border-b border-slate-100">
                       <p className="text-xs font-medium text-slate-500 px-2">Выберите пак</p>
@@ -448,8 +462,8 @@ export function TestBlock({
         )}
       </div>
 
-      {/* Click outside to close pack selector */}
-      {showPackSelector && (
+      {/* Click outside to close pack selector (only when using inline selector) */}
+      {!onAddToPack && showPackSelector && (
         <div
           className="fixed inset-0 z-40"
           onClick={() => setShowPackSelector(false)}
