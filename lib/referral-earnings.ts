@@ -288,35 +288,74 @@ export async function creditPendingEarning(
     const currency = earning.currency as 'RUB' | 'TON'
     const referrerId = earning.referrer_id
 
-    // 4. Update earning status to 'credited' and link generation job
-    await query(
-      `UPDATE referral_earnings
-       SET status = 'credited',
-           generation_job_id = $2,
-           credited_at = NOW()
-       WHERE id = $1`,
-      [earning.id, generationJobId]
-    )
-
-    // 5. Update referrer's balance atomically (currency-specific)
+    // 4. ATOMICALLY update earning status AND balance using CTE
+    // This ensures both operations succeed or both fail
     if (currency === 'TON') {
-      await query(
-        `UPDATE referral_balances
-         SET balance_ton = balance_ton + $1,
-             earned_ton = earned_ton + $1
-         WHERE user_id = $2`,
-        [earningAmount, referrerId]
+      const result = await query(
+        `WITH earning_update AS (
+          UPDATE referral_earnings
+          SET status = 'credited',
+              generation_job_id = $2,
+              credited_at = NOW()
+          WHERE id = $1 AND status = 'pending'
+          RETURNING id, referrer_id, amount
+        ),
+        balance_update AS (
+          UPDATE referral_balances
+          SET balance_ton = balance_ton + $3,
+              earned_ton = earned_ton + $3
+          WHERE user_id = $4
+            AND EXISTS (SELECT 1 FROM earning_update)
+          RETURNING user_id
+        )
+        SELECT
+          (SELECT id FROM earning_update) as earning_updated,
+          (SELECT user_id FROM balance_update) as balance_updated`,
+        [earning.id, generationJobId, earningAmount, referrerId]
       )
+
+      if (!result.rows[0]?.earning_updated) {
+        console.warn(`[Referral] Earning ${earning.id} was not updated (possibly already credited)`)
+        return {
+          success: true,
+          alreadyCredited: true,
+          referrerId
+        }
+      }
     } else {
-      // RUB
-      await query(
-        `UPDATE referral_balances
-         SET balance = balance + $1,
-             balance_rub = balance_rub + $1,
-             earned_rub = earned_rub + $1
-         WHERE user_id = $2`,
-        [earningAmount, referrerId]
+      // RUB - same atomic pattern
+      const result = await query(
+        `WITH earning_update AS (
+          UPDATE referral_earnings
+          SET status = 'credited',
+              generation_job_id = $2,
+              credited_at = NOW()
+          WHERE id = $1 AND status = 'pending'
+          RETURNING id, referrer_id, amount
+        ),
+        balance_update AS (
+          UPDATE referral_balances
+          SET balance = balance + $3,
+              balance_rub = balance_rub + $3,
+              earned_rub = earned_rub + $3
+          WHERE user_id = $4
+            AND EXISTS (SELECT 1 FROM earning_update)
+          RETURNING user_id
+        )
+        SELECT
+          (SELECT id FROM earning_update) as earning_updated,
+          (SELECT user_id FROM balance_update) as balance_updated`,
+        [earning.id, generationJobId, earningAmount, referrerId]
       )
+
+      if (!result.rows[0]?.earning_updated) {
+        console.warn(`[Referral] Earning ${earning.id} was not updated (possibly already credited)`)
+        return {
+          success: true,
+          alreadyCredited: true,
+          referrerId
+        }
+      }
     }
 
     const currencySymbol = currency === 'TON' ? 'TON' : '₽'
