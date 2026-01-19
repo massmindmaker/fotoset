@@ -8,9 +8,10 @@ import { getAuthenticatedUser } from "@/lib/auth-middleware"
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; promptId: string } }
+  { params }: { params: Promise<{ id: string; promptId: string }> }
 ) {
   try {
+    const { id, promptId: promptIdParam } = await params
     const authUser = await getAuthenticatedUser(request)
 
     if (!authUser) {
@@ -31,8 +32,8 @@ export async function GET(
       )
     }
 
-    const packId = parseInt(params.id)
-    const promptId = parseInt(params.promptId)
+    const packId = parseInt(id)
+    const promptId = parseInt(promptIdParam)
 
     if (isNaN(packId) || isNaN(promptId)) {
       return NextResponse.json(
@@ -86,9 +87,10 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; promptId: string } }
+  { params }: { params: Promise<{ id: string; promptId: string }> }
 ) {
   try {
+    const { id, promptId: promptIdParam } = await params
     const body = await request.json()
     const authUser = await getAuthenticatedUser(request, body)
 
@@ -110,8 +112,8 @@ export async function PUT(
       )
     }
 
-    const packId = parseInt(params.id)
-    const promptId = parseInt(params.promptId)
+    const packId = parseInt(id)
+    const promptId = parseInt(promptIdParam)
 
     if (isNaN(packId) || isNaN(promptId)) {
       return NextResponse.json(
@@ -233,9 +235,10 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; promptId: string } }
+  { params }: { params: Promise<{ id: string; promptId: string }> }
 ) {
   try {
+    const { id, promptId: promptIdParam } = await params
     const authUser = await getAuthenticatedUser(request)
 
     if (!authUser) {
@@ -256,8 +259,8 @@ export async function DELETE(
       )
     }
 
-    const packId = parseInt(params.id)
-    const promptId = parseInt(params.promptId)
+    const packId = parseInt(id)
+    const promptId = parseInt(promptIdParam)
 
     if (isNaN(packId) || isNaN(promptId)) {
       return NextResponse.json(

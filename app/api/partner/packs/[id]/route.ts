@@ -8,9 +8,10 @@ import { getAuthenticatedUser } from "@/lib/auth-middleware"
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const authUser = await getAuthenticatedUser(request)
 
     if (!authUser) {
@@ -31,7 +32,7 @@ export async function GET(
       )
     }
 
-    const packId = parseInt(params.id)
+    const packId = parseInt(id)
     if (isNaN(packId)) {
       return NextResponse.json(
         { error: "VALIDATION_ERROR", message: "Invalid pack ID" },
@@ -106,9 +107,10 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     const authUser = await getAuthenticatedUser(request, body)
 
@@ -130,7 +132,7 @@ export async function PUT(
       )
     }
 
-    const packId = parseInt(params.id)
+    const packId = parseInt(id)
     if (isNaN(packId)) {
       return NextResponse.json(
         { error: "VALIDATION_ERROR", message: "Invalid pack ID" },
@@ -237,9 +239,10 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const authUser = await getAuthenticatedUser(request)
 
     if (!authUser) {
@@ -260,7 +263,7 @@ export async function DELETE(
       )
     }
 
-    const packId = parseInt(params.id)
+    const packId = parseInt(id)
     if (isNaN(packId)) {
       return NextResponse.json(
         { error: "VALIDATION_ERROR", message: "Invalid pack ID" },
