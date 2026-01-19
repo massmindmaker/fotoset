@@ -63,7 +63,8 @@
     "tailwindcss-animate": "^1.0.7",
     "telegram": "^2.26.22",
     "tw-animate-css": "latest",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
