@@ -180,7 +180,7 @@ export interface TierBreakdown {
 export interface ReferenceImage {
   id: string
   file: File
-  previewUrl: string // URL.createObjectURL result
+  preview: string // URL.createObjectURL result
 }
 
 /**

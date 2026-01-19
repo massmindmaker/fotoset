@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
       }
     } else {
       // Find specific payment by ID
-      log.debug('🔍 Finding TON payment by ID', paymentId)
+      log.debug('🔍 Finding TON payment by ID', { paymentId })
 
       payment = await sql`
         SELECT

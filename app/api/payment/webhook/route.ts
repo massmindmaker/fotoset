@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         WHERE tbank_payment_id = ${paymentId}
       `
     } else {
-      log.debug(" Unhandled status:", status, "for payment:", paymentId)
+      log.debug("Unhandled status", { status, paymentId })
     }
 
     // T-Bank expects "OK" response to confirm receipt

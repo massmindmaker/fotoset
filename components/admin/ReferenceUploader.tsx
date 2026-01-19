@@ -66,7 +66,7 @@ export function ReferenceUploader({
       newImages.push({
         id: `${Date.now()}-${i}`,
         file,
-        previewUrl: URL.createObjectURL(file),
+        preview: URL.createObjectURL(file),
       })
     }
 
@@ -83,7 +83,7 @@ export function ReferenceUploader({
   const removeImage = (imgId: string) => {
     const img = images.find((i) => i.id === imgId)
     if (img) {
-      URL.revokeObjectURL(img.previewUrl)
+      URL.revokeObjectURL(img.preview)
     }
     onImagesChange(images.filter((i) => i.id !== imgId))
   }
@@ -184,7 +184,7 @@ export function ReferenceUploader({
             className="aspect-square rounded-xl bg-slate-100 overflow-hidden relative group min-h-[100px] hover-scale transition-all"
           >
             <img
-              src={img.previewUrl}
+              src={img.preview}
               alt=""
               className="w-full h-full object-cover transition-transform group-hover:scale-110"
               loading="lazy"

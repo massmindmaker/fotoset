@@ -69,8 +69,8 @@ export function TonConnectProvider({ children }: TonConnectProviderProps) {
         // Configure for Telegram Mini Apps
         const isTMA = !!window.Telegram?.WebApp?.initData
         if (isTMA) {
-          ui.uiOptions = {
-            twaReturnUrl: 'https://t.me/Pinglass_bot/Pinglass' as `${string}://${string}`,
+          (ui as any).uiOptions = {
+            twaReturnUrl: 'https://t.me/Pinglass_bot/Pinglass',
           }
         }
 
