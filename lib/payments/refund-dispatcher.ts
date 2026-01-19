@@ -8,6 +8,7 @@
  */
 
 import type { PaymentDB, RefundResponse } from './types'
+import { cancelPendingEarning } from '@/lib/referral-earnings'
 
 // Re-export for convenience
 export type { RefundResponse }
@@ -20,10 +21,16 @@ export interface RefundContext {
 
 export interface DispatcherResult extends RefundResponse {
   provider: 'tbank' | 'stars' | 'ton'
+  earningCancelled?: boolean
+  earningAlreadyCredited?: boolean
 }
 
 /**
  * Main dispatcher - routes refund to correct provider
+ *
+ * DEFERRED EARNINGS: Before processing refund, attempts to cancel any
+ * pending referral earnings. If earning is already credited, refund
+ * is blocked (requires manual admin handling).
  */
 export async function dispatchRefund(
   context: RefundContext
@@ -38,13 +45,51 @@ export async function dispatchRefund(
     adminId,
   })
 
+  // STEP 1: Cancel any pending referral earnings BEFORE refunding
+  // This prevents crediting earnings for refunded payments
+  const earningResult = await cancelPendingEarning(
+    payment.id,
+    `refund: ${reason}`
+  )
+
+  if (!earningResult.success && earningResult.wasAlreadyCredited) {
+    // Earning was already credited - block automatic refund
+    // Requires manual admin intervention to reverse the earning
+    console.warn(`[RefundDispatcher] ⚠️ Refund blocked - earning already credited`, {
+      paymentId: payment.id,
+      earningId: earningResult.earningId,
+    })
+
+    return {
+      success: false,
+      provider,
+      manualRefund: true,
+      earningAlreadyCredited: true,
+      manualInstructions: `Referral earning (ID: ${earningResult.earningId}) was already credited to referrer balance. ` +
+        `Manual reversal required before refund. Contact admin to: ` +
+        `1) Deduct earning from referrer balance, 2) Update earning status to 'cancelled', 3) Process refund.`,
+    }
+  }
+
+  const earningCancelled = earningResult.wasPending
+
+  if (earningCancelled) {
+    console.log(`[RefundDispatcher] Cancelled pending earning ${earningResult.earningId} before refund`)
+  }
+
+  // STEP 2: Proceed with provider-specific refund
+  let result: DispatcherResult
+
   switch (provider) {
     case 'tbank':
-      return await refundTBank(payment, reason)
+      result = await refundTBank(payment, reason)
+      break
     case 'stars':
-      return await refundStars(payment, reason)
+      result = await refundStars(payment, reason)
+      break
     case 'ton':
-      return refundTon(payment, reason)
+      result = refundTon(payment, reason)
+      break
     default:
       console.error(`[RefundDispatcher] Unknown provider: ${provider}`)
       return {
@@ -52,7 +97,14 @@ export async function dispatchRefund(
         provider: 'tbank',
         manualRefund: true,
         manualInstructions: `Unknown payment provider: ${provider}. Manual refund required.`,
+        earningCancelled,
       }
+  }
+
+  // Add earning info to result
+  return {
+    ...result,
+    earningCancelled,
   }
 }
 

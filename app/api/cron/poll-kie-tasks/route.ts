@@ -9,6 +9,7 @@ import { sql } from "@/lib/db"
 import { checkKieTaskStatus } from "@/lib/kie"
 import { uploadFromUrl, generatePromptKey, isR2Configured } from "@/lib/r2"
 import { autoRefundForFailedGeneration, partialRefundForGeneration } from "@/lib/payments/refund-dispatcher"
+import { creditPendingEarning } from "@/lib/referral-earnings"
 
 // Threshold for partial success (if >= this % succeed, treat as partial success)
 const PARTIAL_SUCCESS_THRESHOLD = 0.70 // 70%
@@ -181,7 +182,7 @@ export async function GET() {
 async function checkJobCompletion() {
   // Find jobs that are processing and have all tasks completed/failed
   const jobs = await sql`
-    SELECT gj.id, gj.avatar_id, gj.total_photos,
+    SELECT gj.id, gj.avatar_id, gj.total_photos, gj.payment_id,
            (SELECT COUNT(*) FROM kie_tasks WHERE job_id = gj.id AND status = 'completed') as completed_tasks,
            (SELECT COUNT(*) FROM kie_tasks WHERE job_id = gj.id AND status = 'failed') as failed_tasks,
            (SELECT COUNT(*) FROM kie_tasks WHERE job_id = gj.id AND status = 'pending') as pending_tasks,
@@ -222,6 +223,14 @@ async function checkJobCompletion() {
       `
 
       console.log(`[Poll Kie Tasks] Job ${job.id} completed successfully - all ${totalPhotos} photos generated`)
+
+      // Credit pending referral earning after successful generation
+      if (job.payment_id) {
+        const creditResult = await creditPendingEarning(job.payment_id, job.id)
+        if (creditResult.success && creditResult.credited) {
+          console.log(`[Poll Kie Tasks] Credited referral earning: ${creditResult.credited} ${creditResult.creditedCurrency} to referrer ${creditResult.referrerId}`)
+        }
+      }
 
       // Send photos to Telegram automatically
       await sendPhotosToTelegram(job.avatar_id)
@@ -265,6 +274,14 @@ async function checkJobCompletion() {
       `
 
       console.log(`[Poll Kie Tasks] Job ${job.id} partial success - ${completedPhotos} photos delivered, ${failedPhotos} refunded`)
+
+      // Credit pending referral earning (partial success still counts as generation completed)
+      if (job.payment_id) {
+        const creditResult = await creditPendingEarning(job.payment_id, job.id)
+        if (creditResult.success && creditResult.credited) {
+          console.log(`[Poll Kie Tasks] Credited referral earning (partial): ${creditResult.credited} ${creditResult.creditedCurrency} to referrer ${creditResult.referrerId}`)
+        }
+      }
 
       // Send completed photos to Telegram
       await sendPhotosToTelegram(job.avatar_id)

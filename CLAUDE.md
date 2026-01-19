@@ -526,6 +526,88 @@ pnpm lint
 
 ---
 
+## 🛠️ Required CLI Tools
+
+Для разработки и деплоя PinGlass **ОБЯЗАТЕЛЬНО** использовать следующие CLI инструменты:
+
+### Neon CLI (v2.19.0+)
+```bash
+# Установка
+npm install -g neonctl
+
+# Авторизация
+neonctl auth
+
+# Ключевые команды
+neonctl branches list                    # Список веток БД
+neonctl branches create --name feature-X # Создать ветку для фичи
+neonctl connection-string --pool-mode transaction  # Получить URL
+neonctl branches delete <branch-id>      # Удалить ветку после merge
+
+# Выполнение SQL
+neonctl sql "SELECT COUNT(*) FROM users"
+```
+
+### Vercel CLI (v48.9.0+)
+```bash
+# Установка
+npm install -g vercel
+
+# Авторизация
+vercel login
+
+# Ключевые команды
+vercel list --prod              # Статус деплоев
+vercel env pull .env.local      # Синхронизировать env
+vercel                          # Preview deployment
+vercel --prod                   # Production deployment
+vercel logs --follow            # Мониторинг логов
+vercel rollback <url>           # Откатить деплой
+```
+
+### GitHub CLI (gh)
+```bash
+# Установка (Windows)
+winget install GitHub.cli
+
+# Авторизация
+gh auth login
+
+# Ключевые команды
+gh pr list                      # Список Pull Requests
+gh pr create --fill             # Создать PR с auto-fill
+gh pr merge <num> --squash      # Squash merge
+gh issue list                   # Список issues
+gh run list                     # Статус CI/CD workflows
+gh run view <id> --log          # Логи workflow
+```
+
+### Обязательный порядок работы
+
+1. **Начало сессии:**
+   ```bash
+   vercel list --prod      # Проверить деплои
+   neonctl branches list   # Проверить ветки БД
+   gh pr list              # Проверить открытые PR
+   ```
+
+2. **При работе с БД:**
+   ```bash
+   neonctl branches create --name feature-name  # Изолированная ветка
+   # ... работа с миграциями ...
+   neonctl branches delete <id>                 # После merge
+   ```
+
+3. **При деплое:**
+   ```bash
+   vercel env pull .env.local   # Синхронизировать env
+   vercel                       # Preview для проверки
+   vercel --prod                # Production
+   vercel logs --follow         # Мониторинг
+   ```
+
+---
+
 ## Key Files Reference
 
 | File | Purpose |
