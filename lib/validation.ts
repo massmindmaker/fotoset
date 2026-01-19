@@ -1,6 +1,68 @@
 import { z } from "zod"
 
 // ============================================================================
+// Security: URL Validation for SSRF Prevention
+// ============================================================================
+
+/**
+ * Allowed hosts for reference image URLs
+ * SECURITY: Only allow URLs from trusted domains to prevent SSRF attacks
+ */
+const ALLOWED_IMAGE_HOSTS = [
+  // Our own R2 storage
+  "r2.cloudflarestorage.com",
+  "pub-", // R2 public bucket prefix
+  // Our domains
+  "fotoset.vercel.app",
+  "pinglass.ru",
+  // Telegram CDN (for user photos)
+  "api.telegram.org",
+  "t.me",
+]
+
+/**
+ * Validate that a URL is from a trusted host (SSRF prevention)
+ * Returns true for base64 data URIs (safe) and trusted URLs
+ */
+export function isValidImageUrl(urlOrData: string): boolean {
+  // Base64 data URIs are safe (processed locally)
+  if (urlOrData.startsWith("data:image/")) {
+    return true
+  }
+
+  // Must be a valid URL
+  try {
+    const url = new URL(urlOrData)
+
+    // Only HTTPS allowed (no HTTP, file://, etc.)
+    if (url.protocol !== "https:") {
+      return false
+    }
+
+    // Check hostname against allowlist
+    const hostname = url.hostname.toLowerCase()
+    return ALLOWED_IMAGE_HOSTS.some(
+      (allowed) =>
+        hostname === allowed ||
+        hostname.endsWith(`.${allowed}`) ||
+        hostname.includes(allowed)
+    )
+  } catch {
+    // Invalid URL format
+    return false
+  }
+}
+
+/**
+ * Schema for validating reference image (base64 or trusted URL)
+ * SECURITY: Prevents SSRF by validating URLs against allowlist
+ */
+export const SafeImageSchema = z.string().min(1).refine(isValidImageUrl, {
+  message:
+    "Invalid image: must be a base64 data URI or URL from a trusted domain (r2.cloudflarestorage.com, fotoset.vercel.app, pinglass.ru)",
+})
+
+// ============================================================================
 // Base Schemas
 // ============================================================================
 
@@ -114,13 +176,14 @@ export type UserCreateRequest = z.infer<typeof UserCreateSchema>
 
 /**
  * POST /api/generate
+ * SECURITY: referenceImages now validated against trusted URL allowlist to prevent SSRF
  */
 export const GenerateRequestSchema = z.object({
   deviceId: DeviceIdSchema,
   avatarId: AvatarIdSchema,
   styleId: StyleIdSchema,
   referenceImages: z
-    .array(z.string().min(1))
+    .array(SafeImageSchema)
     .min(1, "At least one reference image is required")
     .max(20, "Maximum 20 reference images allowed"),
   photoCount: z.number().int().positive().max(23).optional(),

@@ -2,6 +2,7 @@
 // Primary provider for image generation using Google Gemini 3.0 Pro Image
 
 import { uploadBase64Image, isR2Configured, getPublicUrl } from "./r2"
+import { isValidImageUrl } from "./validation"
 
 const KIE_API_URL = "https://api.kie.ai/api/v1/jobs/createTask"
 const KIE_STATUS_URL = "https://api.kie.ai/api/v1/jobs/recordInfo"
@@ -9,10 +10,15 @@ const KIE_STATUS_URL = "https://api.kie.ai/api/v1/jobs/recordInfo"
 /**
  * Convert base64 data URI to a public URL by uploading to R2
  * Kie.ai requires URLs, not base64 data URIs
+ * SECURITY: Validates URLs against allowlist to prevent SSRF
  */
 async function convertBase64ToUrl(base64DataUri: string, index: number): Promise<string> {
-  // If already a URL (not base64), return as-is
+  // If already a URL (not base64), validate against allowlist
   if (!base64DataUri.startsWith("data:")) {
+    // SECURITY: Defense-in-depth - validate URL even if already validated at API layer
+    if (!isValidImageUrl(base64DataUri)) {
+      throw new Error(`SSRF_BLOCKED: URL not from trusted host: ${new URL(base64DataUri).hostname}`)
+    }
     return base64DataUri
   }
 

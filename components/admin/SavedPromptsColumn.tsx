@@ -5,8 +5,6 @@ import {
   Search,
   RefreshCw,
   Plus,
-  Star,
-  Package,
   Loader2,
   FileText,
   ChevronLeft,
@@ -15,7 +13,6 @@ import {
   Save,
   Image as ImageIcon,
   Eye,
-  Filter,
 } from 'lucide-react'
 import { usePromptsContext, SavedPrompt } from './PromptsContext'
 import { PromptCard } from './PromptCard'
@@ -57,9 +54,6 @@ export function SavedPromptsColumn({ isMobile = false }: SavedPromptsColumnProps
     tags: ''
   })
 
-  // Import states
-  const [isImporting, setIsImporting] = useState(false)
-  const [isImportingPinGlass, setIsImportingPinGlass] = useState(false)
 
   // Preview generation
   const [isGeneratingPreviews, setIsGeneratingPreviews] = useState(false)
@@ -190,41 +184,6 @@ export function SavedPromptsColumn({ isMobile = false }: SavedPromptsColumnProps
     navigator.clipboard.writeText(text)
   }
 
-  const importDreamPack = async () => {
-    if (!confirm('Импортировать DREAM PACK (17 промптов)?')) return
-
-    setIsImporting(true)
-    try {
-      const response = await fetch('/api/admin/packs/dreampack/import', { method: 'POST' })
-      if (!response.ok) throw new Error('Import failed')
-
-      const data = await response.json()
-      alert(`Импортировано: ${data.imported}, пропущено: ${data.skipped}`)
-      fetchPrompts(1)
-    } catch (err) {
-      alert('Ошибка импорта: ' + (err instanceof Error ? err.message : 'Unknown'))
-    } finally {
-      setIsImporting(false)
-    }
-  }
-
-  const importPinGlassPack = async () => {
-    if (!confirm('Импортировать PinGlass Premium (23 оригинальных промпта)?')) return
-
-    setIsImportingPinGlass(true)
-    try {
-      const response = await fetch('/api/admin/packs/pinglass/import', { method: 'POST' })
-      if (!response.ok) throw new Error('Import failed')
-
-      const data = await response.json()
-      alert(`PinGlass Premium: импортировано ${data.imported}, пропущено ${data.skipped}`)
-      fetchPrompts(1)
-    } catch (err) {
-      alert('Ошибка импорта: ' + (err instanceof Error ? err.message : 'Unknown'))
-    } finally {
-      setIsImportingPinGlass(false)
-    }
-  }
 
   const generateAllPreviews = async () => {
     const promptsWithoutPreview = prompts.filter(p => !p.preview_url).length
@@ -353,26 +312,9 @@ export function SavedPromptsColumn({ isMobile = false }: SavedPromptsColumnProps
         </div>
       </div>
 
-      {/* Import & Preview Actions (compact) */}
+      {/* Preview Actions */}
       <div className="flex-shrink-0 px-4 py-2 border-b border-slate-200 bg-slate-50">
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={importPinGlassPack}
-            disabled={isImportingPinGlass}
-            className="flex items-center gap-1 px-2 py-1 text-xs bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg hover:from-pink-600 hover:to-rose-600 disabled:opacity-50"
-          >
-            {isImportingPinGlass ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3" />}
-            PinGlass
-          </button>
-          <button
-            onClick={importDreamPack}
-            disabled={isImporting}
-            className="flex items-center gap-1 px-2 py-1 text-xs bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 disabled:opacity-50"
-          >
-            {isImporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Package className="w-3 h-3" />}
-            DREAM
-          </button>
-          <div className="flex-1" />
+        <div className="flex items-center gap-2 justify-end">
           {showReferenceInput && (
             <input
               type="text"
@@ -395,7 +337,7 @@ export function SavedPromptsColumn({ isMobile = false }: SavedPromptsColumnProps
             className="flex items-center gap-1 px-2 py-1 text-xs bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50"
           >
             {isGeneratingPreviews ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
-            Превью
+            Генерировать превью
           </button>
         </div>
       </div>

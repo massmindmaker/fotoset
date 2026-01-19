@@ -256,24 +256,38 @@ export async function getAuthenticatedUser(
     }
   }
 
-  // Method 1b: Fallback for telegramUserId from body (when initData validation fails)
-  // WARNING: This is less secure but needed when TELEGRAM_BOT_TOKEN is not configured
-  // or when initData signature validation fails due to timing/caching issues
+  // Method 1b: Fallback for telegramUserId from body (DEVELOPMENT ONLY)
+  // SECURITY FIX: This fallback is DISABLED in production to prevent authentication bypass attacks.
+  // In production, only cryptographically signed initData is accepted.
+  // An attacker could send any telegramUserId to impersonate users without this check.
   const telegramUserIdFromBody = body?.telegramUserId as number | undefined;
+  const isDevelopment = process.env.NODE_ENV === 'development';
+
   if (telegramUserIdFromBody && typeof telegramUserIdFromBody === 'number') {
-    console.warn('[Auth] Using telegramUserId from body (initData validation failed)', {
-      telegramUserId: telegramUserIdFromBody,
-      hadInitData: !!telegramInitData,
-    });
-    try {
-      const user = await findOrCreateTelegramUser(telegramUserIdFromBody);
-      return {
-        user,
-        authMethod: 'telegram_fallback',
+    if (!isDevelopment) {
+      // SECURITY: In production, log attempt and reject
+      console.error('[Auth] SECURITY: Rejected unauthenticated telegramUserId in production', {
         telegramUserId: telegramUserIdFromBody,
-      };
-    } catch (error) {
-      console.error('[Auth] Telegram fallback user error:', error);
+        hadInitData: !!telegramInitData,
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+      });
+      // Do NOT return user - fall through to Neon Auth or return null
+    } else {
+      // Development only: allow unauthenticated telegramUserId for testing
+      console.warn('[Auth] DEV ONLY: Using telegramUserId from body (initData validation failed)', {
+        telegramUserId: telegramUserIdFromBody,
+        hadInitData: !!telegramInitData,
+      });
+      try {
+        const user = await findOrCreateTelegramUser(telegramUserIdFromBody);
+        return {
+          user,
+          authMethod: 'telegram_fallback',
+          telegramUserId: telegramUserIdFromBody,
+        };
+      } catch (error) {
+        console.error('[Auth] Telegram fallback user error:', error);
+      }
     }
   }
 

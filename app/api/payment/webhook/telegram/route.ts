@@ -12,21 +12,33 @@ import { starsProvider } from '@/lib/payments/providers/telegram-stars'
 import { processReferralEarning } from '@/lib/referral-earnings'
 import { neon } from '@neondatabase/serverless'
 
-// Verify webhook is from Telegram (REQUIRED in production)
+// Verify webhook is from Telegram (REQUIRED in all environments except development)
 function verifyTelegramWebhook(request: NextRequest): { valid: boolean; error?: string } {
   // Telegram doesn't sign webhooks like T-Bank does
   // We use the secret token header for verification
   const secretToken = request.headers.get('x-telegram-bot-api-secret-token')
   const expectedToken = process.env.TELEGRAM_WEBHOOK_SECRET
+  const isDevelopment = process.env.NODE_ENV === 'development'
 
-  // In production, secret is REQUIRED
-  if (process.env.NODE_ENV === 'production' && !expectedToken) {
-    console.error('[Telegram Webhook] CRITICAL: TELEGRAM_WEBHOOK_SECRET not configured in production!')
+  // SECURITY FIX: Secret is REQUIRED in all non-development environments
+  // This prevents attacks when NODE_ENV is misconfigured or unset
+  if (!expectedToken) {
+    if (isDevelopment) {
+      console.warn('[Telegram Webhook] DEV ONLY: TELEGRAM_WEBHOOK_SECRET not configured, allowing unverified webhook')
+      return { valid: true }
+    }
+    console.error('[Telegram Webhook] CRITICAL: TELEGRAM_WEBHOOK_SECRET not configured! Rejecting webhook.', {
+      nodeEnv: process.env.NODE_ENV || 'undefined',
+      ip: request.headers.get('x-forwarded-for') || 'unknown',
+    })
     return { valid: false, error: 'Server misconfiguration' }
   }
 
-  if (expectedToken && secretToken !== expectedToken) {
-    console.warn('[Telegram Webhook] Invalid secret token')
+  // Always verify secret when configured
+  if (secretToken !== expectedToken) {
+    console.warn('[Telegram Webhook] Invalid secret token', {
+      ip: request.headers.get('x-forwarded-for') || 'unknown',
+    })
     return { valid: false, error: 'Invalid secret token' }
   }
 
