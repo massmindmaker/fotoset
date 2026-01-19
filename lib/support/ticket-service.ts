@@ -326,7 +326,9 @@ export async function getTicketStats(): Promise<{
   total: number
   open: number
   inProgress: number
+  waitingUser: number
   resolved: number
+  closed: number
   slaBreached: number
   avgResponseMinutes: number
 }> {
@@ -334,7 +336,9 @@ export async function getTicketStats(): Promise<{
     total: string
     open: string
     in_progress: string
+    waiting_user: string
     resolved: string
+    closed: string
     sla_breached: string
     avg_response_minutes: string
   }>(
@@ -342,7 +346,9 @@ export async function getTicketStats(): Promise<{
       COUNT(*) as total,
       COUNT(*) FILTER (WHERE status = 'open') as open,
       COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress,
-      COUNT(*) FILTER (WHERE status IN ('resolved', 'closed')) as resolved,
+      COUNT(*) FILTER (WHERE status = 'waiting_user') as waiting_user,
+      COUNT(*) FILTER (WHERE status = 'resolved') as resolved,
+      COUNT(*) FILTER (WHERE status = 'closed') as closed,
       COUNT(*) FILTER (WHERE status = 'open' AND sla_first_response_at < NOW()) as sla_breached,
       COALESCE(
         AVG(EXTRACT(EPOCH FROM (first_responded_at - created_at)) / 60)
@@ -358,7 +364,9 @@ export async function getTicketStats(): Promise<{
     total: parseInt(row.total) || 0,
     open: parseInt(row.open) || 0,
     inProgress: parseInt(row.in_progress) || 0,
+    waitingUser: parseInt(row.waiting_user) || 0,
     resolved: parseInt(row.resolved) || 0,
+    closed: parseInt(row.closed) || 0,
     slaBreached: parseInt(row.sla_breached) || 0,
     avgResponseMinutes: Math.round(parseFloat(row.avg_response_minutes) || 0),
   }
@@ -392,6 +400,7 @@ export async function getTicketsForAdmin(params: {
   limit?: number
   status?: string
   priority?: string
+  category?: string
   search?: string
   assignedTo?: string
 }): Promise<{ tickets: SupportTicket[]; total: number }> {
@@ -411,6 +420,11 @@ export async function getTicketsForAdmin(params: {
   if (params.priority && params.priority !== 'all') {
     whereClause += ` AND priority = $${paramIndex++}`
     queryParams.push(params.priority)
+  }
+
+  if (params.category && params.category !== 'all') {
+    whereClause += ` AND category = $${paramIndex++}`
+    queryParams.push(params.category)
   }
 
   if (params.assignedTo) {

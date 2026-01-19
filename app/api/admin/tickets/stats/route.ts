@@ -33,10 +33,20 @@ export async function GET(request: NextRequest) {
     // Get ticket statistics
     const stats = await getTicketStats()
 
+    // Transform to snake_case for frontend compatibility
     return NextResponse.json({
       success: true,
       data: {
-        stats
+        stats: {
+          total: stats.total,
+          open: stats.open,
+          in_progress: stats.inProgress,
+          waiting_user: stats.waitingUser,
+          resolved: stats.resolved,
+          closed: stats.closed,
+          sla_breached: stats.slaBreached,
+          avg_response_time: stats.avgResponseMinutes,
+        }
       }
     })
   } catch (error) {

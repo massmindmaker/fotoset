@@ -41,7 +41,9 @@ export async function GET(request: NextRequest) {
     // Parse filters
     const status = searchParams.get('status') || undefined
     const priority = searchParams.get('priority') || undefined
+    const category = searchParams.get('category') || undefined
     const search = searchParams.get('search') || undefined
+    const assignedToMe = searchParams.get('assignedToMe') === 'true'
     const assignedTo = searchParams.get('assignedTo') || undefined
 
     // Get tickets from service
@@ -50,8 +52,9 @@ export async function GET(request: NextRequest) {
       limit,
       status: status === 'all' ? undefined : status,
       priority: priority === 'all' ? undefined : priority,
+      category: category === 'all' ? undefined : category,
       search,
-      assignedTo
+      assignedTo: assignedToMe ? session.email : assignedTo
     })
 
     return NextResponse.json({

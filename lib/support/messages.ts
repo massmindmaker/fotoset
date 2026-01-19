@@ -103,20 +103,6 @@ ${message}
 
   feedbackThanks: `🙏 Спасибо за отзыв! Это помогает нам становиться лучше.`,
 
-  // Operator notifications
-  newTicketNotification: (ticket: {
-    ticket_number: string
-    user_name?: string | null
-    telegram_username?: string | null
-    priority: string
-    category: string
-    subject?: string | null
-  }) => `🎫 *Новый тикет: ${ticket.ticket_number}*
-
-👤 ${ticket.user_name || 'Пользователь'}${ticket.telegram_username ? ` (@${ticket.telegram_username})` : ''}
-🏷️ ${PRIORITY_LABELS[ticket.priority as keyof typeof PRIORITY_LABELS]} | ${CATEGORY_LABELS[ticket.category as keyof typeof CATEGORY_LABELS]}
-${ticket.subject ? `📝 ${ticket.subject}` : ''}`,
-
   slaWarning: (ticket: { ticket_number: string; minutes_left: number }) =>
     `⚠️ *SLA предупреждение*
 
@@ -235,18 +221,6 @@ export const BUTTONS = {
       { text: '⭐⭐⭐', callback_data: `rate_${ticketNumber}_3` },
       { text: '⭐⭐⭐⭐', callback_data: `rate_${ticketNumber}_4` },
       { text: '⭐⭐⭐⭐⭐', callback_data: `rate_${ticketNumber}_5` },
-    ],
-  ],
-
-  // Operator buttons (for admin group)
-  operatorActions: (ticketNumber: string) => [
-    [
-      { text: '💬 Ответить', callback_data: `op_reply_${ticketNumber}` },
-      { text: '👤 Взять', callback_data: `op_assign_${ticketNumber}` },
-    ],
-    [
-      { text: '✅ Решено', callback_data: `op_resolve_${ticketNumber}` },
-      { text: '⏸️ Ожидание', callback_data: `op_wait_${ticketNumber}` },
     ],
   ],
 }

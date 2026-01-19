@@ -15,9 +15,6 @@ import {
 } from '@/lib/support'
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
-const SUPPORT_GROUP_CHAT_ID = process.env.SUPPORT_GROUP_CHAT_ID
-  ? parseInt(process.env.SUPPORT_GROUP_CHAT_ID)
-  : null
 
 // Demo photos for welcome message
 const DEMO_PHOTOS = [
@@ -145,136 +142,7 @@ async function sendChatAction(chatId: number, action: string = 'typing') {
 
 // ==================== OPERATOR NOTIFICATIONS ====================
 
-async function notifyOperators(
-  ticket: {
-    ticket_number: string
-    user_name: string
-    telegram_username?: string
-    priority: string
-    category: string
-    subject?: string
-  },
-  initialMessage: string
-) {
-  if (!SUPPORT_GROUP_CHAT_ID) return
 
-  const notification = MESSAGES.newTicketNotification(ticket)
-  const fullMessage = `${notification}\n\n💬 _${initialMessage.slice(0, 200)}${initialMessage.length > 200 ? '...' : ''}_`
-
-  await sendMessage(SUPPORT_GROUP_CHAT_ID, fullMessage, {
-    reply_markup: { inline_keyboard: BUTTONS.operatorActions(ticket.ticket_number) },
-  })
-}
-
-// ==================== COMMAND HANDLERS ====================
-
-async function handleStart(chatId: number, username: string) {
-  // Send demo photos first
-  await sendPhotos(
-    chatId,
-    DEMO_PHOTOS,
-    `<b>PinGlass</b> — AI-фотопортреты\n\n` +
-      `Привет, ${username}! Создавай профессиональные фото с помощью ИИ.\n\n` +
-      `Загрузи свои фото и получи 23 уникальных портрета в разных стилях.`
-  )
-
-  // Then send welcome with buttons
-  await sendMessage(chatId, MESSAGES.welcome, {
-    reply_markup: { inline_keyboard: BUTTONS.mainMenu },
-  })
-}
-
-async function handleHelp(chatId: number) {
-  await sendMessage(chatId, MESSAGES.helpMenu, {
-    reply_markup: { inline_keyboard: BUTTONS.faqCategories },
-  })
-}
-
-async function handleTicket(chatId: number, username: string, userId?: number) {
-  const existingTicket = await getOpenTicket(chatId)
-
-  if (existingTicket) {
-    await sendMessage(chatId, MESSAGES.ticketAlreadyOpen(existingTicket.ticket_number), {
-      reply_markup: { inline_keyboard: BUTTONS.ticketActions(existingTicket.ticket_number) },
-    })
-    return
-  }
-
-  // Create a new ticket with placeholder message
-  await sendMessage(
-    chatId,
-    '🎫 *Создание тикета*\n\nОпишите вашу проблему или вопрос в следующем сообщении.'
-  )
-
-  // Mark that we're waiting for ticket description
-  await query(
-    `INSERT INTO support_ticket_drafts (telegram_chat_id, created_at)
-     VALUES ($1, NOW())
-     ON CONFLICT (telegram_chat_id) DO UPDATE SET created_at = NOW()`,
-    [chatId]
-  ).catch(() => {
-    // Table might not exist yet, ignore
-  })
-}
-
-async function handleTicketStatus(chatId: number) {
-  const ticket = await getOpenTicket(chatId)
-
-  if (!ticket) {
-    await sendMessage(chatId, MESSAGES.noOpenTickets)
-    return
-  }
-
-  await sendMessage(chatId, MESSAGES.ticketStatus(ticket), {
-    reply_markup: { inline_keyboard: BUTTONS.ticketActions(ticket.ticket_number) },
-  })
-}
-
-async function handleCloseTicket(chatId: number) {
-  const ticket = await closeTicketByUser(chatId)
-
-  if (!ticket) {
-    await sendMessage(chatId, MESSAGES.noOpenTickets)
-    return
-  }
-
-  await sendMessage(chatId, MESSAGES.ticketClosed(ticket.ticket_number), {
-    reply_markup: { inline_keyboard: BUTTONS.feedbackRating(ticket.ticket_number) },
-  })
-}
-
-async function handleClear(chatId: number) {
-  const aiService = getAIService()
-  if (aiService) {
-    aiService.clearHistory(chatId)
-  }
-  await sendMessage(chatId, MESSAGES.sessionCleared)
-}
-
-async function handleAccountStatus(chatId: number) {
-  const session = await query(
-    `SELECT ts.*, u.device_id
-     FROM telegram_sessions ts
-     JOIN users u ON u.id = ts.user_id
-     WHERE ts.telegram_chat_id = $1`,
-    [chatId]
-  )
-
-  if (session.rows.length > 0) {
-    const s = session.rows[0]
-    await sendMessage(
-      chatId,
-      `✅ *Аккаунт привязан*\n\n` +
-        `👤 Telegram: @${s.telegram_username || 'не указан'}\n` +
-        `📅 Привязан: ${new Date(s.linked_at).toLocaleDateString('ru')}`
-    )
-  } else {
-    await sendMessage(
-      chatId,
-      '❌ *Аккаунт не привязан*\n\nВведите код из приложения для привязки.'
-    )
-  }
-}
 
 async function handleUnlink(chatId: number) {
   const result = await query(
@@ -454,44 +322,6 @@ async function handleCallback(
     return
   }
 
-  // Operator actions (from group)
-  if (data.startsWith('op_assign_')) {
-    const ticketNumber = data.replace('op_assign_', '')
-    const ticket = await getTicketByNumber(ticketNumber)
-
-    if (ticket) {
-      await query(
-        `UPDATE support_tickets SET assigned_to = $1, assigned_at = NOW(), status = 'in_progress' WHERE id = $2`,
-        [username, ticket.id]
-      )
-
-      await editMessage(
-        chatId,
-        messageId,
-        `✅ Тикет *${ticketNumber}* назначен на @${username}`
-      )
-    }
-    return
-  }
-
-  if (data.startsWith('op_resolve_')) {
-    const ticketNumber = data.replace('op_resolve_', '')
-    const ticket = await getTicketByNumber(ticketNumber)
-
-    if (ticket) {
-      await updateTicketStatus(ticket.id, 'resolved')
-
-      await editMessage(chatId, messageId, `✅ Тикет *${ticketNumber}* отмечен как решённый`)
-
-      // Notify user
-      await sendMessage(
-        ticket.telegram_chat_id,
-        `✅ *Тикет ${ticketNumber} решён*\n\nЕсли у вас остались вопросы, создайте новый тикет.`,
-        { reply_markup: { inline_keyboard: BUTTONS.feedbackRating(ticketNumber) } }
-      )
-    }
-    return
-  }
 }
 
 // ==================== TEXT MESSAGE HANDLER ====================
@@ -515,16 +345,6 @@ async function handleTextMessage(
       message: text,
       telegramMessageId: messageId,
     })
-
-    // Notify operators
-    if (SUPPORT_GROUP_CHAT_ID) {
-      await sendMessage(
-        SUPPORT_GROUP_CHAT_ID,
-        `💬 *Сообщение в тикете ${openTicket.ticket_number}*\n\n` +
-          `👤 ${username}${telegramUsername ? ` (@${telegramUsername})` : ''}\n` +
-          `💬 ${text.slice(0, 500)}`
-      )
-    }
 
     await sendMessage(chatId, '✅ Сообщение добавлено к тикету. Оператор скоро ответит.')
     return
@@ -562,15 +382,6 @@ async function handleTextMessage(
       reply_markup: { inline_keyboard: BUTTONS.ticketActions(ticket.ticket_number) },
     })
 
-    // Notify operators
-    await notifyOperators({
-      ticket_number: ticket.ticket_number,
-      user_name: ticket.user_name || 'Пользователь',
-      telegram_username: ticket.telegram_username || undefined,
-      priority: ticket.priority,
-      category: ticket.category,
-      subject: ticket.subject || undefined,
-    }, text)
     return
   }
 
