@@ -445,7 +445,7 @@ async function handleTextMessage(
 
   // Check if user is creating a new ticket (just sent /ticket)
   const draftCheck = await query(
-    `SELECT id FROM support_ticket_drafts WHERE telegram_chat_id = $1 AND created_at > NOW() - INTERVAL '5 minutes'`,
+    `SELECT 1 FROM support_ticket_drafts WHERE telegram_chat_id = $1 AND created_at > NOW() - INTERVAL '5 minutes'`,
     [chatId]
   ).catch(() => ({ rows: [] }))
 
