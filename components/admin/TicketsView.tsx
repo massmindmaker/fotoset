@@ -227,16 +227,41 @@ function MessageBubble({ message }: { message: TicketMessage }) {
         {message.attachments && message.attachments.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {message.attachments.map((attachment, idx) => (
-              <a
-                key={idx}
-                href={attachment.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-              >
-                <ArrowUpRight className="w-3 h-3" />
-                {attachment.filename || `Вложение ${idx + 1}`}
-              </a>
+              attachment.type === 'photo' ? (
+                <a
+                  key={idx}
+                  href={attachment.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                >
+                  <img
+                    src={attachment.url}
+                    alt={attachment.filename || `Скриншот ${idx + 1}`}
+                    className="max-w-[200px] max-h-[150px] rounded-lg border border-slate-200 hover:border-blue-400 transition-colors object-cover"
+                    onError={(e) => {
+                      // Fallback if image fails to load
+                      const target = e.target as HTMLImageElement
+                      target.style.display = 'none'
+                      target.parentElement?.insertAdjacentHTML(
+                        'beforeend',
+                        `<span class="text-xs text-blue-600 flex items-center gap-1">📷 ${attachment.filename || 'Скриншот'}</span>`
+                      )
+                    }}
+                  />
+                </a>
+              ) : (
+                <a
+                  key={idx}
+                  href={attachment.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  <ArrowUpRight className="w-3 h-3" />
+                  {attachment.filename || `Вложение ${idx + 1}`}
+                </a>
+              )
             ))}
           </div>
         )}

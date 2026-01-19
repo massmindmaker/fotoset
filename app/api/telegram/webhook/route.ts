@@ -170,46 +170,42 @@ function getTelegramFileUrl(filePath: string): string {
 }
 
 /**
- * Download photo from Telegram and upload to R2
- * Returns the public URL or null on failure
+ * Download photo from Telegram and upload to R2 (with Telegram URL fallback)
+ * Returns the public URL or Telegram direct URL if R2 fails
  */
 async function uploadTelegramPhotoToR2(
   fileId: string,
   ticketId: number
 ): Promise<{ url: string; filename: string } | null> {
-  try {
-    // Check if R2 is configured
-    if (!isR2Configured()) {
-      console.warn('[Telegram] R2 not configured, cannot upload photo')
-      return null
-    }
-
-    // Get file path from Telegram
-    const filePath = await getTelegramFilePath(fileId)
-    if (!filePath) return null
-
-    // Get download URL
-    const downloadUrl = getTelegramFileUrl(filePath)
-
-    // Generate unique key for R2
-    const timestamp = Date.now()
-    const ext = filePath.split('.').pop() || 'jpg'
-    const filename = `ticket_${ticketId}_${timestamp}.${ext}`
-    const key = `support-tickets/${ticketId}/${filename}`
-
-    // Upload to R2
-    const result = await uploadFromUrl(downloadUrl, key)
-
-    console.log(`[Telegram] Photo uploaded to R2: ${result.url}`)
-
-    return {
-      url: result.url,
-      filename,
-    }
-  } catch (error) {
-    console.error('[Telegram] Failed to upload photo to R2:', error)
+  // Get file path from Telegram first (needed for both R2 and fallback)
+  const filePath = await getTelegramFilePath(fileId)
+  if (!filePath) {
+    console.error('[Telegram] Failed to get file path for fileId:', fileId)
     return null
   }
+
+  const downloadUrl = getTelegramFileUrl(filePath)
+  const timestamp = Date.now()
+  const ext = filePath.split('.').pop() || 'jpg'
+  const filename = `ticket_${ticketId}_${timestamp}.${ext}`
+
+  // Try R2 upload if configured
+  if (isR2Configured()) {
+    try {
+      const key = `support-tickets/${ticketId}/${filename}`
+      const result = await uploadFromUrl(downloadUrl, key)
+      console.log(`[Telegram] Photo uploaded to R2: ${result.url}`)
+      return { url: result.url, filename }
+    } catch (error) {
+      console.error('[Telegram] R2 upload failed, using Telegram URL fallback:', error)
+    }
+  } else {
+    console.warn('[Telegram] R2 not configured, using Telegram URL fallback')
+  }
+
+  // Fallback: return Telegram direct URL (works but URL expires eventually)
+  console.log(`[Telegram] Using Telegram direct URL: ${downloadUrl}`)
+  return { url: downloadUrl, filename }
 }
 
 // ==================== COMMAND HANDLERS ====================
