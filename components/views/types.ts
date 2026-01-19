@@ -39,10 +39,15 @@ export interface Persona {
 export type ViewState =
   | { view: "ONBOARDING" }
   | { view: "DASHBOARD" }
+  | { view: "STYLES_LIST" }                      // NEW: List of available style packs
+  | { view: "STYLE_DETAIL"; packSlug: string }   // NEW: Pack details with collage
   | { view: "CREATE_PERSONA_UPLOAD"; personaId: string }
   | { view: "SELECT_TIER"; personaId: string }
   | { view: "RESULTS"; personaId: string }
   | { view: "AVATAR_DETAIL"; personaId: string }
+
+// Bottom navigation tab type
+export type BottomTab = 'avatars' | 'styles' | 'video'
 
 export interface ReferencePhoto {
   id: number

@@ -22,7 +22,7 @@ export async function GET() {
   try {
     // Get pending tasks (limit to avoid timeout)
     const pendingTasks = await sql`
-      SELECT kt.*, gj.style_id
+      SELECT kt.*, gj.style_id, kt.pack_prompt_id
       FROM kie_tasks kt
       JOIN generation_jobs gj ON gj.id = kt.job_id
       WHERE kt.status = 'pending'
@@ -82,8 +82,8 @@ export async function GET() {
 
           if (!existing) {
             await sql`
-              INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url)
-              VALUES (${task.avatar_id}, ${task.style_id}, ${task.prompt}, ${finalImageUrl})
+              INSERT INTO generated_photos (avatar_id, style_id, prompt, image_url, pack_prompt_id)
+              VALUES (${task.avatar_id}, ${task.style_id}, ${task.prompt}, ${finalImageUrl}, ${task.pack_prompt_id || null})
             `
             console.log(`[Poll Kie Tasks] ✓ Saved photo to generated_photos for prompt ${task.prompt_index}`)
           }

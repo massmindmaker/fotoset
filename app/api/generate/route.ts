@@ -5,12 +5,24 @@ export const maxDuration = 60
 import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"
 import { generateMultipleImages, type GenerationResult } from "@/lib/imagen"
+// DEPRECATED: Hardcoded prompts - now using pack_prompts table
+// Kept for backwards compatibility with old generations
 import { PHOTOSET_PROMPTS, STYLE_CONFIGS } from "@/lib/prompts"
 import {
   filterAndSortReferenceImages,
   smartMergePrompt,
   enhancePromptForConsistency,
 } from "@/lib/image-utils"
+
+// Type for pack prompts from database
+interface PackPrompt {
+  id: number
+  pack_id: number
+  prompt: string
+  style_prefix: string | null
+  style_suffix: string | null
+  position: number
+}
 import { sendGenerationNotification } from "@/lib/telegram-notify"
 import {
   success,
@@ -438,11 +450,8 @@ export async function POST(request: NextRequest) {
       referenceImagesList = referenceImages
     }
 
-    // Validate style
+    // Validate style (legacy support for styleId parameter)
     const styleConfig = STYLE_CONFIGS[styleId as keyof typeof STYLE_CONFIGS]
-    if (!styleConfig) {
-      return error("INVALID_STYLE", `Invalid style: ${styleId}. Available: ${Object.keys(STYLE_CONFIGS).join(", ")}`)
-    }
 
     logger.info("Generation request received", {
       telegramUserId: tgId,
@@ -456,6 +465,62 @@ export async function POST(request: NextRequest) {
     // User already authenticated and resolved via getAuthenticatedUser
     const user = authUser.user
     logger.info("User resolved", { userId: user.id, telegramUserId: tgId, neonUserId })
+
+    // ============================================================================
+    // Get Active Pack (Dynamic Pack System)
+    // ============================================================================
+    // Priority: user.active_pack_id > default 'pinglass' pack
+    // Falls back to STYLE_CONFIGS for backwards compatibility
+
+    let activePack: { id: number; slug: string; name: string } | null = null
+    let packPrompts: PackPrompt[] = []
+    let useLegacyPrompts = false
+
+    // Get user's active pack or default
+    const packResult = await sql`
+      SELECT p.id, p.slug, p.name
+      FROM photo_packs p
+      WHERE p.id = COALESCE(
+        (SELECT active_pack_id FROM users WHERE id = ${user.id}),
+        (SELECT id FROM photo_packs WHERE slug = 'pinglass' AND is_active = TRUE LIMIT 1)
+      )
+        AND p.is_active = TRUE
+        AND p.moderation_status = 'approved'
+      LIMIT 1
+    `
+
+    if (packResult.length > 0) {
+      activePack = packResult[0] as { id: number; slug: string; name: string }
+
+      // Get prompts for this pack
+      const promptsResult = await sql`
+        SELECT id, pack_id, prompt, style_prefix, style_suffix, position
+        FROM pack_prompts
+        WHERE pack_id = ${activePack.id} AND is_active = TRUE
+        ORDER BY position ASC
+      `
+      packPrompts = promptsResult as PackPrompt[]
+
+      logger.info("Using dynamic pack", {
+        packId: activePack.id,
+        packSlug: activePack.slug,
+        promptCount: packPrompts.length,
+      })
+    }
+
+    // Fallback to legacy STYLE_CONFIGS if no pack prompts found
+    if (packPrompts.length === 0) {
+      useLegacyPrompts = true
+      logger.warn("No pack prompts found, falling back to legacy PHOTOSET_PROMPTS", {
+        userId: user.id,
+        activePack,
+      })
+    }
+
+    // Validate style if no active pack (legacy mode)
+    if (!styleConfig && !activePack) {
+      return error("INVALID_STYLE", `Invalid style: ${styleId}. Available: ${Object.keys(STYLE_CONFIGS).join(", ")}`)
+    }
 
     // ============================================================================
     // Payment Validation
@@ -601,22 +666,66 @@ export async function POST(request: NextRequest) {
     // Create generation job
     const requestedPhotos = photoCount && photoCount > 0 ? photoCount : GENERATION_CONFIG.maxPhotos
 
-    // Get already used prompts for this avatar to avoid duplicates
-    const usedPrompts = await sql`
-      SELECT DISTINCT prompt FROM generated_photos
-      WHERE avatar_id = ${dbAvatarId}
-    `.then((rows: any[]) => rows.map(r => r.prompt))
+    // ============================================================================
+    // Get Available Prompts (filter out already used)
+    // ============================================================================
+    // NEW: Use pack_prompt_id for filtering (reliable) instead of text comparison (unreliable)
 
-    // Filter out already used prompts
-    const availablePrompts = PHOTOSET_PROMPTS.filter(prompt => {
-      // Check if this base prompt was already used (compare first 100 chars to handle merged prompts)
-      const promptStart = prompt.substring(0, 100)
-      return !usedPrompts.some((used: string | null) => used && used.substring(0, 100) === promptStart)
-    })
+    let availablePrompts: { id: number; prompt: string; style_prefix: string | null; style_suffix: string | null }[] = []
+    let selectedPromptIds: number[] = []
 
-    if (availablePrompts.length === 0) {
-      logger.warn("All prompts already used for this avatar", { avatarId: dbAvatarId, usedCount: usedPrompts.length })
-      return error("NO_PROMPTS_AVAILABLE", "Все стили уже использованы для этого аватара. Создайте новый аватар для новых фото.")
+    if (useLegacyPrompts) {
+      // LEGACY MODE: Use hardcoded PHOTOSET_PROMPTS with text comparison
+      const usedPromptsLegacy = await sql`
+        SELECT DISTINCT prompt FROM generated_photos
+        WHERE avatar_id = ${dbAvatarId}
+      `.then((rows: any[]) => rows.map(r => r.prompt))
+
+      const availableLegacyPrompts = PHOTOSET_PROMPTS.filter(prompt => {
+        const promptStart = prompt.substring(0, 100)
+        return !usedPromptsLegacy.some((used: string | null) => used && used.substring(0, 100) === promptStart)
+      })
+
+      if (availableLegacyPrompts.length === 0) {
+        logger.warn("All prompts already used (legacy mode)", { avatarId: dbAvatarId, usedCount: usedPromptsLegacy.length })
+        return error("NO_PROMPTS_AVAILABLE", "Все стили уже использованы для этого аватара. Создайте новый аватар для новых фото.")
+      }
+
+      // Map legacy prompts to expected structure
+      availablePrompts = availableLegacyPrompts.map((prompt, index) => ({
+        id: -index - 1, // Negative IDs for legacy prompts
+        prompt,
+        style_prefix: styleConfig?.promptPrefix || null,
+        style_suffix: styleConfig?.promptSuffix || null,
+      }))
+    } else {
+      // NEW MODE: Use pack_prompt_id for reliable filtering
+      const usedPromptIds = await sql`
+        SELECT DISTINCT pack_prompt_id FROM generated_photos
+        WHERE avatar_id = ${dbAvatarId} AND pack_prompt_id IS NOT NULL
+      `.then((rows: any[]) => rows.map(r => r.pack_prompt_id))
+
+      // Filter pack prompts by unused IDs
+      availablePrompts = packPrompts.filter(p => !usedPromptIds.includes(p.id))
+
+      logger.info("Prompt filtering (new mode)", {
+        avatarId: dbAvatarId,
+        totalPackPrompts: packPrompts.length,
+        usedPromptIds: usedPromptIds.length,
+        availablePrompts: availablePrompts.length,
+      })
+
+      if (availablePrompts.length === 0) {
+        logger.warn("All pack prompts already used", {
+          avatarId: dbAvatarId,
+          packId: activePack?.id,
+          usedCount: usedPromptIds.length,
+        })
+        return error("NO_PROMPTS_AVAILABLE", "Все стили этого пака уже использованы для этого аватара. Выберите другой стиль или создайте новый аватар.")
+      }
+
+      // Store selected prompt IDs for atomic reservation
+      selectedPromptIds = availablePrompts.slice(0, Math.min(requestedPhotos, availablePrompts.length)).map(p => p.id)
     }
 
     const totalPhotos = Math.min(requestedPhotos, availablePrompts.length, GENERATION_CONFIG.maxPhotos)
@@ -649,9 +758,16 @@ export async function POST(request: NextRequest) {
     const consumedPayment = consumedResult[0]
 
     // Now safe to create generation job (payment is already consumed)
+    // NEW: Include pack_id and used_prompt_ids for atomic reservation
     const job = await sql`
-      INSERT INTO generation_jobs (avatar_id, style_id, status, total_photos, payment_id)
-      VALUES (${dbAvatarId}, ${styleId}, 'pending', ${totalPhotos}, ${consumedPayment.id})
+      INSERT INTO generation_jobs (
+        avatar_id, style_id, status, total_photos, payment_id,
+        pack_id, used_prompt_ids
+      )
+      VALUES (
+        ${dbAvatarId}, ${styleId}, 'pending', ${totalPhotos}, ${consumedPayment.id},
+        ${activePack?.id || null}, ${selectedPromptIds.length > 0 ? selectedPromptIds : null}
+      )
       RETURNING *
     `.then((rows: any[]) => rows[0])
 
@@ -659,26 +775,36 @@ export async function POST(request: NextRequest) {
       jobId: job.id,
       avatarId: dbAvatarId,
       styleId,
+      packId: activePack?.id,
       requestedPhotos,
       totalPhotos,
       paymentId: availablePayment.id,
       availablePrompts: availablePrompts.length,
-      usedPrompts: usedPrompts.length,
+      selectedPromptIds: selectedPromptIds.length,
     })
 
     // Prepare prompts with style (only unused prompts)
-    const basePrompts = availablePrompts.slice(0, totalPhotos)
-    const mergedPrompts = basePrompts.map(basePrompt =>
+    const selectedPrompts = availablePrompts.slice(0, totalPhotos)
+    const mergedPrompts = selectedPrompts.map(promptData =>
       smartMergePrompt({
-        basePrompt,
-        stylePrefix: styleConfig.promptPrefix,
-        styleSuffix: styleConfig.promptSuffix,
+        basePrompt: promptData.prompt,
+        stylePrefix: promptData.style_prefix || styleConfig?.promptPrefix || '',
+        styleSuffix: promptData.style_suffix || styleConfig?.promptSuffix || '',
       })
     ).map(prompt =>
       enhancePromptForConsistency(prompt)
     )
 
-    logger.info("Prompts prepared", { count: mergedPrompts.length })
+    // Extract prompt IDs for QStash (only for new mode)
+    const promptIdsForQStash = selectedPrompts
+      .filter(p => p.id > 0) // Only include real DB IDs (not legacy negative IDs)
+      .map(p => p.id)
+
+    logger.info("Prompts prepared", {
+      count: mergedPrompts.length,
+      promptIds: promptIdsForQStash.length,
+      useLegacyPrompts,
+    })
 
     // ============================================================================
     // QSTASH ONLY - No local fallback (local mode times out on Vercel)
@@ -724,7 +850,12 @@ export async function POST(request: NextRequest) {
         referenceImages: validReferenceImages,
         startIndex: 0,
         chunkSize: QSTASH_CONFIG.CHUNK_SIZE,
-        prompts: mergedPrompts, // Pass explicit prompts to avoid duplicates
+        // NEW: Pass promptIds instead of full text to reduce payload size
+        // Process route will read prompts from DB by IDs
+        promptIds: promptIdsForQStash.length > 0 ? promptIdsForQStash : undefined,
+        packId: activePack?.id,
+        // LEGACY: Still pass prompts for backwards compatibility during transition
+        prompts: mergedPrompts,
       },
       baseUrl
     )
@@ -770,7 +901,8 @@ export async function POST(request: NextRequest) {
       totalPhotos,
       referenceImagesUsed: validReferenceImages.length,
       referenceImagesRejected: rejected.length,
-      style: styleConfig.name,
+      style: activePack?.name || styleConfig?.name || styleId,
+      packSlug: activePack?.slug,
       processingMode: "qstash",
     })
   } catch (err) {

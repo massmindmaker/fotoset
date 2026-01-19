@@ -46,6 +46,9 @@ export type User = {
   // Referral
   pending_referral_code: string | null  // Saved on first login, used on first payment
 
+  // Active pack
+  active_pack_id: number | null  // Currently selected photo pack for new generations
+
   // Timestamps
   created_at: string
   updated_at: string
@@ -259,5 +262,52 @@ export type ReferencePhoto = {
   id: number
   avatar_id: number
   image_url: string
+  created_at: string
+}
+
+// Photo packs (migration 047)
+export type PhotoPack = {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  icon_emoji: string
+  preview_images: string[] | null
+  owner_type: 'admin' | 'partner'
+  partner_user_id: number | null
+  moderation_status: 'draft' | 'pending' | 'approved' | 'rejected'
+  submitted_at: string | null
+  reviewed_by: number | null
+  reviewed_at: string | null
+  rejection_reason: string | null
+  is_active: boolean
+  is_featured: boolean
+  sort_order: number
+  usage_count: number
+  created_at: string
+  updated_at: string
+}
+
+// Pack prompts (migration 047)
+export type PackPrompt = {
+  id: number
+  pack_id: number
+  prompt: string
+  negative_prompt: string | null
+  style_prefix: string | null
+  style_suffix: string | null
+  preview_url: string | null
+  position: number
+  is_active: boolean
+  created_at: string
+}
+
+// Pack usage statistics (migration 047)
+export type PackUsageStat = {
+  id: number
+  pack_id: number
+  user_id: number | null
+  generation_job_id: number | null
+  photo_count: number
   created_at: string
 }

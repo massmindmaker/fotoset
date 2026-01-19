@@ -7,7 +7,7 @@ import Link from "next/link"
 import dynamic from "next/dynamic"
 
 // Import types and constants
-import type { Persona, ViewState, PricingTier, ReferencePhoto, GeneratedAsset } from "./views/types"
+import type { Persona, ViewState, PricingTier, ReferencePhoto, GeneratedAsset, BottomTab } from "./views/types"
 import { getErrorMessage } from "@/lib/error-utils"
 import { PRICING_TIERS } from "./views/dashboard-view"
 
@@ -85,6 +85,21 @@ const AvatarDetailView = dynamic(() => import("./views/avatar-detail-view"), {
   loading: () => <ComponentLoader />,
 })
 
+// NEW: Styles views for dynamic pack system
+const StylesListView = dynamic(() => import("./views/styles-list-view"), {
+  loading: () => <ComponentLoader />,
+})
+
+const StyleDetailView = dynamic(() => import("./views/style-detail-view"), {
+  loading: () => <ComponentLoader />,
+})
+
+// NEW: Bottom navigation component
+const BottomNav = dynamic(() => import("./bottom-nav"), {
+  loading: () => null,
+  ssr: false,
+})
+
 // Lazy load heavy components
 const PaymentModal = lazy(() => import("./payment-modal").then((m) => ({ default: m.PaymentModal })))
 const ReferralPanel = lazy(() => import("./referral-panel").then((m) => ({ default: m.ReferralPanel })))
@@ -111,6 +126,7 @@ export default function PersonaApp() {
   const [viewState, setViewState] = useState<ViewState>(getInitialViewState)
   const [isReady, setIsReady] = useState(false)
   const [isReferralOpen, setIsReferralOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<BottomTab>('avatars') // NEW: Bottom nav active tab
 
   // Error modal state
   const [errorModal, setErrorModal] = useState<{
@@ -1420,7 +1436,7 @@ export default function PersonaApp() {
               </div>
             </div>
           </header>
-          <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-7 py-8">
+          <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-7 py-8 pb-24">
             {viewState.view === "DASHBOARD" && (
               <DashboardView
                 personas={personas}
@@ -1428,6 +1444,46 @@ export default function PersonaApp() {
                 onSelect={handleSelectAvatar}
                 onDelete={handleDeletePersona}
                 pricingTiers={dynamicPricingTiers}
+              />
+            )}
+            {viewState.view === "STYLES_LIST" && (
+              <StylesListView
+                onPackSelect={(packSlug) => {
+                  hapticSelection()
+                  setViewState({ view: "STYLE_DETAIL", packSlug })
+                }}
+              />
+            )}
+            {viewState.view === "STYLE_DETAIL" && (
+              <StyleDetailView
+                packSlug={viewState.packSlug}
+                onSelect={async () => {
+                  hapticImpact()
+                  // Set active pack via API
+                  try {
+                    const res = await fetch('/api/user/active-pack', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        packSlug: viewState.packSlug,
+                        telegramUserId
+                      })
+                    })
+                    if (res.ok) {
+                      showMessage("Стиль выбран! Создайте аватар для генерации")
+                      // Check if user has a draft avatar with images
+                      const draftAvatar = personas.find(p => p.status === 'draft' && (p.images?.length >= 5 || (p.referenceCount && p.referenceCount >= 5)))
+                      if (draftAvatar) {
+                        setViewState({ view: "SELECT_TIER", personaId: draftAvatar.id })
+                      } else {
+                        handleCreatePersona()
+                      }
+                    }
+                  } catch (e) {
+                    console.error('Failed to set active pack:', e)
+                  }
+                }}
+                onBack={() => setViewState({ view: "STYLES_LIST" })}
               />
             )}
             {viewState.view === "CREATE_PERSONA_UPLOAD" && (
@@ -1504,7 +1560,23 @@ export default function PersonaApp() {
               )
             )}
           </main>
-          <footer className="mt-auto py-6 px-4 sm:px-6 lg:px-7 border-t border-border/50">
+          {/* Bottom Navigation - show only when not in onboarding or processing */}
+          {viewState.view !== "ONBOARDING" && !isGenerating && (
+            <BottomNav
+              activeTab={activeTab}
+              onTabChange={(tab) => {
+                hapticSelection()
+                setActiveTab(tab)
+                if (tab === 'avatars') {
+                  setViewState({ view: 'DASHBOARD' })
+                } else if (tab === 'styles') {
+                  setViewState({ view: 'STYLES_LIST' })
+                }
+                // 'video' tab is disabled, no action needed
+              }}
+            />
+          )}
+          <footer className="mt-auto py-6 px-4 sm:px-6 lg:px-7 border-t border-border/50 pb-20">
             <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-4">
                 <Link href="/oferta" className="hover:text-foreground transition-colors">

@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 })
   }
 
-  const { jobId, avatarId, telegramUserId, styleId, photoCount, referenceImages, startIndex, chunkSize, prompts } = payload
+  const { jobId, avatarId, telegramUserId, styleId, photoCount, referenceImages, startIndex, chunkSize, prompts, promptIds, packId } = payload
 
   console.log("[Jobs/Process] Processing chunk:", {
     jobId,
@@ -61,6 +61,8 @@ export async function POST(request: Request) {
     startIndex,
     chunkSize,
     totalPhotos: photoCount,
+    packId,
+    promptIdsCount: promptIds?.length,
     messageId,
   })
 
@@ -111,11 +113,37 @@ export async function POST(request: Request) {
       }
     }
 
-    // Get prompts for this chunk (use explicit prompts if provided, fallback to PHOTOSET_PROMPTS)
+    // Get prompts for this chunk
     const endIndex = Math.min(startIndex + chunkSize, photoCount)
-    const promptsToProcess = prompts
-      ? prompts.slice(startIndex, endIndex)
-      : PHOTOSET_PROMPTS.slice(startIndex, endIndex)
+
+    // NEW: Fetch prompts from pack_prompts if promptIds provided
+    let promptsToProcess: string[] = []
+    let packPromptIds: (number | null)[] = []
+
+    if (promptIds && promptIds.length > 0) {
+      // Dynamic pack system: read from database
+      const chunkPromptIds = promptIds.slice(startIndex, endIndex)
+
+      const packPrompts = await sql`
+        SELECT id, prompt_text
+        FROM pack_prompts
+        WHERE id = ANY(${chunkPromptIds}::int[])
+        ORDER BY array_position(${chunkPromptIds}::int[], id)
+      `
+
+      promptsToProcess = packPrompts.map((row: any) => row.prompt_text)
+      packPromptIds = packPrompts.map((row: any) => row.id)
+
+      console.log(`[Jobs/Process] Loaded ${promptsToProcess.length} prompts from pack ${packId}`)
+    } else if (prompts) {
+      // LEGACY: Use explicit prompts from payload
+      promptsToProcess = prompts.slice(startIndex, endIndex)
+      packPromptIds = new Array(promptsToProcess.length).fill(null)
+    } else {
+      // FALLBACK: Use hardcoded PHOTOSET_PROMPTS
+      promptsToProcess = PHOTOSET_PROMPTS.slice(startIndex, endIndex)
+      packPromptIds = new Array(promptsToProcess.length).fill(null)
+    }
 
     console.log(`[Jobs/Process] Creating ${promptsToProcess.length} Kie.ai tasks (${startIndex} to ${endIndex - 1})`)
 
@@ -126,6 +154,7 @@ export async function POST(request: Request) {
     for (let i = 0; i < promptsToProcess.length; i++) {
       const prompt = promptsToProcess[i]
       const promptIndex = startIndex + i
+      const packPromptId = packPromptIds[i] // NEW: track pack_prompt_id
 
       // Add delay between task creations (except first one)
       if (i > 0 && GENERATION_CONFIG.TASK_CREATION_DELAY_MS > 0) {
@@ -150,14 +179,14 @@ export async function POST(request: Request) {
         aspectRatio: "3:4",
       }
 
-      console.log(`[Jobs/Process] Creating Kie.ai task for prompt ${promptIndex + 1}/${photoCount}`)
+      console.log(`[Jobs/Process] Creating Kie.ai task for prompt ${promptIndex + 1}/${photoCount}${packPromptId ? ` (pack_prompt_id: ${packPromptId})` : ''}`)
       const result = await createKieTask(options)
 
       if (result.success && result.taskId) {
-        // Save task to database for polling
+        // Save task to database for polling (with pack_prompt_id)
         await sql`
-          INSERT INTO kie_tasks (job_id, avatar_id, kie_task_id, prompt_index, prompt, status)
-          VALUES (${jobId}, ${avatarId}, ${result.taskId}, ${promptIndex}, ${prompt.substring(0, 500)}, 'pending')
+          INSERT INTO kie_tasks (job_id, avatar_id, kie_task_id, prompt_index, prompt, status, pack_prompt_id)
+          VALUES (${jobId}, ${avatarId}, ${result.taskId}, ${promptIndex}, ${prompt.substring(0, 500)}, 'pending', ${packPromptId})
         `
         tasksCreated.push({ promptIndex, taskId: result.taskId })
         console.log(`[Jobs/Process] ✓ Created task ${result.taskId} for prompt ${promptIndex + 1}`)
@@ -167,8 +196,8 @@ export async function POST(request: Request) {
 
         // Save failed task for tracking
         await sql`
-          INSERT INTO kie_tasks (job_id, avatar_id, kie_task_id, prompt_index, prompt, status, error_message)
-          VALUES (${jobId}, ${avatarId}, ${'failed-' + Date.now()}, ${promptIndex}, ${prompt.substring(0, 500)}, 'failed', ${result.error})
+          INSERT INTO kie_tasks (job_id, avatar_id, kie_task_id, prompt_index, prompt, status, error_message, pack_prompt_id)
+          VALUES (${jobId}, ${avatarId}, ${'failed-' + Date.now()}, ${promptIndex}, ${prompt.substring(0, 500)}, 'failed', ${result.error}, ${packPromptId})
         `
       }
     }
@@ -188,7 +217,9 @@ export async function POST(request: Request) {
           referenceImages,
           startIndex: nextStartIndex,
           chunkSize: GENERATION_CONFIG.CHUNK_SIZE,
-          prompts, // Pass explicit prompts to next chunk
+          prompts, // Pass explicit prompts to next chunk (legacy)
+          promptIds, // NEW: Pass promptIds to next chunk
+          packId, // NEW: Pass packId to next chunk
         },
         baseUrl
       )
