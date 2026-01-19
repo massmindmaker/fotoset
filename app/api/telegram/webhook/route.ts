@@ -13,6 +13,7 @@ import {
   closeTicketByUser,
   getTicketByNumber,
 } from '@/lib/support'
+import { uploadFromUrl, isR2Configured } from '@/lib/r2'
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 
@@ -138,6 +139,77 @@ async function sendChatAction(chatId: number, action: string = 'typing') {
       action,
     }),
   })
+}
+
+// ==================== PHOTO HANDLING ====================
+
+/**
+ * Get file path from Telegram for a given file_id
+ */
+async function getTelegramFilePath(fileId: string): Promise<string | null> {
+  if (!TELEGRAM_BOT_TOKEN) return null
+
+  const response = await fetch(
+    `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`
+  )
+  const data = await response.json()
+
+  if (!data.ok || !data.result?.file_path) {
+    console.error('[Telegram] Failed to get file path:', data)
+    return null
+  }
+
+  return data.result.file_path
+}
+
+/**
+ * Get download URL for a Telegram file
+ */
+function getTelegramFileUrl(filePath: string): string {
+  return `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${filePath}`
+}
+
+/**
+ * Download photo from Telegram and upload to R2
+ * Returns the public URL or null on failure
+ */
+async function uploadTelegramPhotoToR2(
+  fileId: string,
+  ticketId: number
+): Promise<{ url: string; filename: string } | null> {
+  try {
+    // Check if R2 is configured
+    if (!isR2Configured()) {
+      console.warn('[Telegram] R2 not configured, cannot upload photo')
+      return null
+    }
+
+    // Get file path from Telegram
+    const filePath = await getTelegramFilePath(fileId)
+    if (!filePath) return null
+
+    // Get download URL
+    const downloadUrl = getTelegramFileUrl(filePath)
+
+    // Generate unique key for R2
+    const timestamp = Date.now()
+    const ext = filePath.split('.').pop() || 'jpg'
+    const filename = `ticket_${ticketId}_${timestamp}.${ext}`
+    const key = `support-tickets/${ticketId}/${filename}`
+
+    // Upload to R2
+    const result = await uploadFromUrl(downloadUrl, key)
+
+    console.log(`[Telegram] Photo uploaded to R2: ${result.url}`)
+
+    return {
+      url: result.url,
+      filename,
+    }
+  } catch (error) {
+    console.error('[Telegram] Failed to upload photo to R2:', error)
+    return null
+  }
 }
 
 // ==================== COMMAND HANDLERS ====================
@@ -624,9 +696,89 @@ export async function POST(request: NextRequest) {
     const username = message.from?.first_name || message.chat.first_name || 'User'
     const telegramUsername = message.from?.username
 
-    // Handle photos (not supported yet)
-    if (message.photo && !text) {
-      await sendMessage(chatId, MESSAGES.photoNotSupported)
+    // Handle photos - only in ticket context
+    if (message.photo) {
+      // Check if user has an open ticket
+      const openTicket = await getOpenTicket(chatId)
+
+      if (openTicket) {
+        // Get the largest photo (last in array)
+        const photo = message.photo[message.photo.length - 1]
+
+        // Upload photo to R2
+        const uploadResult = await uploadTelegramPhotoToR2(photo.file_id, openTicket.id)
+
+        if (uploadResult) {
+          // Add message with photo attachment to ticket
+          const caption = text || '📸 Скриншот'
+          await addMessage({
+            ticketId: openTicket.id,
+            senderType: 'user',
+            senderId: String(chatId),
+            senderName: username,
+            message: caption,
+            messageType: 'photo',
+            attachments: [{ type: 'photo', url: uploadResult.url, filename: uploadResult.filename }],
+            telegramMessageId: message.message_id,
+          })
+
+          await sendMessage(chatId, `📸 Скриншот добавлен к тикету *${openTicket.ticket_number}*`)
+          console.log(`[Telegram] Photo added to ticket ${openTicket.ticket_number}`)
+        } else {
+          // R2 not configured or upload failed
+          await sendMessage(chatId, '⚠️ Не удалось загрузить изображение. Попробуйте позже или опишите проблему текстом.')
+        }
+        return NextResponse.json({ ok: true })
+      }
+
+      // Check if there's a draft (user clicked "create ticket")
+      const draftResult = await query(
+        `SELECT 1 FROM support_ticket_drafts WHERE telegram_chat_id = $1 AND created_at > NOW() - INTERVAL '5 minutes'`,
+        [chatId]
+      ).catch(() => ({ rows: [] }))
+
+      if (draftResult.rows.length > 0) {
+        // Get the largest photo (last in array)
+        const photo = message.photo[message.photo.length - 1]
+
+        // Create the ticket first
+        const ticket = await createTicket({
+          telegramChatId: chatId,
+          telegramUsername,
+          userName: username,
+          initialMessage: text || '📸 Скриншот',
+        })
+
+        // Upload photo to R2
+        const uploadResult = await uploadTelegramPhotoToR2(photo.file_id, ticket.id)
+
+        if (uploadResult) {
+          // Update the initial message with photo attachment
+          await query(
+            `UPDATE support_ticket_messages
+             SET message_type = 'photo', attachments = $1
+             WHERE ticket_id = $2 AND sender_type = 'user'
+             ORDER BY created_at ASC LIMIT 1`,
+            [JSON.stringify([{ type: 'photo', url: uploadResult.url, filename: uploadResult.filename }]), ticket.id]
+          )
+        }
+
+        // Delete the draft
+        await query(`DELETE FROM support_ticket_drafts WHERE telegram_chat_id = $1`, [chatId])
+
+        await sendMessage(chatId, MESSAGES.ticketCreated(ticket.ticket_number), {
+          reply_markup: { inline_keyboard: BUTTONS.ticketActions(ticket.ticket_number) },
+        })
+
+        console.log(`[Telegram] Created ticket ${ticket.ticket_number} with photo from ${chatId}`)
+        return NextResponse.json({ ok: true })
+      }
+
+      // No ticket context - inform user how to add photo
+      await sendMessage(
+        chatId,
+        '📸 Чтобы прикрепить скриншот, сначала создайте тикет командой /ticket или добавьте фото к существующему тикету.'
+      )
       return NextResponse.json({ ok: true })
     }
 
