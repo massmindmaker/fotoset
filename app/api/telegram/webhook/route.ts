@@ -140,9 +140,95 @@ async function sendChatAction(chatId: number, action: string = 'typing') {
   })
 }
 
-// ==================== OPERATOR NOTIFICATIONS ====================
+// ==================== COMMAND HANDLERS ====================
 
+async function handleStart(chatId: number, username: string) {
+  await sendPhotos(chatId, DEMO_PHOTOS, `<b>👋 Привет, ${username}!</b>\n\nДобро пожаловать в PinGlass Support Bot!`)
+  await sendMessage(chatId, MESSAGES.welcome, {
+    reply_markup: { inline_keyboard: BUTTONS.mainMenu },
+  })
+}
 
+async function handleHelp(chatId: number) {
+  await sendMessage(chatId, MESSAGES.helpMenu, {
+    reply_markup: { inline_keyboard: BUTTONS.faqCategories },
+  })
+}
+
+async function handleTicket(chatId: number, username: string) {
+  const existingTicket = await getOpenTicket(chatId)
+
+  if (existingTicket) {
+    await sendMessage(chatId, MESSAGES.ticketAlreadyOpen(existingTicket.ticket_number), {
+      reply_markup: { inline_keyboard: BUTTONS.ticketActions(existingTicket.ticket_number) },
+    })
+  } else {
+    // Create draft marker so next message creates a ticket
+    await query(
+      `INSERT INTO support_ticket_drafts (telegram_chat_id) VALUES ($1)
+       ON CONFLICT (telegram_chat_id) DO UPDATE SET created_at = NOW()`,
+      [chatId]
+    ).catch(() => {})
+
+    await sendMessage(chatId, '🎫 *Создание тикета*\n\nОпишите вашу проблему или вопрос в следующем сообщении.')
+  }
+}
+
+async function handleTicketStatus(chatId: number) {
+  const ticket = await getOpenTicket(chatId)
+
+  if (ticket) {
+    await sendMessage(chatId, MESSAGES.ticketStatus(ticket), {
+      reply_markup: { inline_keyboard: BUTTONS.ticketActions(ticket.ticket_number) },
+    })
+  } else {
+    await sendMessage(chatId, MESSAGES.noOpenTickets)
+  }
+}
+
+async function handleCloseTicket(chatId: number) {
+  const ticket = await closeTicketByUser(chatId)
+
+  if (ticket) {
+    await sendMessage(chatId, MESSAGES.ticketClosed(ticket.ticket_number), {
+      reply_markup: { inline_keyboard: BUTTONS.feedbackRating(ticket.ticket_number) },
+    })
+  } else {
+    await sendMessage(chatId, MESSAGES.noOpenTickets)
+  }
+}
+
+async function handleClear(chatId: number) {
+  const aiService = getAIService()
+  if (aiService) {
+    aiService.clearHistory(chatId)
+  }
+  await sendMessage(chatId, MESSAGES.sessionCleared)
+}
+
+async function handleAccountStatus(chatId: number) {
+  const session = await query(
+    `SELECT ts.user_id, u.telegram_username
+     FROM telegram_sessions ts
+     LEFT JOIN users u ON ts.user_id = u.id
+     WHERE ts.telegram_chat_id = $1`,
+    [chatId]
+  )
+
+  if (session.rows.length > 0 && session.rows[0].user_id) {
+    await sendMessage(
+      chatId,
+      `✅ *Аккаунт привязан*\n\nВаш ID: ${session.rows[0].user_id}\n\nВы будете получать сгенерированные фото в этот чат.`,
+      { reply_markup: { inline_keyboard: [[{ text: '🔗 Отвязать', callback_data: 'unlink_account' }]] } }
+    )
+  } else {
+    await sendMessage(
+      chatId,
+      '❌ *Аккаунт не привязан*\n\nЧтобы получать фото в Telegram, привяжите аккаунт в веб-приложении.',
+      { reply_markup: { inline_keyboard: BUTTONS.backToMenu } }
+    )
+  }
+}
 
 async function handleUnlink(chatId: number) {
   const result = await query(
@@ -282,6 +368,13 @@ async function handleCallback(
         reply_markup: { inline_keyboard: BUTTONS.ticketActions(existingTicket.ticket_number) },
       })
     } else {
+      // Create draft marker so next message creates a ticket
+      await query(
+        `INSERT INTO support_ticket_drafts (telegram_chat_id) VALUES ($1)
+         ON CONFLICT (telegram_chat_id) DO UPDATE SET created_at = NOW()`,
+        [chatId]
+      ).catch(() => {})
+
       await editMessage(
         chatId,
         messageId,
