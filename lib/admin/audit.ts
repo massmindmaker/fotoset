@@ -51,6 +51,8 @@ export type AuditAction =
   | 'withdrawal_approved'
   | 'withdrawal_rejected'
   | 'withdrawal_processing_manual'
+  | 'withdrawal_failed'
+  | 'withdrawal_sent_to_jump'
   // Telegram actions
   | 'telegram_message_retried'
   | 'telegram_test_sent'
