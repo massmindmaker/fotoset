@@ -35,9 +35,9 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run Playwright tests
-        run: pnpm test:production
+        run: pnpm test:e2e
         env:
-          TEST_URL: https://www.pinglass.ru
+          BASE_URL: https://www.pinglass.ru
 
       - name: Upload test results
         if: always()
