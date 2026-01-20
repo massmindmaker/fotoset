@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
+import { extractIdentifierFromRequest, findUserByIdentifier } from "@/lib/user-identity"
 
 // Generate unique referral code
 function generateCode(): string {
@@ -11,24 +12,41 @@ function generateCode(): string {
   return code
 }
 
-// GET: Get user's referral code (create if not exists)
+/**
+ * GET /api/referral/code
+ *
+ * Get or generate user's referral codes (Telegram + Web)
+ *
+ * Supports both Telegram and Web users:
+ * - Telegram: via telegram_user_id query param
+ * - Web: via neon_user_id query param
+ *
+ * Returns:
+ * - referralCodeTelegram: Code for t.me/pinglassbot?start=CODE
+ * - referralCodeWeb: Code for pinglass.app/?ref=CODE
+ * - telegramLink: Full Telegram link
+ * - webLink: Full Web link
+ */
 export async function GET(request: NextRequest) {
   try {
-    const telegramUserIdParam = request.nextUrl.searchParams.get("telegram_user_id")
+    const { searchParams } = new URL(request.url)
+    const telegramUserId = searchParams.get("telegram_user_id")
+    const neonUserId = searchParams.get("neon_user_id")
 
-    if (!telegramUserIdParam) {
-      return NextResponse.json({ error: "telegram_user_id required" }, { status: 400 })
+    if (!telegramUserId && !neonUserId) {
+      return NextResponse.json(
+        { error: "telegram_user_id or neon_user_id required" },
+        { status: 400 }
+      )
     }
 
-    const telegramUserId = parseInt(telegramUserIdParam)
-    if (isNaN(telegramUserId)) {
-      return NextResponse.json({ error: "Invalid telegram_user_id" }, { status: 400 })
-    }
+    // Get user by identifier
+    const identifier = extractIdentifierFromRequest({
+      telegram_user_id: telegramUserId,
+      neon_user_id: neonUserId
+    })
 
-    // Get user by telegram_user_id
-    const user = await sql`
-      SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
-    `.then((rows: any[]) => rows[0])
+    const user = await findUserByIdentifier(identifier)
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
@@ -36,52 +54,72 @@ export async function GET(request: NextRequest) {
 
     const userId = user.id
 
-    // Check existing code
-    const existingCode = await sql`
-      SELECT code, is_active FROM referral_codes WHERE user_id = ${userId}
+    // Check existing referral balance with codes
+    const existingBalance = await sql`
+      SELECT
+        referral_code,
+        referral_code_telegram,
+        referral_code_web
+      FROM referral_balances
+      WHERE user_id = ${userId}
     `.then((rows: any[]) => rows[0])
 
-    if (existingCode) {
-      return NextResponse.json({
-        code: existingCode.code,
-        isActive: existingCode.is_active,
-      })
+    let referralCodeTelegram: string
+    let referralCodeWeb: string
+
+    if (existingBalance && existingBalance.referral_code_telegram && existingBalance.referral_code_web) {
+      // Both codes exist
+      referralCodeTelegram = existingBalance.referral_code_telegram
+      referralCodeWeb = existingBalance.referral_code_web
+    } else {
+      // Generate new codes if missing
+      referralCodeTelegram = existingBalance?.referral_code_telegram || await generateUniqueCode('telegram')
+      referralCodeWeb = existingBalance?.referral_code_web || await generateUniqueCode('web')
+
+      // Insert or update referral_balances
+      await sql`
+        INSERT INTO referral_balances (
+          user_id,
+          referral_code,
+          referral_code_telegram,
+          referral_code_web,
+          balance_rub,
+          balance_ton,
+          earned_rub,
+          earned_ton,
+          withdrawn_rub,
+          withdrawn_ton,
+          referrals_count
+        ) VALUES (
+          ${userId},
+          ${referralCodeTelegram},
+          ${referralCodeTelegram},
+          ${referralCodeWeb},
+          0, 0, 0, 0, 0, 0, 0
+        )
+        ON CONFLICT (user_id) DO UPDATE SET
+          referral_code_telegram = COALESCE(referral_balances.referral_code_telegram, ${referralCodeTelegram}),
+          referral_code_web = COALESCE(referral_balances.referral_code_web, ${referralCodeWeb}),
+          referral_code = COALESCE(referral_balances.referral_code, ${referralCodeTelegram})
+      `
     }
 
-    // Generate new unique code
-    let code = generateCode()
-    let attempts = 0
-    const maxAttempts = 10
+    // Build links
+    const TELEGRAM_BOT = process.env.TELEGRAM_BOT_USERNAME || 'pinglassbot'
+    const WEB_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pinglass.app'
 
-    while (attempts < maxAttempts) {
-      const duplicate = await sql`
-        SELECT id FROM referral_codes WHERE code = ${code}
-      `.then((rows: any[]) => rows[0])
-      if (!duplicate) break
-      code = generateCode()
-      attempts++
-    }
+    const telegramLink = `https://t.me/${TELEGRAM_BOT}?start=${referralCodeTelegram}`
+    const webLink = `${WEB_URL}/?ref=${referralCodeWeb}`
 
-    if (attempts >= maxAttempts) {
-      return NextResponse.json(
-        { error: "Failed to generate unique code" },
-        { status: 500 }
-      )
-    }
-
-    // Insert new code
-    await sql`
-      INSERT INTO referral_codes (user_id, code) VALUES (${userId}, ${code})
-    `
-
-    // Initialize balance record
-    await sql`
-      INSERT INTO referral_balances (user_id, balance, total_earned, total_withdrawn, referrals_count)
-      VALUES (${userId}, 0, 0, 0, 0)
-      ON CONFLICT (user_id) DO NOTHING
-    `
-
-    return NextResponse.json({ code, isActive: true })
+    return NextResponse.json({
+      referralCodeTelegram,
+      referralCodeWeb,
+      telegramLink,
+      webLink,
+      // Legacy field for backward compatibility
+      code: referralCodeTelegram,
+      isActive: true
+    })
   } catch (error) {
     console.error("[Referral] Code error:", error)
     return NextResponse.json(
@@ -89,4 +127,28 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+// Helper: Generate unique code with collision detection
+async function generateUniqueCode(type: 'telegram' | 'web'): Promise<string> {
+  const column = type === 'telegram' ? 'referral_code_telegram' : 'referral_code_web'
+  let code = generateCode()
+  let attempts = 0
+  const maxAttempts = 10
+
+  while (attempts < maxAttempts) {
+    const duplicate = await sql`
+      SELECT id FROM referral_balances WHERE ${sql(column)} = ${code}
+    `.then((rows: any[]) => rows[0])
+
+    if (!duplicate) break
+    code = generateCode()
+    attempts++
+  }
+
+  if (attempts >= maxAttempts) {
+    throw new Error(`Failed to generate unique ${type} referral code after ${maxAttempts} attempts`)
+  }
+
+  return code
 }

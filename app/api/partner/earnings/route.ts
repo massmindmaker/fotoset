@@ -3,7 +3,13 @@
  *
  * Returns partner's earnings history with pagination
  *
+ * Supports both Telegram and Web users:
+ * - Telegram: via telegram_user_id query param
+ * - Web: via neon_user_id query param
+ *
  * Query params:
+ * - telegram_user_id: Telegram user ID (for Telegram users)
+ * - neon_user_id: Neon Auth UUID (for Web users)
  * - page: Page number (default: 1)
  * - limit: Items per page (default: 20, max: 100)
  * - status: Filter by status (pending, credited, cancelled, all)
@@ -12,24 +18,28 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
+import { extractIdentifierFromRequest, findUserByIdentifier } from '@/lib/user-identity'
 
 export async function GET(request: NextRequest) {
   try {
-    const telegramUserId = request.headers.get('x-telegram-user-id')
+    const { searchParams } = new URL(request.url)
+    const telegramUserId = searchParams.get('telegram_user_id')
+    const neonUserId = searchParams.get('neon_user_id')
 
-    if (!telegramUserId) {
+    if (!telegramUserId && !neonUserId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: 'telegram_user_id or neon_user_id required' },
+        { status: 400 }
       )
     }
 
-    // Get user
-    const user = await sql`
-      SELECT u.id
-      FROM users u
-      WHERE u.telegram_user_id = ${telegramUserId}
-    `.then((rows: any[]) => rows[0])
+    // Get user by identifier
+    const identifier = extractIdentifierFromRequest({
+      telegram_user_id: telegramUserId,
+      neon_user_id: neonUserId
+    })
+
+    const user = await findUserByIdentifier(identifier)
 
     if (!user) {
       return NextResponse.json(
@@ -38,8 +48,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Parse query params
-    const { searchParams } = new URL(request.url)
+    // Parse pagination params
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20')))
     const offset = (page - 1) * limit

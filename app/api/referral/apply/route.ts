@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/db"
+import { extractIdentifierFromRequest, findUserByIdentifier } from "@/lib/user-identity"
 
 // POST: Apply referral code to new user
 export async function POST(request: NextRequest) {
   console.log("[Referral Apply] === START ===")
 
   try {
-    const { telegramUserId, referralCode } = await request.json()
-    console.log("[Referral Apply] Request:", { telegramUserId, referralCode })
+    const { telegramUserId, neonUserId, referralCode } = await request.json()
+    console.log("[Referral Apply] Request:", { telegramUserId, neonUserId, referralCode })
 
-    if (!telegramUserId || !referralCode) {
+    if ((!telegramUserId && !neonUserId) || !referralCode) {
       console.log("[Referral Apply] FAIL: Missing required fields")
       return NextResponse.json(
-        { error: "telegram_user_id and referralCode required" },
+        { error: "telegramUserId or neonUserId, and referralCode required" },
         { status: 400 }
       )
     }
@@ -20,18 +21,20 @@ export async function POST(request: NextRequest) {
     const code = referralCode.toUpperCase().trim()
     console.log("[Referral Apply] Normalized code:", code)
 
-    // Get referred user
-    const userResult = await query<{ id: number }>(
-      "SELECT id FROM users WHERE telegram_user_id = $1",
-      [telegramUserId]
-    )
+    // Get referred user (supports both Telegram and Web users)
+    const identifier = extractIdentifierFromRequest({
+      telegram_user_id: telegramUserId,
+      neon_user_id: neonUserId
+    })
 
-    if (userResult.rows.length === 0) {
-      console.log("[Referral Apply] FAIL: User not found for telegramUserId:", telegramUserId)
+    const user = await findUserByIdentifier(identifier)
+
+    if (!user) {
+      console.log("[Referral Apply] FAIL: User not found for identifier:", identifier)
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const referredId = userResult.rows[0].id
+    const referredId = user.id
     console.log("[Referral Apply] Found user, DB ID:", referredId)
 
     // Check if already referred
@@ -48,9 +51,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find referral code and owner
-    const codeResult = await query<{ user_id: number; is_active: boolean }>(
-      "SELECT user_id, is_active FROM referral_codes WHERE code = $1",
+    // Find referral code and owner (supports both Telegram and Web codes)
+    const codeResult = await query<{ user_id: number }>(
+      `SELECT user_id
+       FROM referral_balances
+       WHERE referral_code_telegram = $1 OR referral_code_web = $1
+       LIMIT 1`,
       [code]
     )
 
@@ -58,14 +64,6 @@ export async function POST(request: NextRequest) {
       console.log("[Referral Apply] FAIL: Invalid code, not found in DB:", code)
       return NextResponse.json(
         { error: "Invalid referral code", code: "INVALID_CODE" },
-        { status: 400 }
-      )
-    }
-
-    if (!codeResult.rows[0].is_active) {
-      console.log("[Referral Apply] FAIL: Code is inactive:", code)
-      return NextResponse.json(
-        { error: "Referral code is inactive", code: "INACTIVE_CODE" },
         { status: 400 }
       )
     }

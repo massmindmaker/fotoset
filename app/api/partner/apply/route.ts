@@ -1,15 +1,22 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
+import { findOrCreateUser } from "@/lib/user-identity"
 
 /**
  * POST /api/partner/apply
  * Submit partner application for 50% commission rate
+ *
+ * Supports both Telegram and Web users:
+ * - Telegram: identified by telegramUserId
+ * - Web: identified by neonUserId
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const {
       telegramUserId,
+      neonUserId,
+      email,
       contactName,
       contactEmail,
       contactPhone,
@@ -24,9 +31,9 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validate required fields
-    if (!telegramUserId) {
+    if (!telegramUserId && !neonUserId) {
       return NextResponse.json(
-        { success: false, error: "telegram_user_id required" },
+        { success: false, error: "telegramUserId or neonUserId required" },
         { status: 400 }
       )
     }
@@ -38,17 +45,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get user
-    const userResult = await sql`
-      SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
-    `
-    if (userResult.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "User not found" },
-        { status: 404 }
-      )
-    }
-    const userId = userResult[0].id
+    // Get or create user (supports both Telegram and Web)
+    const user = await findOrCreateUser({
+      telegramUserId,
+      neonUserId,
+      email,
+      telegramUsername
+    })
+    const userId = user.id
 
     // Check if already a partner
     const partnerCheck = await sql`

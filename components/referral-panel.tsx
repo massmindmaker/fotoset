@@ -4,11 +4,15 @@ import React, { useState, useEffect } from "react"
 import {
   Gift, Copy, Check, Users, Wallet, TrendingUp, ArrowRight,
   Loader2, X, CreditCard, Phone, AlertCircle, ChevronDown, Send,
-  Star, Crown, ExternalLink, Clock
+  Star, Crown, ExternalLink, Clock, Globe
 } from "lucide-react"
 
 interface ReferralStats {
-  code: string | null
+  code: string | null  // Legacy field for backward compatibility
+  referralCodeTelegram?: string
+  referralCodeWeb?: string
+  telegramLink?: string
+  webLink?: string
   balance: number
   totalEarned: number
   totalWithdrawn: number
@@ -70,6 +74,7 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [showEarnings, setShowEarnings] = useState(false)
   const [copiedTelegram, setCopiedTelegram] = useState(false)
+  const [copiedWeb, setCopiedWeb] = useState(false)
   const [partnerStatus, setPartnerStatus] = useState<PartnerStatus | null>(null)
   const [showPartnerForm, setShowPartnerForm] = useState(false)
 
@@ -112,29 +117,44 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
         setError("Не удалось определить пользователя")
         return
       }
-      const res = await fetch(`/api/referral/stats?${authParam}`)
-      const data = await res.json()
 
-      if (!res.ok) {
-        setError(data.error || `Ошибка: ${res.status}`)
+      // Fetch referral codes (Telegram + Web)
+      const codeRes = await fetch(`/api/referral/code?${authParam}`)
+      const codeData = await codeRes.json()
+
+      if (!codeRes.ok) {
+        setError(codeData.error || `Ошибка: ${codeRes.status}`)
         return
       }
 
-      if (data.success) {
-        // API возвращает данные на верхнем уровне, не в stats
+      // Fetch stats (balance, earnings, etc.)
+      const statsRes = await fetch(`/api/referral/stats?${authParam}`)
+      const statsData = await statsRes.json()
+
+      if (!statsRes.ok) {
+        setError(statsData.error || `Ошибка: ${statsRes.status}`)
+        return
+      }
+
+      if (statsData.success) {
+        // Merge codes and stats
         setStats({
-          code: data.code,
-          balance: data.balance,
-          totalEarned: data.totalEarned,
-          totalWithdrawn: data.totalWithdrawn,
-          referralsCount: data.referralsCount,
-          pendingWithdrawal: data.pendingWithdrawal,
-          canWithdraw: data.canWithdraw,
-          minWithdrawal: data.minWithdrawal,
-          payoutPreview: data.payoutPreview,
+          code: codeData.code,  // Legacy field
+          referralCodeTelegram: codeData.referralCodeTelegram,
+          referralCodeWeb: codeData.referralCodeWeb,
+          telegramLink: codeData.telegramLink,
+          webLink: codeData.webLink,
+          balance: statsData.balance,
+          totalEarned: statsData.totalEarned,
+          totalWithdrawn: statsData.totalWithdrawn,
+          referralsCount: statsData.referralsCount,
+          pendingWithdrawal: statsData.pendingWithdrawal,
+          canWithdraw: statsData.canWithdraw,
+          minWithdrawal: statsData.minWithdrawal,
+          payoutPreview: statsData.payoutPreview,
         })
       } else {
-        setError(data.error || "Не удалось загрузить данные")
+        setError(statsData.error || "Не удалось загрузить данные")
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ошибка сети")
@@ -156,9 +176,7 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
   }
 
   const copyTelegramLink = async () => {
-    if (!stats?.code) return
-    const sanitizedCode = encodeURIComponent(stats.code)
-    const telegramDeeplink = `https://t.me/Pinglass_bot/Pinglass?startapp=${sanitizedCode}`
+    if (!stats?.telegramLink) return
 
     try {
       // Try Telegram WebApp API first (works in Telegram Mini Apps)
@@ -166,7 +184,7 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
 
       // Try modern clipboard API
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(telegramDeeplink)
+        await navigator.clipboard.writeText(stats.telegramLink)
         setCopiedTelegram(true)
         setTimeout(() => setCopiedTelegram(false), 2000)
         return
@@ -174,7 +192,7 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
 
       // Fallback: create temporary textarea
       const textArea = document.createElement('textarea')
-      textArea.value = telegramDeeplink
+      textArea.value = stats.telegramLink
       textArea.style.position = 'fixed'
       textArea.style.left = '-9999px'
       textArea.style.top = '-9999px'
@@ -190,23 +208,21 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
         setTimeout(() => setCopiedTelegram(false), 2000)
       } else if (tg?.showAlert) {
         try {
-          tg.showAlert('Скопируйте ссылку вручную: ' + telegramDeeplink)
+          tg.showAlert('Скопируйте ссылку вручную: ' + stats.telegramLink)
         } catch {
-          alert('Не удалось скопировать. Ссылка: ' + telegramDeeplink)
+          alert('Не удалось скопировать. Ссылка: ' + stats.telegramLink)
         }
       } else {
-        alert('Не удалось скопировать. Ссылка: ' + telegramDeeplink)
+        alert('Не удалось скопировать. Ссылка: ' + stats.telegramLink)
       }
     } catch {
       // Last resort - show the link
-      alert('Ссылка для копирования:\n' + telegramDeeplink)
+      alert('Ссылка для копирования:\n' + stats.telegramLink)
     }
   }
 
   const shareTelegram = () => {
-    if (!stats?.code) return
-    const sanitizedCode = encodeURIComponent(stats.code)
-    const telegramDeeplink = `https://t.me/Pinglass_bot/Pinglass?startapp=${sanitizedCode}`
+    if (!stats?.telegramLink) return
     const shareText = 'Создай свои AI-фотографии в PinGlass!'
 
     try {
@@ -215,7 +231,7 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
 
       if (tg?.openTelegramLink) {
         // Use Telegram's native share via openTelegramLink
-        const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(telegramDeeplink)}&text=${encodeURIComponent(shareText)}`
+        const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(stats.telegramLink)}&text=${encodeURIComponent(shareText)}`
         try {
           tg.openTelegramLink(shareUrl)
           return
@@ -225,7 +241,7 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
       }
 
       // Fallback: regular window.open
-      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(telegramDeeplink)}&text=${encodeURIComponent(shareText)}`
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(stats.telegramLink)}&text=${encodeURIComponent(shareText)}`
       const popup = window.open(shareUrl, '_blank', 'noopener,noreferrer')
 
       // If popup was blocked, try location change
@@ -234,9 +250,66 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
       }
     } catch {
       // Fallback to direct navigation
-      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(telegramDeeplink)}&text=${encodeURIComponent(shareText)}`
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(stats.telegramLink)}&text=${encodeURIComponent(shareText)}`
       window.location.href = shareUrl
     }
+  }
+
+  const copyWebLink = async () => {
+    if (!stats?.webLink) return
+
+    try {
+      // Try Clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(stats.webLink)
+        setCopiedWeb(true)
+        setTimeout(() => setCopiedWeb(false), 2000)
+        return
+      }
+
+      // Fallback: create temporary textarea
+      const textArea = document.createElement('textarea')
+      textArea.value = stats.webLink
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-9999px'
+      textArea.style.top = '-9999px'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+
+      const success = document.execCommand('copy')
+      document.body.removeChild(textArea)
+
+      if (success) {
+        setCopiedWeb(true)
+        setTimeout(() => setCopiedWeb(false), 2000)
+      } else {
+        alert('Не удалось скопировать. Ссылка: ' + stats.webLink)
+      }
+    } catch {
+      alert('Ссылка для копирования:\n' + stats.webLink)
+    }
+  }
+
+  const shareWeb = () => {
+    if (!stats?.webLink) return
+    const shareText = 'Создай свои AI-фотографии в PinGlass!'
+
+    // Use Web Share API if available
+    if (navigator.share) {
+      navigator.share({
+        title: 'PinGlass - AI фотопортреты',
+        text: shareText,
+        url: stats.webLink
+      }).catch(() => {
+        // User cancelled or error - fallback to copy
+        copyWebLink()
+      })
+      return
+    }
+
+    // Fallback: just copy the link
+    copyWebLink()
   }
 
   if (!isOpen) return null
@@ -300,8 +373,9 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
             </div>
           ) : stats ? (
             <>
-              {/* Telegram Referral Link */}
-              <div className="p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/5 rounded-2xl border border-blue-500/20">
+              {/* Telegram Referral Link - shown if user has Telegram ID OR both IDs */}
+              {telegramUserId && stats.telegramLink && (
+                <div className="p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/5 rounded-2xl border border-blue-500/20">
                   <div className="flex items-center gap-2 mb-2">
                     <Send className="w-4 h-4 text-blue-500" />
                     <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Telegram ссылка:</p>
@@ -310,7 +384,7 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
                     <input
                       type="text"
                       readOnly
-                      value={`https://t.me/Pinglass_bot/Pinglass?startapp=${encodeURIComponent(stats.code || "")}`}
+                      value={stats.telegramLink}
                       className="flex-1 min-w-0 px-3 py-2 bg-blue-500/5 rounded-xl text-sm text-foreground truncate border border-blue-500/10"
                     />
                     <button
@@ -318,7 +392,6 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
                       className="shrink-0 w-10 h-10 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors flex items-center justify-center"
                     >
                       {copiedTelegram ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      
                     </button>
                   </div>
                   <button
@@ -328,7 +401,39 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
                     <Send className="w-4 h-4" />
                     Поделиться в Telegram
                   </button>
-              </div>
+                </div>
+              )}
+
+              {/* Web Referral Link - shown if user has Neon ID OR both IDs */}
+              {neonUserId && stats.webLink && (
+                <div className="p-4 bg-gradient-to-br from-green-500/10 to-emerald-600/5 rounded-2xl border border-green-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Globe className="w-4 h-4 text-green-500" />
+                    <p className="text-sm font-medium text-green-600 dark:text-green-400">Web ссылка:</p>
+                  </div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <input
+                      type="text"
+                      readOnly
+                      value={stats.webLink}
+                      className="flex-1 min-w-0 px-3 py-2 bg-green-500/5 rounded-xl text-sm text-foreground truncate border border-green-500/10"
+                    />
+                    <button
+                      onClick={copyWebLink}
+                      className="shrink-0 w-10 h-10 bg-green-500 text-white rounded-xl text-sm font-medium hover:bg-green-600 transition-colors flex items-center justify-center"
+                    >
+                      {copiedWeb ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <button
+                    onClick={shareWeb}
+                    className="w-full py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg shadow-green-500/25"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Поделиться ссылкой
+                  </button>
+                </div>
+              )}
 
               {/* Stats Grid */}
               <div className="grid grid-cols-2 gap-3">
@@ -536,6 +641,7 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
       {showPartnerForm && (
         <PartnerApplicationModal
           telegramUserId={telegramUserId}
+          neonUserId={neonUserId}
           onClose={() => setShowPartnerForm(false)}
           onSuccess={() => {
             setShowPartnerForm(false)
@@ -754,10 +860,12 @@ function WithdrawModal({
 
 function PartnerApplicationModal({
   telegramUserId,
+  neonUserId,
   onClose,
   onSuccess
 }: {
   telegramUserId?: number
+  neonUserId?: string
   onClose: () => void
   onSuccess: () => void
 }) {
@@ -816,6 +924,7 @@ function PartnerApplicationModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           telegramUserId,
+          neonUserId,
           ...formData,
         })
       })

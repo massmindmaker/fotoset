@@ -3,6 +3,10 @@
  *
  * Returns partner dashboard statistics
  *
+ * Supports both Telegram and Web users:
+ * - Telegram: via telegram_user_id query param
+ * - Web: via neon_user_id query param
+ *
  * Includes:
  * - Current balance (RUB + TON)
  * - Total earned (all time)
@@ -14,15 +18,33 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
+import { extractIdentifierFromRequest, findUserByIdentifier } from '@/lib/user-identity'
 
 export async function GET(request: NextRequest) {
   try {
-    const telegramUserId = request.headers.get('x-telegram-user-id')
+    const { searchParams } = new URL(request.url)
+    const telegramUserId = searchParams.get('telegram_user_id')
+    const neonUserId = searchParams.get('neon_user_id')
 
-    if (!telegramUserId) {
+    if (!telegramUserId && !neonUserId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: 'telegram_user_id or neon_user_id required' },
+        { status: 400 }
+      )
+    }
+
+    // Get user by identifier
+    const identifier = extractIdentifierFromRequest({
+      telegram_user_id: telegramUserId,
+      neon_user_id: neonUserId
+    })
+
+    const basicUser = await findUserByIdentifier(identifier)
+
+    if (!basicUser) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
       )
     }
 
@@ -31,6 +53,7 @@ export async function GET(request: NextRequest) {
       SELECT
         u.id,
         u.telegram_user_id,
+        u.neon_auth_id,
         rb.id as balance_id,
         rb.referral_code,
         rb.balance_rub,
@@ -44,7 +67,7 @@ export async function GET(request: NextRequest) {
         rb.promoted_at
       FROM users u
       LEFT JOIN referral_balances rb ON rb.user_id = u.id
-      WHERE u.telegram_user_id = ${telegramUserId}
+      WHERE u.id = ${basicUser.id}
     `.then((rows: any[]) => rows[0])
 
     if (!user) {

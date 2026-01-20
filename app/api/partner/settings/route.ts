@@ -3,21 +3,43 @@
  *
  * Partner payout settings management
  *
+ * Supports both Telegram and Web users:
+ * - Telegram: via telegram_user_id query param
+ * - Web: via neon_user_id query param
+ *
  * GET: Returns current settings
  * POST: Updates payout settings (phone, INN)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
+import { extractIdentifierFromRequest, findUserByIdentifier } from '@/lib/user-identity'
 
 export async function GET(request: NextRequest) {
   try {
-    const telegramUserId = request.headers.get('x-telegram-user-id')
+    const { searchParams } = new URL(request.url)
+    const telegramUserId = searchParams.get('telegram_user_id')
+    const neonUserId = searchParams.get('neon_user_id')
 
-    if (!telegramUserId) {
+    if (!telegramUserId && !neonUserId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: 'telegram_user_id or neon_user_id required' },
+        { status: 400 }
+      )
+    }
+
+    // Get user by identifier
+    const identifier = extractIdentifierFromRequest({
+      telegram_user_id: telegramUserId,
+      neon_user_id: neonUserId
+    })
+
+    const basicUser = await findUserByIdentifier(identifier)
+
+    if (!basicUser) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
       )
     }
 
@@ -26,7 +48,9 @@ export async function GET(request: NextRequest) {
       SELECT
         u.id,
         u.telegram_user_id,
+        u.neon_auth_id,
         u.telegram_username,
+        u.email,
         rb.referral_code,
         rb.is_partner,
         rb.commission_rate,
@@ -43,7 +67,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN referral_balances rb ON rb.user_id = u.id
       LEFT JOIN partner_payout_settings pps ON pps.user_id = u.id
       LEFT JOIN self_employed_verifications sev ON sev.user_id = u.id AND sev.is_verified = true
-      WHERE u.telegram_user_id = ${telegramUserId}
+      WHERE u.id = ${basicUser.id}
     `.then((rows: any[]) => rows[0])
 
     if (!user) {
@@ -58,8 +82,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       user: {
-        telegramUserId: String(user.telegram_user_id),
-        username: user.telegram_username
+        telegramUserId: user.telegram_user_id ? String(user.telegram_user_id) : null,
+        neonUserId: user.neon_auth_id || null,
+        username: user.telegram_username || null,
+        email: user.email || null
       },
       referral: {
         code: user.referral_code,
@@ -99,19 +125,23 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const telegramUserId = request.headers.get('x-telegram-user-id')
+    const body = await request.json()
+    const { telegramUserId, neonUserId, ...settings } = body
 
-    if (!telegramUserId) {
+    if (!telegramUserId && !neonUserId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: 'telegramUserId or neonUserId required' },
+        { status: 400 }
       )
     }
 
-    // Get user
-    const user = await sql`
-      SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
-    `.then((rows: any[]) => rows[0])
+    // Get user by identifier
+    const identifier = extractIdentifierFromRequest({
+      telegramUserId,
+      neonUserId
+    })
+
+    const user = await findUserByIdentifier(identifier)
 
     if (!user) {
       return NextResponse.json(
@@ -120,8 +150,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const body = await request.json()
-    const { sbpPhone, tonWalletAddress, preferredCurrency } = body
+    const { sbpPhone, tonWalletAddress, preferredCurrency } = settings
 
     // Validate phone if provided
     if (sbpPhone !== undefined) {
