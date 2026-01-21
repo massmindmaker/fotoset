@@ -151,24 +151,36 @@ export async function POST(request: NextRequest) {
         // Failure - need to restore balance
         const failError = event.error?.message || 'Unknown error'
 
-        await sql`
-          UPDATE withdrawals
+        // ATOMIC: Only restore balance if withdrawal wasn't already failed (idempotency)
+        const restoreResult = await sql`
+          WITH update_withdrawal AS (
+            UPDATE withdrawals
+            SET
+              status = 'failed',
+              error_message = ${failError},
+              updated_at = NOW()
+            WHERE id = ${withdrawalId} AND status != 'failed'
+            RETURNING user_id, amount, payout_amount
+          )
+          UPDATE referral_balances rb
           SET
-            status = 'failed',
-            error_message = ${failError},
+            balance_rub = balance_rub + uw.amount,
+            total_withdrawn_rub = total_withdrawn_rub - uw.payout_amount,
             updated_at = NOW()
-          WHERE id = ${withdrawalId}
+          FROM update_withdrawal uw
+          WHERE rb.user_id = uw.user_id
+          RETURNING rb.user_id
         `
 
-        // Restore balance
-        await sql`
-          UPDATE referral_balances
-          SET
-            balance_rub = balance_rub + ${withdrawal.amount},
-            total_withdrawn_rub = total_withdrawn_rub - ${withdrawal.payout_amount},
-            updated_at = NOW()
-          WHERE user_id = ${withdrawal.user_id}
-        `
+        if (restoreResult.length === 0) {
+          // Withdrawal already failed (duplicate webhook)
+          console.log('[Jump Webhook] Withdrawal already failed, skipping balance restore', {
+            withdrawalId,
+            jumpPayoutId: event.payoutId
+          })
+          processed = false // Don't mark as processed to allow retry
+          break
+        }
 
         processed = true
         errorMessage = failError

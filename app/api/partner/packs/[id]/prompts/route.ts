@@ -158,18 +158,6 @@ export async function POST(
       )
     }
 
-    // Check prompt limit (max 23)
-    const promptCount = await sql`
-      SELECT COUNT(*) as count FROM pack_prompts
-      WHERE pack_id = ${packId} AND is_active = TRUE
-    `
-    if (parseInt(promptCount[0].count) >= 23) {
-      return NextResponse.json(
-        { error: "LIMIT_EXCEEDED", message: "Maximum 23 prompts per pack" },
-        { status: 400 }
-      )
-    }
-
     // Get next position if not provided
     let nextPosition = position ?? 0
     if (nextPosition === 0) {
@@ -180,8 +168,12 @@ export async function POST(
       nextPosition = parseInt(maxPosition[0].max_position) + 1
     }
 
-    // Add prompt
+    // ATOMIC: Check limit and insert in single transaction (prevents race condition)
     const result = await sql`
+      WITH prompt_check AS (
+        SELECT COUNT(*) as count FROM pack_prompts
+        WHERE pack_id = ${packId} AND is_active = TRUE
+      )
       INSERT INTO pack_prompts (
         pack_id,
         prompt,
@@ -191,7 +183,8 @@ export async function POST(
         preview_url,
         position,
         is_active
-      ) VALUES (
+      )
+      SELECT
         ${packId},
         ${prompt.trim()},
         ${negativePrompt?.trim() || null},
@@ -200,9 +193,18 @@ export async function POST(
         ${previewUrl?.trim() || null},
         ${nextPosition},
         TRUE
-      )
+      FROM prompt_check
+      WHERE prompt_check.count < 23
       RETURNING *
     `
+
+    // Check if insert succeeded (will be empty if limit exceeded)
+    if (result.length === 0) {
+      return NextResponse.json(
+        { error: "LIMIT_EXCEEDED", message: "Maximum 23 prompts per pack" },
+        { status: 400 }
+      )
+    }
 
     console.log(
       `[Partner Pack Prompts] Added prompt #${result[0].id} to pack #${packId} by user ${authUser.user.id}`
