@@ -78,7 +78,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
   const isFull = persona.images.length >= MAX_PHOTOS
 
   return (
-    <div className="space-y-6 pb-24 sm:pb-6">
+    <div className="space-y-6 pb-40 sm:pb-6">
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}
@@ -187,8 +187,8 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
           </div>
         ))}
       </div>
-      {/* Fixed bottom CTA - v4 design */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-xl border-t border-border/50 sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
+      {/* Fixed bottom CTA - v4 design, positioned above BottomNav (h-14 + safe-area) */}
+      <div className="fixed bottom-[calc(56px+max(12px,env(safe-area-inset-bottom)))] left-0 right-0 p-4 bg-background/95 backdrop-blur-xl border-t border-border/50 sm:relative sm:bottom-auto sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 z-30">
         <Button
           onClick={onNext}
           disabled={!isReady || isLoading}
