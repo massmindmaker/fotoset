@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "npm run optimize:images && next build",
+    "build": "next build",
+    "build:with-images": "npm run optimize:images && next build",
     "dev": "next dev --turbopack",
     "lint": "eslint .",
     "start": "next start",
