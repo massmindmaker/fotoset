@@ -1,0 +1,34 @@
+[
+  {
+    "name": "08-admin-login",
+    "taskId": "e81d20d317402496d9fe4548fb66786f"
+  },
+  {
+    "name": "09-admin-dashboard",
+    "taskId": "4bbaa77267c6944995dad683ca684574"
+  },
+  {
+    "name": "10-admin-users",
+    "taskId": "77c17220d9d844e0b705cde25ea6a3bd"
+  },
+  {
+    "name": "11-admin-payments",
+    "taskId": "682a088d0515292c2f96ced7f8080ac5"
+  },
+  {
+    "name": "12-admin-generations",
+    "taskId": "042926e19dc97e5fa222fdedfb2ad114"
+  },
+  {
+    "name": "13-auth-modal-web",
+    "taskId": "2eb002b2ae0c9e4fc49973fbdabc91cc"
+  },
+  {
+    "name": "14-payment-callback",
+    "taskId": "e11853770a3600d932aa06c4cf9e5899"
+  },
+  {
+    "name": "15-error-modal",
+    "taskId": "d4f166f7bc328742df9df1914b4a14cf"
+  }
+]

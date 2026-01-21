@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PinGlass UI Mockups</title>
+  <style>
+    /* ===== RESET & BASE ===== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+      background: #1a1a1a;
+      color: #f5f5f5;
+      padding: 40px;
+      line-height: 1.5;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 16px;
+      font-size: 32px;
+      background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .mockups-subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 48px;
+      font-size: 14px;
+    }
+
+    .mockups-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 48px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .mockup-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .mockup-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #FF6B6B;
+    }
+
+    .mockup-description {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 16px;
+      text-align: center;
+      max-width: 350px;
+    }
+
+    /* ===== PHONE FRAME ===== */
+    .ui-phone-frame {
+      width: 375px;
+      height: 812px;
+      background: linear-gradient(145deg, #1e1e22, #16161a);
+      border-radius: 40px;
+      border: 3px solid #333;
+      overflow: hidden;
+      position: relative;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.05),
+        0 25px 50px rgba(0,0,0,0.5),
+        0 10px 20px rgba(0,0,0,0.3);
+    }
+
+    .ui-phone-frame::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 150px;
+      height: 35px;
+      background: #000;
+      border-radius: 0 0 20px 20px;
+      z-index: 100;
+    }
+
+    .ui-screen {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding-top: 50px;
+    }
+
+    /* ===== DESIGN TOKENS ===== */
+    :root {
+      --ui-bg: #16161a;
+      --ui-card: #1e1e22;
+      --ui-border: #2a2a30;
+      --ui-primary: #FF6B6B;
+      --ui-primary-hover: #FF5252;
+      --ui-text: #f5f5f5;
+      --ui-text-muted: #888;
+      --ui-success: #4ADE80;
+      --ui-warning: #FBBF24;
+      --ui-info: #60A5FA;
+      --ui-purple: #A78BFA;
+      --ui-ton-blue: #0098EA;
+      --ui-radius: 16px;
+      --ui-radius-sm: 12px;
+      --ui-radius-lg: 20px;
+      --ui-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      --ui-glow: 0 0 20px rgba(255, 107, 107, 0.3);
+    }
+
+    /* ===== COMMON COMPONENTS ===== */
+    .ui-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: rgba(22, 22, 26, 0.95);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--ui-border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .ui-logo {
+      font-size: 20px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .ui-back-btn {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      border-radius: var(--ui-radius-sm);
+      color: var(--ui-text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .ui-back-btn:hover {
+      background: var(--ui-card);
+      color: var(--ui-text);
+    }
+
+    .ui-btn-primary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 52px;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, var(--ui-primary) 0%, #FF8E53 100%);
+      border: none;
+      border-radius: var(--ui-radius);
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow:
+        0 4px 20px rgba(255, 107, 107, 0.4),
+        0 8px 32px rgba(255, 107, 107, 0.2),
+        inset 0 1px 0 rgba(255,255,255,0.12);
+      transition: all 0.3s;
+    }
+
+    .ui-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        0 6px 28px rgba(255, 107, 107, 0.5),
+        0 12px 40px rgba(255, 107, 107, 0.3);
+    }
+
+    .ui-btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .ui-btn-secondary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 48px;
+      padding: 12px 20px;
+      background: var(--ui-card);
+      border: 1px solid var(--ui-border);
+      border-radius: var(--ui-radius);
+      color: var(--ui-text);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .ui-btn-secondary:hover {
+      background: #2a2a30;
+      border-color: var(--ui-primary);
+    }
+
+    .ui-btn-ghost {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      border-radius: var(--ui-radius-sm);
+      color: var(--ui-text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .ui-btn-ghost:hover {
+      background: var(--ui-card);
+      color: var(--ui-text);
+    }
+
+    .ui-card {
+      background: var(--ui-card);
+      border: 1px solid var(--ui-border);
+      border-radius: var(--ui-radius-lg);
+      padding: 16px;
+    }
+
+    .ui-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 8px;
+      text-transform: uppercase;
+    }
+
+    .ui-badge-popular {
+      background: linear-gradient(135deg, var(--ui-primary), #FF8E53);
+      color: white;
+    }
+
+    .ui-badge-discount {
+      background: rgba(74, 222, 128, 0.2);
+      color: var(--ui-success);
+    }
+
+    .ui-badge-partner {
+      background: rgba(167, 139, 250, 0.2);
+      color: var(--ui-purple);
+    }
+
+    .ui-progress {
+      height: 6px;
+      background: #2a2a30;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .ui-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--ui-primary) 0%, #FF8E53 100%);
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+
+    .ui-progress-fill.success {
+      background: var(--ui-success);
+    }
+
+    .ui-input {
+      width: 100%;
+      min-height: 52px;
+      padding: 14px 16px;
+      background: var(--ui-card);
+      border: 2px solid var(--ui-border);
+      border-radius: 14px;
+      color: var(--ui-text);
+      font-size: 16px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .ui-input:focus {
+      border-color: var(--ui-primary);
+      box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.15);
+    }
+
+    .ui-input::placeholder {
+      color: var(--ui-text-muted);
+    }
+
+    .ui-bottom-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 16px 20px;
+      padding-bottom: 34px; /* safe area */
+      background: rgba(22, 22, 26, 0.95);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--ui-border);
+    }
+
+    .ui-content {
+      padding: 20px;
+      padding-bottom: 120px;
+    }
+
+    /* ===== SVG ICONS (inline) ===== */
+    .ui-icon {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .ui-icon-sm {
+      width: 16px;
+      height: 16px;
+    }
+
+    .ui-icon-lg {
+      width: 24px;
+      height: 24px;
+    }
+  </style>
+</head>
+<body>
+  <h1>PinGlass UI Mockups</h1>
+  <p class="mockups-subtitle">7 Screen Mockups - Phone Frame (375px width) - Dark Theme</p>
+
+  <div class="mockups-grid">
+
+    <!-- ===== 1. ONBOARDING VIEW ===== -->
+    <div class="mockup-section">
+      <h2 class="mockup-title">1. Onboarding View</h2>
+      <p class="mockup-description">Welcome screen with animated demo photos, 4-stage animation, auth modal for web users</p>
+
+      <div class="ui-phone-frame">
+        <div class="ui-screen" style="background: radial-gradient(at 20% 30%, rgba(255,107,107,0.15) 0%, transparent 50%), radial-gradient(at 80% 70%, rgba(255,142,83,0.1) 0%, transparent 50%), #16161a;">
+
+          <!-- Animated Photos Section -->
+          <div style="position: relative; width: 100%; aspect-ratio: 1; margin-top: 40px;">
+            <!-- Glow background -->
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 200px; background: radial-gradient(circle, rgba(255,107,107,0.3), transparent 70%); border-radius: 50%; filter: blur(40px);"></div>
+
+            <!-- Center main image -->
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100px; height: 100px; border-radius: 24px; overflow: hidden; border: 3px solid var(--ui-primary); box-shadow: 0 0 30px rgba(255,107,107,0.5), 0 0 60px rgba(255,107,107,0.2);">
+              <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #2a2a30, #3a3a40);"></div>
+            </div>
+
+            <!-- Inner orbit (4 photos) -->
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 230px; height: 230px;">
+              <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 44px; height: 44px; border-radius: 14px; background: #2a2a30; border: 2px solid var(--ui-primary); box-shadow: 0 0 15px rgba(255,107,107,0.4);"></div>
+              <div style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 14px; background: #2a2a30; border: 2px solid #FBBF24; box-shadow: 0 0 15px rgba(251,191,36,0.4);"></div>
+              <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 44px; height: 44px; border-radius: 14px; background: #2a2a30; border: 2px solid var(--ui-primary); box-shadow: 0 0 15px rgba(255,107,107,0.4);"></div>
+              <div style="position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 14px; background: #2a2a30; border: 2px solid #FBBF24; box-shadow: 0 0 15px rgba(251,191,36,0.4);"></div>
+            </div>
+
+            <!-- Outer orbit (6 photos) -->
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 320px; height: 320px;">
+              <div style="position: absolute; top: 10px; left: 25%; width: 36px; height: 36px; border-radius: 12px; background: #2a2a30; border: 2px solid #FBBF24; opacity: 0.8;"></div>
+              <div style="position: absolute; top: 10px; right: 25%; width: 36px; height: 36px; border-radius: 12px; background: #2a2a30; border: 2px solid var(--ui-primary); opacity: 0.8;"></div>
+              <div style="position: absolute; right: 10px; top: 40%; width: 36px; height: 36px; border-radius: 12px; background: #2a2a30; border: 2px solid #FBBF24; opacity: 0.8;"></div>
+              <div style="position: absolute; bottom: 10px; right: 25%; width: 36px; height: 36px; border-radius: 12px; background: #2a2a30; border: 2px solid var(--ui-primary); opacity: 0.8;"></div>
+              <div style="position: absolute; bottom: 10px; left: 25%; width: 36px; height: 36px; border-radius: 12px; background: #2a2a30; border: 2px solid #FBBF24; opacity: 0.8;"></div>
+              <div style="position: absolute; left: 10px; top: 40%; width: 36px; height: 36px; border-radius: 12px; background: #2a2a30; border: 2px solid var(--ui-primary); opacity: 0.8;"></div>
+            </div>
+          </div>
+
+          <!-- Title & CTA -->
+          <div style="text-align: center; padding: 0 32px; margin-top: 20px;">
+            <h1 style="font-size: 40px; font-weight: 800; background: linear-gradient(135deg, #FF6B6B, #FF8E53); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 12px;">Pinglass</h1>
+            <p style="color: var(--ui-text-muted); font-size: 16px; line-height: 1.6; margin-bottom: 32px;">
+              Создавайте впечатляющие AI-фотографии
+            </p>
+
+            <button class="ui-btn-primary">
+              <svg class="ui-icon" viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" stroke="none"/></svg>
+              Начать!
+            </button>
+          </div>
+
+          <!-- Auth Modal (overlay) - показан для веб-версии -->
+          <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0.3; pointer-events: none;">
+            <div style="background: var(--ui-card); border-radius: 24px; padding: 32px 24px; width: 100%; max-width: 340px; border: 1px solid var(--ui-border);">
+              <h2 style="font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 8px;">Вход в аккаунт</h2>
+              <p style="color: var(--ui-text-muted); font-size: 14px; text-align: center; margin-bottom: 24px;">Войдите, чтобы продолжить</p>
+
+              <!-- Google button -->
+              <button style="width: 100%; padding: 14px; background: white; border-radius: 12px; border: none; display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 15px; font-weight: 500; color: #333; cursor: pointer;">
+                <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                Продолжить с Google
+              </button>
+
+              <!-- Divider -->
+              <div style="display: flex; align-items: center; gap: 12px; margin: 20px 0;">
+                <div style="flex: 1; height: 1px; background: var(--ui-border);"></div>
+                <span style="color: var(--ui-text-muted); font-size: 12px; text-transform: uppercase;">или</span>
+                <div style="flex: 1; height: 1px; background: var(--ui-border);"></div>
+              </div>
+
+              <!-- Email input -->
+              <input class="ui-input" type="email" placeholder="you@example.com" style="margin-bottom: 12px;">
+              <input class="ui-input" type="password" placeholder="Ваш пароль" style="margin-bottom: 20px;">
+
+              <button class="ui-btn-primary">Войти</button>
+
+              <p style="text-align: center; margin-top: 20px; font-size: 13px; color: var(--ui-text-muted);">
+                Нет аккаунта? <a href="#" style="color: var(--ui-primary); text-decoration: none; font-weight: 500;">Зарегистрироваться</a>
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 2. UPLOAD VIEW ===== -->
+    <div class="mockup-section">
+      <h2 class="mockup-title">2. Upload View</h2>
+      <p class="mockup-description">Photo upload screen with progress bar, MIN=5, MAX=8 photos, file validation info</p>
+
+      <div class="ui-phone-frame">
+        <div class="ui-screen" style="background: var(--ui-bg);">
+
+          <!-- Header -->
+          <div class="ui-header">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <button class="ui-back-btn">
+                <svg class="ui-icon" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div>
+                <input style="background: transparent; border: none; font-size: 18px; font-weight: 600; color: var(--ui-text); width: 160px; outline: none;" value="Мой аватар" placeholder="Название...">
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                  <div class="ui-progress" style="width: 100px;">
+                    <div class="ui-progress-fill success" style="width: 75%;"></div>
+                  </div>
+                  <span style="font-size: 12px; color: var(--ui-success); font-weight: 500; display: flex; align-items: center; gap: 4px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
+                    6/8 фото
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ui-content">
+            <!-- Tips Card -->
+            <div class="ui-card" style="background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.3); margin-bottom: 20px;">
+              <div style="display: flex; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(251, 191, 36, 0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </div>
+                <div>
+                  <p style="font-size: 14px; font-weight: 600; margin-bottom: 6px;">Советы для лучшего результата</p>
+                  <ul style="font-size: 12px; color: var(--ui-text-muted); list-style: none;">
+                    <li style="margin-bottom: 4px;"><span style="color: #FBBF24;">&#8226;</span> Хорошее освещение лица</li>
+                    <li style="margin-bottom: 4px;"><span style="color: #FBBF24;">&#8226;</span> Разные ракурсы и выражения</li>
+                    <li><span style="color: #FBBF24;">&#8226;</span> Без солнечных очков и головных уборов</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Photo Grid -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+              <!-- Add button -->
+              <button style="aspect-ratio: 1; border: 2px dashed var(--ui-border); border-radius: 12px; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; transition: all 0.2s;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--ui-text-muted)" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span style="font-size: 10px; color: var(--ui-text-muted); font-weight: 500;">Добавить</span>
+              </button>
+
+              <!-- Uploaded photos -->
+              <div style="aspect-ratio: 1; border-radius: 12px; background: #2a2a30; position: relative; overflow: hidden;">
+                <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #3a3a44, #2a2a30);"></div>
+                <button style="position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; background: rgba(0,0,0,0.6); border: none; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              <div style="aspect-ratio: 1; border-radius: 12px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+              <div style="aspect-ratio: 1; border-radius: 12px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+              <div style="aspect-ratio: 1; border-radius: 12px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+              <div style="aspect-ratio: 1; border-radius: 12px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+
+              <!-- Skeleton placeholders -->
+              <div style="aspect-ratio: 1; border-radius: 12px; background: var(--ui-card); display: flex; align-items: center; justify-content: center; opacity: 0.5;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ui-text-muted)" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </div>
+              <div style="aspect-ratio: 1; border-radius: 12px; background: var(--ui-card); display: flex; align-items: center; justify-content: center; opacity: 0.5;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ui-text-muted)" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </div>
+            </div>
+
+            <!-- File info -->
+            <p style="font-size: 11px; color: var(--ui-text-muted); text-align: center; margin-top: 16px;">
+              JPEG, PNG, WebP, HEIC &bull; макс. 30 МБ
+            </p>
+          </div>
+
+          <!-- Bottom bar -->
+          <div class="ui-bottom-bar">
+            <button class="ui-btn-primary">
+              <svg class="ui-icon" viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" stroke="none"/></svg>
+              Создать
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 3. TIER SELECT VIEW ===== -->
+    <div class="mockup-section">
+      <h2 class="mockup-title">3. Tier Select View</h2>
+      <p class="mockup-description">3 pricing cards with WCAG keyboard navigation, popular badge, discount badges</p>
+
+      <div class="ui-phone-frame">
+        <div class="ui-screen" style="background: var(--ui-bg);">
+
+          <!-- Header -->
+          <div class="ui-header">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <button class="ui-back-btn">
+                <svg class="ui-icon" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div>
+                <h2 style="font-size: 18px; font-weight: 600;">Выберите пакет</h2>
+                <p style="font-size: 13px; color: var(--ui-text-muted);">PINGLASS</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="ui-content">
+            <div style="display: flex; flex-direction: column; gap: 12px;" role="radiogroup" aria-label="Выберите пакет фотографий">
+
+              <!-- Starter tier -->
+              <div class="ui-card" style="cursor: pointer; transition: all 0.25s;" role="radio" aria-checked="false" tabindex="-1">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                  <div style="width: 56px; height: 56px; border-radius: 16px; background: var(--ui-card); display: flex; align-items: center; justify-content: center;">
+                    <span style="font-size: 24px; font-weight: 700; color: var(--ui-text-muted);">7</span>
+                  </div>
+                  <div style="flex: 1;">
+                    <h3 style="font-size: 17px; font-weight: 600;">7 фотографий</h3>
+                    <p style="font-size: 13px; color: var(--ui-text-muted);">Попробовать AI-фото</p>
+                  </div>
+                  <div style="text-align: right;">
+                    <div style="font-size: 22px; font-weight: 700;">299 ₽</div>
+                    <div style="font-size: 11px; color: var(--ui-text-muted);">43 ₽/фото</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Standard tier (selected + popular) -->
+              <div class="ui-card" style="cursor: pointer; border-color: var(--ui-primary); background: linear-gradient(135deg, rgba(255,107,107,0.1), rgba(167,139,250,0.05)); box-shadow: 0 0 0 4px rgba(255,107,107,0.15), 0 8px 24px rgba(255,107,107,0.2);" role="radio" aria-checked="true" tabindex="0">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                  <div style="width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, var(--ui-primary), #FF8E53); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(255,107,107,0.3);">
+                    <span style="font-size: 24px; font-weight: 700; color: white;">15</span>
+                  </div>
+                  <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                      <h3 style="font-size: 17px; font-weight: 600;">15 фотографий</h3>
+                      <span class="ui-badge ui-badge-popular">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+                        Хит
+                      </span>
+                    </div>
+                    <p style="font-size: 13px; color: var(--ui-text-muted);">Оптимальный выбор</p>
+                  </div>
+                  <div style="text-align: right;">
+                    <div style="display: flex; align-items: center; gap: 8px; justify-content: flex-end;">
+                      <span style="font-size: 13px; color: var(--ui-text-muted); text-decoration: line-through;">699 ₽</span>
+                      <span class="ui-badge ui-badge-discount">-28%</span>
+                    </div>
+                    <div style="font-size: 22px; font-weight: 700; color: var(--ui-success);">499 ₽</div>
+                    <div style="font-size: 11px; color: var(--ui-text-muted);">33 ₽/фото</div>
+                  </div>
+                </div>
+                <div style="margin-top: 12px; display: flex; align-items: center; gap: 6px; color: var(--ui-primary); font-size: 13px; font-weight: 500;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
+                  Выбрано
+                </div>
+              </div>
+
+              <!-- Premium tier -->
+              <div class="ui-card" style="cursor: pointer; transition: all 0.25s;" role="radio" aria-checked="false" tabindex="-1">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                  <div style="width: 56px; height: 56px; border-radius: 16px; background: var(--ui-card); display: flex; align-items: center; justify-content: center;">
+                    <span style="font-size: 24px; font-weight: 700; color: var(--ui-text-muted);">23</span>
+                  </div>
+                  <div style="flex: 1;">
+                    <h3 style="font-size: 17px; font-weight: 600;">23 фотографии</h3>
+                    <p style="font-size: 13px; color: var(--ui-text-muted);">Максимум возможностей</p>
+                  </div>
+                  <div style="text-align: right;">
+                    <div style="display: flex; align-items: center; gap: 8px; justify-content: flex-end;">
+                      <span style="font-size: 13px; color: var(--ui-text-muted); text-decoration: line-through;">999 ₽</span>
+                      <span class="ui-badge ui-badge-discount">-30%</span>
+                    </div>
+                    <div style="font-size: 22px; font-weight: 700; color: var(--ui-success);">699 ₽</div>
+                    <div style="font-size: 11px; color: var(--ui-text-muted);">30 ₽/фото</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- WCAG note -->
+            <p style="font-size: 10px; color: var(--ui-text-muted); text-align: center; margin-top: 16px;">
+              Используйте &#8593;&#8595; для навигации, Enter для выбора
+            </p>
+          </div>
+
+          <!-- Bottom bar -->
+          <div class="ui-bottom-bar">
+            <button class="ui-btn-primary">
+              <svg class="ui-icon" viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" stroke="none"/></svg>
+              Оплатить и получить 15 фото
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 4. RESULTS VIEW ===== -->
+    <div class="mockup-section">
+      <h2 class="mockup-title">4. Results View</h2>
+      <p class="mockup-description">Generated photos gallery with progress card, skeleton placeholders, Telegram notification message</p>
+
+      <div class="ui-phone-frame">
+        <div class="ui-screen" style="background: var(--ui-bg);">
+
+          <!-- Header -->
+          <div class="ui-header">
+            <button class="ui-back-btn">
+              <svg class="ui-icon" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: rgba(255,107,107,0.1); border-radius: 12px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ui-primary)" stroke-width="2" class="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              <span style="font-size: 14px; font-weight: 500; color: var(--ui-primary);">8 / 15 фото</span>
+            </div>
+          </div>
+
+          <div class="ui-content">
+            <!-- Progress Card -->
+            <div class="ui-card" style="background: linear-gradient(135deg, rgba(255,107,107,0.1), transparent, rgba(167,139,250,0.05)); border-color: rgba(255,107,107,0.2); margin-bottom: 20px;">
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255,107,107,0.15); display: flex; align-items: center; justify-content: center;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--ui-primary)"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+                </div>
+                <span style="font-size: 15px; font-weight: 600;">AI генерация</span>
+              </div>
+
+              <div class="ui-progress" style="height: 10px; border-radius: 5px; margin-bottom: 12px;">
+                <div class="ui-progress-fill" style="width: 53%; border-radius: 5px;"></div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <span style="font-size: 14px; font-weight: 600;">8 / 15 фото</span>
+                <span style="font-size: 12px; color: var(--ui-text-muted); background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 6px;">~4 мин</span>
+              </div>
+
+              <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; text-align: center;">
+                <p style="font-size: 12px; color: var(--ui-text-muted);">
+                  Можете закрыть приложение - пришлём фото в Telegram
+                </p>
+              </div>
+            </div>
+
+            <!-- Photo Grid -->
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+              <!-- Generated photos -->
+              <div style="aspect-ratio: 3/4; border-radius: 14px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative; overflow: hidden;">
+                <div style="position: absolute; bottom: 8px; right: 8px; width: 36px; height: 36px; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </div>
+              </div>
+              <div style="aspect-ratio: 3/4; border-radius: 14px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+              <div style="aspect-ratio: 3/4; border-radius: 14px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+              <div style="aspect-ratio: 3/4; border-radius: 14px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+              <div style="aspect-ratio: 3/4; border-radius: 14px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+              <div style="aspect-ratio: 3/4; border-radius: 14px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+              <div style="aspect-ratio: 3/4; border-radius: 14px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+              <div style="aspect-ratio: 3/4; border-radius: 14px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+
+              <!-- Skeleton placeholders -->
+              <div style="aspect-ratio: 3/4; border-radius: 14px; background: var(--ui-card); position: relative; display: flex; align-items: center; justify-content: center;">
+                <div style="width: 44px; height: 44px; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ui-primary)" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                </div>
+              </div>
+              <div style="aspect-ratio: 3/4; border-radius: 14px; background: var(--ui-card); position: relative; display: flex; align-items: center; justify-content: center;">
+                <div style="width: 44px; height: 44px; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ui-primary)" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 5. AVATAR DETAIL VIEW ===== -->
+    <div class="mockup-section">
+      <h2 class="mockup-title">5. Avatar Detail View</h2>
+      <p class="mockup-description">Existing avatar management with reference photos grid, add/delete buttons, generation CTA</p>
+
+      <div class="ui-phone-frame">
+        <div class="ui-screen" style="background: var(--ui-bg);">
+
+          <!-- Header -->
+          <div class="ui-header">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <button class="ui-back-btn">
+                <svg class="ui-icon" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div>
+                <input style="background: transparent; border: none; font-size: 18px; font-weight: 600; color: var(--ui-text); width: 180px; outline: none;" value="Бизнес портреты" placeholder="Название...">
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                  <div class="ui-progress" style="width: 100px;">
+                    <div class="ui-progress-fill success" style="width: 100%;"></div>
+                  </div>
+                  <span style="font-size: 12px; color: var(--ui-success); font-weight: 500;">8/8 фото</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ui-content">
+            <!-- Tips block -->
+            <div class="ui-card" style="background: linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); margin-bottom: 20px;">
+              <div style="display: flex; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(255,107,107,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ui-primary)" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </div>
+                <div>
+                  <p style="font-size: 14px; font-weight: 500; margin-bottom: 6px;">Советы для лучшего результата</p>
+                  <ul style="font-size: 12px; color: var(--ui-text-muted); list-style: none;">
+                    <li style="margin-bottom: 3px;">- Хорошее освещение лица</li>
+                    <li style="margin-bottom: 3px;">- Разные ракурсы и выражения</li>
+                    <li>- Без солнечных очков и головных уборов</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Reference Photos Grid -->
+            <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--ui-text-muted);">Референсные фото</h3>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 24px;">
+              <!-- Photos with delete buttons -->
+              <div style="aspect-ratio: 1; border-radius: 12px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative; overflow: hidden;">
+                <button style="position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; background: rgba(0,0,0,0.6); border: none; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              <div style="aspect-ratio: 1; border-radius: 12px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+              <div style="aspect-ratio: 1; border-radius: 12px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+              <div style="aspect-ratio: 1; border-radius: 12px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+              <div style="aspect-ratio: 1; border-radius: 12px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+              <div style="aspect-ratio: 1; border-radius: 12px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+              <div style="aspect-ratio: 1; border-radius: 12px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+              <div style="aspect-ratio: 1; border-radius: 12px; background: linear-gradient(135deg, #3a3a44, #2a2a30); position: relative;"></div>
+            </div>
+
+            <!-- Stats -->
+            <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+              <div class="ui-card" style="flex: 1; text-align: center; padding: 12px;">
+                <p style="font-size: 24px; font-weight: 700; color: var(--ui-primary);">23</p>
+                <p style="font-size: 11px; color: var(--ui-text-muted);">Сгенерировано</p>
+              </div>
+              <div class="ui-card" style="flex: 1; text-align: center; padding: 12px;">
+                <p style="font-size: 24px; font-weight: 700; color: var(--ui-success);">8</p>
+                <p style="font-size: 11px; color: var(--ui-text-muted);">Референсов</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom bar -->
+          <div class="ui-bottom-bar">
+            <button class="ui-btn-primary">
+              <svg class="ui-icon" viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" stroke="none"/></svg>
+              Смотреть результат (23)
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 6. PAYMENT MODAL ===== -->
+    <div class="mockup-section">
+      <h2 class="mockup-title">6. Payment Modal</h2>
+      <p class="mockup-description">3 payment methods: T-Bank, Stars, TON. States: FORM, PROCESSING, REDIRECT, STARS_WAITING, TON_PAYMENT</p>
+
+      <div class="ui-phone-frame">
+        <div class="ui-screen" style="background: var(--ui-bg);">
+
+          <!-- Modal backdrop -->
+          <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: flex; align-items: flex-end; justify-content: center;">
+
+            <!-- Modal content -->
+            <div style="width: 100%; background: var(--ui-bg); border-radius: 24px 24px 0 0; max-height: 90%; overflow-y: auto;">
+
+              <!-- Header -->
+              <div style="padding: 16px 20px; border-bottom: 1px solid var(--ui-border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--ui-bg); z-index: 10;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                  <h2 style="font-size: 18px; font-weight: 600;">Безопасная оплата</h2>
+                </div>
+                <button class="ui-btn-ghost">
+                  <svg class="ui-icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+
+              <!-- Content -->
+              <div style="padding: 20px;">
+
+                <!-- Tier Selection in Modal -->
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+
+                  <!-- Selected tier card -->
+                  <div style="padding: 16px; background: rgba(255,107,107,0.05); border: 2px solid var(--ui-primary); border-radius: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div style="width: 48px; height: 48px; border-radius: 14px; background: rgba(255,107,107,0.1); display: flex; align-items: center; justify-content: center;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ui-primary)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                      </div>
+                      <div>
+                        <p style="font-weight: 600; font-size: 15px;">15 фотографий</p>
+                        <p style="font-size: 13px; color: var(--ui-text-muted);">Выбранный пакет</p>
+                      </div>
+                    </div>
+                    <div style="text-align: right;">
+                      <p style="font-size: 22px; font-weight: 700;">499 ₽</p>
+                      <p style="font-size: 12px; color: var(--ui-text-muted); text-decoration: line-through;">699 ₽</p>
+                    </div>
+                  </div>
+
+                </div>
+
+                <!-- Email input -->
+                <div style="margin-bottom: 20px;">
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; margin-bottom: 8px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    Email для чека
+                  </label>
+                  <input class="ui-input" type="email" placeholder="your@email.com">
+                </div>
+
+                <!-- Payment Buttons -->
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+
+                  <!-- T-Bank (primary) -->
+                  <button class="ui-btn-primary" style="background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    Оплатить картой 499 ₽
+                  </button>
+
+                  <!-- Divider -->
+                  <div style="display: flex; align-items: center; gap: 12px; margin: 4px 0;">
+                    <div style="flex: 1; height: 1px; background: var(--ui-border);"></div>
+                    <span style="font-size: 12px; color: var(--ui-text-muted); text-transform: lowercase;">или</span>
+                    <div style="flex: 1; height: 1px; background: var(--ui-border);"></div>
+                  </div>
+
+                  <!-- Alternative payment row -->
+                  <div style="display: flex; gap: 12px;">
+
+                    <!-- Stars -->
+                    <button style="flex: 1; min-height: 52px; padding: 12px 16px; background: linear-gradient(135deg, rgba(167,139,250,0.15), rgba(139,92,246,0.1)); border: 1px solid rgba(167,139,250,0.3); border-radius: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--ui-text); font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="#FBBF24" stroke="#FBBF24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+                      Stars
+                    </button>
+
+                    <!-- TON -->
+                    <button style="flex: 1; min-height: 52px; padding: 12px 16px; background: linear-gradient(135deg, rgba(0,152,234,0.15), rgba(0,136,212,0.1)); border: 1px solid rgba(0,152,234,0.3); border-radius: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--ui-text); font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0098EA" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 16V8"/></svg>
+                      TON
+                    </button>
+
+                  </div>
+
+                </div>
+
+                <!-- TON Payment State (collapsed) -->
+                <div style="margin-top: 24px; padding: 20px; background: var(--ui-card); border-radius: 16px; border: 1px solid rgba(0,152,234,0.3); text-align: center; opacity: 0.4;">
+                  <div style="width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 50%; background: rgba(0,152,234,0.1); display: flex; align-items: center; justify-content: center;">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0098EA" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 16V8"/></svg>
+                  </div>
+                  <p style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">Оплата через TON</p>
+                  <p style="font-size: 28px; font-weight: 700; color: #0098EA; margin-bottom: 8px;">2.5 TON</p>
+                  <p style="font-size: 13px; color: var(--ui-text-muted); margin-bottom: 16px;">С кошелька UQBx...4fD2</p>
+                  <button style="width: 100%; min-height: 52px; background: #0098EA; border: none; border-radius: 14px; color: white; font-size: 15px; font-weight: 600; cursor: pointer;">
+                    Оплатить 2.5 TON
+                  </button>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 7. REFERRAL PANEL ===== -->
+    <div class="mockup-section">
+      <h2 class="mockup-title">7. Referral Panel</h2>
+      <p class="mockup-description">Stats, copy link, earnings history, withdrawal modal with NDFL 13%, partner badge</p>
+
+      <div class="ui-phone-frame">
+        <div class="ui-screen" style="background: var(--ui-bg);">
+
+          <!-- Modal backdrop -->
+          <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: flex-end; justify-content: center;">
+
+            <!-- Panel content -->
+            <div style="width: 100%; background: var(--ui-bg); border-radius: 24px 24px 0 0; max-height: 90%; overflow-y: auto;">
+
+              <!-- Header -->
+              <div style="padding: 16px 20px; border-bottom: 1px solid var(--ui-border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--ui-bg); z-index: 10;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div style="width: 40px; height: 40px; border-radius: 14px; background: linear-gradient(135deg, #F59E0B, #D97706); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+                  </div>
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <h2 style="font-size: 17px; font-weight: 700;">Реферальная программа</h2>
+                    </div>
+                    <p style="font-size: 12px; color: var(--ui-text-muted);">Зарабатывайте 10% с каждого реферала</p>
+                  </div>
+                </div>
+                <button class="ui-btn-ghost">
+                  <svg class="ui-icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+
+              <!-- Content -->
+              <div style="padding: 20px;">
+
+                <!-- Telegram Link Card -->
+                <div class="ui-card" style="background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2); margin-bottom: 16px;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                    <p style="font-size: 13px; font-weight: 500; color: #60A5FA;">Telegram ссылка:</p>
+                  </div>
+                  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <input class="ui-input" type="text" readonly value="https://t.me/Pinglass_bot/Pinglass?startapp=REF123" style="font-size: 13px; min-height: 44px; background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.1);">
+                    <button style="width: 44px; height: 44px; background: #3B82F6; border: none; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    </button>
+                  </div>
+                  <button style="width: 100%; padding: 12px; background: linear-gradient(135deg, #3B82F6, #2563EB); border: none; border-radius: 12px; color: white; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                    Поделиться в Telegram
+                  </button>
+                </div>
+
+                <!-- Stats Grid -->
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px;">
+                  <div class="ui-card" style="padding: 14px;">
+                    <div style="display: flex; align-items: center; gap: 6px; color: var(--ui-text-muted); margin-bottom: 6px;">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>
+                      <span style="font-size: 11px;">Баланс</span>
+                    </div>
+                    <p style="font-size: 22px; font-weight: 700;">3 450 ₽</p>
+                  </div>
+                  <div class="ui-card" style="padding: 14px;">
+                    <div style="display: flex; align-items: center; gap: 6px; color: var(--ui-text-muted); margin-bottom: 6px;">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                      <span style="font-size: 11px;">Рефералов</span>
+                    </div>
+                    <p style="font-size: 22px; font-weight: 700;">12</p>
+                  </div>
+                  <div class="ui-card" style="padding: 14px;">
+                    <div style="display: flex; align-items: center; gap: 6px; color: var(--ui-text-muted); margin-bottom: 6px;">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                      <span style="font-size: 11px;">Всего заработано</span>
+                    </div>
+                    <p style="font-size: 20px; font-weight: 700; color: var(--ui-success);">5 980 ₽</p>
+                  </div>
+                  <div class="ui-card" style="padding: 14px;">
+                    <div style="display: flex; align-items: center; gap: 6px; color: var(--ui-text-muted); margin-bottom: 6px;">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                      <span style="font-size: 11px;">Выведено</span>
+                    </div>
+                    <p style="font-size: 20px; font-weight: 700;">2 530 ₽</p>
+                  </div>
+                </div>
+
+                <!-- Earnings History Toggle -->
+                <button style="width: 100%; padding: 14px 16px; background: var(--ui-card); border: 1px solid var(--ui-border); border-radius: 16px; display: flex; align-items: center; justify-content: space-between; color: var(--ui-text); font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 12px;">
+                  <span>История начислений</span>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ui-text-muted)" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+
+                <!-- Earnings List (expanded preview) -->
+                <div style="background: var(--ui-card); border-radius: 12px; padding: 12px; margin-bottom: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--ui-border);">
+                    <div>
+                      <p style="font-size: 14px; font-weight: 500; color: var(--ui-success);">+50 ₽</p>
+                      <p style="font-size: 11px; color: var(--ui-text-muted);">10% от 500 ₽</p>
+                    </div>
+                    <p style="font-size: 12px; color: var(--ui-text-muted);">15.01.2026</p>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0;">
+                    <div>
+                      <p style="font-size: 14px; font-weight: 500; color: var(--ui-success);">+70 ₽</p>
+                      <p style="font-size: 11px; color: var(--ui-text-muted);">10% от 700 ₽</p>
+                    </div>
+                    <p style="font-size: 12px; color: var(--ui-text-muted);">14.01.2026</p>
+                  </div>
+                </div>
+
+                <!-- NDFL Warning -->
+                <div class="ui-card" style="background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.2); margin-bottom: 16px;">
+                  <div style="display: flex; gap: 12px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" stroke-width="2" style="flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <div>
+                      <p style="font-size: 13px; font-weight: 500; color: #F59E0B;">Вывод от 5 000 ₽</p>
+                      <p style="font-size: 12px; color: #D97706; margin-top: 4px;">При выводе удерживается НДФЛ 13%. Вы получите 87% от суммы.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Partner Section -->
+                <div class="ui-card" style="background: linear-gradient(135deg, rgba(167,139,250,0.1), rgba(139,92,246,0.05)); border-color: rgba(167,139,250,0.2); margin-bottom: 16px;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#A78BFA"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+                    <p style="font-size: 13px; font-weight: 500; color: #A78BFA;">Станьте партнёром - получайте 50%</p>
+                  </div>
+                  <p style="font-size: 12px; color: var(--ui-text-muted); margin-bottom: 12px;">
+                    Партнёры получают повышенную комиссию 50% вместо стандартных 10%.
+                  </p>
+                  <button style="width: 100%; padding: 12px; background: linear-gradient(135deg, #A78BFA, #8B5CF6); border: none; border-radius: 12px; color: white; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(167, 139, 250, 0.25);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+                    Стать партнёром
+                  </button>
+                </div>
+
+                <!-- Withdraw Button -->
+                <button class="ui-btn-primary" style="opacity: 0.5; cursor: not-allowed;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>
+                  Нужно ещё 1 550 ₽
+                </button>
+
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <footer style="text-align: center; margin-top: 64px; padding: 24px; color: var(--ui-text-muted); font-size: 13px; border-top: 1px solid #333;">
+    <p>PinGlass UI Mockups | Generated: 2026-01-17</p>
+    <p style="margin-top: 8px;">Based on: globals.css (OKLCH colors), persona-app.tsx, payment-modal.tsx, referral-panel.tsx, view components</p>
+  </footer>
+
+</body>
+</html>

@@ -5,9 +5,12 @@
  * Tests the /api/generate endpoint with race condition protection
  */
 
-import 'dotenv/config';
+import { config } from 'dotenv'
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+config({ path: '.env.local' })
+
+// Use production URL for API tests
+const BASE_URL = 'https://fotoset.vercel.app';
 
 async function testGenerationAPI() {
   console.log('🧪 Testing Generation API\n');

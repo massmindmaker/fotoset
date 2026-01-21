@@ -1,0 +1,30 @@
+[
+  {
+    "name": "01-onboarding",
+    "taskId": "108a73ff31008dda346e0e99822b0914"
+  },
+  {
+    "name": "02-dashboard",
+    "taskId": "486e91f586fffc25ed5c1a35dd95d064"
+  },
+  {
+    "name": "03-upload",
+    "taskId": "8f4126070ad4028f9591d5cbc6f1d413"
+  },
+  {
+    "name": "04-tier-select",
+    "taskId": "741fd77dbe0c28ff02a3da809efc4480"
+  },
+  {
+    "name": "05-payment-modal",
+    "taskId": "e538d1aa30594ae3a585a124a139dec2"
+  },
+  {
+    "name": "06-results-generating",
+    "taskId": "dfd6511818580004ebfc432b69b30417"
+  },
+  {
+    "name": "07-results-complete",
+    "taskId": "4a9d8571b5fa3a8e080c763376d39e51"
+  }
+]

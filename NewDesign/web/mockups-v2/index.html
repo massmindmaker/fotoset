@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PinGlass v2 - Mockups</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #fff;
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 40px;
+      font-size: 1.1rem;
+    }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 30px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 40px rgba(255,107,107,0.2);
+    }
+    .card img {
+      width: 100%;
+      height: auto;
+      display: block;
+      cursor: pointer;
+    }
+    .card-title {
+      padding: 15px 20px;
+      color: #fff;
+      font-weight: 600;
+      font-size: 1rem;
+      background: rgba(0,0,0,0.3);
+    }
+    .card-title span {
+      color: #FF6B6B;
+      margin-right: 8px;
+    }
+    /* Lightbox */
+    .lightbox {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.95);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .lightbox.active { display: flex; }
+    .lightbox img {
+      max-height: 95vh;
+      max-width: 95vw;
+      border-radius: 12px;
+      box-shadow: 0 0 60px rgba(255,107,107,0.3);
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 20px; right: 30px;
+      color: #fff;
+      font-size: 40px;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    .lightbox-close:hover { opacity: 1; }
+    .lightbox-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #fff;
+      font-size: 50px;
+      cursor: pointer;
+      opacity: 0.5;
+      transition: opacity 0.2s;
+      user-select: none;
+    }
+    .lightbox-nav:hover { opacity: 1; }
+    .lightbox-prev { left: 20px; }
+    .lightbox-next { right: 20px; }
+  </style>
+</head>
+<body>
+  <h1>PinGlass v2 Mockups</h1>
+  <p class="subtitle">15 экранов редизайна с сохранением реального контента</p>
+
+  <div class="gallery">
+    <div class="card">
+      <img src="01-onboarding.jpg" alt="Onboarding" onclick="openLightbox(0)">
+      <div class="card-title"><span>01</span>Onboarding</div>
+    </div>
+    <div class="card">
+      <img src="02-dashboard.jpg" alt="Dashboard" onclick="openLightbox(1)">
+      <div class="card-title"><span>02</span>Dashboard (Мои аватары)</div>
+    </div>
+    <div class="card">
+      <img src="03-upload.jpg" alt="Upload" onclick="openLightbox(2)">
+      <div class="card-title"><span>03</span>Upload (Загрузка фото)</div>
+    </div>
+    <div class="card">
+      <img src="04-tier-select.jpg" alt="Tier Select" onclick="openLightbox(3)">
+      <div class="card-title"><span>04</span>Tier Select (Выбор пакета)</div>
+    </div>
+    <div class="card">
+      <img src="05-payment-modal.jpg" alt="Payment Modal" onclick="openLightbox(4)">
+      <div class="card-title"><span>05</span>Payment Modal (Оплата)</div>
+    </div>
+    <div class="card">
+      <img src="06-results-generating.jpg" alt="Results Generating" onclick="openLightbox(5)">
+      <div class="card-title"><span>06</span>Results (Генерация)</div>
+    </div>
+    <div class="card">
+      <img src="07-results-complete.jpg" alt="Results Complete" onclick="openLightbox(6)">
+      <div class="card-title"><span>07</span>Results (Готово)</div>
+    </div>
+    <div class="card">
+      <img src="08-admin-login.jpg" alt="Admin Login" onclick="openLightbox(7)">
+      <div class="card-title"><span>08</span>Admin Login</div>
+    </div>
+    <div class="card">
+      <img src="09-admin-dashboard.jpg" alt="Admin Dashboard" onclick="openLightbox(8)">
+      <div class="card-title"><span>09</span>Admin Dashboard</div>
+    </div>
+    <div class="card">
+      <img src="10-admin-users.jpg" alt="Admin Users" onclick="openLightbox(9)">
+      <div class="card-title"><span>10</span>Admin Users</div>
+    </div>
+    <div class="card">
+      <img src="11-admin-payments.png" alt="Admin Payments" onclick="openLightbox(10)">
+      <div class="card-title"><span>11</span>Admin Payments</div>
+    </div>
+    <div class="card">
+      <img src="12-admin-generations.jpg" alt="Admin Generations" onclick="openLightbox(11)">
+      <div class="card-title"><span>12</span>Admin Generations</div>
+    </div>
+    <div class="card">
+      <img src="13-auth-modal-web.jpg" alt="Auth Modal" onclick="openLightbox(12)">
+      <div class="card-title"><span>13</span>Auth Modal (Web)</div>
+    </div>
+    <div class="card">
+      <img src="14-payment-callback.jpg" alt="Payment Success" onclick="openLightbox(13)">
+      <div class="card-title"><span>14</span>Payment Success</div>
+    </div>
+    <div class="card">
+      <img src="15-error-modal.jpg" alt="Error Modal" onclick="openLightbox(14)">
+      <div class="card-title"><span>15</span>Error Modal</div>
+    </div>
+  </div>
+
+  <div class="lightbox" id="lightbox">
+    <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+    <span class="lightbox-nav lightbox-prev" onclick="navLightbox(-1)">&#10094;</span>
+    <img id="lightbox-img" src="">
+    <span class="lightbox-nav lightbox-next" onclick="navLightbox(1)">&#10095;</span>
+  </div>
+
+  <script>
+    const images = [
+      '01-onboarding.jpg',
+      '02-dashboard.jpg',
+      '03-upload.jpg',
+      '04-tier-select.jpg',
+      '05-payment-modal.jpg',
+      '06-results-generating.jpg',
+      '07-results-complete.jpg',
+      '08-admin-login.jpg',
+      '09-admin-dashboard.jpg',
+      '10-admin-users.jpg',
+      '11-admin-payments.png',
+      '12-admin-generations.jpg',
+      '13-auth-modal-web.jpg',
+      '14-payment-callback.jpg',
+      '15-error-modal.jpg'
+    ];
+    let currentIndex = 0;
+
+    function openLightbox(index) {
+      currentIndex = index;
+      document.getElementById('lightbox-img').src = images[index];
+      document.getElementById('lightbox').classList.add('active');
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('active');
+    }
+
+    function navLightbox(direction) {
+      currentIndex = (currentIndex + direction + images.length) % images.length;
+      document.getElementById('lightbox-img').src = images[currentIndex];
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (!document.getElementById('lightbox').classList.contains('active')) return;
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') navLightbox(-1);
+      if (e.key === 'ArrowRight') navLightbox(1);
+    });
+  </script>
+</body>
+</html>

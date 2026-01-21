@@ -1,0 +1,66 @@
+[
+  {
+    "name": "01-onboarding-light",
+    "taskId": "454d35c6d1ab8ee9dfce0f6853e23807"
+  },
+  {
+    "name": "02-dashboard-light",
+    "taskId": "e4d8d83fdc262b6db77c4a1e44e30eba"
+  },
+  {
+    "name": "03-upload-light",
+    "taskId": "f83e7394e5a1868337ae6cc74b9f9704"
+  },
+  {
+    "name": "04-tier-select-light",
+    "taskId": "8c08d70c0cb2e69b4420bb6c6d8aae8a"
+  },
+  {
+    "name": "05-payment-modal-light",
+    "taskId": "bc1c48cea79920eba086ef96bf1791bd"
+  },
+  {
+    "name": "06-results-generating-light",
+    "taskId": "1a1bf32497adcfb834cd294baa581567"
+  },
+  {
+    "name": "07-results-complete-light",
+    "taskId": "997b9e747be281d46bfda8d99c4d90a4"
+  },
+  {
+    "name": "08-admin-login-light",
+    "taskId": "a2efcdfd88c1f2a8ea1ff7295e1b009e"
+  },
+  {
+    "name": "09-admin-dashboard-light",
+    "taskId": "05b361048a59e4d66fe853f0d5bfda3e"
+  },
+  {
+    "name": "10-admin-users-light",
+    "taskId": "c851019df7ca24236bf29f414f1a7b7b"
+  },
+  {
+    "name": "11-admin-payments-light",
+    "taskId": "46f7cb5c751e0d97148998b84e8f9d61"
+  },
+  {
+    "name": "12-admin-generations-light",
+    "taskId": "00e96ae3da3a050254e24f4ce0b08aba"
+  },
+  {
+    "name": "13-auth-modal-light",
+    "taskId": "c578fd6bc682efc2249d0f88f905c6d4"
+  },
+  {
+    "name": "14-payment-callback-light",
+    "taskId": "2f7f9eb410f471d928ebeafc22cfd933"
+  },
+  {
+    "name": "15-error-modal-light",
+    "taskId": "b87f614c09bf8bf432be7835663a0e51"
+  },
+  {
+    "name": "16-admin-prompts-unified",
+    "taskId": "b23bfa1b611f4d5802ecce92038297ec"
+  }
+]

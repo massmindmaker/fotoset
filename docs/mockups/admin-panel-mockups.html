@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PinGlass Admin Panel - UI Mockups</title>
+  <style>
+    /* Reset & Base */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      line-height: 1.5;
+    }
+
+    /* Admin Namespace */
+    .admin-container { max-width: 1400px; margin: 0 auto; }
+    .admin-section { margin-bottom: 60px; padding: 32px; background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .admin-section-title { font-size: 24px; font-weight: 700; color: #1e293b; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #f1f5f9; }
+
+    /* Header */
+    .admin-header {
+      background: rgba(255,255,255,0.8);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #e2e8f0;
+      padding: 16px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .admin-header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .admin-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .admin-logo-icon {
+      width: 40px;
+      height: 40px;
+      background: #fce7f3;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .admin-logo-text h1 { font-size: 18px; font-weight: 600; color: #1e293b; }
+    .admin-logo-text p { font-size: 12px; color: #64748b; }
+
+    .admin-test-badge {
+      background: #fef3c7;
+      color: #92400e;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Navigation */
+    .admin-nav {
+      background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #e2e8f0;
+      position: sticky;
+      top: 73px;
+      z-index: 40;
+    }
+    .admin-nav-inner {
+      display: flex;
+      gap: 4px;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+      overflow-x: auto;
+    }
+    .admin-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #64748b;
+      text-decoration: none;
+      border-radius: 12px 12px 0 0;
+      position: relative;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .admin-nav-item:hover { color: #1e293b; background: #f1f5f9; }
+    .admin-nav-item.active { color: #1e293b; background: #f1f5f9; }
+    .admin-nav-item.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #ec4899;
+    }
+
+    /* Cards & Stats */
+    .admin-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .admin-stat-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .admin-stat-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #64748b;
+      margin-bottom: 4px;
+    }
+    .admin-stat-value { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .admin-stat-value.green { color: #059669; }
+    .admin-stat-value.blue { color: #2563eb; }
+    .admin-stat-value.amber { color: #d97706; }
+    .admin-stat-value.purple { color: #7c3aed; }
+    .admin-stat-value.pink { color: #db2777; }
+
+    /* Tables */
+    .admin-table-wrapper {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .admin-table th {
+      background: #f8fafc;
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 500;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .admin-table td {
+      padding: 12px 16px;
+      font-size: 14px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .admin-table tr:hover { background: #f8fafc; }
+    .admin-table tr:last-child td { border-bottom: none; }
+
+    /* Badges */
+    .admin-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .admin-badge.green { background: #dcfce7; color: #166534; }
+    .admin-badge.yellow { background: #fef3c7; color: #92400e; }
+    .admin-badge.red { background: #fee2e2; color: #dc2626; }
+    .admin-badge.blue { background: #dbeafe; color: #1d4ed8; }
+    .admin-badge.purple { background: #f3e8ff; color: #7c3aed; }
+    .admin-badge.gray { background: #f1f5f9; color: #64748b; }
+    .admin-badge.amber { background: #fef3c7; color: #b45309; }
+
+    /* Provider Badges */
+    .admin-provider-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .admin-provider-badge.tbank { background: #fee2e2; color: #dc2626; }
+    .admin-provider-badge.stars { background: #dbeafe; color: #2563eb; }
+    .admin-provider-badge.ton { background: #fef3c7; color: #b45309; }
+
+    /* Buttons */
+    .admin-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .admin-btn.primary { background: #ec4899; color: white; }
+    .admin-btn.primary:hover { background: #db2777; }
+    .admin-btn.secondary { background: #f1f5f9; color: #475569; }
+    .admin-btn.secondary:hover { background: #e2e8f0; }
+    .admin-btn.danger { background: #fee2e2; color: #dc2626; }
+    .admin-btn.danger:hover { background: #fecaca; }
+    .admin-btn.success { background: #dcfce7; color: #166534; }
+    .admin-btn.success:hover { background: #bbf7d0; }
+    .admin-btn.icon-only { padding: 8px; }
+
+    /* Forms */
+    .admin-input {
+      padding: 10px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 14px;
+      background: white;
+      transition: all 0.2s;
+      width: 100%;
+    }
+    .admin-input:focus {
+      outline: none;
+      border-color: #ec4899;
+      box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
+    }
+    .admin-select {
+      padding: 8px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      background: white;
+      cursor: pointer;
+    }
+    .admin-textarea {
+      padding: 12px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: ui-monospace, monospace;
+      resize: vertical;
+      min-height: 120px;
+      width: 100%;
+    }
+
+    /* Tabs */
+    .admin-tabs {
+      display: flex;
+      gap: 16px;
+      border-bottom: 1px solid #e2e8f0;
+      margin-bottom: 24px;
+    }
+    .admin-tab {
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #64748b;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .admin-tab:hover { color: #1e293b; }
+    .admin-tab.active {
+      color: #1e293b;
+      border-bottom-color: #ec4899;
+    }
+
+    /* Filters */
+    .admin-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    /* Pagination */
+    .admin-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0;
+    }
+    .admin-pagination-info { font-size: 14px; color: #64748b; }
+    .admin-pagination-buttons { display: flex; gap: 8px; }
+    .admin-pagination-btn {
+      padding: 6px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+    }
+    .admin-pagination-btn:hover { background: #f8fafc; }
+    .admin-pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* TG Status Indicator */
+    .admin-tg-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .admin-tg-status.sent { color: #22c55e; }
+    .admin-tg-status.pending { color: #eab308; }
+    .admin-tg-status.failed { color: #ef4444; }
+
+    /* Upload Area */
+    .admin-upload-area {
+      border: 2px dashed #e2e8f0;
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .admin-upload-area:hover {
+      border-color: #ec4899;
+      background: #fdf2f8;
+    }
+    .admin-upload-area.dragging {
+      border-color: #ec4899;
+      background: rgba(236, 72, 153, 0.1);
+    }
+
+    /* Test Block */
+    .admin-test-block {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .admin-test-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    /* Card Expandable */
+    .admin-card-expandable {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .admin-card-header {
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+    }
+    .admin-card-header:hover { background: #f8fafc; }
+    .admin-card-body {
+      padding: 16px;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    /* Toolbar */
+    .admin-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-bottom: none;
+      border-radius: 10px 10px 0 0;
+    }
+    .admin-toolbar-btn {
+      padding: 8px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #64748b;
+    }
+    .admin-toolbar-btn:hover { background: #e2e8f0; color: #1e293b; }
+
+    /* Target Selection Grid */
+    .admin-target-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .admin-target-option {
+      padding: 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .admin-target-option:hover { border-color: #ec4899; }
+    .admin-target-option.selected {
+      border-color: #ec4899;
+      background: rgba(236, 72, 153, 0.05);
+    }
+    .admin-target-option-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    .admin-target-option-desc { font-size: 12px; color: #64748b; }
+
+    /* Modal */
+    .admin-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .admin-modal {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .admin-modal-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+
+    /* Funnel */
+    .admin-funnel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 24px;
+    }
+    .admin-funnel-step {
+      text-align: center;
+    }
+    .admin-funnel-value { font-size: 32px; font-weight: 700; }
+    .admin-funnel-label { font-size: 14px; color: #64748b; }
+    .admin-funnel-arrow { color: #cbd5e1; font-size: 24px; }
+
+    /* Photo Grid */
+    .admin-photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .admin-photo-item {
+      aspect-ratio: 1;
+      background: #f1f5f9;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .admin-photo-item img { width: 100%; height: 100%; object-fit: cover; }
+    .admin-photo-remove {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 20px;
+      height: 20px;
+      background: rgba(0,0,0,0.5);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    /* History Item */
+    .admin-history-item {
+      padding: 16px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .admin-history-item:last-child { border-bottom: none; }
+    .admin-history-item:hover { background: #f8fafc; }
+
+    /* Money Display */
+    .admin-money { font-family: ui-monospace, monospace; }
+    .admin-money.rub { color: #1e293b; }
+    .admin-money.stars { color: #2563eb; }
+    .admin-money.ton { color: #0891b2; }
+
+    /* Demo Label */
+    .admin-demo-label {
+      background: #fef3c7;
+      color: #92400e;
+      padding: 8px 16px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    /* Spacing Utilities */
+    .mb-4 { margin-bottom: 16px; }
+    .mb-6 { margin-bottom: 24px; }
+    .mt-4 { margin-top: 16px; }
+    .flex-1 { flex: 1; }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    .font-mono { font-family: ui-monospace, monospace; }
+    .text-sm { font-size: 14px; }
+    .text-xs { font-size: 12px; }
+    .text-muted { color: #64748b; }
+  </style>
+</head>
+<body>
+
+<!-- Demo Label -->
+<div class="admin-demo-label">
+  HTML/CSS Mockup - Static demonstration of PinGlass Admin Panel UI
+</div>
+
+<!-- ============================================ -->
+<!-- HEADER -->
+<!-- ============================================ -->
+<header class="admin-header">
+  <div class="admin-header-inner">
+    <div class="admin-logo">
+      <div class="admin-logo-icon">&#128737;</div>
+      <div class="admin-logo-text">
+        <h1>PinGlass Admin Panel</h1>
+        <p>Management & Monitoring</p>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <span class="admin-test-badge">TEST MODE</span>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="width: 32px; height: 32px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center;">A</div>
+        <span class="text-sm">Admin</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================ -->
+<!-- NAVIGATION -->
+<!-- ============================================ -->
+<nav class="admin-nav">
+  <div class="admin-nav-inner">
+    <a href="#" class="admin-nav-item">&#128202; Dashboard</a>
+    <a href="#users" class="admin-nav-item active">&#128101; Users</a>
+    <a href="#payments" class="admin-nav-item">&#128176; Payments</a>
+    <a href="#" class="admin-nav-item">&#9889; Generations</a>
+    <a href="#prompts" class="admin-nav-item">&#10024; Prompts</a>
+    <a href="#referrals" class="admin-nav-item">&#127873; Referrals</a>
+    <a href="#partners" class="admin-nav-item">&#128081; Partners</a>
+    <a href="#telegram" class="admin-nav-item">&#128172; Telegram</a>
+    <a href="#" class="admin-nav-item">&#127915; Support</a>
+    <a href="#" class="admin-nav-item">&#128200; Logs</a>
+    <a href="#" class="admin-nav-item">&#9881; Settings</a>
+  </div>
+</nav>
+
+<main style="max-width: 1400px; margin: 0 auto; padding: 32px 24px;">
+
+<!-- ============================================ -->
+<!-- SECTION 1: USERS VIEW -->
+<!-- ============================================ -->
+<section id="users" class="admin-section">
+  <h2 class="admin-section-title">1. Users View - User Management</h2>
+
+  <!-- Filters -->
+  <div class="admin-filters">
+    <input type="text" class="admin-input" placeholder="Search by ID, username, telegram_id..." style="max-width: 300px;">
+    <button class="admin-btn secondary">&#128260; Refresh</button>
+    <span class="text-sm text-muted" style="margin-left: auto;">Total users: <strong>1,247</strong></span>
+  </div>
+
+  <!-- Table -->
+  <div class="admin-table-wrapper">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Telegram</th>
+          <th>Status</th>
+          <th>Avatars</th>
+          <th>Photos</th>
+          <th>Payments</th>
+          <th>Spent</th>
+          <th>TG Status</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="font-mono">1</td>
+          <td>
+            <div class="font-mono text-sm">123456789</div>
+            <a href="#" style="color: #2563eb; font-size: 12px;">@johndoe</a>
+          </td>
+          <td>
+            <span class="admin-badge purple">&#128737; Partner 50%</span>
+          </td>
+          <td>3</td>
+          <td>12 / 69</td>
+          <td>5</td>
+          <td>
+            <span class="admin-money rub">2,495&#8381;</span>
+            <span class="admin-money stars" style="margin-left: 4px;">150&#11088;</span>
+          </td>
+          <td>
+            <div class="admin-tg-status sent">&#9989; 12</div>
+          </td>
+          <td class="text-muted text-sm">15.01.2026</td>
+          <td>
+            <button class="admin-btn icon-only secondary" title="View details">&#128065;</button>
+            <button class="admin-btn icon-only secondary" title="More">&#8942;</button>
+          </td>
+        </tr>
+        <tr>
+          <td class="font-mono">2</td>
+          <td>
+            <div class="font-mono text-sm">987654321</div>
+            <span class="text-muted text-sm">&#8212;</span>
+          </td>
+          <td><span class="text-muted">&#8212;</span></td>
+          <td>1</td>
+          <td>5 / 23</td>
+          <td>1</td>
+          <td><span class="admin-money rub">499&#8381;</span></td>
+          <td>
+            <div class="admin-tg-status pending">&#9203; 2</div>
+          </td>
+          <td class="text-muted text-sm">14.01.2026</td>
+          <td>
+            <button class="admin-btn icon-only secondary">&#128065;</button>
+            <button class="admin-btn icon-only secondary">&#8942;</button>
+          </td>
+        </tr>
+        <tr>
+          <td class="font-mono">3</td>
+          <td>
+            <div class="font-mono text-sm">555444333</div>
+            <a href="#" style="color: #2563eb; font-size: 12px;">@maryjane</a>
+          </td>
+          <td><span class="admin-badge red">Banned</span></td>
+          <td>0</td>
+          <td>0 / 0</td>
+          <td>0</td>
+          <td><span class="text-muted">&#8212;</span></td>
+          <td>
+            <div class="admin-tg-status failed">&#10060; 3</div>
+          </td>
+          <td class="text-muted text-sm">10.01.2026</td>
+          <td>
+            <button class="admin-btn icon-only secondary">&#128065;</button>
+            <button class="admin-btn icon-only secondary">&#8942;</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="admin-pagination">
+    <div class="admin-pagination-info">Page 1 of 63</div>
+    <div class="admin-pagination-buttons">
+      <button class="admin-pagination-btn" disabled>&#8592;</button>
+      <button class="admin-pagination-btn">&#8594;</button>
+    </div>
+  </div>
+
+  <!-- User Details Modal (example) -->
+  <div style="margin-top: 32px; padding: 20px; background: #f8fafc; border-radius: 12px;">
+    <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">UserDetailsModal Preview:</h4>
+    <div class="admin-modal" style="position: relative; margin: 0;">
+      <h3 class="admin-modal-title">User Details #1</h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 14px;">
+        <div><span class="text-muted">Telegram ID:</span> 123456789</div>
+        <div><span class="text-muted">Username:</span> @johndoe</div>
+        <div><span class="text-muted">Partner Status:</span> <span class="admin-badge purple">Partner 50%</span></div>
+        <div><span class="text-muted">Created:</span> 15.01.2026 14:30</div>
+        <div><span class="text-muted">Total Spent:</span> 2,495&#8381; + 150&#11088;</div>
+        <div><span class="text-muted">Avatars:</span> 3</div>
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 16px;">
+        <button class="admin-btn secondary">&#128172; Send Message</button>
+        <button class="admin-btn danger">&#128683; Ban User</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- SECTION 2: PAYMENTS VIEW -->
+<!-- ============================================ -->
+<section id="payments" class="admin-section">
+  <h2 class="admin-section-title">2. Payments View - Payment Management</h2>
+
+  <!-- Stats Cards -->
+  <div class="admin-stats-grid">
+    <div class="admin-stat-card">
+      <div class="admin-stat-label">&#128176; Total Revenue</div>
+      <div class="admin-stat-value">124,750&#8381;</div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-label">&#128200; Net Revenue</div>
+      <div class="admin-stat-value green">119,250&#8381;</div>
+      <div class="text-xs text-muted">After refunds</div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-label">Average Order</div>
+      <div class="admin-stat-value">647&#8381;</div>
+    </div>
+  </div>
+
+  <!-- Provider Stats -->
+  <div class="admin-stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="admin-stat-card">
+      <span class="admin-provider-badge tbank">&#127974; T-Bank</span>
+      <div style="margin-top: 8px;">
+        <div class="admin-stat-value" style="font-size: 20px;">89,500&#8381;</div>
+        <div class="text-xs text-muted">156 payments</div>
+      </div>
+    </div>
+    <div class="admin-stat-card">
+      <span class="admin-provider-badge stars">&#11088; Stars</span>
+      <div style="margin-top: 8px;">
+        <div class="admin-stat-value" style="font-size: 20px;">25,400&#8381;</div>
+        <div class="text-xs text-muted">42 payments &middot; 3,200&#11088;</div>
+      </div>
+    </div>
+    <div class="admin-stat-card">
+      <span class="admin-provider-badge ton">&#128142; TON</span>
+      <div style="margin-top: 8px;">
+        <div class="admin-stat-value" style="font-size: 20px;">9,850&#8381;</div>
+        <div class="text-xs text-muted">15 payments &middot; 125.5 TON</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="admin-filters">
+    <select class="admin-select">
+      <option value="">All statuses</option>
+      <option value="succeeded">Succeeded</option>
+      <option value="pending">Pending</option>
+      <option value="canceled">Canceled</option>
+      <option value="refunded">Refunded</option>
+    </select>
+    <select class="admin-select">
+      <option value="">All tiers</option>
+      <option value="starter">Starter (7 photos)</option>
+      <option value="standard">Standard (15 photos)</option>
+      <option value="premium">Premium (23 photos)</option>
+    </select>
+    <select class="admin-select">
+      <option value="">All providers</option>
+      <option value="tbank">T-Bank</option>
+      <option value="stars">Stars</option>
+      <option value="ton">TON</option>
+    </select>
+    <select class="admin-select">
+      <option value="">All time</option>
+      <option value="today">Today</option>
+      <option value="week">This week</option>
+      <option value="month">This month</option>
+    </select>
+    <div class="flex-1"></div>
+    <button class="admin-btn secondary">&#128229; Export</button>
+    <button class="admin-btn secondary">&#128260; Refresh</button>
+  </div>
+
+  <!-- Table -->
+  <div class="admin-table-wrapper">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>User</th>
+          <th>Provider</th>
+          <th>Tier</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>TG Photos</th>
+          <th>Refund</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="font-mono">128</td>
+          <td>
+            <div style="font-size: 14px;">@johndoe</div>
+            <div class="font-mono text-xs text-muted">123456789</div>
+          </td>
+          <td><span class="admin-provider-badge tbank">&#127974; T-Bank</span></td>
+          <td>premium</td>
+          <td class="admin-money rub font-mono">999&#8381;</td>
+          <td><span class="admin-badge green">succeeded</span></td>
+          <td>
+            <span>&#128228; 23/23</span>
+          </td>
+          <td>&#8212;</td>
+          <td class="text-muted text-sm">17.01.2026</td>
+          <td>
+            <button class="admin-btn icon-only secondary" title="Details">&#128065;</button>
+            <button class="admin-btn icon-only danger" title="Refund">&#128184;</button>
+          </td>
+        </tr>
+        <tr>
+          <td class="font-mono">127</td>
+          <td>
+            <div style="font-size: 14px;">&#8212;</div>
+            <div class="font-mono text-xs text-muted">987654321</div>
+          </td>
+          <td><span class="admin-provider-badge stars">&#11088; Stars</span></td>
+          <td>standard</td>
+          <td>
+            <span class="admin-money stars">75&#11088;</span>
+            <span class="text-xs text-muted">(~599&#8381;)</span>
+          </td>
+          <td><span class="admin-badge green">succeeded</span></td>
+          <td>
+            <span>&#128228; 15/15</span>
+          </td>
+          <td>&#8212;</td>
+          <td class="text-muted text-sm">16.01.2026</td>
+          <td>
+            <button class="admin-btn icon-only secondary">&#128065;</button>
+          </td>
+        </tr>
+        <tr>
+          <td class="font-mono">126</td>
+          <td>
+            <div style="font-size: 14px;">@cryptofan</div>
+            <div class="font-mono text-xs text-muted">111222333</div>
+          </td>
+          <td><span class="admin-provider-badge ton">&#128142; TON</span></td>
+          <td>starter</td>
+          <td>
+            <span class="admin-money ton">5.25 TON</span>
+            <span class="text-xs text-muted">(~299&#8381;)</span>
+          </td>
+          <td><span class="admin-badge yellow">pending</span></td>
+          <td>&#8212;</td>
+          <td>&#8212;</td>
+          <td class="text-muted text-sm">16.01.2026</td>
+          <td>
+            <button class="admin-btn icon-only secondary">&#128065;</button>
+          </td>
+        </tr>
+        <tr>
+          <td class="font-mono">125</td>
+          <td>
+            <div style="font-size: 14px;">@refundme</div>
+            <div class="font-mono text-xs text-muted">444555666</div>
+          </td>
+          <td><span class="admin-provider-badge tbank">&#127974; T-Bank</span></td>
+          <td>premium</td>
+          <td class="admin-money rub font-mono">999&#8381;</td>
+          <td><span class="admin-badge red">refunded</span></td>
+          <td>&#8212;</td>
+          <td>999&#8381;</td>
+          <td class="text-muted text-sm">15.01.2026</td>
+          <td>
+            <button class="admin-btn icon-only secondary">&#128065;</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="admin-pagination">
+    <div class="admin-pagination-info">Page 1 of 14 &middot; Total: 213</div>
+    <div class="admin-pagination-buttons">
+      <button class="admin-pagination-btn" disabled>&#8592;</button>
+      <button class="admin-pagination-btn">&#8594;</button>
+    </div>
+  </div>
+
+  <!-- Refund Modal Preview -->
+  <div style="margin-top: 32px; padding: 20px; background: #f8fafc; border-radius: 12px;">
+    <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">RefundModal Preview:</h4>
+    <div class="admin-modal" style="position: relative; margin: 0; max-width: 400px;">
+      <h3 class="admin-modal-title">Create Refund</h3>
+      <div style="display: grid; gap: 8px; font-size: 14px; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between;">
+          <span class="text-muted">Payment:</span>
+          <span class="font-mono">#128</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span class="text-muted">Amount:</span>
+          <span class="font-mono">999&#8381;</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span class="text-muted">Already refunded:</span>
+          <span>0&#8381;</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span class="text-muted">Available for refund:</span>
+          <span style="color: #ec4899; font-weight: 600;">999&#8381;</span>
+        </div>
+      </div>
+      <textarea class="admin-textarea" placeholder="Refund reason (required)" style="min-height: 80px;"></textarea>
+      <div style="display: flex; gap: 8px; margin-top: 16px;">
+        <button class="admin-btn danger" style="flex: 1;">Create Refund</button>
+        <button class="admin-btn secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- SECTION 3: PROMPTS VIEW (PromptTesterView) -->
+<!-- ============================================ -->
+<section id="prompts" class="admin-section">
+  <h2 class="admin-section-title">3. Prompts View - Prompt Testing (KIE AI)</h2>
+
+  <!-- Reference Uploader -->
+  <div style="margin-bottom: 24px;">
+    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">&#128247; Reference Images (5-10 required)</h3>
+    <div class="admin-photo-grid">
+      <div class="admin-photo-item">
+        <img src="https://placehold.co/100x100/f8fafc/64748b?text=1" alt="ref">
+        <button class="admin-photo-remove">&times;</button>
+      </div>
+      <div class="admin-photo-item">
+        <img src="https://placehold.co/100x100/f8fafc/64748b?text=2" alt="ref">
+        <button class="admin-photo-remove">&times;</button>
+      </div>
+      <div class="admin-photo-item">
+        <img src="https://placehold.co/100x100/f8fafc/64748b?text=3" alt="ref">
+        <button class="admin-photo-remove">&times;</button>
+      </div>
+      <div class="admin-photo-item">
+        <img src="https://placehold.co/100x100/f8fafc/64748b?text=4" alt="ref">
+        <button class="admin-photo-remove">&times;</button>
+      </div>
+      <div class="admin-photo-item">
+        <img src="https://placehold.co/100x100/f8fafc/64748b?text=5" alt="ref">
+        <button class="admin-photo-remove">&times;</button>
+      </div>
+      <div class="admin-photo-item" style="border: 2px dashed #e2e8f0; background: transparent;">
+        <span style="font-size: 24px; color: #cbd5e1;">+</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Test Blocks Header -->
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+    <h3 style="font-size: 16px; font-weight: 600;">Test Blocks</h3>
+    <button class="admin-btn primary">&#10133; Add Test Block</button>
+  </div>
+
+  <!-- Test Block 1 -->
+  <div class="admin-test-block">
+    <div class="admin-test-block-header">
+      <span style="font-weight: 500;">Block #1</span>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <label style="font-size: 14px;">
+          Photos:
+          <select class="admin-select" style="margin-left: 8px;">
+            <option>1</option>
+            <option>2</option>
+            <option selected>3</option>
+            <option>4</option>
+            <option>5</option>
+          </select>
+        </label>
+        <button class="admin-btn icon-only secondary" title="Remove">&#128465;</button>
+      </div>
+    </div>
+    <textarea class="admin-textarea" placeholder="Enter prompt for testing...">Professional business portrait of {subject}, wearing a navy blue suit, neutral gray background, soft studio lighting, LinkedIn profile photo style, confident expression, high resolution</textarea>
+    <div style="display: flex; gap: 8px; margin-top: 12px;">
+      <button class="admin-btn primary">&#9889; Generate</button>
+      <span class="admin-badge gray" style="align-self: center;">idle</span>
+    </div>
+    <!-- Results placeholder -->
+    <div style="margin-top: 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+      <div style="aspect-ratio: 1; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #94a3b8;">Result 1</div>
+      <div style="aspect-ratio: 1; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #94a3b8;">Result 2</div>
+      <div style="aspect-ratio: 1; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #94a3b8;">Result 3</div>
+    </div>
+  </div>
+
+  <!-- Test Block 2 -->
+  <div class="admin-test-block">
+    <div class="admin-test-block-header">
+      <span style="font-weight: 500;">Block #2</span>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <label style="font-size: 14px;">
+          Photos:
+          <select class="admin-select" style="margin-left: 8px;">
+            <option selected>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+          </select>
+        </label>
+        <button class="admin-btn icon-only secondary">&#128465;</button>
+      </div>
+    </div>
+    <textarea class="admin-textarea" placeholder="Enter prompt for testing...">Casual lifestyle portrait of {subject} in a cozy coffee shop, warm natural lighting from window, holding a cup of coffee, relaxed smile, bokeh background</textarea>
+    <div style="display: flex; gap: 8px; margin-top: 12px;">
+      <button class="admin-btn primary">&#9889; Generate</button>
+      <span class="admin-badge green" style="align-self: center;">completed</span>
+    </div>
+  </div>
+
+  <!-- Empty State Example -->
+  <div style="margin-top: 32px; padding: 20px; background: #f8fafc; border-radius: 12px;">
+    <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Empty State (no images uploaded):</h4>
+    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 48px; text-align: center;">
+      <div style="width: 64px; height: 64px; background: #fdf2f8; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 32px;">+</div>
+      <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">Start by uploading images</h3>
+      <p style="color: #64748b; font-size: 14px;">Upload 5-10 reference photos to start testing prompts via KIE AI</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- SECTION 4: REFERRALS VIEW -->
+<!-- ============================================ -->
+<section id="referrals" class="admin-section">
+  <h2 class="admin-section-title">4. Referrals View - Referral System Admin</h2>
+
+  <!-- Stats Cards -->
+  <div class="admin-stats-grid">
+    <div class="admin-stat-card">
+      <div class="admin-stat-label">&#128101; Total Referrals</div>
+      <div class="admin-stat-value">324</div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-label">&#9203; Pending Withdrawals</div>
+      <div class="admin-stat-value amber">5</div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-label">&#128200; Conversion Rate</div>
+      <div class="admin-stat-value purple">23%</div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-label">&#11088; Stars (TG Affiliate)</div>
+      <div class="text-sm text-muted" style="margin-top: 4px;">Handled by Telegram</div>
+    </div>
+  </div>
+
+  <!-- Multi-currency Stats -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+    <div class="admin-stat-card">
+      <h4 style="font-size: 14px; font-weight: 500; color: #64748b; margin-bottom: 12px;">&#128176; Rubles (&#8381;)</h4>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+        <div>
+          <p class="text-xs text-muted">Earned</p>
+          <p style="font-size: 18px; font-weight: 700; color: #059669;">12,450&#8381;</p>
+        </div>
+        <div>
+          <p class="text-xs text-muted">On Balances</p>
+          <p style="font-size: 18px; font-weight: 700; color: #d97706;">3,240&#8381;</p>
+        </div>
+        <div>
+          <p class="text-xs text-muted">Withdrawn</p>
+          <p style="font-size: 18px; font-weight: 700; color: #2563eb;">9,210&#8381;</p>
+        </div>
+      </div>
+    </div>
+    <div class="admin-stat-card">
+      <h4 style="font-size: 14px; font-weight: 500; color: #64748b; margin-bottom: 12px;">&#128142; TON</h4>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+        <div>
+          <p class="text-xs text-muted">Earned</p>
+          <p style="font-size: 18px; font-weight: 700; color: #059669;">45.25 TON</p>
+        </div>
+        <div>
+          <p class="text-xs text-muted">On Balances</p>
+          <p style="font-size: 18px; font-weight: 700; color: #d97706;">12.50 TON</p>
+        </div>
+        <div>
+          <p class="text-xs text-muted">Withdrawn</p>
+          <p style="font-size: 18px; font-weight: 700; color: #2563eb;">32.75 TON</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Funnel -->
+  <div class="admin-stat-card mb-6">
+    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px;">Referral Funnel</h3>
+    <div class="admin-funnel">
+      <div class="admin-funnel-step">
+        <div class="admin-funnel-value">156</div>
+        <div class="admin-funnel-label">Codes Created</div>
+      </div>
+      <div class="admin-funnel-arrow">&#8594;</div>
+      <div class="admin-funnel-step">
+        <div class="admin-funnel-value" style="color: #2563eb;">324</div>
+        <div class="admin-funnel-label">Registered</div>
+      </div>
+      <div class="admin-funnel-arrow">&#8594;</div>
+      <div class="admin-funnel-step">
+        <div class="admin-funnel-value" style="color: #059669;">75</div>
+        <div class="admin-funnel-label">Paid</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="admin-tabs">
+    <div class="admin-tab active">Overview</div>
+    <div class="admin-tab">Top Referrers</div>
+    <div class="admin-tab">Withdrawals (5)</div>
+    <div class="admin-tab">&#11088; Telegram Stars</div>
+    <div style="flex: 1;"></div>
+    <button class="admin-btn icon-only secondary">&#128260;</button>
+  </div>
+
+  <!-- Top Referrers Table -->
+  <div class="admin-table-wrapper">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Telegram ID</th>
+          <th>Code</th>
+          <th class="text-right">Referrals</th>
+          <th class="text-right">Conversions</th>
+          <th class="text-right">Earned</th>
+          <th class="text-right">Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <span class="text-muted">#1</span>
+            <span class="font-mono" style="margin-left: 8px;">123456789</span>
+          </td>
+          <td class="font-mono">PINREF2026</td>
+          <td class="text-right">45</td>
+          <td class="text-right" style="color: #059669;">12</td>
+          <td class="text-right">2,450&#8381;</td>
+          <td class="text-right" style="color: #d97706;">850&#8381;</td>
+        </tr>
+        <tr>
+          <td>
+            <span class="text-muted">#2</span>
+            <span class="font-mono" style="margin-left: 8px;">987654321</span>
+          </td>
+          <td class="font-mono">MYREF123</td>
+          <td class="text-right">32</td>
+          <td class="text-right" style="color: #059669;">8</td>
+          <td class="text-right">1,890&#8381;</td>
+          <td class="text-right" style="color: #d97706;">0&#8381;</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Withdrawals Preview -->
+  <div style="margin-top: 32px; padding: 20px; background: #f8fafc; border-radius: 12px;">
+    <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Withdrawals Tab Preview:</h4>
+    <div class="admin-table-wrapper">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>User</th>
+            <th class="text-right">Amount</th>
+            <th class="text-right">Payout</th>
+            <th>Method</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="font-mono">#42</td>
+            <td>
+              <div class="font-mono text-sm">123456789</div>
+              <div class="text-xs text-muted">Balance: 1,250&#8381;</div>
+            </td>
+            <td class="text-right">1,000&#8381;</td>
+            <td class="text-right">
+              <div style="color: #059669;">870&#8381;</div>
+              <div class="text-xs text-muted">NDFL: 130&#8381;</div>
+            </td>
+            <td>**** 4532</td>
+            <td><span class="admin-badge yellow">&#9203; pending</span></td>
+            <td class="text-sm text-muted">17.01.2026</td>
+            <td>
+              <button class="admin-btn icon-only success" title="Approve">&#9989;</button>
+              <button class="admin-btn icon-only danger" title="Reject">&#10060;</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Telegram Affiliate Tab Preview -->
+  <div style="margin-top: 32px; padding: 20px; background: linear-gradient(135deg, #dbeafe, #f3e8ff); border-radius: 12px;">
+    <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Telegram Affiliate Tab (MTProto):</h4>
+    <div style="background: white; border-radius: 12px; padding: 20px;">
+      <h5 style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <span>&#11088;</span> Telegram Affiliate Program
+      </h5>
+      <p class="text-sm text-muted mb-4">Official Telegram Stars affiliate program. When a user pays with Stars via referral link, the partner receives commission directly from Telegram (21-day hold).</p>
+
+      <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+        <h6 style="font-size: 14px; font-weight: 500; margin-bottom: 8px;">&#128273; MTProto Authorization</h6>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span style="color: #059669;">&#9989;</span>
+          <span>Authorized as: <strong>Admin User (@adminbot)</strong></span>
+          <button class="admin-btn secondary" style="margin-left: auto;">Logout</button>
+        </div>
+      </div>
+
+      <div style="background: #f8fafc; padding: 16px; border-radius: 8px;">
+        <h6 style="font-size: 14px; font-weight: 500; margin-bottom: 8px;">&#9881; Affiliate Settings</h6>
+        <div style="margin-bottom: 12px;">
+          <p class="text-sm text-muted">Current commission: <strong>10%</strong></p>
+          <p class="text-sm text-muted">Status: <span style="color: #059669;">Active</span></p>
+        </div>
+        <label style="display: block; font-size: 14px; margin-bottom: 8px;">Partner Commission (%)</label>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <input type="range" min="0" max="500" value="100" style="flex: 1;">
+          <span style="font-weight: 700; width: 60px; text-align: right;">10%</span>
+        </div>
+        <p class="text-xs text-muted mt-2">0% = disabled, 50% = maximum commission</p>
+        <button class="admin-btn primary" style="margin-top: 16px;">Save Settings</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- SECTION 5: PARTNERS VIEW -->
+<!-- ============================================ -->
+<section id="partners" class="admin-section">
+  <h2 class="admin-section-title">5. Partners View - Partner Applications</h2>
+
+  <!-- Stats Cards -->
+  <div class="admin-stats-grid">
+    <div class="admin-stat-card">
+      <div class="admin-stat-label" style="color: #d97706;">&#11088; Partners</div>
+      <div class="admin-stat-value amber">12</div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-label" style="color: #059669;">&#128176; Paid to Partners</div>
+      <div class="admin-stat-value green">24,500&#8381;</div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-label" style="color: #2563eb;">&#128101; Partner Referrals</div>
+      <div class="admin-stat-value blue">186</div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-label" style="color: #db2777;">&#9203; Pending Review</div>
+      <div class="admin-stat-value pink">3</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="admin-tabs">
+    <div class="admin-tab active">&#9203; Applications (3)</div>
+    <div class="admin-tab">&#11088; Partners (12)</div>
+    <div class="admin-tab">&#9989; Approved</div>
+    <div class="admin-tab">&#10060; Rejected</div>
+    <div style="flex: 1;"></div>
+    <button class="admin-btn icon-only secondary">&#128260;</button>
+  </div>
+
+  <!-- Application Cards -->
+  <div class="admin-card-expandable">
+    <div class="admin-card-header">
+      <div style="flex: 1;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <h3 style="font-weight: 500;">John Marketing</h3>
+          <span class="admin-badge yellow">On Review</span>
+        </div>
+        <div style="display: flex; gap: 16px; color: #64748b; font-size: 14px; margin-top: 4px;">
+          <span>TG: 123456789</span>
+          <span>@johnmarketing</span>
+          <span>Audience: 10K - 100K</span>
+          <span>17.01.2026</span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="text-align: center; padding: 0 12px;">
+          <div class="text-muted text-sm">Referrals</div>
+          <div style="font-weight: 600;">12</div>
+        </div>
+        <div style="text-align: center; padding: 0 12px;">
+          <div class="text-muted text-sm">Earned</div>
+          <div style="font-weight: 600; color: #059669;">1,200&#8381;</div>
+        </div>
+        <button class="admin-btn success" title="Approve (50%)">&#9989;</button>
+        <button class="admin-btn danger" title="Reject">&#10060;</button>
+        <span style="color: #cbd5e1;">&#9660;</span>
+      </div>
+    </div>
+    <div class="admin-card-body">
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; font-size: 14px;">
+        <div>
+          <p class="text-muted">Email</p>
+          <p>john@marketing.com</p>
+        </div>
+        <div>
+          <p class="text-muted">Phone</p>
+          <p>+7 999 123 4567</p>
+        </div>
+        <div>
+          <p class="text-muted">Audience Type</p>
+          <p>Instagram followers</p>
+        </div>
+        <div>
+          <p class="text-muted">Expected Referrals/mo</p>
+          <p>50-100</p>
+        </div>
+        <div>
+          <p class="text-muted">Website</p>
+          <a href="#" style="color: #2563eb;">johnmarketing.com &#8599;</a>
+        </div>
+      </div>
+      <div style="margin-top: 16px;">
+        <p class="text-muted text-sm">Promotion Channels</p>
+        <p style="font-size: 14px;">Instagram stories, Telegram channel, YouTube reviews</p>
+      </div>
+      <div style="margin-top: 16px;">
+        <p class="text-muted text-sm">Message</p>
+        <p style="font-size: 14px;">I run a popular photography channel and would love to promote PinGlass to my audience. My followers are very engaged and interested in AI tools.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active Partners Table -->
+  <div style="margin-top: 32px; padding: 20px; background: #f8fafc; border-radius: 12px;">
+    <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Active Partners Tab:</h4>
+    <div class="admin-table-wrapper">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Partner</th>
+            <th class="text-right">Commission</th>
+            <th class="text-right">Referrals</th>
+            <th class="text-right">Earned</th>
+            <th class="text-right">Balance</th>
+            <th>Since</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="font-mono text-sm">123456789</div>
+              <a href="#" style="color: #2563eb; font-size: 12px;">@toppartner &#8599;</a>
+            </td>
+            <td class="text-right">
+              <span class="admin-badge amber">&#128200; 50%</span>
+            </td>
+            <td class="text-right">89</td>
+            <td class="text-right" style="color: #059669; font-weight: 500;">12,450&#8381;</td>
+            <td class="text-right" style="color: #d97706;">2,100&#8381;</td>
+            <td class="text-sm text-muted">01.12.2025</td>
+            <td>
+              <button class="admin-btn icon-only danger" title="Revoke partnership">&#128683;</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Rejection Modal Preview -->
+  <div style="margin-top: 32px; padding: 20px; background: #f8fafc; border-radius: 12px;">
+    <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Rejection Modal Preview:</h4>
+    <div class="admin-modal" style="position: relative; margin: 0; max-width: 400px;">
+      <h3 class="admin-modal-title">Reject Application</h3>
+      <textarea class="admin-textarea" placeholder="Specify rejection reason..."></textarea>
+      <div style="display: flex; gap: 8px; margin-top: 16px;">
+        <button class="admin-btn secondary" style="flex: 1;">Cancel</button>
+        <button class="admin-btn danger" style="flex: 1;">Reject</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- SECTION 6: TELEGRAM BROADCAST VIEW -->
+<!-- ============================================ -->
+<section id="telegram" class="admin-section">
+  <h2 class="admin-section-title">6. Telegram Broadcast View - Mass Messaging</h2>
+
+  <!-- New Broadcast Card -->
+  <div style="background: rgba(236, 72, 153, 0.03); border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 24px;">
+    <h3 style="display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 600; margin-bottom: 20px;">
+      <span>&#128228;</span> New Broadcast
+    </h3>
+
+    <!-- Target Selection -->
+    <div style="margin-bottom: 20px;">
+      <label style="display: block; font-size: 14px; font-weight: 500; color: #64748b; margin-bottom: 12px;">Recipients</label>
+      <div class="admin-target-grid">
+        <div class="admin-target-option selected">
+          <div class="admin-target-option-header">&#128101; All Users</div>
+          <div class="admin-target-option-desc">All registered users with Telegram</div>
+        </div>
+        <div class="admin-target-option">
+          <div class="admin-target-option-header">&#128179; Paid</div>
+          <div class="admin-target-option-desc">Users with successful payments</div>
+        </div>
+        <div class="admin-target-option">
+          <div class="admin-target-option-header">&#128200; Active (30 days)</div>
+          <div class="admin-target-option-desc">Users active in last 30 days</div>
+        </div>
+        <div class="admin-target-option">
+          <div class="admin-target-option-header">&#128081; Partners</div>
+          <div class="admin-target-option-desc">Only referral partners</div>
+        </div>
+        <div class="admin-target-option">
+          <div class="admin-target-option-header">&#128100; Specific IDs</div>
+          <div class="admin-target-option-desc">Enter Telegram IDs manually</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Photo Upload -->
+    <div style="margin-bottom: 20px;">
+      <label style="display: block; font-size: 14px; font-weight: 500; color: #64748b; margin-bottom: 12px;">&#128247; Photo (optional)</label>
+      <div class="admin-upload-area">
+        <div style="font-size: 40px; color: #cbd5e1; margin-bottom: 12px;">&#128228;</div>
+        <p style="font-weight: 500; margin-bottom: 4px;">Drag photo here</p>
+        <p class="text-xs text-muted">or click to select (up to 5MB)</p>
+      </div>
+    </div>
+
+    <!-- Message Editor -->
+    <div style="margin-bottom: 20px;">
+      <label style="display: block; font-size: 14px; font-weight: 500; color: #64748b; margin-bottom: 12px;">Message (HTML formatting)</label>
+
+      <!-- Toolbar -->
+      <div class="admin-toolbar">
+        <button class="admin-toolbar-btn" title="Bold"><strong>B</strong></button>
+        <button class="admin-toolbar-btn" title="Italic"><em>I</em></button>
+        <button class="admin-toolbar-btn" title="Strikethrough"><s>S</s></button>
+        <button class="admin-toolbar-btn" title="Code">&lt;/&gt;</button>
+        <button class="admin-toolbar-btn" title="Link">&#128279;</button>
+        <div style="flex: 1;"></div>
+        <span class="text-xs text-muted">0 characters</span>
+      </div>
+
+      <textarea class="admin-textarea" style="border-radius: 0 0 10px 10px; border-top: none;" placeholder="Enter message text...
+
+Supported HTML:
+<b>bold</b>
+<i>italic</i>
+<a href='url'>link</a>
+<code>code</code>"></textarea>
+    </div>
+
+    <!-- Preview & Send -->
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <button class="admin-btn secondary">&#128065; Check Recipients</button>
+      <div style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.3); border-radius: 10px;">
+        <span>&#128101;</span>
+        <strong>1,247</strong>
+        <span class="text-muted">recipients</span>
+      </div>
+      <div style="flex: 1;"></div>
+      <button class="admin-btn primary">&#128228; Send Broadcast</button>
+    </div>
+  </div>
+
+  <!-- Broadcast History -->
+  <div style="background: rgba(0,0,0,0.02); border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+    <button style="width: 100%; padding: 16px; display: flex; align-items: center; justify-content: space-between; background: transparent; border: none; cursor: pointer;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span>&#128197;</span>
+        <span style="font-weight: 600;">Broadcast History</span>
+        <span class="text-sm text-muted">(15)</span>
+      </div>
+      <span>&#9650;</span>
+    </button>
+
+    <div style="border-top: 1px solid #e2e8f0;">
+      <div class="admin-history-item">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <span class="admin-badge green">Completed</span>
+              <span class="text-xs text-muted">17.01.2026 14:30</span>
+            </div>
+            <p style="font-size: 14px; color: #475569;">New Year promotion - 30% discount on all packages! Limited time offer...</p>
+            <span class="text-xs text-muted" style="display: flex; align-items: center; gap: 4px; margin-top: 4px;">
+              &#128247; With photo
+            </span>
+          </div>
+          <div style="text-align: right; font-size: 14px;">
+            <div style="display: flex; align-items: center; gap: 4px; color: #64748b;">
+              <span>&#128101;</span>
+              <span>1,150</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+              <span style="color: #22c55e;">1,142 &#10003;</span>
+              <span style="color: #ef4444;">8 &#10007;</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-history-item">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <span class="admin-badge yellow">Sending</span>
+              <span class="text-xs text-muted">17.01.2026 15:00</span>
+            </div>
+            <p style="font-size: 14px; color: #475569;">Reminder: Your photos are ready for download! Check your dashboard...</p>
+          </div>
+          <div style="text-align: right; font-size: 14px;">
+            <div style="display: flex; align-items: center; gap: 4px; color: #64748b;">
+              <span>&#128101;</span>
+              <span>324</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+              <span style="color: #22c55e;">156 &#10003;</span>
+              <span style="color: #eab308;">168 &#9203;</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-history-item">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <span class="admin-badge red">Failed</span>
+              <span class="text-xs text-muted">16.01.2026 10:00</span>
+            </div>
+            <p style="font-size: 14px; color: #475569;">Test broadcast message - checking delivery...</p>
+          </div>
+          <div style="text-align: right; font-size: 14px;">
+            <div style="display: flex; align-items: center; gap: 4px; color: #64748b;">
+              <span>&#128101;</span>
+              <span>5</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+              <span style="color: #22c55e;">2 &#10003;</span>
+              <span style="color: #ef4444;">3 &#10007;</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div style="margin-top: 32px; padding: 20px; background: #f8fafc; border-radius: 12px;">
+    <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Empty State:</h4>
+    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 48px; text-align: center;">
+      <div style="font-size: 32px; color: #cbd5e1; margin-bottom: 8px;">&#9888;</div>
+      <p style="color: #64748b;">No broadcasts yet</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- Footer -->
+<footer style="text-align: center; padding: 32px; color: #64748b; font-size: 14px;">
+  PinGlass Admin Panel Mockups &middot; Generated for UI/UX Review
+</footer>
+
+</body>
+</html>
