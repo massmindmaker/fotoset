@@ -3,6 +3,12 @@
 ## Глобальные ресурсы
 @C:/Users/bob/.claude/CLAUDE.md
 
+## 🚨 ОБЯЗАТЕЛЬНО ПРОЧИТАТЬ В НАЧАЛЕ СЕССИИ
+@.claude/project-context.md
+
+> **Содержит**: Critical bugs, anti-patterns с code templates, key files reference
+> **Обновлено**: 2026-01-21
+
 ---
 
 ## 🧠 ByteRover Context System

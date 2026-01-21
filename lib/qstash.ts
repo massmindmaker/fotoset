@@ -37,6 +37,9 @@ export interface GenerationJobPayload {
   startIndex: number // For chunked processing
   chunkSize: number
   prompts?: string[] // Explicit prompts to use (avoids duplicates)
+  promptIds?: number[] // NEW: Pass prompt IDs instead of full text to reduce payload
+  packId?: number // Photo pack ID for pack-based generation
+  useLegacyPrompts?: boolean // Whether to use legacy prompts from lib/prompts.ts
 }
 
 export interface JobResult {
