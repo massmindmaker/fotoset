@@ -373,39 +373,8 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
             </div>
           ) : stats ? (
             <>
-              {/* Telegram Referral Link - shown if user has Telegram ID OR both IDs */}
-              {telegramUserId && stats.telegramLink && (
-                <div className="p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/5 rounded-2xl border border-blue-500/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Send className="w-4 h-4 text-blue-500" />
-                    <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Telegram ссылка:</p>
-                  </div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <input
-                      type="text"
-                      readOnly
-                      value={stats.telegramLink}
-                      className="flex-1 min-w-0 px-3 py-2 bg-blue-500/5 rounded-xl text-sm text-foreground truncate border border-blue-500/10"
-                    />
-                    <button
-                      onClick={copyTelegramLink}
-                      className="shrink-0 w-10 h-10 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors flex items-center justify-center"
-                    >
-                      {copiedTelegram ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  <button
-                    onClick={shareTelegram}
-                    className="w-full py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
-                  >
-                    <Send className="w-4 h-4" />
-                    Поделиться в Telegram
-                  </button>
-                </div>
-              )}
-
-              {/* Web Referral Link - shown if user has Neon ID OR both IDs */}
-              {neonUserId && stats.webLink && (
+              {/* Web Referral Link - shown for ALL users (primary link) */}
+              {stats.webLink && (
                 <div className="p-4 bg-gradient-to-br from-green-500/10 to-emerald-600/5 rounded-2xl border border-green-500/20">
                   <div className="flex items-center gap-2 mb-2">
                     <Globe className="w-4 h-4 text-green-500" />
