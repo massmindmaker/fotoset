@@ -54,8 +54,10 @@ export function usePacks(): UsePacksReturn {
 
       const data = await response.json()
 
-      if (data.success && Array.isArray(data.packs)) {
-        setPacks(data.packs)
+      // API returns { success: true, data: { packs: [...] } }
+      const packsArray = data.data?.packs || data.packs
+      if (data.success && Array.isArray(packsArray)) {
+        setPacks(packsArray)
       } else {
         throw new Error(data.error || "Invalid response format")
       }
