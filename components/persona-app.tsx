@@ -1560,8 +1560,8 @@ export default function PersonaApp() {
               )
             )}
           </main>
-          {/* Bottom Navigation - show only when not in onboarding or processing */}
-          {viewState.view !== "ONBOARDING" && !isGenerating && (
+          {/* Bottom Navigation - show only when not processing */}
+          {!isGenerating && (
             <BottomNav
               activeTab={activeTab}
               onTabChange={(tab) => {
