@@ -260,7 +260,8 @@ export async function GET(request: NextRequest) {
     `.then((rows: any[]) => parseInt(rows[0]?.count || '0'))
 
     return NextResponse.json({
-      withdrawals: withdrawals.map((w: Record<string, unknown>) => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      withdrawals: withdrawals.map((w: any) => ({
         id: w.id,
         amount: parseFloat(w.amount),
         currency: w.currency,
