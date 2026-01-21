@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from "react"
 
 /**
- * Pack interface for public API response
+ * Pack interface for UI components
+ * Note: API returns camelCase fields, we normalize them here
  */
 export interface Pack {
   id: number
@@ -16,9 +17,58 @@ export interface Pack {
   styles_count: number
   generations_count: number
   is_featured: boolean
-  owner_type: "system" | "partner"
+  owner_type: "system" | "partner" | "admin"
   partner_name: string | null
   created_at: string
+}
+
+/**
+ * API response pack format (camelCase)
+ */
+interface ApiPack {
+  id: number
+  slug: string
+  name: string
+  description?: string | null
+  iconEmoji?: string | null
+  icon?: string | null
+  coverUrl?: string | null
+  cover_url?: string | null
+  previewImages?: string[]
+  preview_urls?: string[]
+  promptCount?: number
+  styles_count?: number
+  usageCount?: number
+  generations_count?: number
+  isFeatured?: boolean
+  is_featured?: boolean
+  ownerType?: string
+  owner_type?: string
+  partnerName?: string | null
+  partner_name?: string | null
+  createdAt?: string
+  created_at?: string
+}
+
+/**
+ * Normalize API pack to UI Pack interface
+ */
+function normalizeApiPack(apiPack: ApiPack): Pack {
+  return {
+    id: apiPack.id,
+    slug: apiPack.slug,
+    name: apiPack.name,
+    description: apiPack.description ?? null,
+    icon: apiPack.iconEmoji || apiPack.icon || null,
+    cover_url: apiPack.coverUrl || apiPack.cover_url || null,
+    preview_urls: apiPack.previewImages || apiPack.preview_urls || [],
+    styles_count: apiPack.promptCount ?? apiPack.styles_count ?? 0,
+    generations_count: apiPack.usageCount ?? apiPack.generations_count ?? 0,
+    is_featured: apiPack.isFeatured ?? apiPack.is_featured ?? false,
+    owner_type: (apiPack.ownerType || apiPack.owner_type || "system") as Pack["owner_type"],
+    partner_name: apiPack.partnerName || apiPack.partner_name || null,
+    created_at: apiPack.createdAt || apiPack.created_at || new Date().toISOString(),
+  }
 }
 
 interface UsePacksReturn {
@@ -57,7 +107,9 @@ export function usePacks(): UsePacksReturn {
       // API returns { success: true, data: { packs: [...] } }
       const packsArray = data.data?.packs || data.packs
       if (data.success && Array.isArray(packsArray)) {
-        setPacks(packsArray)
+        // Normalize API format to UI format
+        const normalizedPacks = packsArray.map(normalizeApiPack)
+        setPacks(normalizedPacks)
       } else {
         throw new Error(data.error || "Invalid response format")
       }
