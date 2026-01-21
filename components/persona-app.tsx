@@ -106,7 +106,7 @@ const ReferralPanel = lazy(() => import("./referral-panel").then((m) => ({ defau
 
 export default function PersonaApp() {
   // Custom hooks
-  const { userIdentifier, authStatus, telegramUserId, isWebUser, neonUserId, theme, toggleTheme, showMessage, setWebUser, hapticImpact, hapticNotification, hapticSelection } = useAuth()
+  const { userIdentifier, authStatus, telegramUserId, isWebUser, isTelegramUser, neonUserId, theme, toggleTheme, showMessage, setWebUser, hapticImpact, hapticNotification, hapticSelection } = useAuth()
   const { data: neonSession, isPending: isNeonAuthPending } = useSession() // Neon Auth session for web users
   const { personas, setPersonas, loadAvatarsFromServer, createPersona, updatePersona, deletePersona, getPersona } = useAvatars()
   const { isGenerating, setIsGenerating, generationProgress, setGenerationProgress, fileToBase64 } = useGeneration()
@@ -1560,8 +1560,8 @@ export default function PersonaApp() {
               )
             )}
           </main>
-          {/* Bottom Navigation - show only when not processing */}
-          {!isGenerating && (
+          {/* Bottom Navigation - show only in Telegram WebApp, not in web version */}
+          {isTelegramUser && !isGenerating && (
             <BottomNav
               activeTab={activeTab}
               onTabChange={(tab) => {
@@ -1576,7 +1576,7 @@ export default function PersonaApp() {
               }}
             />
           )}
-          <footer className="mt-auto py-6 px-4 sm:px-6 lg:px-7 border-t border-border/50 pb-20">
+          <footer className={`mt-auto py-6 px-4 sm:px-6 lg:px-7 border-t border-border/50 ${isTelegramUser ? 'pb-20' : 'pb-6'}`}>
             <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-4">
                 <Link href="/oferta" className="hover:text-foreground transition-colors">
