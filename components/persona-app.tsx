@@ -95,7 +95,7 @@ const StyleDetailView = dynamic(() => import("./views/style-detail-view"), {
 })
 
 // NEW: Bottom navigation component
-const BottomNav = dynamic(() => import("./bottom-nav"), {
+const BottomNav = dynamic(() => import("./bottom-nav").then((mod) => mod.BottomNav), {
   loading: () => null,
   ssr: false,
 })
