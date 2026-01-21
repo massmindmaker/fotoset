@@ -53,7 +53,7 @@ export async function GET(
     const pack = packRows[0]
 
     if (!pack) {
-      return error("NOT_FOUND", "Pack not found", null, 404)
+      return error("NOT_FOUND", "Pack not found")
     }
 
     logger.info("Pack found", { slug, id: pack.id })
