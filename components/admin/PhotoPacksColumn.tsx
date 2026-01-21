@@ -79,7 +79,18 @@ export function PhotoPacksColumn({ isMobile = false }: PhotoPacksColumnProps) {
       const response = await fetch(`/api/admin/packs/${packId}`)
       if (!response.ok) throw new Error('Failed to fetch pack')
       const data = await response.json()
-      setPackItemsMap(prev => ({ ...prev, [packId]: data.items || [] }))
+      // API returns 'prompts' array, map to PackItem interface
+      const prompts = data.prompts || []
+      const items: PackItem[] = prompts.map((p: any) => ({
+        id: p.id,
+        pack_id: p.packId || packId,
+        photo_url: p.previewUrl || '',
+        prompt: p.prompt || null,
+        position: p.position || 0,
+        created_at: p.createdAt || '',
+        updated_at: p.createdAt || '',
+      }))
+      setPackItemsMap(prev => ({ ...prev, [packId]: items }))
     } catch {
       setPackItemsMap(prev => ({ ...prev, [packId]: [] }))
     } finally {
