@@ -131,15 +131,15 @@ export async function GET(request: NextRequest) {
 
 // Helper: Generate unique code with collision detection
 async function generateUniqueCode(type: 'telegram' | 'web'): Promise<string> {
-  const column = type === 'telegram' ? 'referral_code_telegram' : 'referral_code_web'
   let code = generateCode()
   let attempts = 0
   const maxAttempts = 10
 
   while (attempts < maxAttempts) {
-    const duplicate = await sql`
-      SELECT id FROM referral_balances WHERE ${sql(column)} = ${code}
-    `.then((rows: any[]) => rows[0])
+    // Use conditional query to avoid SQL injection with dynamic column names
+    const duplicate = type === 'telegram'
+      ? await sql`SELECT id FROM referral_balances WHERE referral_code_telegram = ${code}`.then((rows: any[]) => rows[0])
+      : await sql`SELECT id FROM referral_balances WHERE referral_code_web = ${code}`.then((rows: any[]) => rows[0])
 
     if (!duplicate) break
     code = generateCode()

@@ -80,7 +80,7 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
 
   // Build query params based on auth type
   const authParam = neonUserId
-    ? `neon_auth_id=${encodeURIComponent(neonUserId)}`
+    ? `neon_user_id=${encodeURIComponent(neonUserId)}`
     : `telegram_user_id=${telegramUserId}`
 
   useEffect(() => {
