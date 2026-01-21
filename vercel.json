@@ -1,5 +1,4 @@
 {
-  "_comment": "Cache bust 2026-01-22 - force fresh TypeScript compilation",
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "functions": {
