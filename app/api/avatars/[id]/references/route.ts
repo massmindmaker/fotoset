@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/db"
-import { getUserIdentifier, verifyResourceOwnershipWithIdentifier } from "@/lib/auth-utils"
+import { getAuthenticatedUser } from "@/lib/auth-middleware"
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -15,20 +15,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid avatar ID" }, { status: 400 })
   }
 
-  // SECURITY: Check auth first - return 403 if no identifier provided
-  const identifier = getUserIdentifier(request)
-  if (!identifier.telegramUserId && !identifier.neonUserId) {
-    return NextResponse.json({ error: "Access denied" }, { status: 403 })
+  // SECURITY: Require authenticated user (Telegram initData HMAC or Neon Auth session)
+  const authUser = await getAuthenticatedUser(request)
+  if (!authUser) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 })
   }
 
-  // Verify ownership
-  const ownership = await verifyResourceOwnershipWithIdentifier(identifier, "avatar", avatarId)
+  // Verify ownership: avatar must belong to authenticated user
+  const avatarResult = await query(
+    "SELECT id, user_id FROM avatars WHERE id = $1",
+    [avatarId]
+  )
 
-  if (!ownership.resourceExists) {
+  if (avatarResult.rows.length === 0) {
     return NextResponse.json({ error: "Avatar not found" }, { status: 404 })
   }
 
-  if (!ownership.authorized) {
+  const avatar = avatarResult.rows[0]
+  if (avatar.user_id !== authUser.user.id) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 })
   }
 
@@ -71,23 +75,32 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid avatar ID" }, { status: 400 })
   }
 
-  // Parse body first to extract user identifier (FIX 4)
-  let body: { referenceImages?: string[]; telegramUserId?: number; neonUserId?: string; deviceId?: string }
+  // Parse body first to extract initData for auth
+  let body: { referenceImages?: string[]; initData?: string; neonUserId?: string }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   }
 
-  // SECURITY: Verify ownership (pass body for telegramUserId extraction)
-  const identifier = getUserIdentifier(request, body)
-  const ownership = await verifyResourceOwnershipWithIdentifier(identifier, "avatar", avatarId)
+  // SECURITY: Require authenticated user (Telegram initData HMAC or Neon Auth session)
+  const authUser = await getAuthenticatedUser(request, body)
+  if (!authUser) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  }
 
-  if (!ownership.resourceExists) {
+  // Verify ownership: avatar must belong to authenticated user
+  const avatarResult = await query(
+    "SELECT id, user_id FROM avatars WHERE id = $1",
+    [avatarId]
+  )
+
+  if (avatarResult.rows.length === 0) {
     return NextResponse.json({ error: "Avatar not found" }, { status: 404 })
   }
 
-  if (!ownership.authorized) {
+  const avatar = avatarResult.rows[0]
+  if (avatar.user_id !== authUser.user.id) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 })
   }
 
@@ -201,15 +214,24 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid avatar ID" }, { status: 400 })
   }
 
-  // SECURITY: Verify ownership before deleting (supports Telegram + device ID)
-  const identifier = getUserIdentifier(request)
-  const ownership = await verifyResourceOwnershipWithIdentifier(identifier, "avatar", avatarId)
+  // SECURITY: Require authenticated user (Telegram initData HMAC or Neon Auth session)
+  const authUser = await getAuthenticatedUser(request)
+  if (!authUser) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  }
 
-  if (!ownership.resourceExists) {
+  // Verify ownership: avatar must belong to authenticated user
+  const avatarResult = await query(
+    "SELECT id, user_id FROM avatars WHERE id = $1",
+    [avatarId]
+  )
+
+  if (avatarResult.rows.length === 0) {
     return NextResponse.json({ error: "Avatar not found" }, { status: 404 })
   }
 
-  if (!ownership.authorized) {
+  const avatar = avatarResult.rows[0]
+  if (avatar.user_id !== authUser.user.id) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 })
   }
 
