@@ -567,6 +567,31 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
                 </div>
               )}
 
+              {/* Partner Cabinet Link - for approved partners */}
+              {partnerStatus?.isPartner && (
+                <a
+                  href="/partner"
+                  className="block p-4 bg-gradient-to-br from-violet-500/10 to-purple-600/5 rounded-2xl border border-violet-500/20 hover:border-violet-500/40 transition-colors group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
+                        <Crown className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-violet-800 dark:text-violet-200">
+                          Партнёрский кабинет
+                        </p>
+                        <p className="text-xs text-violet-700 dark:text-violet-300">
+                          Статистика, выводы, паки
+                        </p>
+                      </div>
+                    </div>
+                    <ExternalLink className="w-5 h-5 text-violet-500 group-hover:text-violet-400 transition-colors" />
+                  </div>
+                </a>
+              )}
+
               {/* Withdraw Button */}
               <button
                 onClick={() => stats.balance >= 5000 && setShowWithdrawModal(true)}
