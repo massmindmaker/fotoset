@@ -243,7 +243,9 @@ export async function getAuthenticatedUser(
 ): Promise<AuthenticatedUser | null> {
   // Method 1: Check Telegram initData (header or body)
   // SECURITY: Only trust cryptographically signed initData, NOT direct telegramUserId
-  const initDataFromHeader = request.headers.get('x-telegram-init-data');
+  // Note: Check both lowercase and PascalCase headers for compatibility
+  const initDataFromHeader = request.headers.get('x-telegram-init-data')
+    || request.headers.get('X-Telegram-Init-Data');
   const initDataFromBody = (body?.initData as string) || (body?.telegramInitData as string);
   const telegramInitData = initDataFromHeader || initDataFromBody;
 

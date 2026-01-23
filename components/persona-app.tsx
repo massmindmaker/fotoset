@@ -703,11 +703,22 @@ export default function PersonaApp() {
     }
 
     try {
+      // Get Telegram initData for authentication (required in production)
+      const tg = window.Telegram?.WebApp
+      const initData = isTelegramUser ? (tg?.initData || '') : undefined
+
       // Create avatar on server immediately (supports both Telegram and Web users)
       const res = await fetch("/api/avatars", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          // Send initData header for Telegram auth (lowercase for Next.js compatibility)
+          ...(initData && { "x-telegram-init-data": initData }),
+        },
+        credentials: "include", // Include cookies for Neon Auth
         body: JSON.stringify({
+          // Also send initData in body as fallback
+          ...(initData && { initData }),
           telegramUserId: isWebUser ? undefined : telegramUserId,
           neonUserId: isWebUser ? neonUserId : undefined,
           name: "Мой аватар",

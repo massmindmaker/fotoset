@@ -132,7 +132,7 @@ export function useSync() {
         const initData = window.Telegram?.WebApp?.initData
         const validInitData = isValidInitData(initData)
         if (validInitData && !neonUserId) {
-          createHeaders["X-Telegram-Init-Data"] = initData
+          createHeaders["x-telegram-init-data"] = initData
         }
 
         const createRes = await fetch("/api/avatars", {
@@ -180,7 +180,7 @@ export function useSync() {
             const initData = window.Telegram?.WebApp?.initData
             const validInitData = isValidInitData(initData)
             if (validInitData && !neonUserId) {
-              uploadHeaders["X-Telegram-Init-Data"] = initData
+              uploadHeaders["x-telegram-init-data"] = initData
             }
 
             const uploadRes = await fetch("/api/upload", {
@@ -233,7 +233,7 @@ export function useSync() {
             const saveInitData = window.Telegram?.WebApp?.initData
             const validSaveInitData = isValidInitData(saveInitData)
             if (validSaveInitData && !neonUserId) {
-              saveHeaders["X-Telegram-Init-Data"] = saveInitData
+              saveHeaders["x-telegram-init-data"] = saveInitData
             }
 
             const saveRes = await fetch(`/api/avatars/${dbAvatarId}/references`, {
@@ -285,7 +285,7 @@ export function useSync() {
               const fallbackInitData = window.Telegram?.WebApp?.initData
               const validFallbackInitData = isValidInitData(fallbackInitData)
               if (validFallbackInitData && !neonUserId) {
-                fallbackHeaders["X-Telegram-Init-Data"] = fallbackInitData
+                fallbackHeaders["x-telegram-init-data"] = fallbackInitData
               }
 
               const fallbackRes = await fetch(`/api/avatars/${dbAvatarId}/references`, {
