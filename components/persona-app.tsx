@@ -890,6 +890,9 @@ export default function PersonaApp() {
     const p = getPersona(id)
     if (!p) return
 
+    // Clear stale reference photos before switching view to prevent "0/8" flash
+    setReferencePhotos([])
+
     // If avatar has reference photos, show detail view
     // If it's draft without refs, go to upload
     // If it's ready, go to results

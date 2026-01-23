@@ -127,7 +127,9 @@ export const AvatarDetailView: React.FC<AvatarDetailViewProps> = ({
               />
             </div>
             <span className={"text-xs " + (canGenerate ? "text-green-600 font-medium" : "text-muted-foreground")}>
-              {referencePhotos.length}/{MAX_PHOTOS} фото
+              {isLoading && referencePhotos.length === 0
+                ? "Загрузка фото..."
+                : `${referencePhotos.length}/${MAX_PHOTOS} фото`}
             </span>
           </div>
         </div>
