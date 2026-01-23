@@ -164,7 +164,7 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
         </Card>
       ))}
     </div>
-    <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 safe-area-inset-bottom">
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-20 bg-background/80 backdrop-blur-lg border-t border-border sm:relative sm:p-0 sm:pb-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 sm:z-auto safe-area-inset-bottom">
       <Button
         onClick={() => selectedTier && onUpgrade(selectedTier)}
         disabled={!selectedTier || isGenerating || isProcessingPayment}
