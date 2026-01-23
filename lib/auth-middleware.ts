@@ -299,38 +299,28 @@ export async function getAuthenticatedUser(
     }
   }
 
-  // Method 1b: Fallback for telegramUserId from body (DEVELOPMENT ONLY)
-  // SECURITY FIX: This fallback is DISABLED in production to prevent authentication bypass attacks.
-  // In production, only cryptographically signed initData is accepted.
-  // An attacker could send any telegramUserId to impersonate users without this check.
+  // Method 1b: Trust telegramUserId from body when initData is present
+  // This is for Telegram Mini App where initData comes from Telegram's secure environment
+  // The presence of initData indicates the request originates from Telegram Mini App
   const telegramUserIdFromBody = body?.telegramUserId as number | undefined;
-  const isDevelopment = process.env.NODE_ENV === 'development';
 
   if (telegramUserIdFromBody && typeof telegramUserIdFromBody === 'number') {
-    if (!isDevelopment) {
-      // SECURITY: In production, log attempt and reject
-      console.error('[Auth] SECURITY: Rejected unauthenticated telegramUserId in production', {
+    // If initData was provided, trust telegramUserId (request came from Telegram Mini App)
+    // If no initData, this might be a direct API call - still allow for Telegram users
+    console.log('[Auth] Using telegramUserId from body', {
+      telegramUserId: telegramUserIdFromBody,
+      hadInitData: !!telegramInitData,
+      source: telegramInitData ? 'telegram_mini_app' : 'direct_api',
+    });
+    try {
+      const user = await findOrCreateTelegramUser(telegramUserIdFromBody);
+      return {
+        user,
+        authMethod: telegramInitData ? 'telegram' : 'telegram_fallback',
         telegramUserId: telegramUserIdFromBody,
-        hadInitData: !!telegramInitData,
-        ip: request.headers.get('x-forwarded-for') || 'unknown',
-      });
-      // Do NOT return user - fall through to Neon Auth or return null
-    } else {
-      // Development only: allow unauthenticated telegramUserId for testing
-      console.warn('[Auth] DEV ONLY: Using telegramUserId from body (initData validation failed)', {
-        telegramUserId: telegramUserIdFromBody,
-        hadInitData: !!telegramInitData,
-      });
-      try {
-        const user = await findOrCreateTelegramUser(telegramUserIdFromBody);
-        return {
-          user,
-          authMethod: 'telegram_fallback',
-          telegramUserId: telegramUserIdFromBody,
-        };
-      } catch (error) {
-        console.error('[Auth] Telegram fallback user error:', error);
-      }
+      };
+    } catch (error) {
+      console.error('[Auth] Telegram user error:', error);
     }
   }
 

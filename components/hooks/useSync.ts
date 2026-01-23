@@ -135,15 +135,18 @@ export function useSync() {
           createHeaders["x-telegram-init-data"] = initData
         }
 
+        // Get Telegram user ID from WebApp or state
+        const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || telegramUserId
+
         const createRes = await fetch("/api/avatars", {
           method: "POST",
           headers: createHeaders,
           credentials: "include", // Include cookies for Neon Auth
           body: JSON.stringify({
             name: persona.name || "Мой аватар",
-            // Pass initData for Telegram auth validation
-            ...(validInitData && !neonUserId ? { initData } : {}),
-            // Legacy fields for backwards compatibility
+            // Telegram auth: pass telegramUserId for user identification
+            ...(tgUserId && !neonUserId ? { telegramUserId: tgUserId } : {}),
+            // Neon Auth: pass neonUserId
             ...(neonUserId ? { neonUserId } : {}),
           }),
         })
@@ -183,6 +186,9 @@ export function useSync() {
               uploadHeaders["x-telegram-init-data"] = initData
             }
 
+            // Get Telegram user ID from WebApp or state
+            const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || telegramUserId
+
             const uploadRes = await fetch("/api/upload", {
               method: "POST",
               headers: uploadHeaders,
@@ -191,8 +197,10 @@ export function useSync() {
                 avatarId: dbAvatarId,
                 type: "reference",
                 image: base64Data,
-                // Pass initData in body as fallback
-                ...(validInitData && !neonUserId ? { initData } : {}),
+                // Telegram auth: pass telegramUserId for user identification
+                ...(tgUserId && !neonUserId ? { telegramUserId: tgUserId } : {}),
+                // Neon Auth: pass neonUserId
+                ...(neonUserId ? { neonUserId } : {}),
               }),
             })
 
@@ -236,15 +244,18 @@ export function useSync() {
               saveHeaders["x-telegram-init-data"] = saveInitData
             }
 
+            // Get Telegram user ID for references auth
+            const refTgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || telegramUserId
+
             const saveRes = await fetch(`/api/avatars/${dbAvatarId}/references`, {
               method: "POST",
               headers: saveHeaders,
               credentials: "include", // Include cookies for Neon Auth
               body: JSON.stringify({
                 referenceImages: uploadedUrls,
-                // Pass initData for Telegram auth validation
-                ...(validSaveInitData && !neonUserId ? { initData: saveInitData } : {}),
-                // Legacy fields for backwards compatibility
+                // Telegram auth: pass telegramUserId for user identification
+                ...(refTgUserId && !neonUserId ? { telegramUserId: refTgUserId } : {}),
+                // Neon Auth: pass neonUserId
                 ...(neonUserId ? { neonUserId } : {}),
               }),
             })
@@ -288,15 +299,18 @@ export function useSync() {
                 fallbackHeaders["x-telegram-init-data"] = fallbackInitData
               }
 
+              // Get Telegram user ID for fallback auth
+              const fallbackTgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || telegramUserId
+
               const fallbackRes = await fetch(`/api/avatars/${dbAvatarId}/references`, {
                 method: "POST",
                 headers: fallbackHeaders,
                 credentials: "include", // Include cookies for Neon Auth
                 body: JSON.stringify({
                   referenceImages: base64Images,
-                  // Pass initData for Telegram auth validation
-                  ...(validFallbackInitData && !neonUserId ? { initData: fallbackInitData } : {}),
-                  // Legacy fields for backwards compatibility
+                  // Telegram auth: pass telegramUserId for user identification
+                  ...(fallbackTgUserId && !neonUserId ? { telegramUserId: fallbackTgUserId } : {}),
+                  // Neon Auth: pass neonUserId
                   ...(neonUserId ? { neonUserId } : {}),
                 }),
               })

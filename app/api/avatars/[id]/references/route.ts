@@ -75,8 +75,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid avatar ID" }, { status: 400 })
   }
 
-  // Parse body first to extract initData for auth
-  let body: { referenceImages?: string[]; initData?: string; neonUserId?: string }
+  // Parse body first to extract auth data
+  let body: { referenceImages?: string[]; telegramUserId?: number; neonUserId?: string }
   try {
     body = await request.json()
   } catch {
