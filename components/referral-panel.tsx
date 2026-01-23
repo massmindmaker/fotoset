@@ -79,8 +79,9 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
   const [showPartnerForm, setShowPartnerForm] = useState(false)
 
   // Detect if running inside Telegram WebApp
+  // Check for Telegram.WebApp object existence, not just initData (which may be empty string)
   const isTelegramWebApp = typeof window !== 'undefined' &&
-    !!(window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData
+    !!(window as unknown as { Telegram?: { WebApp?: object } }).Telegram?.WebApp
 
   // Build query params based on auth type
   // Note: API uses neon_auth_id (not neon_user_id)
