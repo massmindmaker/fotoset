@@ -3,6 +3,20 @@ import type { Persona } from "../views/types"
 import { extractErrorMessage } from "@/lib/error-utils"
 
 /**
+ * Check if initData is valid (not empty, has required fields)
+ * Valid initData must contain auth_date, hash, and be at least 50 chars
+ * This prevents issues with Telegram SDK returning short garbage values in browsers
+ */
+function isValidInitData(initData: string | undefined | null): initData is string {
+  if (!initData || typeof initData !== 'string') return false
+  // Minimum valid initData is ~100+ chars (auth_date + hash + some user data)
+  if (initData.length < 50) return false
+  // Must contain required fields
+  if (!initData.includes('auth_date=') || !initData.includes('hash=')) return false
+  return true
+}
+
+/**
  * Custom hook for syncing persona data to server
  * Handles avatar creation and reference photo uploads
  */
@@ -78,8 +92,13 @@ export function useSync() {
       // Continue with neonUserId auth - skip Telegram ID requirement
     } else if (!tgId) {
       console.error("[Sync] No authentication available - no Telegram ID and no neonUserId")
-      // Check if we're in Telegram context or web
-      const isInTelegram = !!tg?.initData
+      // Check if we're in a valid Telegram context (valid initData, not just truthy value)
+      const isInTelegram = isValidInitData(tg?.initData)
+      console.error("[Sync] Auth debug:", {
+        hasTg: !!tg,
+        initDataLength: tg?.initData?.length || 0,
+        isValidTelegramContext: isInTelegram,
+      })
       const errorMsg = isInTelegram
         ? "Ошибка: не удалось получить Telegram ID. Закройте и откройте приложение заново через @Pinglass_bot"
         : "Ошибка авторизации. Пожалуйста, войдите в систему."
@@ -111,7 +130,8 @@ export function useSync() {
           "Content-Type": "application/json",
         }
         const initData = window.Telegram?.WebApp?.initData
-        if (initData && !neonUserId) {
+        const validInitData = isValidInitData(initData)
+        if (validInitData && !neonUserId) {
           createHeaders["X-Telegram-Init-Data"] = initData
         }
 
@@ -122,7 +142,7 @@ export function useSync() {
           body: JSON.stringify({
             name: persona.name || "Мой аватар",
             // Pass initData for Telegram auth validation
-            ...(initData && !neonUserId ? { initData } : {}),
+            ...(validInitData && !neonUserId ? { initData } : {}),
             // Legacy fields for backwards compatibility
             ...(neonUserId ? { neonUserId } : {}),
           }),
@@ -158,7 +178,8 @@ export function useSync() {
 
             // Telegram auth: pass initData for server-side HMAC validation
             const initData = window.Telegram?.WebApp?.initData
-            if (initData && !neonUserId) {
+            const validInitData = isValidInitData(initData)
+            if (validInitData && !neonUserId) {
               uploadHeaders["X-Telegram-Init-Data"] = initData
             }
 
@@ -171,7 +192,7 @@ export function useSync() {
                 type: "reference",
                 image: base64Data,
                 // Pass initData in body as fallback
-                ...(initData && !neonUserId ? { initData } : {}),
+                ...(validInitData && !neonUserId ? { initData } : {}),
               }),
             })
 
@@ -210,7 +231,8 @@ export function useSync() {
               "Content-Type": "application/json",
             }
             const saveInitData = window.Telegram?.WebApp?.initData
-            if (saveInitData && !neonUserId) {
+            const validSaveInitData = isValidInitData(saveInitData)
+            if (validSaveInitData && !neonUserId) {
               saveHeaders["X-Telegram-Init-Data"] = saveInitData
             }
 
@@ -221,7 +243,7 @@ export function useSync() {
               body: JSON.stringify({
                 referenceImages: uploadedUrls,
                 // Pass initData for Telegram auth validation
-                ...(saveInitData && !neonUserId ? { initData: saveInitData } : {}),
+                ...(validSaveInitData && !neonUserId ? { initData: saveInitData } : {}),
                 // Legacy fields for backwards compatibility
                 ...(neonUserId ? { neonUserId } : {}),
               }),
@@ -261,7 +283,8 @@ export function useSync() {
                 "Content-Type": "application/json",
               }
               const fallbackInitData = window.Telegram?.WebApp?.initData
-              if (fallbackInitData && !neonUserId) {
+              const validFallbackInitData = isValidInitData(fallbackInitData)
+              if (validFallbackInitData && !neonUserId) {
                 fallbackHeaders["X-Telegram-Init-Data"] = fallbackInitData
               }
 
@@ -272,7 +295,7 @@ export function useSync() {
                 body: JSON.stringify({
                   referenceImages: base64Images,
                   // Pass initData for Telegram auth validation
-                  ...(fallbackInitData && !neonUserId ? { initData: fallbackInitData } : {}),
+                  ...(validFallbackInitData && !neonUserId ? { initData: fallbackInitData } : {}),
                   // Legacy fields for backwards compatibility
                   ...(neonUserId ? { neonUserId } : {}),
                 }),

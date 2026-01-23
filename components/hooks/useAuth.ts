@@ -1,5 +1,17 @@
 import { useState, useEffect, useCallback } from "react"
 
+/**
+ * Check if initData is valid (not empty, has required fields)
+ * Valid initData must contain auth_date, hash, and be at least 50 chars
+ * This prevents issues with Telegram SDK returning short garbage values in browsers
+ */
+function isValidInitData(initData: string | undefined | null): boolean {
+  if (!initData || typeof initData !== 'string') return false
+  if (initData.length < 50) return false
+  if (!initData.includes('auth_date=') || !initData.includes('hash=')) return false
+  return true
+}
+
 // User identifier interface - supports both Telegram and Web (Neon Auth) users
 export interface UserIdentifier {
   type: "telegram" | "web"
@@ -23,10 +35,10 @@ export function useAuth() {
   const [theme, setTheme] = useState<"dark" | "light">("light")
 
   // Helper: show messages via Telegram API or browser alert
-  // Only use Telegram API if we're in a real Mini App (has initData)
+  // Only use Telegram API if we're in a real Mini App (has valid initData)
   const showMessage = useCallback((message: string) => {
     const tg = window.Telegram?.WebApp
-    const isRealTelegramApp = tg?.initData && tg.initData.length > 0
+    const isRealTelegramApp = isValidInitData(tg?.initData)
 
     if (isRealTelegramApp && tg?.showAlert) {
       try {
@@ -90,7 +102,7 @@ export function useAuth() {
 
       console.log("[TG] WebApp state:", {
         hasTg: !!tg,
-        hasInitData: !!(tg?.initData && tg.initData.length > 0),
+        hasValidInitData: isValidInitData(tg?.initData),
         initDataLength: tg?.initData?.length || 0,
         hasUser: !!tg?.initDataUnsafe?.user,
         userId: tg?.initDataUnsafe?.user?.id,
@@ -100,9 +112,10 @@ export function useAuth() {
       if (abortController.signal.aborted) return
 
       // CASE 1: Telegram WebApp user
-      // IMPORTANT: Check BOTH initData (signed data) AND initDataUnsafe
-      // initDataUnsafe may contain stale data in browser, but initData will be empty
-      const hasValidTelegramAuth = tg?.initData && tg.initData.length > 0 && tg?.initDataUnsafe?.user?.id
+      // IMPORTANT: Check BOTH initData (valid signed data) AND initDataUnsafe
+      // initDataUnsafe may contain stale data in browser, but initData will be empty or invalid
+      // Use isValidInitData to reject garbage values from SDK when not in real Telegram context
+      const hasValidTelegramAuth = isValidInitData(tg?.initData) && tg?.initDataUnsafe?.user?.id
 
       if (hasValidTelegramAuth) {
         const tgUser = tg!.initDataUnsafe!.user!
@@ -205,11 +218,15 @@ export function useAuth() {
       }
 
       // CASE 3: Not in Telegram - set status for web auth handling
-      if (!tg?.initData) {
-        console.log("[TG] Not in Telegram WebApp context (no initData)")
+      // Use isValidInitData to properly detect real Telegram context (not garbage SDK values)
+      if (!isValidInitData(tg?.initData)) {
+        console.log("[TG] Not in Telegram WebApp context (no valid initData)", {
+          hasInitData: !!tg?.initData,
+          initDataLength: tg?.initData?.length || 0,
+        })
         setAuthStatus('not_in_telegram')
       } else {
-        console.log("[TG] Has initData but no user - failed auth")
+        console.log("[TG] Has valid initData but no user - failed auth")
         setAuthStatus('failed')
       }
     }
