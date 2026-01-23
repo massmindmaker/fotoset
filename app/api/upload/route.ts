@@ -146,9 +146,23 @@ const ALLOWED_TYPES = [
  * }
  */
 export async function POST(request: NextRequest) {
+  const contentType = request.headers.get("content-type") || ""
+
+  // For JSON requests, read body first to pass initData to auth
+  // (initData can be in header OR body as fallback)
+  let jsonBody: Record<string, unknown> | undefined
+  if (contentType.includes("application/json")) {
+    try {
+      jsonBody = await request.json()
+    } catch (err) {
+      logger.error("Failed to parse JSON body", { error: err })
+      return error("BAD_REQUEST", "Invalid JSON body")
+    }
+  }
+
   // SECURITY: Require authenticated user (Telegram with initData verification OR Neon Auth)
-  // SECURITY FIX: Removed x-telegram-user-id header trust - now requires cryptographic verification
-  const authUser = await getAuthenticatedUser(request)
+  // Pass jsonBody to allow initData from body as fallback for header
+  const authUser = await getAuthenticatedUser(request, jsonBody)
   if (!authUser) {
     return error("UNAUTHORIZED", "Authentication required. Provide valid initData or Neon Auth session.")
   }
@@ -169,16 +183,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const contentType = request.headers.get("content-type") || ""
-
     // Handle multipart form data (direct file upload)
     if (contentType.includes("multipart/form-data")) {
       return handleFormDataUpload(request)
     }
 
-    // Handle JSON (base64 upload)
-    if (contentType.includes("application/json")) {
-      return handleJsonUpload(request)
+    // Handle JSON (base64 upload) - body already parsed
+    if (contentType.includes("application/json") && jsonBody) {
+      return handleJsonUploadWithBody(jsonBody)
     }
 
     return error(
@@ -257,7 +269,83 @@ async function handleFormDataUpload(request: NextRequest) {
 }
 
 /**
- * Handle JSON (base64) upload
+ * Handle JSON (base64) upload with pre-parsed body
+ * Used when body is already read for auth purposes
+ */
+async function handleJsonUploadWithBody(body: Record<string, unknown>) {
+  const { avatarId, type: imageType = "reference", image } = body as {
+    avatarId?: string
+    type?: string
+    image?: string
+  }
+
+  if (!avatarId) {
+    return error("BAD_REQUEST", "avatarId is required")
+  }
+
+  if (!image) {
+    return error("BAD_REQUEST", "image (base64) is required")
+  }
+
+  // Decode base64 to buffer first
+  let base64Data = image
+  if (image.startsWith("data:")) {
+    base64Data = image.split(",")[1]
+  }
+
+  let buffer = Buffer.from(base64Data, "base64")
+
+  // Validate original size
+  if (buffer.length > MAX_FILE_SIZE) {
+    return error(
+      "PAYLOAD_TOO_LARGE",
+      `File too large. Maximum size: ${MAX_FILE_SIZE / 1024 / 1024}MB`
+    )
+  }
+
+  // Detect content type from data URL or assume JPEG
+  let contentType = "image/jpeg"
+  if (image.startsWith("data:")) {
+    const match = image.match(/^data:(image\/\w+);base64,/)
+    if (match) contentType = match[1]
+  }
+
+  // Validate content type (same as FormData upload)
+  if (!ALLOWED_TYPES.includes(contentType)) {
+    return error(
+      "BAD_REQUEST",
+      `Invalid content type: ${contentType}. Allowed: ${ALLOWED_TYPES.join(", ")}`
+    )
+  }
+
+  // Compress image before upload (except for generated photos)
+  if (imageType !== "generated") {
+    const compressed = await compressImage(buffer, imageType as ImageType, contentType)
+    buffer = Buffer.from(compressed.buffer)
+    contentType = compressed.contentType
+  }
+
+  // Generate storage key (always .jpg after compression)
+  const extension = "jpg"
+  const key = generateKey(avatarId, imageType as ImageType, extension)
+
+  // Upload compressed buffer to R2
+  const result = await uploadImage(buffer, key, contentType)
+
+  logger.info("File uploaded via Base64", {
+    key: result.key,
+    size: result.size,
+    avatarId,
+    type: imageType,
+    compressed: imageType !== "generated",
+  })
+
+  return created(result)
+}
+
+/**
+ * Handle JSON (base64) upload (legacy - reads body from request)
+ * @deprecated Use handleJsonUploadWithBody instead
  */
 async function handleJsonUpload(request: NextRequest) {
   const body = await request.json()

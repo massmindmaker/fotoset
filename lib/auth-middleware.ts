@@ -58,6 +58,19 @@ function validateTelegramInitData(initData: string): { valid: boolean; userId?: 
     const crypto = require('crypto');
     const params = new URLSearchParams(initData);
     const hash = params.get('hash');
+
+    console.log('[Auth] Validating initData:', {
+      initDataLength: initData.length,
+      hasHash: !!hash,
+      hashLength: hash?.length || 0,
+      paramKeys: Array.from(params.keys()),
+    });
+
+    if (!hash) {
+      console.error('[Auth] No hash in initData');
+      return { valid: false };
+    }
+
     params.delete('hash');
 
     // Sort params alphabetically
@@ -78,8 +91,15 @@ function validateTelegramInitData(initData: string): { valid: boolean; userId?: 
       .digest('hex');
 
     if (calculatedHash !== hash) {
+      console.error('[Auth] Hash mismatch:', {
+        expected: calculatedHash.substring(0, 16) + '...',
+        received: hash.substring(0, 16) + '...',
+        botTokenPrefix: botToken.substring(0, 10) + '...',
+      });
       return { valid: false };
     }
+
+    console.log('[Auth] Hash validated successfully');
 
     // Extract user data
     const userParam = params.get('user');
@@ -231,6 +251,8 @@ export async function getAuthenticatedUser(
     hasInitDataBody: !!initDataFromBody,
     initDataLength: telegramInitData?.length || 0,
     bodyKeys: body ? Object.keys(body) : [],
+    allHeaders: Array.from(request.headers.keys()),
+    contentType: request.headers.get('content-type'),
   });
 
   if (telegramInitData) {
