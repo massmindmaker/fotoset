@@ -79,10 +79,11 @@ function validateTelegramInitData(initData: string): { valid: boolean; userId?: 
       .map(([key, value]) => `${key}=${value}`)
       .join('\n');
 
-    // Calculate HMAC
+    // Calculate HMAC - IMPORTANT: botToken is KEY, 'WebAppData' is MESSAGE
+    // See https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
     const secretKey = crypto
-      .createHmac('sha256', 'WebAppData')
-      .update(botToken)
+      .createHmac('sha256', botToken)
+      .update('WebAppData')
       .digest();
 
     const calculatedHash = crypto
