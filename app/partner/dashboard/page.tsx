@@ -5,13 +5,30 @@ import { StatsCards } from '@/components/partner/StatsCards'
 import { EarningsChart } from '@/components/partner/EarningsChart'
 import { RecentEarnings } from '@/components/partner/RecentEarnings'
 import { Copy, ExternalLink, Loader2 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function PartnerDashboardPage() {
+  const router = useRouter()
   const { stats, loading: statsLoading, error: statsError } = usePartnerStats()
   const { data: earningsData, loading: earningsLoading } = usePartnerEarnings(1, 5)
   const [copied, setCopied] = useState(false)
+
+  // Redirect to login if not authenticated or not a partner
+  useEffect(() => {
+    if (!statsLoading && statsError) {
+      // Check if it's an auth error
+      const telegramUserId = localStorage.getItem('pinglass_telegram_user_id')
+      if (!telegramUserId) {
+        router.replace('/partner/login')
+      }
+    }
+    if (!statsLoading && stats && !stats.isPartner) {
+      // Not a partner, redirect to login
+      router.replace('/partner/login')
+    }
+  }, [statsLoading, statsError, stats, router])
 
   const handleCopyReferralLink = async () => {
     if (!stats?.referralCode) return
