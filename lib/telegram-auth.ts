@@ -91,10 +91,11 @@ export function validateTelegramInitData(
       .map((key) => `${key}=${data[key]}`)
       .join('\n');
 
-    // Calculate secret key: HMAC-SHA256(key=bot_token, data="WebAppData")
+    // Calculate secret key: HMAC-SHA256(key="WebAppData", data=bot_token)
     // See https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
-    const secretKey = createHmac('sha256', botToken)
-      .update('WebAppData')
+    // Quote: "the constant string WebAppData used as a key"
+    const secretKey = createHmac('sha256', 'WebAppData')
+      .update(botToken)
       .digest();
 
     // Calculate expected hash: HMAC-SHA256(secret_key, data_check_string)

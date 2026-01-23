@@ -9,7 +9,8 @@ import {
   createPaginationMeta,
   createLogger,
 } from "@/lib/api-utils"
-import { findOrCreateUser, extractIdentifierFromRequest } from "@/lib/user-identity"
+// User identity handled by getAuthenticatedUser
+import { getAuthenticatedUser } from "@/lib/auth-middleware"
 
 const logger = createLogger("Avatars")
 
@@ -216,29 +217,23 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { telegramUserId, neonUserId, email, name = "My Avatar" } = body as CreateAvatarRequest
+    const { name = "My Avatar" } = body as CreateAvatarRequest
 
-    // Require at least one user identifier
-    if (!telegramUserId && !neonUserId) {
-      return error("UNAUTHORIZED", "telegramUserId or neonUserId is required")
+    // Authenticate user via Telegram initData or Neon Auth
+    const authUser = await getAuthenticatedUser(request, body)
+    if (!authUser) {
+      logger.warn("Avatar creation unauthorized", {
+        hasInitDataHeader: !!request.headers.get("x-telegram-init-data"),
+        bodyKeys: Object.keys(body)
+      })
+      return error("UNAUTHORIZED", "Authentication required")
     }
 
-    // Validate telegramUserId if provided
-    let tgId: number | undefined
-    if (telegramUserId) {
-      tgId = typeof telegramUserId === 'number' ? telegramUserId : parseInt(String(telegramUserId))
-      if (isNaN(tgId)) {
-        return error("VALIDATION_ERROR", "Invalid telegramUserId format")
-      }
-    }
-
-    // Find or create user with either identifier
-    const user = await findOrCreateUser({
-      telegramUserId: tgId,
-      neonUserId,
-      email,
+    const user = authUser.user
+    logger.info("User authenticated for avatar creation", {
+      userId: user.id,
+      authMethod: authUser.authMethod
     })
-    logger.info("User resolved", { userId: user.id, telegramUserId: tgId, neonUserId })
 
     // Check avatar limit (max 3 per user)
     const MAX_AVATARS = 3

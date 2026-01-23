@@ -37,12 +37,11 @@ function validateInitData(initData: string): { valid: boolean; data?: Record<str
       .join("\n")
 
     // Create secret key from bot token
-    // FIXED: According to Telegram docs: secret_key = HMAC_SHA256(bot_token, "WebAppData")
-    // In Node.js crypto.createHmac(algorithm, key).update(message)
-    // So key = bot_token, message = "WebAppData"
+    // Per Telegram docs: "the constant string WebAppData used as a key"
+    // So: HMAC(key="WebAppData", message=bot_token)
     const secretKey = crypto
-      .createHmac("sha256", TELEGRAM_BOT_TOKEN)
-      .update("WebAppData")
+      .createHmac("sha256", "WebAppData")
+      .update(TELEGRAM_BOT_TOKEN)
       .digest()
 
     // Calculate hash
