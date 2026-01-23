@@ -155,8 +155,12 @@ export async function middleware(request: NextRequest) {
       'https://web.telegram.org',
     ];
 
-    // Only set CORS headers if origin is allowed (SECURE: exact match only)
-    if (origin && allowedOrigins.includes(origin)) {
+    // Check if origin is allowed (exact match or Vercel preview URL pattern)
+    const isVercelPreview = origin?.match(/^https:\/\/fotoset-[a-z0-9]+-massmindmakers-projects\.vercel\.app$/);
+    const isAllowed = origin && (allowedOrigins.includes(origin) || isVercelPreview);
+
+    // Only set CORS headers if origin is allowed
+    if (isAllowed) {
       response.headers.set('Access-Control-Allow-Origin', origin);
       response.headers.set('Access-Control-Allow-Credentials', 'true');
     } else if (origin) {
@@ -170,8 +174,8 @@ export async function middleware(request: NextRequest) {
 
     // Handle preflight requests
     if (request.method === 'OPTIONS') {
-      // Only respond to preflight if origin is allowed (SECURE: exact match)
-      if (origin && allowedOrigins.includes(origin)) {
+      // Only respond to preflight if origin is allowed
+      if (isAllowed) {
         return new NextResponse(null, { status: 204, headers: response.headers });
       }
       // Block preflight from unknown origins
