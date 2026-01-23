@@ -115,19 +115,33 @@ export async function POST(request: NextRequest) {
 
     const sql = getSql()
 
+    // Generate slug from name
+    const slug = name
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim()
+
     const [newPack] = await sql`
       INSERT INTO photo_packs (
         admin_id,
         name,
+        slug,
         description,
         cover_url,
-        is_active
+        is_active,
+        moderation_status,
+        owner_type
       ) VALUES (
         ${session.adminId},
         ${name},
+        ${slug},
         ${description || null},
         ${cover_url || null},
-        ${is_active !== false}
+        ${is_active !== false},
+        'approved',
+        'admin'
       )
       RETURNING *
     `

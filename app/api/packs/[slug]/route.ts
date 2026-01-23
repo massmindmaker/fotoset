@@ -28,6 +28,7 @@ export async function GET(
 
     logger.info("Fetching pack detail", { slug })
 
+    // Support both old system (pack_items) and new system (pack_prompts)
     const packRows = await sql`
       SELECT
         p.id,
@@ -42,11 +43,14 @@ export async function GET(
         COALESCE(
           (SELECT COUNT(*) FROM pack_prompts WHERE pack_id = p.id AND is_active = TRUE),
           0
+        ) + COALESCE(
+          (SELECT COUNT(*) FROM pack_items WHERE pack_id = p.id),
+          0
         ) AS "itemsCount"
       FROM photo_packs p
       WHERE p.slug = ${slug}
         AND p.is_active = TRUE
-        AND p.moderation_status = 'approved'
+        AND (p.moderation_status = 'approved' OR p.moderation_status IS NULL)
       LIMIT 1
     `
 

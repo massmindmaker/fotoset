@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
     logger.info("Fetching active approved packs")
 
     // Query all active and approved packs with prompt count
+    // Support both old system (pack_items) and new system (pack_prompts)
     const packs = await sql`
       SELECT
         p.id,
@@ -48,11 +49,15 @@ export async function GET(request: NextRequest) {
         COALESCE(
           (SELECT COUNT(*) FROM pack_prompts WHERE pack_id = p.id AND is_active = TRUE),
           0
+        ) + COALESCE(
+          (SELECT COUNT(*) FROM pack_items WHERE pack_id = p.id),
+          0
         ) AS "promptCount"
       FROM photo_packs p
       LEFT JOIN users u ON p.partner_user_id = u.id
-      WHERE p.is_active = TRUE AND p.moderation_status = 'approved'
-      ORDER BY p.sort_order ASC, p.is_featured DESC, p.id ASC
+      WHERE p.is_active = TRUE
+        AND (p.moderation_status = 'approved' OR p.moderation_status IS NULL)
+      ORDER BY p.sort_order ASC NULLS LAST, p.is_featured DESC, p.id ASC
     `
 
     const packList: PackListItem[] = packs.map((pack: any) => ({
