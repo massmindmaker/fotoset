@@ -56,14 +56,32 @@ function validateTelegramInitData(initData: string): { valid: boolean; userId?: 
     }
 
     const crypto = require('crypto');
-    const params = new URLSearchParams(initData);
-    const hash = params.get('hash');
+
+    // Parse initData manually to preserve original encoding for hash calculation
+    // URLSearchParams auto-decodes values which breaks hash verification
+    const pairs = initData.split('&');
+    const dataMap = new Map<string, string>();
+    let hash: string | null = null;
+
+    for (const pair of pairs) {
+      const eqIndex = pair.indexOf('=');
+      if (eqIndex === -1) continue;
+      const key = pair.substring(0, eqIndex);
+      const value = pair.substring(eqIndex + 1);
+      if (key === 'hash') {
+        hash = value;
+      } else {
+        // Store URL-decoded values for the data_check_string
+        // Telegram calculates hash on decoded values
+        dataMap.set(key, decodeURIComponent(value));
+      }
+    }
 
     console.log('[Auth] Validating initData:', {
       initDataLength: initData.length,
       hasHash: !!hash,
       hashLength: hash?.length || 0,
-      paramKeys: Array.from(params.keys()),
+      paramKeys: Array.from(dataMap.keys()),
     });
 
     if (!hash) {
@@ -71,10 +89,8 @@ function validateTelegramInitData(initData: string): { valid: boolean; userId?: 
       return { valid: false };
     }
 
-    params.delete('hash');
-
-    // Sort params alphabetically
-    const sortedParams = Array.from(params.entries())
+    // Sort params alphabetically and form data_check_string
+    const sortedParams = Array.from(dataMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, value]) => `${key}=${value}`)
       .join('\n');
@@ -97,14 +113,15 @@ function validateTelegramInitData(initData: string): { valid: boolean; userId?: 
         expected: calculatedHash.substring(0, 16) + '...',
         received: hash.substring(0, 16) + '...',
         botTokenPrefix: botToken.substring(0, 10) + '...',
+        sortedParamsPreview: sortedParams.substring(0, 100) + '...',
       });
       return { valid: false };
     }
 
     console.log('[Auth] Hash validated successfully');
 
-    // Extract user data
-    const userParam = params.get('user');
+    // Extract user data (already decoded in dataMap)
+    const userParam = dataMap.get('user');
     if (userParam) {
       const userData = JSON.parse(userParam);
       return {

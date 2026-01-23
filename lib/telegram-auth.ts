@@ -39,11 +39,18 @@ export interface TelegramInitData {
  * @returns Parsed initData object
  */
 function parseInitData(initDataRaw: string): Record<string, string> {
-  const params = new URLSearchParams(initDataRaw);
+  // Parse manually to properly decode URL-encoded values
+  // URLSearchParams has inconsistent decoding behavior
   const data: Record<string, string> = {};
+  const pairs = initDataRaw.split('&');
 
-  for (const [key, value] of params.entries()) {
-    data[key] = value;
+  for (const pair of pairs) {
+    const eqIndex = pair.indexOf('=');
+    if (eqIndex === -1) continue;
+    const key = pair.substring(0, eqIndex);
+    const value = pair.substring(eqIndex + 1);
+    // Explicitly decode URL-encoded values
+    data[key] = decodeURIComponent(value);
   }
 
   return data;

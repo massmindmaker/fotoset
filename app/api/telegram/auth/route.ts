@@ -13,16 +13,29 @@ function validateInitData(initData: string): { valid: boolean; data?: Record<str
   }
 
   try {
-    // Parse initData
-    const params = new URLSearchParams(initData)
-    const hash = params.get("hash")
-    params.delete("hash")
+    // Parse initData manually to preserve proper handling
+    // URLSearchParams auto-decodes which can cause issues
+    const pairs = initData.split('&')
+    const dataMap = new Map<string, string>()
+    let hash: string | null = null
 
-    // DEBUG: Log hash presence
+    for (const pair of pairs) {
+      const eqIndex = pair.indexOf('=')
+      if (eqIndex === -1) continue
+      const key = pair.substring(0, eqIndex)
+      const value = pair.substring(eqIndex + 1)
+      if (key === 'hash') {
+        hash = value
+      } else {
+        // Decode URL-encoded values for the data_check_string
+        dataMap.set(key, decodeURIComponent(value))
+      }
+    }
+
     console.log("[Telegram Auth] validateInitData:", {
       hasHash: !!hash,
       hashLength: hash?.length || 0,
-      paramKeys: Array.from(params.keys()),
+      paramKeys: Array.from(dataMap.keys()),
     })
 
     if (!hash) {
@@ -31,7 +44,7 @@ function validateInitData(initData: string): { valid: boolean; data?: Record<str
     }
 
     // Sort params and create data check string
-    const sortedParams = Array.from(params.entries())
+    const sortedParams = Array.from(dataMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, value]) => `${key}=${value}`)
       .join("\n")
@@ -56,21 +69,24 @@ function validateInitData(initData: string): { valid: boolean; data?: Record<str
 
     if (hashBuffer.length !== calculatedBuffer.length ||
         !crypto.timingSafeEqual(hashBuffer, calculatedBuffer)) {
-      console.warn("[Telegram Auth] Hash mismatch")
+      console.warn("[Telegram Auth] Hash mismatch:", {
+        expected: calculatedHash.substring(0, 16) + '...',
+        received: hash.substring(0, 16) + '...',
+      })
       return { valid: false }
     }
 
     // Check auth_date (should be within 24 hours)
-    const authDate = parseInt(params.get("auth_date") || "0", 10)
+    const authDate = parseInt(dataMap.get("auth_date") || "0", 10)
     const now = Math.floor(Date.now() / 1000)
     if (now - authDate > 86400) {
       console.warn("[Telegram Auth] Data expired")
       return { valid: false }
     }
 
-    // Parse and return data
+    // Return data as object
     const data: Record<string, string> = {}
-    params.forEach((value, key) => {
+    dataMap.forEach((value, key) => {
       data[key] = value
     })
 
