@@ -29,7 +29,7 @@ export async function updatePackPreviewImages(packId: number): Promise<void> {
     LIMIT 4
   `
 
-  const previewUrls = previews.map((p: { preview_url: string }) => p.preview_url)
+  const previewUrls = previews.map((p) => (p as { preview_url: string }).preview_url)
 
   // Update pack with collected preview images
   await sql`
