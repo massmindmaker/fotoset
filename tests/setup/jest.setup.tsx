@@ -6,48 +6,31 @@
 
 import '@testing-library/jest-dom';
 
-// Polyfills for Next.js API route testing (Request/Response)
+// TextEncoder/TextDecoder polyfill
 import { TextEncoder, TextDecoder } from 'util';
-
-// Set up Web API globals for Next.js server components
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder as typeof global.TextDecoder;
 
-// Add Web Streams API if available
-try {
+// Stream polyfills for Node environment
+if (typeof globalThis.ReadableStream === 'undefined') {
   const { ReadableStream, TransformStream, WritableStream } = require('stream/web');
-  global.ReadableStream = ReadableStream;
-  global.TransformStream = TransformStream;
-  global.WritableStream = WritableStream;
-} catch {
-  // stream/web may not be available in all Node versions
+  globalThis.ReadableStream = ReadableStream;
+  globalThis.TransformStream = TransformStream;
+  globalThis.WritableStream = WritableStream;
 }
 
-// Add MessageChannel for undici
-if (typeof MessageChannel === 'undefined') {
-  const { MessageChannel } = require('worker_threads');
-  (global as any).MessageChannel = MessageChannel;
-}
-
-// Add MessagePort for undici
-if (typeof MessagePort === 'undefined') {
-  const { MessagePort } = require('worker_threads');
-  (global as any).MessagePort = MessagePort;
-}
-
-// Request and Response polyfills from undici (Node.js built-in)
-try {
-  const { Request, Response, Headers, FormData, Blob } = require('undici');
-  global.Request = Request;
-  global.Response = Response;
-  global.Headers = Headers;
-  global.FormData = FormData;
-  global.Blob = Blob;
-} catch (err) {
-  // undici not available, check if globals exist from Node.js 18+
-  if (typeof Request === 'undefined') {
-    console.warn('Warning: Request polyfill not available');
-  }
+// BroadcastChannel polyfill
+if (typeof globalThis.BroadcastChannel === 'undefined') {
+  globalThis.BroadcastChannel = class BroadcastChannel {
+    name: string;
+    constructor(name: string) { this.name = name; }
+    postMessage() {}
+    close() {}
+    addEventListener() {}
+    removeEventListener() {}
+    onmessage = null;
+    onmessageerror = null;
+  } as any;
 }
 
 // Mock Next.js router
@@ -99,20 +82,22 @@ const sessionStorageMock = {
 
 global.sessionStorage = sessionStorageMock as Storage;
 
-// Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: jest.fn().mockImplementation((query) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
-});
+// Mock window.matchMedia (only in browser environment)
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: jest.fn().mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+}
 
 // Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {

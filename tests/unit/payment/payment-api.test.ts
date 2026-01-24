@@ -8,39 +8,39 @@
  *
  * PRIORITY: P0 (Critical - Payment flow)
  * COVERAGE TARGET: 85%
+ *
+ * @jest-environment node
  */
 
 import { describe, test, expect, beforeEach, jest, afterEach } from '@jest/globals';
 import { NextRequest } from 'next/server';
 
-// Mock dependencies
-jest.mock('@/lib/db');
-jest.mock('@/lib/tbank');
+// Mock dependencies BEFORE any imports
+jest.mock('@/lib/db', () => ({
+  sql: jest.fn(),
+  query: jest.fn(),
+}));
 
-const mockSql = jest.fn();
-const mockQuery = jest.fn();
+jest.mock('@/lib/tbank', () => ({
+  initPayment: jest.fn(),
+  getPaymentState: jest.fn(),
+  verifyWebhookSignature: jest.fn(),
+  HAS_CREDENTIALS: true,
+  IS_TEST_MODE: true,
+}));
 
-// Setup mocks
+jest.mock('@/lib/user-identity', () => ({
+  findOrCreateUser: jest.fn(),
+}));
+
+// Get mocked functions
+import { sql as mockSql, query as mockQuery } from '@/lib/db';
+import { initPayment, getPaymentState, verifyWebhookSignature } from '@/lib/tbank';
+import { findOrCreateUser } from '@/lib/user-identity';
+
+// Setup environment
 beforeEach(() => {
   jest.clearAllMocks();
-  jest.resetModules();
-
-  // Mock db module
-  jest.doMock('@/lib/db', () => ({
-    sql: mockSql,
-    query: mockQuery,
-  }));
-
-  // Mock tbank module
-  jest.doMock('@/lib/tbank', () => ({
-    initPayment: jest.fn(),
-    getPaymentState: jest.fn(),
-    verifyWebhookSignature: jest.fn(),
-    HAS_CREDENTIALS: true,
-    IS_TEST_MODE: true,
-  }));
-
-  // Set environment variables
   process.env.NEXT_PUBLIC_APP_URL = 'https://example.com';
   process.env.DATABASE_URL = 'postgresql://test';
   process.env.TBANK_TERMINAL_KEY = 'TestDEMOKey';
@@ -54,28 +54,27 @@ afterEach(() => {
   delete process.env.TBANK_PASSWORD;
 });
 
-// NOTE: These tests are deprecated - comprehensive tests are in tests/unit/api/payment/create.test.ts
-// which uses the new Telegram-only authentication (telegramUserId) instead of device_id
-describe.skip('POST /api/payment/create - DEPRECATED', () => {
+describe('POST /api/payment/create', () => {
   test('should create payment for starter tier (499 RUB, 7 photos)', async () => {
     const { POST } = await import('@/app/api/payment/create/route');
-    const tbank = await import('@/lib/tbank');
 
     // Mock user lookup/creation
-    mockSql.mockResolvedValueOnce([{ id: 1, device_id: 'device-123' }]); // Existing user
-    mockSql.mockResolvedValueOnce([]); // Payment insert
+    (findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 1, telegram_user_id: 123456 });
 
     // Mock T-Bank response
-    (tbank.initPayment as jest.Mock).mockResolvedValueOnce({
+    (initPayment as jest.Mock).mockResolvedValueOnce({
       Success: true,
       PaymentId: 'pay-123',
       PaymentURL: 'https://securepay.tinkoff.ru/new/pay-123',
     });
 
+    // Mock SQL calls (INSERT payment, UPDATE user)
+    (mockSql as jest.Mock).mockResolvedValue([{ id: 1 }]);
+
     const request = new NextRequest('http://localhost:3000/api/payment/create', {
       method: 'POST',
       body: JSON.stringify({
-        deviceId: 'device-123',
+        telegramUserId: 123456,
         tierId: 'starter',
         email: 'user@example.com',
       }),
@@ -88,293 +87,184 @@ describe.skip('POST /api/payment/create - DEPRECATED', () => {
     expect(data.paymentId).toBe('pay-123');
     expect(data.confirmationUrl).toContain('tinkoff.ru');
     expect(data.testMode).toBe(true);
-
-    // Verify initPayment was called with correct amount
-    expect(tbank.initPayment).toHaveBeenCalledWith(
-      499, // starter tier price
-      expect.stringContaining('u1t'), // orderId format
-      expect.stringContaining('7 AI Photos'),
-      expect.stringContaining('/payment/callback'),
-      expect.stringContaining('/payment/fail'),
-      expect.stringContaining('/api/payment/webhook'),
-      'user@example.com',
-      undefined
-    );
   });
 
   test('should create payment for standard tier (999 RUB, 15 photos)', async () => {
     const { POST } = await import('@/app/api/payment/create/route');
-    const tbank = await import('@/lib/tbank');
 
-    mockSql.mockResolvedValueOnce([{ id: 1, device_id: 'device-123' }]);
-    mockSql.mockResolvedValueOnce([]);
-
-    (tbank.initPayment as jest.Mock).mockResolvedValueOnce({
+    (findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 1, telegram_user_id: 123456 });
+    (initPayment as jest.Mock).mockResolvedValueOnce({
       Success: true,
       PaymentId: 'pay-123',
       PaymentURL: 'https://securepay.tinkoff.ru/new/pay-123',
     });
+    (mockSql as jest.Mock).mockResolvedValue([{ id: 1 }]);
 
     const request = new NextRequest('http://localhost:3000/api/payment/create', {
       method: 'POST',
       body: JSON.stringify({
-        deviceId: 'device-123',
+        telegramUserId: 123456,
         tierId: 'standard',
+        email: 'user@example.com',
       }),
     });
 
-    await POST(request);
+    const response = await POST(request);
+    expect(response.status).toBe(200);
 
-    expect(tbank.initPayment).toHaveBeenCalledWith(
-      999,
-      expect.any(String),
-      expect.stringContaining('15 AI Photos'),
-      expect.any(String),
-      expect.any(String),
-      expect.any(String),
-      undefined,
-      undefined
+    // Verify initPayment was called with standard tier amount (999)
+    expect(initPayment).toHaveBeenCalledWith(
+      999, // amount
+      expect.any(String), // orderId
+      expect.stringContaining('15 AI Photos'), // description
+      expect.any(String), // successUrl
+      expect.any(String), // failUrl
+      expect.any(String), // notificationUrl
+      'user@example.com', // email
+      undefined, // paymentMethod
+      expect.any(Object), // receipt
     );
   });
 
-  test('should create payment for premium tier (1499 RUB, 23 photos) as default', async () => {
+  test('should create payment for premium tier (1499 RUB) as default', async () => {
     const { POST } = await import('@/app/api/payment/create/route');
-    const tbank = await import('@/lib/tbank');
 
-    mockSql.mockResolvedValueOnce([{ id: 1, device_id: 'device-123' }]);
-    mockSql.mockResolvedValueOnce([]);
-
-    (tbank.initPayment as jest.Mock).mockResolvedValueOnce({
+    (findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 1, telegram_user_id: 123456 });
+    (initPayment as jest.Mock).mockResolvedValueOnce({
       Success: true,
       PaymentId: 'pay-123',
       PaymentURL: 'https://securepay.tinkoff.ru/new/pay-123',
     });
+    (mockSql as jest.Mock).mockResolvedValue([{ id: 1 }]);
 
     const request = new NextRequest('http://localhost:3000/api/payment/create', {
       method: 'POST',
       body: JSON.stringify({
-        deviceId: 'device-123',
+        telegramUserId: 123456,
+        email: 'user@example.com',
         // No tierId - should default to premium
       }),
     });
 
-    await POST(request);
-
-    expect(tbank.initPayment).toHaveBeenCalledWith(
-      1499,
-      expect.any(String),
-      expect.stringContaining('23 AI Photos'),
-      expect.any(String),
-      expect.any(String),
-      expect.any(String),
-      undefined,
-      undefined
-    );
-  });
-
-  test('should reject invalid tier', async () => {
-    const { POST } = await import('@/app/api/payment/create/route');
-
-    mockSql.mockResolvedValueOnce([{ id: 1, device_id: 'device-123' }]);
-
-    const request = new NextRequest('http://localhost:3000/api/payment/create', {
-      method: 'POST',
-      body: JSON.stringify({
-        deviceId: 'device-123',
-        tierId: 'invalid-tier',
-      }),
-    });
-
     const response = await POST(request);
-    const data = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(data.error).toContain('Invalid tier');
-  });
-
-  test('should reject missing deviceId', async () => {
-    const { POST } = await import('@/app/api/payment/create/route');
-
-    const request = new NextRequest('http://localhost:3000/api/payment/create', {
-      method: 'POST',
-      body: JSON.stringify({
-        tierId: 'starter',
-      }),
-    });
-
-    const response = await POST(request);
-    const data = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(data.error).toContain('Device ID required');
-  });
-
-  test('should create new user if not exists', async () => {
-    const { POST } = await import('@/app/api/payment/create/route');
-    const tbank = await import('@/lib/tbank');
-
-    // Mock user not found, then created
-    mockSql.mockResolvedValueOnce([]); // No existing user
-    mockSql.mockResolvedValueOnce([{ id: 2, device_id: 'new-device' }]); // Created user
-    mockSql.mockResolvedValueOnce([]); // Payment insert
-
-    (tbank.initPayment as jest.Mock).mockResolvedValueOnce({
-      Success: true,
-      PaymentId: 'pay-123',
-      PaymentURL: 'https://securepay.tinkoff.ru/new/pay-123',
-    });
-
-    const request = new NextRequest('http://localhost:3000/api/payment/create', {
-      method: 'POST',
-      body: JSON.stringify({
-        deviceId: 'new-device',
-        tierId: 'starter',
-      }),
-    });
-
-    const response = await POST(request);
-
     expect(response.status).toBe(200);
-    expect(mockSql).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.stringContaining('INSERT INTO users')])
+
+    // Verify initPayment was called with premium tier amount (1499)
+    expect(initPayment).toHaveBeenCalledWith(
+      1499, // amount
+      expect.any(String), // orderId
+      expect.stringContaining('23 AI Photos'), // description
+      expect.any(String), // successUrl
+      expect.any(String), // failUrl
+      expect.any(String), // notificationUrl
+      'user@example.com', // email
+      undefined, // paymentMethod
+      expect.any(Object), // receipt
     );
   });
 
-  test('should apply referral code if provided', async () => {
+  test('should reject missing telegramUserId', async () => {
     const { POST } = await import('@/app/api/payment/create/route');
-    const tbank = await import('@/lib/tbank');
-
-    mockSql.mockResolvedValueOnce([{ id: 1, device_id: 'device-123' }]);
-    mockSql.mockResolvedValueOnce([]);
-
-    // Mock referral code application
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // No existing referral
-      .mockResolvedValueOnce({ rows: [{ user_id: 999 }] }) // Referral code owner
-      .mockResolvedValueOnce({ rows: [] }) // Insert referral
-      .mockResolvedValueOnce({ rows: [] }); // Update balance
-
-    (tbank.initPayment as jest.Mock).mockResolvedValueOnce({
-      Success: true,
-      PaymentId: 'pay-123',
-      PaymentURL: 'https://securepay.tinkoff.ru/new/pay-123',
-    });
 
     const request = new NextRequest('http://localhost:3000/api/payment/create', {
       method: 'POST',
       body: JSON.stringify({
-        deviceId: 'device-123',
         tierId: 'starter',
+        email: 'user@example.com',
+      }),
+    });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toContain('telegramUserId');
+  });
+
+  test('should reject missing email (54-ФЗ requirement)', async () => {
+    const { POST } = await import('@/app/api/payment/create/route');
+
+    (findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 1, telegram_user_id: 123456 });
+
+    const request = new NextRequest('http://localhost:3000/api/payment/create', {
+      method: 'POST',
+      body: JSON.stringify({
+        telegramUserId: 123456,
+        tierId: 'starter',
+        // No email
+      }),
+    });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toContain('Email');
+  });
+
+  test('should handle referral code', async () => {
+    const { POST } = await import('@/app/api/payment/create/route');
+
+    (findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 1, telegram_user_id: 123456 });
+    (initPayment as jest.Mock).mockResolvedValueOnce({
+      Success: true,
+      PaymentId: 'pay-123',
+      PaymentURL: 'https://securepay.tinkoff.ru/new/pay-123',
+    });
+    (mockSql as jest.Mock).mockResolvedValue([]);
+
+    const request = new NextRequest('http://localhost:3000/api/payment/create', {
+      method: 'POST',
+      body: JSON.stringify({
+        telegramUserId: 123456,
+        tierId: 'starter',
+        email: 'user@example.com',
         referralCode: 'FRIEND123',
       }),
     });
 
-    await POST(request);
-
-    // Verify referral queries were made
-    expect(mockQuery).toHaveBeenCalled();
-  });
-
-  test('should return 503 when credentials not configured', async () => {
-    // Mock HAS_CREDENTIALS = false
-    jest.doMock('@/lib/tbank', () => ({
-      initPayment: jest.fn(),
-      HAS_CREDENTIALS: false,
-      IS_TEST_MODE: false,
-    }));
-
-    const { POST } = await import('@/app/api/payment/create/route');
-
-    mockSql.mockResolvedValueOnce([{ id: 1, device_id: 'device-123' }]);
-
-    const request = new NextRequest('http://localhost:3000/api/payment/create', {
-      method: 'POST',
-      body: JSON.stringify({
-        deviceId: 'device-123',
-        tierId: 'starter',
-      }),
-    });
-
     const response = await POST(request);
-    const data = await response.json();
-
-    expect(response.status).toBe(503);
-    expect(data.error).toContain('not configured');
+    expect(response.status).toBe(200);
   });
 
   test('should handle T-Bank API errors', async () => {
     const { POST } = await import('@/app/api/payment/create/route');
-    const tbank = await import('@/lib/tbank');
 
-    mockSql.mockResolvedValueOnce([{ id: 1, device_id: 'device-123' }]);
-
-    (tbank.initPayment as jest.Mock).mockRejectedValueOnce(
+    (findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 1, telegram_user_id: 123456 });
+    (initPayment as jest.Mock).mockRejectedValueOnce(
       new Error('T-Bank error 9999: Invalid terminal key')
     );
 
     const request = new NextRequest('http://localhost:3000/api/payment/create', {
       method: 'POST',
       body: JSON.stringify({
-        deviceId: 'device-123',
+        telegramUserId: 123456,
         tierId: 'starter',
+        email: 'user@example.com',
       }),
     });
 
     const response = await POST(request);
-    const data = await response.json();
-
     expect(response.status).toBe(500);
-    expect(data.error).toContain('Invalid terminal key');
-  });
-
-  test('should generate unique OrderId format', async () => {
-    const { POST } = await import('@/app/api/payment/create/route');
-    const tbank = await import('@/lib/tbank');
-
-    mockSql.mockResolvedValueOnce([{ id: 42, device_id: 'device-123' }]);
-    mockSql.mockResolvedValueOnce([]);
-
-    (tbank.initPayment as jest.Mock).mockResolvedValueOnce({
-      Success: true,
-      PaymentId: 'pay-123',
-      PaymentURL: 'https://securepay.tinkoff.ru/new/pay-123',
-    });
-
-    const request = new NextRequest('http://localhost:3000/api/payment/create', {
-      method: 'POST',
-      body: JSON.stringify({
-        deviceId: 'device-123',
-        tierId: 'starter',
-      }),
-    });
-
-    await POST(request);
-
-    const orderId = (tbank.initPayment as jest.Mock).mock.calls[0][1];
-    expect(orderId).toMatch(/^u\d+t[a-z0-9]+$/); // Format: u{userId}t{timestamp}
-    expect(orderId.length).toBeLessThanOrEqual(20); // T-Bank limit
   });
 });
 
-// NOTE: These tests use outdated device_id auth - comprehensive tests in tests/unit/api/payment/status.test.ts
-describe.skip('GET /api/payment/status - DEPRECATED', () => {
-  test('should return payment status for device_id', async () => {
+describe('GET /api/payment/status', () => {
+  test('should return payment status for telegram_user_id', async () => {
     const { GET } = await import('@/app/api/payment/status/route');
-    const tbank = await import('@/lib/tbank');
 
-    mockSql.mockResolvedValueOnce([{ id: 1, device_id: 'device-123' }]); // User
-    mockSql.mockResolvedValueOnce([
-      { tbank_payment_id: 'pay-123', status: 'pending' },
-    ]); // Latest payment
+    (findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 1, telegram_user_id: 123456 });
+    (mockSql as jest.Mock)
+      .mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }]);
 
-    (tbank.getPaymentState as jest.Mock).mockResolvedValueOnce({
+    (getPaymentState as jest.Mock).mockResolvedValueOnce({
       Success: true,
       Status: 'CONFIRMED',
       PaymentId: 'pay-123',
     });
 
     const request = new NextRequest(
-      'http://localhost:3000/api/payment/status?device_id=device-123'
+      'http://localhost:3000/api/payment/status?telegram_user_id=123456'
     );
 
     const response = await GET(request);
@@ -385,118 +275,30 @@ describe.skip('GET /api/payment/status - DEPRECATED', () => {
     expect(data.status).toBe('succeeded');
   });
 
-  test('should return payment status with explicit payment_id', async () => {
-    const { GET } = await import('@/app/api/payment/status/route');
-    const tbank = await import('@/lib/tbank');
-
-    mockSql.mockResolvedValueOnce([{ id: 1, device_id: 'device-123' }]);
-
-    (tbank.getPaymentState as jest.Mock).mockResolvedValueOnce({
-      Success: true,
-      Status: 'CONFIRMED',
-      PaymentId: 'pay-123',
-    });
-
-    const request = new NextRequest(
-      'http://localhost:3000/api/payment/status?device_id=device-123&payment_id=pay-123'
-    );
-
-    const response = await GET(request);
-    const data = await response.json();
-
-    expect(data.paid).toBe(true);
-    expect(data.status).toBe('succeeded');
-  });
-
-  test('should handle AUTHORIZED status as success', async () => {
-    const { GET } = await import('@/app/api/payment/status/route');
-    const tbank = await import('@/lib/tbank');
-
-    mockSql.mockResolvedValueOnce([{ id: 1, device_id: 'device-123' }]);
-    mockSql.mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }]);
-
-    (tbank.getPaymentState as jest.Mock).mockResolvedValueOnce({
-      Success: true,
-      Status: 'AUTHORIZED',
-      PaymentId: 'pay-123',
-    });
-
-    const request = new NextRequest(
-      'http://localhost:3000/api/payment/status?device_id=device-123'
-    );
-
-    const response = await GET(request);
-    const data = await response.json();
-
-    expect(data.paid).toBe(true);
-    expect(data.status).toBe('succeeded');
-  });
-
   test('should return pending for NEW status', async () => {
     const { GET } = await import('@/app/api/payment/status/route');
-    const tbank = await import('@/lib/tbank');
 
-    mockSql.mockResolvedValueOnce([{ id: 1, device_id: 'device-123' }]);
-    mockSql.mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }]);
+    (findOrCreateUser as jest.Mock).mockResolvedValueOnce({ id: 1, telegram_user_id: 123456 });
+    (mockSql as jest.Mock)
+      .mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }]);
 
-    (tbank.getPaymentState as jest.Mock).mockResolvedValueOnce({
+    (getPaymentState as jest.Mock).mockResolvedValueOnce({
       Success: true,
       Status: 'NEW',
       PaymentId: 'pay-123',
     });
 
     const request = new NextRequest(
-      'http://localhost:3000/api/payment/status?device_id=device-123'
+      'http://localhost:3000/api/payment/status?telegram_user_id=123456'
     );
 
     const response = await GET(request);
     const data = await response.json();
 
     expect(data.paid).toBe(false);
-    expect(data.status).toBe('new');
   });
 
-  test('should return immediately if payment already succeeded in DB', async () => {
-    const { GET } = await import('@/app/api/payment/status/route');
-    const tbank = await import('@/lib/tbank');
-
-    mockSql.mockResolvedValueOnce([{ id: 1, device_id: 'device-123' }]);
-    mockSql.mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'succeeded' }]);
-
-    const request = new NextRequest(
-      'http://localhost:3000/api/payment/status?device_id=device-123'
-    );
-
-    const response = await GET(request);
-    const data = await response.json();
-
-    expect(data.paid).toBe(true);
-    expect(data.status).toBe('succeeded');
-    expect(tbank.getPaymentState).not.toHaveBeenCalled(); // Should not check T-Bank
-  });
-
-  test('should fall back to DB status if T-Bank unavailable', async () => {
-    const { GET } = await import('@/app/api/payment/status/route');
-    const tbank = await import('@/lib/tbank');
-
-    mockSql.mockResolvedValueOnce([{ id: 1, device_id: 'device-123' }]);
-    mockSql.mockResolvedValueOnce([{ tbank_payment_id: 'pay-123', status: 'pending' }]);
-    mockSql.mockResolvedValueOnce([{ status: 'succeeded' }]); // DB fallback
-
-    (tbank.getPaymentState as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
-
-    const request = new NextRequest(
-      'http://localhost:3000/api/payment/status?device_id=device-123'
-    );
-
-    const response = await GET(request);
-    const data = await response.json();
-
-    expect(data.paid).toBe(true);
-    expect(data.status).toBe('succeeded');
-  });
-
-  test('should require device_id parameter', async () => {
+  test('should require telegram_user_id parameter', async () => {
     const { GET } = await import('@/app/api/payment/status/route');
 
     const request = new NextRequest('http://localhost:3000/api/payment/status');
@@ -505,57 +307,27 @@ describe.skip('GET /api/payment/status - DEPRECATED', () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toContain('Device ID required');
-  });
-
-  test('should create user if not exists', async () => {
-    const { GET } = await import('@/app/api/payment/status/route');
-
-    mockSql.mockResolvedValueOnce([]); // No user
-    mockSql.mockResolvedValueOnce([{ id: 1, device_id: 'new-device' }]); // Created user
-    mockSql.mockResolvedValueOnce([]); // No payments
-
-    const request = new NextRequest(
-      'http://localhost:3000/api/payment/status?device_id=new-device'
-    );
-
-    const response = await GET(request);
-    const data = await response.json();
-
-    expect(data.paid).toBe(false);
-    expect(data.status).toBe('no_payment');
-  });
-
-  test('should handle DATABASE_URL not configured', async () => {
-    delete process.env.DATABASE_URL;
-    jest.resetModules();
-
-    const { GET } = await import('@/app/api/payment/status/route');
-
-    const request = new NextRequest(
-      'http://localhost:3000/api/payment/status?device_id=device-123'
-    );
-
-    const response = await GET(request);
-    const data = await response.json();
-
-    expect(data.paid).toBe(false);
-    expect(data.testMode).toBe(true);
+    expect(data.error).toBeDefined();
   });
 });
 
-// NOTE: These tests have outdated mocks (webhook_logs not mocked, refund handling changed)
-// Comprehensive webhook tests are in tests/unit/api/payment/webhook.test.ts
-describe.skip('POST /api/payment/webhook - DEPRECATED', () => {
+describe('POST /api/payment/webhook', () => {
   test('should process CONFIRMED webhook', async () => {
     const { POST } = await import('@/app/api/payment/webhook/route');
-    const tbank = await import('@/lib/tbank');
 
-    (tbank.verifyWebhookSignature as jest.Mock).mockReturnValueOnce(true);
-
-    mockSql.mockResolvedValueOnce([]); // Update payment
-    mockSql.mockResolvedValueOnce([{ user_id: 1 }]); // Get payment
-    mockQuery.mockResolvedValueOnce({ rows: [] }); // No referral
+    (verifyWebhookSignature as jest.Mock).mockReturnValue(true);
+    
+    // Mock sql template literal - it's called as tagged template
+    const mockSqlFn = jest.fn()
+      .mockResolvedValueOnce(undefined) // INSERT INTO webhook_logs (async, non-blocking)
+      .mockResolvedValueOnce([{ id: 1, user_id: 1, status: 'pending' }]) // SELECT from payments
+      .mockResolvedValueOnce([{ id: 1, user_id: 1 }]); // UPDATE payments RETURNING
+    
+    // Mock query function for referral
+    (mockQuery as jest.Mock).mockResolvedValue({ rows: [] }); // No referrer
+    
+    // Replace the mock
+    (mockSql as jest.Mock).mockImplementation((...args: unknown[]) => mockSqlFn(...args));
 
     const request = new NextRequest('http://localhost:3000/api/payment/webhook', {
       method: 'POST',
@@ -571,46 +343,20 @@ describe.skip('POST /api/payment/webhook - DEPRECATED', () => {
     });
 
     const response = await POST(request);
-    const data = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(data.success).toBe(true);
-    expect(mockSql).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.stringContaining('succeeded')])
-    );
-  });
-
-  test('should process AUTHORIZED webhook as success', async () => {
-    const { POST } = await import('@/app/api/payment/webhook/route');
-    const tbank = await import('@/lib/tbank');
-
-    (tbank.verifyWebhookSignature as jest.Mock).mockReturnValueOnce(true);
-
-    mockSql.mockResolvedValueOnce([]);
-    mockSql.mockResolvedValueOnce([{ user_id: 1 }]);
-    mockQuery.mockResolvedValueOnce({ rows: [] });
-
-    const request = new NextRequest('http://localhost:3000/api/payment/webhook', {
-      method: 'POST',
-      body: JSON.stringify({
-        Status: 'AUTHORIZED',
-        PaymentId: 'pay-123',
-        Token: 'valid-token',
-      }),
-    });
-
-    const response = await POST(request);
-
     expect(response.status).toBe(200);
   });
 
   test('should process REJECTED webhook', async () => {
     const { POST } = await import('@/app/api/payment/webhook/route');
-    const tbank = await import('@/lib/tbank');
 
-    (tbank.verifyWebhookSignature as jest.Mock).mockReturnValueOnce(true);
-
-    mockSql.mockResolvedValueOnce([]);
+    (verifyWebhookSignature as jest.Mock).mockReturnValue(true);
+    
+    const mockSqlFn = jest.fn()
+      .mockResolvedValueOnce(undefined) // INSERT INTO webhook_logs
+      .mockResolvedValueOnce([{ id: 1, user_id: 1, status: 'pending' }]) // SELECT from payments
+      .mockResolvedValueOnce([{ id: 1 }]); // UPDATE payments
+    
+    (mockSql as jest.Mock).mockImplementation((...args: unknown[]) => mockSqlFn(...args));
 
     const request = new NextRequest('http://localhost:3000/api/payment/webhook', {
       method: 'POST',
@@ -622,18 +368,16 @@ describe.skip('POST /api/payment/webhook - DEPRECATED', () => {
     });
 
     const response = await POST(request);
-
     expect(response.status).toBe(200);
-    expect(mockSql).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.stringContaining('canceled')])
-    );
   });
 
   test('should reject invalid signature', async () => {
     const { POST } = await import('@/app/api/payment/webhook/route');
-    const tbank = await import('@/lib/tbank');
 
-    (tbank.verifyWebhookSignature as jest.Mock).mockReturnValueOnce(false);
+    (verifyWebhookSignature as jest.Mock).mockReturnValue(false);
+    
+    // Mock sql for webhook_logs insert (called before signature check)
+    (mockSql as jest.Mock).mockResolvedValue(undefined);
 
     const request = new NextRequest('http://localhost:3000/api/payment/webhook', {
       method: 'POST',
@@ -648,132 +392,6 @@ describe.skip('POST /api/payment/webhook - DEPRECATED', () => {
     const data = await response.json();
 
     expect(response.status).toBe(403);
-    expect(data.error).toContain('Invalid signature');
-  });
-
-  test('should calculate referral earning (10% of payment)', async () => {
-    const { POST } = await import('@/app/api/payment/webhook/route');
-    const tbank = await import('@/lib/tbank');
-
-    (tbank.verifyWebhookSignature as jest.Mock).mockReturnValueOnce(true);
-
-    // 1. Check payment exists
-    mockSql.mockResolvedValueOnce([{ id: 1, user_id: 2, status: 'pending' }]);
-    // 2. Update payment status
-    mockSql.mockResolvedValueOnce([{ id: 1, user_id: 2 }]);
-
-    const request = new NextRequest('http://localhost:3000/api/payment/webhook', {
-      method: 'POST',
-      body: JSON.stringify({
-        Status: 'CONFIRMED',
-        PaymentId: 'pay-123',
-        Token: 'valid-token',
-      }),
-    });
-
-    const response = await POST(request);
-
-    expect(response.status).toBe(200);
-  });
-
-  test('should prevent duplicate earning (idempotency)', async () => {
-    const { POST } = await import('@/app/api/payment/webhook/route');
-    const tbank = await import('@/lib/tbank');
-
-    (tbank.verifyWebhookSignature as jest.Mock).mockReturnValueOnce(true);
-
-    // 1. Check payment exists
-    mockSql.mockResolvedValueOnce([{ id: 1, user_id: 2, status: 'pending' }]);
-    // 2. Update returns empty (already processed - duplicate webhook)
-    mockSql.mockResolvedValueOnce([]);
-
-    const request = new NextRequest('http://localhost:3000/api/payment/webhook', {
-      method: 'POST',
-      body: JSON.stringify({
-        Status: 'CONFIRMED',
-        PaymentId: 'pay-123',
-        Token: 'valid-token',
-      }),
-    });
-
-    const response = await POST(request);
-
-    // Duplicate webhook should still return 200
-    expect(response.status).toBe(200);
-  });
-
-  test('should handle webhook for user without referrer', async () => {
-    const { POST } = await import('@/app/api/payment/webhook/route');
-    const tbank = await import('@/lib/tbank');
-
-    (tbank.verifyWebhookSignature as jest.Mock).mockReturnValueOnce(true);
-
-    // 1. Check payment exists
-    mockSql.mockResolvedValueOnce([{ id: 1, user_id: 2, status: 'pending' }]);
-    // 2. Update payment status
-    mockSql.mockResolvedValueOnce([{ id: 1, user_id: 2 }]);
-
-    const request = new NextRequest('http://localhost:3000/api/payment/webhook', {
-      method: 'POST',
-      body: JSON.stringify({
-        Status: 'CONFIRMED',
-        PaymentId: 'pay-123',
-        Token: 'valid-token',
-      }),
-    });
-
-    const response = await POST(request);
-
-    expect(response.status).toBe(200);
-  });
-
-  test('should handle REFUNDED webhook status', async () => {
-    const { POST } = await import('@/app/api/payment/webhook/route');
-    const tbank = await import('@/lib/tbank');
-
-    (tbank.verifyWebhookSignature as jest.Mock).mockReturnValueOnce(true);
-
-    // Webhook logs + Check payment exists + Update to refunded
-    mockSql.mockResolvedValueOnce([]); // webhook_logs INSERT (non-blocking .catch)
-    mockSql.mockResolvedValueOnce([{ id: 1, user_id: 2, status: 'succeeded' }]); // Check
-    mockSql.mockResolvedValueOnce([]); // Update
-
-    const request = new NextRequest('http://localhost:3000/api/payment/webhook', {
-      method: 'POST',
-      body: JSON.stringify({
-        Status: 'REFUNDED',
-        PaymentId: 'pay-123',
-        Token: 'valid-token',
-      }),
-    });
-
-    const response = await POST(request);
-
-    expect(response.status).toBe(200);
-  });
-
-  test('should handle referral processing errors gracefully', async () => {
-    const { POST } = await import('@/app/api/payment/webhook/route');
-    const tbank = await import('@/lib/tbank');
-
-    (tbank.verifyWebhookSignature as jest.Mock).mockReturnValueOnce(true);
-
-    mockSql.mockResolvedValueOnce([]);
-    mockSql.mockResolvedValueOnce([{ user_id: 2 }]);
-    mockQuery.mockRejectedValueOnce(new Error('DB error')); // Referral fails
-
-    const request = new NextRequest('http://localhost:3000/api/payment/webhook', {
-      method: 'POST',
-      body: JSON.stringify({
-        Status: 'CONFIRMED',
-        PaymentId: 'pay-123',
-        Token: 'valid-token',
-      }),
-    });
-
-    const response = await POST(request);
-
-    // Should still return success - referral is not critical
-    expect(response.status).toBe(200);
+    expect(data.error).toContain('signature');
   });
 });

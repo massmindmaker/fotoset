@@ -1,5 +1,3 @@
-require('dotenv').config({ path: '.env.local' });
-
 /** @type {import('jest').Config} */
 const config = {
   displayName: 'integration',

@@ -1,8 +1,7 @@
 /**
  * Integration Test Setup
  *
- * Configures database connection and environment for tests
- * NOTE: Each test file manages its own data cleanup
+ * Configures database connection, test data seeding, and cleanup
  */
 
 import { neon, NeonQueryFunction } from '@neondatabase/serverless';
@@ -19,17 +18,43 @@ beforeAll(async () => {
     throw new Error('DATABASE_URL or TEST_DATABASE_URL must be set for integration tests');
   }
 
+  // neon() returns a query function for serverless use
   testDb = neon(databaseUrl);
-
-  console.log('[Test Setup] Database connection initialized');
 });
 
 // Cleanup after all tests
 afterAll(async () => {
-  // neon serverless doesn't need explicit close
-  // Connection is closed automatically after each query
-  console.log('[Test Setup] Test suite completed');
+  // neon() connections are stateless, no explicit close needed
 });
+
+// Reset database state before each test
+beforeEach(async () => {
+  // Truncate tables (preserving schema)
+  await testDb`TRUNCATE TABLE generation_jobs, generated_photos, payments, avatars, users RESTART IDENTITY CASCADE`;
+
+  // Seed with minimal test data if needed
+  // await seedTestData(testDb);
+});
+
+// Helper function to seed test data
+async function seedTestData(db: NeonQueryFunction<false, false>) {
+  // Insert test users
+  await db`
+    INSERT INTO users (device_id, is_pro)
+    VALUES
+      ('test-device-1', false),
+      ('test-device-2', true),
+      ('test-device-3', false)
+  `;
+
+  // Insert test avatars
+  await db`
+    INSERT INTO avatars (user_id, name, status, thumbnail_url)
+    VALUES
+      (2, 'Test Avatar 1', 'ready', 'https://example.com/thumb1.jpg'),
+      (2, 'Test Avatar 2', 'processing', null)
+  `;
+}
 
 // Export database instance for tests
 export { testDb };
