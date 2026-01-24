@@ -11,6 +11,8 @@ const eslintConfig = [
           ...config.rules,
           "react-hooks/purity": "warn",
           "react-hooks/set-state-in-effect": "warn",
+          "react-hooks/static-components": "warn",
+          "react-hooks/immutability": "warn",
         },
       };
     }
@@ -22,6 +24,8 @@ const eslintConfig = [
       "test-results/**",
       "node_modules/**",
       ".next/**",
+      "scripts/**",
+      "eslint-rules/**",
     ],
   },
   // PinGlass custom anti-pattern rules

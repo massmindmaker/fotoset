@@ -144,6 +144,7 @@ const Expandable = React.forwardRef<HTMLDivElement, ExpandableProps>(
     )
   }
 )
+Expandable.displayName = "Expandable"
 
 // Simplify animation types
 type AnimationPreset = {
@@ -347,6 +348,7 @@ const ExpandableContent = React.forwardRef<
     )
   }
 )
+ExpandableContent.displayName = "ExpandableContent"
 
 interface ExpandableCardProps {
   children: ReactNode
