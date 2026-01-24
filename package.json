@@ -88,7 +88,7 @@
     "tailwindcss": "^4.1.9",
     "ts-jest": "^29.4.6",
     "typescript": "^5",
-    "undici": "^6.0.0"
+    "undici": "^6.23.0"
   },
   "overrides": {
     "@sentry/nextjs": {
