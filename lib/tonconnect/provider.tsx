@@ -11,6 +11,22 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
 
+/**
+ * Validate TON address format
+ * Supports both user-friendly (EQ/UQ) and raw (workchain:hex) formats
+ */
+export function isValidTonAddress(address: string | null | undefined): boolean {
+  // Handle null/undefined/non-string values
+  if (!address || typeof address !== 'string') return false
+
+  // User-friendly format: EQ... or UQ... (48 chars base64)
+  const userFriendlyRegex = /^[EU]Q[A-Za-z0-9_-]{46}$/
+  // Raw format: -1:... or 0:... (workchain:hex, 64 chars hex part)
+  const rawRegex = /^-?[0-9]+:[a-fA-F0-9]{64}$/
+
+  return userFriendlyRegex.test(address) || rawRegex.test(address)
+}
+
 // Manifest URL
 const MANIFEST_URL = 'https://fotoset.vercel.app/tonconnect-manifest.json'
 
