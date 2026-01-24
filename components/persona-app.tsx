@@ -14,7 +14,15 @@ import { PRICING_TIERS } from "./views/dashboard-view"
 // Import custom hooks
 import { useAuth, useAvatars, useGeneration, usePayment, usePolling, useSync, usePricing } from "./hooks"
 import { useNetworkStatus } from "@/lib/network-status"
-import { useSession } from "@/lib/auth/client"
+
+// Safe useSession wrapper - Neon Auth may not be configured for test environment
+let useSessionSafe: () => { data: unknown; isPending: boolean }
+try {
+  const { useSession } = require("@/lib/auth/client")
+  useSessionSafe = useSession
+} catch {
+  useSessionSafe = () => ({ data: null, isPending: false })
+}
 
 // Import error handling components
 import { ErrorModal, OfflineBanner } from "./error-modal"
@@ -107,7 +115,7 @@ const ReferralPanel = lazy(() => import("./referral-panel").then((m) => ({ defau
 export default function PersonaApp() {
   // Custom hooks
   const { userIdentifier, authStatus, telegramUserId, isWebUser, isTelegramUser, neonUserId, theme, toggleTheme, showMessage, setWebUser, hapticImpact, hapticNotification, hapticSelection } = useAuth()
-  const { data: neonSession, isPending: isNeonAuthPending } = useSession() // Neon Auth session for web users
+  const { data: neonSession, isPending: isNeonAuthPending } = useSessionSafe() // Neon Auth session for web users
   const { personas, setPersonas, loadAvatarsFromServer, createPersona, updatePersona, deletePersona, getPersona } = useAvatars()
   const { isGenerating, setIsGenerating, generationProgress, setGenerationProgress, fileToBase64 } = useGeneration()
   const { isPaymentOpen, setIsPaymentOpen, selectedTier, setSelectedTier } = usePayment()
@@ -401,26 +409,27 @@ export default function PersonaApp() {
   // NOTE: Removed viewState.view and personas.length from deps to prevent infinite loops
   // These values are checked inside but shouldn't trigger re-runs
   useEffect(() => {
+    const session = neonSession as { user?: { id?: string; email?: string } } | null
     console.log('[Auth] Neon session check:', {
       isPending: isNeonAuthPending,
-      hasSession: !!neonSession,
-      hasUser: !!neonSession?.user,
-      userId: neonSession?.user?.id,
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      userId: session?.user?.id,
       authStatus,
     })
 
     if (isNeonAuthPending) return // Wait for session to load
 
     // Check if user logged in via Neon Auth (web version)
-    if (neonSession?.user?.id) {
+    if (session?.user?.id) {
       // CRITICAL: Set web user identity in useAuth hook
       // This creates userIdentifier which triggers avatar loading in main useEffect
-      setWebUser(neonSession.user.id, neonSession.user.email ?? undefined)
+      setWebUser(session.user.id, session.user.email ?? undefined)
 
       const urlParams = new URLSearchParams(window.location.search)
       const isAuthCallback = urlParams.get('auth') === 'success'
 
-      console.log('[Auth] Neon user found:', neonSession.user.email, 'isCallback:', isAuthCallback)
+      console.log('[Auth] Neon user found:', session.user.email, 'isCallback:', isAuthCallback)
 
       if (isAuthCallback) {
         console.log('[Auth] Neon Auth success callback, redirecting to DASHBOARD')
