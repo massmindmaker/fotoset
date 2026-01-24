@@ -154,11 +154,12 @@ describe("user-identity", () => {
       ).rejects.toThrow("Invalid telegram_user_id format: must be a valid number")
     })
 
-    it("should throw error for NaN telegramUserId", async () => {
+    it("should throw error for NaN telegramUserId (treated as missing)", async () => {
+      // NaN is falsy in JavaScript, so it's treated as missing
       await expect(
         // @ts-expect-error Testing invalid input
         findOrCreateUser({ telegramUserId: NaN })
-      ).rejects.toThrow("Invalid telegram_user_id format: must be a valid number")
+      ).rejects.toThrow("Either telegramUserId or neonUserId is required")
     })
 
     it("should throw error when sql result is empty", async () => {
@@ -221,12 +222,14 @@ describe("user-identity", () => {
       const identifier: UserIdentifier = {
         type: "telegram",
         telegramUserId: 123456789,
+        visibleUserId: 42,  // Required for buildIdentifierParams
       }
 
       const params = buildIdentifierParams(identifier)
       const serialized = params.toString()
 
-      expect(serialized).toBe("telegram_user_id=123456789")
+      // buildIdentifierParams always includes user_id as fallback
+      expect(serialized).toBe("telegram_user_id=123456789&user_id=42")
     })
   })
 
@@ -274,7 +277,7 @@ describe("user-identity", () => {
           // @ts-expect-error Testing invalid input
           telegramUserId: "invalid",
         })
-      ).toThrow("telegram_user_id is required")
+      ).toThrow("Either telegram_user_id or neon_user_id is required")
     })
 
     it("should prefer telegram_user_id when both fields present", () => {
@@ -300,7 +303,7 @@ describe("user-identity", () => {
         extractIdentifierFromRequest({
           telegram_user_id: "abc",
         })
-      ).toThrow("telegram_user_id is required")
+      ).toThrow("Either telegram_user_id or neon_user_id is required")
     })
 
     it("should throw on NaN result", () => {
@@ -308,12 +311,12 @@ describe("user-identity", () => {
         extractIdentifierFromRequest({
           telegram_user_id: NaN,
         })
-      ).toThrow("telegram_user_id is required")
+      ).toThrow("Either telegram_user_id or neon_user_id is required")
     })
 
     it("should throw when both fields missing", () => {
       expect(() => extractIdentifierFromRequest({})).toThrow(
-        "telegram_user_id is required"
+        "Either telegram_user_id or neon_user_id is required"
       )
     })
 
@@ -322,7 +325,7 @@ describe("user-identity", () => {
         extractIdentifierFromRequest({
           telegram_user_id: null,
         })
-      ).toThrow("telegram_user_id is required")
+      ).toThrow("Either telegram_user_id or neon_user_id is required")
     })
 
     it("should throw when telegramUserId is null", () => {
@@ -330,7 +333,7 @@ describe("user-identity", () => {
         extractIdentifierFromRequest({
           telegramUserId: null,
         })
-      ).toThrow("telegram_user_id is required")
+      ).toThrow("Either telegram_user_id or neon_user_id is required")
     })
 
     it("should throw when both fields are null", () => {
@@ -339,7 +342,7 @@ describe("user-identity", () => {
           telegram_user_id: null,
           telegramUserId: null,
         })
-      ).toThrow("telegram_user_id is required")
+      ).toThrow("Either telegram_user_id or neon_user_id is required")
     })
 
     it("should reject zero ID (0) due to falsy check - KNOWN BUG", () => {
@@ -350,7 +353,7 @@ describe("user-identity", () => {
         extractIdentifierFromRequest({
           telegram_user_id: 0,
         })
-      ).toThrow("telegram_user_id is required")
+      ).toThrow("Either telegram_user_id or neon_user_id is required")
     })
 
     it("should parse negative ID correctly", () => {
@@ -363,7 +366,7 @@ describe("user-identity", () => {
 
     it("should throw on empty object", () => {
       expect(() => extractIdentifierFromRequest({})).toThrow(
-        "telegram_user_id is required"
+        "Either telegram_user_id or neon_user_id is required"
       )
     })
   })

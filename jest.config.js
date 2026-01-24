@@ -10,6 +10,7 @@ module.exports = {
     '/node_modules/',
     '/tests/e2e/',
     '/tests/integration/',
+    '/tests/unit/web-users/', // Neon Auth removed, web-only tests deprecated
     '/.openchamber/',
     '/.opencode/',
     '/.next/',

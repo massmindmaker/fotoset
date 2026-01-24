@@ -163,8 +163,8 @@ describe("GET /api/avatars/[id]", () => {
       expect(data.error.code).toBe("VALIDATION_ERROR")
     })
 
-    it("should return 401 when telegram_user_id is missing", async () => {
-      mockGetUserIdentifier.mockReturnValueOnce({ telegramUserId: undefined })
+    it("should return 401 when telegram_user_id or neon_user_id is missing", async () => {
+      mockGetUserIdentifier.mockReturnValueOnce({ telegramUserId: undefined, neonUserId: undefined })
 
       const request = createRequest("/api/avatars/1")
       const params = createParams(1)
@@ -174,6 +174,7 @@ describe("GET /api/avatars/[id]", () => {
 
       expect(response.status).toBe(401)
       expect(data.error.code).toBe("UNAUTHORIZED")
+      expect(data.error.message).toContain("telegram_user_id or neon_user_id is required")
     })
   })
 
@@ -323,8 +324,8 @@ describe("PATCH /api/avatars/[id]", () => {
       expect(data.error.code).toBe("VALIDATION_ERROR")
     })
 
-    it("should return 401 when telegram_user_id is missing", async () => {
-      mockGetUserIdentifier.mockReturnValueOnce({ telegramUserId: undefined })
+    it("should return 401 when telegram_user_id or neon_user_id is missing", async () => {
+      mockGetUserIdentifier.mockReturnValueOnce({ telegramUserId: undefined, neonUserId: undefined })
 
       const request = createRequest("/api/avatars/1", {
         method: "PATCH",
@@ -337,6 +338,7 @@ describe("PATCH /api/avatars/[id]", () => {
 
       expect(response.status).toBe(401)
       expect(data.error.code).toBe("UNAUTHORIZED")
+      expect(data.error.message).toContain("telegram_user_id or neon_user_id is required")
     })
 
     it("should return 400 when no fields to update", async () => {
@@ -586,8 +588,8 @@ describe("DELETE /api/avatars/[id]", () => {
       expect(data.error.code).toBe("VALIDATION_ERROR")
     })
 
-    it("should return 401 when telegram_user_id is missing", async () => {
-      mockGetUserIdentifier.mockReturnValueOnce({ telegramUserId: undefined })
+    it("should return 401 when telegram_user_id or neon_user_id is missing", async () => {
+      mockGetUserIdentifier.mockReturnValueOnce({ telegramUserId: undefined, neonUserId: undefined })
 
       const request = createRequest("/api/avatars/1?telegram_user_id=", {
         method: "DELETE",
@@ -599,6 +601,7 @@ describe("DELETE /api/avatars/[id]", () => {
 
       expect(response.status).toBe(401)
       expect(data.error.code).toBe("UNAUTHORIZED")
+      expect(data.error.message).toContain("telegram_user_id or neon_user_id is required")
     })
   })
 

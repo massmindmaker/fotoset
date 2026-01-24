@@ -39,14 +39,14 @@ describe("GET /api/referral/earnings", () => {
   })
 
   describe("Validation", () => {
-    it("should return 400 when telegram_user_id is missing", async () => {
+    it("should return 400 when both telegram_user_id and neon_auth_id are missing", async () => {
       const request = createRequest("/api/referral/earnings")
 
       const response = await GET(request)
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toContain("telegram_user_id")
+      expect(data.error).toBe("telegram_user_id or neon_auth_id required")
     })
 
     it("should return 400 when telegram_user_id is NaN", async () => {

@@ -34,41 +34,33 @@ jest.mock('@tonconnect/ui-react', () => ({
 describe('TonConnectProvider', () => {
   describe('Context value structure', () => {
     it('should define wallet state interface', () => {
-      // Test the expected interface structure
+      // Test the expected interface structure (matches actual provider.tsx)
       interface WalletState {
         connected: boolean
         address: string | null
-        publicKey: string | null
-        walletName: string | null
         loading: boolean
       }
 
       const defaultState: WalletState = {
         connected: false,
         address: null,
-        publicKey: null,
-        walletName: null,
         loading: true,
       }
 
       expect(defaultState.connected).toBe(false)
       expect(defaultState.address).toBeNull()
-      expect(defaultState.publicKey).toBeNull()
-      expect(defaultState.walletName).toBeNull()
       expect(defaultState.loading).toBe(true)
     })
 
-    it('should have publicKey as null (not undefined)', () => {
+    it('should have address as null when disconnected', () => {
       const walletState = {
         connected: false,
         address: null,
-        publicKey: null, // This tests the fix from undefined → null
-        walletName: null,
         loading: false,
       }
 
-      expect(walletState.publicKey).toBeNull()
-      expect(walletState.publicKey).not.toBeUndefined()
+      expect(walletState.address).toBeNull()
+      expect(walletState.address).not.toBeUndefined()
     })
   })
 
@@ -78,8 +70,6 @@ describe('TonConnectProvider', () => {
         wallet: {
           connected: boolean
           address: string | null
-          publicKey: string | null
-          walletName: string | null
           loading: boolean
         }
         connect: () => Promise<void>
@@ -92,8 +82,6 @@ describe('TonConnectProvider', () => {
         wallet: {
           connected: false,
           address: null,
-          publicKey: null,
-          walletName: null,
           loading: false,
         },
         connect: async () => {},
@@ -127,8 +115,6 @@ describe('TonConnectProvider', () => {
         wallet: {
           connected: false,
           address: null,
-          publicKey: null,
-          walletName: null,
           loading: false,
         },
         connect: async () => {},

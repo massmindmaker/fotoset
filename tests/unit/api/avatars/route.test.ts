@@ -19,10 +19,10 @@ jest.mock("@/lib/db", () => ({
   sql: (...args: any[]) => mockSql(...args),
 }))
 
-// Mock user-identity
-const mockFindOrCreateUser = jest.fn()
-jest.mock("@/lib/user-identity", () => ({
-  findOrCreateUser: (params: any) => mockFindOrCreateUser(params),
+// Mock auth-middleware
+const mockGetAuthenticatedUser = jest.fn()
+jest.mock("@/lib/auth-middleware", () => ({
+  getAuthenticatedUser: (req: any, body?: any) => mockGetAuthenticatedUser(req, body),
 }))
 
 // Mock api-utils
@@ -120,7 +120,7 @@ describe("GET /api/avatars", () => {
   })
 
   describe("Validation", () => {
-    it("should return 401 when telegram_user_id is missing", async () => {
+    it("should return 401 when telegram_user_id or neon_user_id is missing", async () => {
       const request = createRequest("/api/avatars")
 
       const response = await GET(request)
@@ -128,6 +128,7 @@ describe("GET /api/avatars", () => {
 
       expect(response.status).toBe(401)
       expect(data.error.code).toBe("UNAUTHORIZED")
+      expect(data.error.message).toContain("telegram_user_id or neon_user_id is required")
     })
 
     it("should return 400 when telegram_user_id is invalid (NaN)", async () => {
@@ -309,7 +310,10 @@ describe("POST /api/avatars", () => {
   })
 
   describe("Validation", () => {
-    it("should return 401 when telegramUserId is missing", async () => {
+    it("should return 401 when authentication fails", async () => {
+      // Mock auth middleware returning null (no auth)
+      mockGetAuthenticatedUser.mockResolvedValueOnce(null)
+
       const request = createRequest("/api/avatars", {
         method: "POST",
         body: { name: "My Avatar" },
@@ -320,19 +324,7 @@ describe("POST /api/avatars", () => {
 
       expect(response.status).toBe(401)
       expect(data.error.code).toBe("UNAUTHORIZED")
-    })
-
-    it("should return 400 when telegramUserId is invalid (NaN)", async () => {
-      const request = createRequest("/api/avatars", {
-        method: "POST",
-        body: { telegramUserId: "invalid", name: "My Avatar" },
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(400)
-      expect(data.error.code).toBe("VALIDATION_ERROR")
+      expect(data.error.message).toContain("Authentication required")
     })
   })
 
@@ -340,7 +332,12 @@ describe("POST /api/avatars", () => {
     it("should return 429 when avatar limit (3) is reached", async () => {
       const user = createUser()
 
-      mockFindOrCreateUser.mockResolvedValueOnce(user)
+      // Mock successful auth
+      mockGetAuthenticatedUser.mockResolvedValueOnce({
+        user,
+        authMethod: "telegram",
+        telegramUserId: 123456789,
+      })
       // Avatar count = 3 (limit reached)
       mockSql.mockResolvedValueOnce([{ count: 3 }])
 
@@ -361,7 +358,12 @@ describe("POST /api/avatars", () => {
     it("should create avatar with default name", async () => {
       const user = createUser()
 
-      mockFindOrCreateUser.mockResolvedValueOnce(user)
+      // Mock successful auth
+      mockGetAuthenticatedUser.mockResolvedValueOnce({
+        user,
+        authMethod: "telegram",
+        telegramUserId: 123456789,
+      })
       // Avatar count = 0
       mockSql.mockResolvedValueOnce([{ count: 0 }])
       // Create avatar
@@ -393,7 +395,12 @@ describe("POST /api/avatars", () => {
     it("should create avatar with custom name", async () => {
       const user = createUser()
 
-      mockFindOrCreateUser.mockResolvedValueOnce(user)
+      // Mock successful auth
+      mockGetAuthenticatedUser.mockResolvedValueOnce({
+        user,
+        authMethod: "telegram",
+        telegramUserId: 123456789,
+      })
       // Avatar count = 1
       mockSql.mockResolvedValueOnce([{ count: 1 }])
       // Create avatar
@@ -418,10 +425,15 @@ describe("POST /api/avatars", () => {
       expect(data.data.name).toBe("Business Photos")
     })
 
-    it("should accept telegramUserId as number", async () => {
+    it("should accept telegramUserId from auth middleware", async () => {
       const user = createUser()
 
-      mockFindOrCreateUser.mockResolvedValueOnce(user)
+      // Mock successful auth
+      mockGetAuthenticatedUser.mockResolvedValueOnce({
+        user,
+        authMethod: "telegram",
+        telegramUserId: 123456789,
+      })
       mockSql.mockResolvedValueOnce([{ count: 0 }])
       mockSql.mockResolvedValueOnce([{
         id: 1,
@@ -440,13 +452,19 @@ describe("POST /api/avatars", () => {
       const response = await POST(request)
 
       expect(response.status).toBe(201)
-      expect(mockFindOrCreateUser).toHaveBeenCalledWith({ telegramUserId: 123456789 })
+      expect(mockGetAuthenticatedUser).toHaveBeenCalled()
     })
 
-    it("should accept telegramUserId as string", async () => {
+    it("should accept neonUserId from auth middleware", async () => {
       const user = createUser()
 
-      mockFindOrCreateUser.mockResolvedValueOnce(user)
+      // Mock successful auth with Neon Auth
+      mockGetAuthenticatedUser.mockResolvedValueOnce({
+        user,
+        authMethod: "neon_auth",
+        neonAuthId: "neon_user_abc123",
+        email: "user@example.com",
+      })
       mockSql.mockResolvedValueOnce([{ count: 0 }])
       mockSql.mockResolvedValueOnce([{
         id: 1,
@@ -459,13 +477,13 @@ describe("POST /api/avatars", () => {
 
       const request = createRequest("/api/avatars", {
         method: "POST",
-        body: { telegramUserId: "987654321", name: "My Avatar" },
+        body: { neonUserId: "neon_user_abc123", name: "My Avatar" },
       })
 
       const response = await POST(request)
 
       expect(response.status).toBe(201)
-      expect(mockFindOrCreateUser).toHaveBeenCalledWith({ telegramUserId: 987654321 })
+      expect(mockGetAuthenticatedUser).toHaveBeenCalled()
     })
   })
 
@@ -473,7 +491,12 @@ describe("POST /api/avatars", () => {
     it("should return 500 on database error during count check", async () => {
       const user = createUser()
 
-      mockFindOrCreateUser.mockResolvedValueOnce(user)
+      // Mock successful auth
+      mockGetAuthenticatedUser.mockResolvedValueOnce({
+        user,
+        authMethod: "telegram",
+        telegramUserId: 123456789,
+      })
       mockSql.mockRejectedValueOnce(new Error("Database connection lost"))
 
       const request = createRequest("/api/avatars", {
@@ -491,7 +514,12 @@ describe("POST /api/avatars", () => {
     it("should return 500 on database error during creation", async () => {
       const user = createUser()
 
-      mockFindOrCreateUser.mockResolvedValueOnce(user)
+      // Mock successful auth
+      mockGetAuthenticatedUser.mockResolvedValueOnce({
+        user,
+        authMethod: "telegram",
+        telegramUserId: 123456789,
+      })
       mockSql.mockResolvedValueOnce([{ count: 0 }])
       mockSql.mockRejectedValueOnce(new Error("Insert failed"))
 

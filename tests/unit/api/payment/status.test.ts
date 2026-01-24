@@ -60,7 +60,7 @@ describe('GET /api/payment/status - Input Validation', () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe('telegram_user_id is required');
+    expect(data.error).toBe('telegram_user_id or neon_user_id is required');
   });
 
   test('should return 400 for empty telegram_user_id', async () => {
@@ -71,7 +71,7 @@ describe('GET /api/payment/status - Input Validation', () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe('telegram_user_id is required');
+    expect(data.error).toBe('telegram_user_id or neon_user_id is required');
   });
 
   test('should return 400 for whitespace-only telegram_user_id', async () => {
@@ -82,7 +82,7 @@ describe('GET /api/payment/status - Input Validation', () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe('telegram_user_id is required');
+    expect(data.error).toBe('telegram_user_id or neon_user_id is required');
   });
 
   test('should proceed with valid telegram_user_id', async () => {
