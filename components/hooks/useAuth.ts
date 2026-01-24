@@ -12,13 +12,11 @@ function isValidInitData(initData: string | undefined | null): boolean {
   return true
 }
 
-// User identifier interface - supports both Telegram and Web (Neon Auth) users
+// User identifier interface - Telegram only
 export interface UserIdentifier {
-  type: "telegram" | "web"
-  visibleUserId: number          // Unified ID for API calls (telegram_user_id or converted neon_user_id)
-  telegramUserId?: number        // Only for Telegram users
-  neonUserId?: string            // Only for Web users (Neon Auth UUID)
-  email?: string                 // Only for Web users
+  type: "telegram"
+  visibleUserId: number          // telegram_user_id
+  telegramUserId: number
   deviceId?: string              // Legacy field
 }
 
@@ -26,8 +24,8 @@ export interface UserIdentifier {
 export type AuthStatus = 'pending' | 'success' | 'failed' | 'not_in_telegram'
 
 /**
- * Custom hook for authentication
- * Supports both Telegram WebApp and Web (Neon Auth) users
+ * Custom hook for Telegram authentication
+ * Web users are redirected to Telegram WebApp
  */
 export function useAuth() {
   const [userIdentifier, setUserIdentifier] = useState<UserIdentifier | null>(null)
@@ -238,24 +236,6 @@ export function useAuth() {
     }
   }, [])
 
-  // Helper function to set web user from Neon Auth session
-  const setWebUser = useCallback((neonUserId: string, email?: string) => {
-    // Convert Neon UUID to numeric ID for compatibility with existing APIs
-    // Use hash of UUID to create a stable numeric ID
-    const numericId = Math.abs(hashString(neonUserId)) % 2000000000 + 1000000000
-
-    const identifier: UserIdentifier = {
-      type: "web",
-      visibleUserId: numericId,
-      neonUserId: neonUserId,
-      email: email,
-      deviceId: `web_${neonUserId}`,
-    }
-
-    console.log("[Web] Auth success:", email, "numericId:", numericId)
-    setUserIdentifier(identifier)
-    setAuthStatus('success')
-  }, [])
 
   // ══════════════════════════════════════════════════════════════
   // TELEGRAM INTEGRATION: Theme Sync
@@ -335,15 +315,11 @@ export function useAuth() {
   return {
     userIdentifier,
     authStatus,
-    // IMPORTANT: Only return telegramUserId for actual Telegram users, not visibleUserId fallback
-    telegramUserId: userIdentifier?.type === 'telegram' ? userIdentifier?.telegramUserId : undefined,
-    neonUserId: userIdentifier?.neonUserId,
-    isWebUser: userIdentifier?.type === 'web',
+    telegramUserId: userIdentifier?.telegramUserId,
     isTelegramUser: userIdentifier?.type === 'telegram',
     theme,
     toggleTheme,
     showMessage,
-    setWebUser,
     // Telegram haptic feedback
     hapticImpact,
     hapticNotification,
@@ -351,13 +327,3 @@ export function useAuth() {
   }
 }
 
-// Simple string hash function to convert UUID to stable number
-function hashString(str: string): number {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash // Convert to 32bit integer
-  }
-  return hash
-}

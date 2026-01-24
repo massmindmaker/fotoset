@@ -28,20 +28,17 @@ export async function query<T = any>(
 
 export type User = {
   id: number
-  // Telegram identity (nullable for web-only users)
-  telegram_user_id: number | null  // Telegram ID (nullable after migration 033)
+  // Telegram identity (required)
+  telegram_user_id: number  // Telegram user ID
   telegram_username: string | null  // Telegram @username for admin panel display
   telegram_chat_id: number | null  // Telegram chat ID for notifications
 
-  // Web identity (Neon Auth / Stack Auth)
-  neon_auth_id: string | null  // Stack Auth user ID
-  email: string | null  // Email from OAuth or magic link
-  email_verified: boolean  // Email verification status
-  name: string | null  // Display name from OAuth
-  avatar_url: string | null  // Avatar URL from OAuth
+  // Optional user info
+  email: string | null  // Email for notifications
+  name: string | null  // Display name
 
   // Auth metadata
-  auth_provider: 'telegram' | 'google' | 'email' | 'github' | null  // Primary auth method
+  auth_provider: 'telegram' | null  // Auth method
 
   // Referral
   pending_referral_code: string | null  // Saved on first login, used on first payment

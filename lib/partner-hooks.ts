@@ -10,22 +10,14 @@ import type {
   WithdrawResponse
 } from './partner-types'
 
-// Get user ID from localStorage
-function getUserId(): { telegramUserId?: string; neonUserId?: string } | null {
+// Get Telegram user ID from localStorage
+function getTelegramUserId(): string | null {
   if (typeof window === 'undefined') return null
-
-  const telegramUserId = localStorage.getItem('pinglass_telegram_user_id')
-  const neonUserId = localStorage.getItem('pinglass_neon_user_id')
-
-  if (!telegramUserId && !neonUserId) return null
-  return { telegramUserId: telegramUserId || undefined, neonUserId: neonUserId || undefined }
+  return localStorage.getItem('pinglass_telegram_user_id')
 }
 
-function buildQueryParams(userId: { telegramUserId?: string; neonUserId?: string }): string {
-  const params = new URLSearchParams()
-  if (userId.telegramUserId) params.set('telegram_user_id', userId.telegramUserId)
-  if (userId.neonUserId) params.set('neon_user_id', userId.neonUserId)
-  return params.toString()
+function buildQueryParams(telegramUserId: string): string {
+  return `telegram_user_id=${telegramUserId}`
 }
 
 // Hook for partner stats
@@ -35,8 +27,8 @@ export function usePartnerStats() {
   const [error, setError] = useState<string | null>(null)
 
   const fetchStats = useCallback(async () => {
-    const userId = getUserId()
-    if (!userId) {
+    const telegramUserId = getTelegramUserId()
+    if (!telegramUserId) {
       setError('Not authenticated')
       setLoading(false)
       return
@@ -44,7 +36,7 @@ export function usePartnerStats() {
 
     try {
       setLoading(true)
-      const res = await fetch(`/api/partner/stats?${buildQueryParams(userId)}`)
+      const res = await fetch(`/api/partner/stats?${buildQueryParams(telegramUserId)}`)
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || 'Failed to fetch stats')
@@ -73,8 +65,8 @@ export function usePartnerEarnings(page = 1, limit = 20, status = 'all', currenc
   const [error, setError] = useState<string | null>(null)
 
   const fetchEarnings = useCallback(async () => {
-    const userId = getUserId()
-    if (!userId) {
+    const telegramUserId = getTelegramUserId()
+    if (!telegramUserId) {
       setError('Not authenticated')
       setLoading(false)
       return
@@ -82,7 +74,7 @@ export function usePartnerEarnings(page = 1, limit = 20, status = 'all', currenc
 
     try {
       setLoading(true)
-      const params = new URLSearchParams(buildQueryParams(userId))
+      const params = new URLSearchParams(buildQueryParams(telegramUserId))
       params.set('page', page.toString())
       params.set('limit', limit.toString())
       if (status !== 'all') params.set('status', status)
@@ -117,8 +109,8 @@ export function usePartnerReferrals(page = 1, limit = 20) {
   const [error, setError] = useState<string | null>(null)
 
   const fetchReferrals = useCallback(async () => {
-    const userId = getUserId()
-    if (!userId) {
+    const telegramUserId = getTelegramUserId()
+    if (!telegramUserId) {
       setError('Not authenticated')
       setLoading(false)
       return
@@ -126,7 +118,7 @@ export function usePartnerReferrals(page = 1, limit = 20) {
 
     try {
       setLoading(true)
-      const params = new URLSearchParams(buildQueryParams(userId))
+      const params = new URLSearchParams(buildQueryParams(telegramUserId))
       params.set('page', page.toString())
       params.set('limit', limit.toString())
 
@@ -159,8 +151,8 @@ export function useWithdrawals() {
   const [error, setError] = useState<string | null>(null)
 
   const fetchWithdrawals = useCallback(async () => {
-    const userId = getUserId()
-    if (!userId?.telegramUserId) {
+    const telegramUserId = getTelegramUserId()
+    if (!telegramUserId) {
       setError('Not authenticated')
       setLoading(false)
       return
@@ -168,7 +160,7 @@ export function useWithdrawals() {
 
     try {
       setLoading(true)
-      const res = await fetch(`/api/referral/withdraw?telegram_user_id=${userId.telegramUserId}`)
+      const res = await fetch(`/api/referral/withdraw?telegram_user_id=${telegramUserId}`)
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || 'Failed to fetch withdrawals')
@@ -196,8 +188,8 @@ export function useCreateWithdrawal() {
   const [error, setError] = useState<string | null>(null)
 
   const createWithdrawal = useCallback(async (request: Omit<WithdrawRequest, 'telegramUserId'>): Promise<WithdrawResponse | null> => {
-    const userId = getUserId()
-    if (!userId?.telegramUserId) {
+    const telegramUserId = getTelegramUserId()
+    if (!telegramUserId) {
       setError('Not authenticated')
       return null
     }
@@ -211,7 +203,7 @@ export function useCreateWithdrawal() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...request,
-          telegramUserId: parseInt(userId.telegramUserId)
+          telegramUserId: parseInt(telegramUserId)
         })
       })
 

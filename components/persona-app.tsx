@@ -14,7 +14,6 @@ import { PRICING_TIERS } from "./views/dashboard-view"
 // Import custom hooks
 import { useAuth, useAvatars, useGeneration, usePayment, usePolling, useSync, usePricing } from "./hooks"
 import { useNetworkStatus } from "@/lib/network-status"
-import { useSession } from "@/lib/auth/client"
 
 // Import error handling components
 import { ErrorModal, OfflineBanner } from "./error-modal"
@@ -106,8 +105,7 @@ const ReferralPanel = lazy(() => import("./referral-panel").then((m) => ({ defau
 
 export default function PersonaApp() {
   // Custom hooks
-  const { userIdentifier, authStatus, telegramUserId, isWebUser, isTelegramUser, neonUserId, theme, toggleTheme, showMessage, setWebUser, hapticImpact, hapticNotification, hapticSelection } = useAuth()
-  const { data: neonSession, isPending: isNeonAuthPending } = useSession() // Neon Auth session for web users
+  const { userIdentifier, authStatus, telegramUserId, isTelegramUser, theme, toggleTheme, showMessage, hapticImpact, hapticNotification, hapticSelection } = useAuth()
   const { personas, setPersonas, loadAvatarsFromServer, createPersona, updatePersona, deletePersona, getPersona } = useAvatars()
   const { isGenerating, setIsGenerating, generationProgress, setGenerationProgress, fileToBase64 } = useGeneration()
   const { isPaymentOpen, setIsPaymentOpen, selectedTier, setSelectedTier } = usePayment()
@@ -397,47 +395,6 @@ export default function PersonaApp() {
     }
   }, [authStatus, userIdentifier, loadAvatarsFromServer, setPersonas, setIsGenerating, setGenerationProgress, showMessage, startPolling, stopPolling])
 
-  // Handle Neon Auth session for web users (after Google login redirect)
-  // NOTE: Removed viewState.view and personas.length from deps to prevent infinite loops
-  // These values are checked inside but shouldn't trigger re-runs
-  useEffect(() => {
-    console.log('[Auth] Neon session check:', {
-      isPending: isNeonAuthPending,
-      hasSession: !!neonSession,
-      hasUser: !!neonSession?.user,
-      userId: neonSession?.user?.id,
-      authStatus,
-    })
-
-    if (isNeonAuthPending) return // Wait for session to load
-
-    // Check if user logged in via Neon Auth (web version)
-    if (neonSession?.user?.id) {
-      // CRITICAL: Set web user identity in useAuth hook
-      // This creates userIdentifier which triggers avatar loading in main useEffect
-      setWebUser(neonSession.user.id, neonSession.user.email ?? undefined)
-
-      const urlParams = new URLSearchParams(window.location.search)
-      const isAuthCallback = urlParams.get('auth') === 'success'
-
-      console.log('[Auth] Neon user found:', neonSession.user.email, 'isCallback:', isAuthCallback)
-
-      if (isAuthCallback) {
-        console.log('[Auth] Neon Auth success callback, redirecting to DASHBOARD')
-        // Remove auth param from URL
-        const newUrl = new URL(window.location.href)
-        newUrl.searchParams.delete('auth')
-        window.history.replaceState({}, '', newUrl.pathname)
-
-        // Mark onboarding complete and show dashboard
-        localStorage.setItem("pinglass_onboarding_complete", "true")
-        setViewState({ view: "DASHBOARD" })
-      }
-      // Note: Skip auto-redirect to DASHBOARD from ONBOARDING -
-      // main useEffect handles this based on loaded avatars
-    }
-  }, [neonSession, isNeonAuthPending, authStatus, setWebUser])
-
   // Save view state when it changes
   useEffect(() => {
     if (isReady) {
@@ -696,8 +653,8 @@ export default function PersonaApp() {
 
   // Create persona handler - immediately creates avatar on server
   const handleCreatePersona = useCallback(async () => {
-    // Require either Telegram or Web user identifier
-    if (!telegramUserId && !neonUserId) {
+    // Require Telegram user identifier
+    if (!telegramUserId) {
       showMessage("Ошибка: не удалось получить идентификатор пользователя")
       return
     }
@@ -705,22 +662,20 @@ export default function PersonaApp() {
     try {
       // Get Telegram initData for authentication (required in production)
       const tg = window.Telegram?.WebApp
-      const initData = isTelegramUser ? (tg?.initData || '') : undefined
+      const initData = tg?.initData || ''
 
-      // Create avatar on server immediately (supports both Telegram and Web users)
+      // Create avatar on server immediately (Telegram users only)
       const res = await fetch("/api/avatars", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // Send initData header for Telegram auth (lowercase for Next.js compatibility)
+          // Send initData header for Telegram auth
           ...(initData && { "x-telegram-init-data": initData }),
         },
-        credentials: "include", // Include cookies for Neon Auth
         body: JSON.stringify({
           // Also send initData in body as fallback
           ...(initData && { initData }),
-          telegramUserId: isWebUser ? undefined : telegramUserId,
-          neonUserId: isWebUser ? neonUserId : undefined,
+          telegramUserId,
           name: "Мой аватар",
         }),
       })
@@ -751,24 +706,23 @@ export default function PersonaApp() {
     } catch (error) {
       showMessage(`Ошибка: ${error instanceof Error ? error.message : "Не удалось создать аватар"}`)
     }
-  }, [telegramUserId, neonUserId, isWebUser, setPersonas, showMessage])
+  }, [telegramUserId, setPersonas, showMessage])
 
-  // Delete persona handler with Telegram-native confirm (supports both Telegram and Web users)
+  // Delete persona handler with Telegram-native confirm
   const handleDeletePersona = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation()
 
-    // Require either Telegram or Web user identifier
-    if (!telegramUserId && !neonUserId) {
+    // Require Telegram user identifier
+    if (!telegramUserId) {
       console.error("[Delete] Cannot delete: no user identifier")
       showMessage("Ошибка авторизации. Перезапустите приложение.")
       return
     }
 
     const currentTelegramUserId = telegramUserId // Capture for async closure
-    const currentNeonUserId = neonUserId // Capture for async closure
 
     const performDelete = async () => {
-      const result = await deletePersona(id, currentTelegramUserId, currentNeonUserId)
+      const result = await deletePersona(id, currentTelegramUserId)
       if (result.success) {
         if ("personaId" in viewState && viewState.personaId === id) {
           setViewState({ view: "DASHBOARD" })
@@ -795,19 +749,16 @@ export default function PersonaApp() {
         performDelete()
       }
     }
-  }, [deletePersona, viewState, telegramUserId, neonUserId, showMessage])
+  }, [deletePersona, viewState, telegramUserId, showMessage])
 
-  // Load reference photos for Avatar Detail View (supports both Telegram and Web users)
+  // Load reference photos for Avatar Detail View
   const loadReferencePhotos = useCallback(async (avatarId: string) => {
-    if (!telegramUserId && !neonUserId) return
+    if (!telegramUserId) return
 
     setIsLoadingReferences(true)
     try {
-      const headers: HeadersInit = {}
-      if (telegramUserId) {
-        headers["X-Telegram-User-Id"] = String(telegramUserId)
-      } else if (neonUserId) {
-        headers["X-Neon-User-Id"] = neonUserId
+      const headers: HeadersInit = {
+        "X-Telegram-User-Id": String(telegramUserId)
       }
 
       const response = await fetch(`/api/avatars/${avatarId}/references`, { headers })
@@ -821,23 +772,21 @@ export default function PersonaApp() {
     } finally {
       setIsLoadingReferences(false)
     }
-  }, [telegramUserId, neonUserId])
+  }, [telegramUserId])
 
-  // Add photos to avatar (supports both Telegram and Web users)
+  // Add photos to avatar
   const handleAddPhotos = useCallback(async (files: File[]) => {
     const activePersona = getActivePersona()
-    if (!activePersona || (!telegramUserId && !neonUserId)) return
+    if (!activePersona || !telegramUserId) return
 
     // Convert files to base64
     const base64Images = await Promise.all(
       files.slice(0, 20 - referencePhotos.length).map((file) => fileToBase64(file))
     )
 
-    const headers: HeadersInit = { "Content-Type": "application/json" }
-    if (telegramUserId) {
-      headers["X-Telegram-User-Id"] = String(telegramUserId)
-    } else if (neonUserId) {
-      headers["X-Neon-User-Id"] = neonUserId
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      "X-Telegram-User-Id": String(telegramUserId)
     }
 
     const response = await fetch(`/api/avatars/${activePersona.id}/references`, {
@@ -845,8 +794,7 @@ export default function PersonaApp() {
       headers,
       body: JSON.stringify({
         referenceImages: base64Images,
-        telegramUserId: isWebUser ? undefined : telegramUserId,
-        neonUserId: isWebUser ? neonUserId : undefined,
+        telegramUserId,
       }),
     })
 
@@ -857,18 +805,15 @@ export default function PersonaApp() {
     } else {
       showMessage("Ошибка при загрузке фото")
     }
-  }, [getActivePersona, telegramUserId, neonUserId, isWebUser, userIdentifier, referencePhotos.length, fileToBase64, loadReferencePhotos, loadAvatarsFromServer, showMessage])
+  }, [getActivePersona, telegramUserId, userIdentifier, referencePhotos.length, fileToBase64, loadReferencePhotos, loadAvatarsFromServer, showMessage])
 
-  // Delete single reference photo (supports both Telegram and Web users)
+  // Delete single reference photo
   const handleDeleteReferencePhoto = useCallback(async (photoId: number) => {
     const activePersona = getActivePersona()
-    if (!activePersona || (!telegramUserId && !neonUserId)) return
+    if (!activePersona || !telegramUserId) return
 
-    const headers: HeadersInit = {}
-    if (telegramUserId) {
-      headers["X-Telegram-User-Id"] = String(telegramUserId)
-    } else if (neonUserId) {
-      headers["X-Neon-User-Id"] = neonUserId
+    const headers: HeadersInit = {
+      "X-Telegram-User-Id": String(telegramUserId)
     }
 
     const response = await fetch(`/api/avatars/${activePersona.id}/references/${photoId}`, {
@@ -883,7 +828,7 @@ export default function PersonaApp() {
     } else {
       showMessage("Ошибка при удалении фото")
     }
-  }, [getActivePersona, telegramUserId, neonUserId, userIdentifier, loadAvatarsFromServer, showMessage])
+  }, [getActivePersona, telegramUserId, userIdentifier, loadAvatarsFromServer, showMessage])
 
   // Open Avatar Detail View
   const handleSelectAvatar = useCallback((id: string) => {
@@ -956,8 +901,7 @@ export default function PersonaApp() {
 
       setIsSyncing(true)
       setIsGenerating(true)
-      // Pass neonUserId for web users authentication
-      const dbId = await syncPersonaToServer(persona, telegramUserId, neonUserId)
+      const dbId = await syncPersonaToServer(persona, telegramUserId)
       console.log("[Upload] Sync complete, DB ID:", dbId)
 
       // Update persona with DB ID
@@ -982,7 +926,7 @@ export default function PersonaApp() {
       setIsSyncing(false)
       setIsGenerating(false)
     }
-  }, [viewState, getActivePersona, getPersona, syncPersonaToServer, telegramUserId, neonUserId, showMessage, setIsSyncing, setIsGenerating, updatePersona, isOnline])
+  }, [viewState, getActivePersona, getPersona, syncPersonaToServer, telegramUserId, showMessage, setIsSyncing, setIsGenerating, updatePersona, isOnline])
 
   // Polling helper - reusable for both new generation and recovery
   // Uses aggressive polling (2s) for real-time photo updates
@@ -1218,8 +1162,6 @@ export default function PersonaApp() {
           initData: initData || undefined,
           // Telegram auth fallback (when initData validation fails)
           telegramUserId: tg?.initDataUnsafe?.user?.id || telegramUserId || undefined,
-          // Keep neonUserId for web auth
-          neonUserId: neonUserId || undefined,
         }),
       })
 
@@ -1620,7 +1562,7 @@ export default function PersonaApp() {
         </Suspense>
       )}
       <Suspense fallback={null}>
-        <ReferralPanel telegramUserId={telegramUserId} neonUserId={neonUserId} isOpen={isReferralOpen} onClose={() => setIsReferralOpen(false)} />
+        <ReferralPanel telegramUserId={telegramUserId} isOpen={isReferralOpen} onClose={() => setIsReferralOpen(false)} />
       </Suspense>
     </div>
   )

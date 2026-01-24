@@ -42,11 +42,10 @@ export function useSync() {
 
   // Sync persona to server: create avatar in DB and upload photos
   // Returns the DB avatar ID (numeric string like "123")
-  // Supports both Telegram and Web (neonUserId) authentication
+  // Telegram-only authentication
   const syncPersonaToServer = useCallback(async (
     persona: Persona,
-    telegramUserId: number | undefined,
-    neonUserId?: string  // Web authentication via Neon Auth
+    telegramUserId: number | undefined
   ): Promise<string> => {
     // Check if already has DB ID (not a temp ID like "temp_123456")
     const parsedId = parseInt(persona.id)
@@ -86,12 +85,8 @@ export function useSync() {
       final: tgId,
     })
 
-    // WEB AUTH: If neonUserId is provided, use it instead of Telegram
-    if (neonUserId) {
-      console.log("[Sync] Using Web authentication (neonUserId):", neonUserId)
-      // Continue with neonUserId auth - skip Telegram ID requirement
-    } else if (!tgId) {
-      console.error("[Sync] No authentication available - no Telegram ID and no neonUserId")
+    if (!tgId) {
+      console.error("[Sync] No Telegram ID available")
       // Check if we're in a valid Telegram context (valid initData, not just truthy value)
       const isInTelegram = isValidInitData(tg?.initData)
       console.error("[Sync] Auth debug:", {
@@ -99,9 +94,7 @@ export function useSync() {
         initDataLength: tg?.initData?.length || 0,
         isValidTelegramContext: isInTelegram,
       })
-      const errorMsg = isInTelegram
-        ? "Ошибка: не удалось получить Telegram ID. Закройте и откройте приложение заново через @Pinglass_bot"
-        : "Ошибка авторизации. Пожалуйста, войдите в систему."
+      const errorMsg = "Ошибка: не удалось получить Telegram ID. Закройте и откройте приложение заново через @Pinglass_bot"
       if (tg?.showAlert) {
         try {
           tg.showAlert(errorMsg)
@@ -111,11 +104,8 @@ export function useSync() {
       } else {
         alert(errorMsg)
       }
-      throw new Error("Authentication not available")
+      throw new Error("Telegram authentication not available")
     }
-
-    // Use neonUserId for web or tgId for Telegram
-    const authId = neonUserId || tgId
 
     try {
       let dbAvatarId: string
@@ -125,13 +115,13 @@ export function useSync() {
         dbAvatarId = persona.id
         console.log("[Sync] Using existing DB avatar ID:", dbAvatarId)
       } else {
-        // Build request with proper authentication
+        // Build request with Telegram authentication
         const createHeaders: Record<string, string> = {
           "Content-Type": "application/json",
         }
         const initData = window.Telegram?.WebApp?.initData
         const validInitData = isValidInitData(initData)
-        if (validInitData && !neonUserId) {
+        if (validInitData) {
           createHeaders["x-telegram-init-data"] = initData
         }
 
@@ -141,13 +131,9 @@ export function useSync() {
         const createRes = await fetch("/api/avatars", {
           method: "POST",
           headers: createHeaders,
-          credentials: "include", // Include cookies for Neon Auth
           body: JSON.stringify({
             name: persona.name || "Мой аватар",
-            // Telegram auth: pass telegramUserId for user identification
-            ...(tgUserId && !neonUserId ? { telegramUserId: tgUserId } : {}),
-            // Neon Auth: pass neonUserId
-            ...(neonUserId ? { neonUserId } : {}),
+            telegramUserId: tgUserId,
           }),
         })
 
@@ -182,7 +168,7 @@ export function useSync() {
             // Telegram auth: pass initData for server-side HMAC validation
             const initData = window.Telegram?.WebApp?.initData
             const validInitData = isValidInitData(initData)
-            if (validInitData && !neonUserId) {
+            if (validInitData) {
               uploadHeaders["x-telegram-init-data"] = initData
             }
 
@@ -192,15 +178,11 @@ export function useSync() {
             const uploadRes = await fetch("/api/upload", {
               method: "POST",
               headers: uploadHeaders,
-              credentials: "include", // Include cookies for Neon Auth session
               body: JSON.stringify({
                 avatarId: dbAvatarId,
                 type: "reference",
                 image: base64Data,
-                // Telegram auth: pass telegramUserId for user identification
-                ...(tgUserId && !neonUserId ? { telegramUserId: tgUserId } : {}),
-                // Neon Auth: pass neonUserId
-                ...(neonUserId ? { neonUserId } : {}),
+                telegramUserId: tgUserId,
               }),
             })
 
@@ -234,13 +216,13 @@ export function useSync() {
         // Save R2 URLs to database
         if (uploadedUrls.length > 0) {
           try {
-            // Build headers with proper auth
+            // Build headers with Telegram auth
             const saveHeaders: Record<string, string> = {
               "Content-Type": "application/json",
             }
             const saveInitData = window.Telegram?.WebApp?.initData
             const validSaveInitData = isValidInitData(saveInitData)
-            if (validSaveInitData && !neonUserId) {
+            if (validSaveInitData) {
               saveHeaders["x-telegram-init-data"] = saveInitData
             }
 
@@ -250,13 +232,9 @@ export function useSync() {
             const saveRes = await fetch(`/api/avatars/${dbAvatarId}/references`, {
               method: "POST",
               headers: saveHeaders,
-              credentials: "include", // Include cookies for Neon Auth
               body: JSON.stringify({
                 referenceImages: uploadedUrls,
-                // Telegram auth: pass telegramUserId for user identification
-                ...(refTgUserId && !neonUserId ? { telegramUserId: refTgUserId } : {}),
-                // Neon Auth: pass neonUserId
-                ...(neonUserId ? { neonUserId } : {}),
+                telegramUserId: refTgUserId,
               }),
             })
 
@@ -289,13 +267,13 @@ export function useSync() {
 
           if (base64Images.length > 0) {
             try {
-              // Build headers with proper auth for fallback
+              // Build headers with Telegram auth for fallback
               const fallbackHeaders: Record<string, string> = {
                 "Content-Type": "application/json",
               }
               const fallbackInitData = window.Telegram?.WebApp?.initData
               const validFallbackInitData = isValidInitData(fallbackInitData)
-              if (validFallbackInitData && !neonUserId) {
+              if (validFallbackInitData) {
                 fallbackHeaders["x-telegram-init-data"] = fallbackInitData
               }
 
@@ -305,13 +283,9 @@ export function useSync() {
               const fallbackRes = await fetch(`/api/avatars/${dbAvatarId}/references`, {
                 method: "POST",
                 headers: fallbackHeaders,
-                credentials: "include", // Include cookies for Neon Auth
                 body: JSON.stringify({
                   referenceImages: base64Images,
-                  // Telegram auth: pass telegramUserId for user identification
-                  ...(fallbackTgUserId && !neonUserId ? { telegramUserId: fallbackTgUserId } : {}),
-                  // Neon Auth: pass neonUserId
-                  ...(neonUserId ? { neonUserId } : {}),
+                  telegramUserId: fallbackTgUserId,
                 }),
               })
 

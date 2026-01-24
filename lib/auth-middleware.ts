@@ -1,9 +1,8 @@
 /**
- * Auth Middleware - Unified authentication for Telegram + Web
+ * Auth Middleware - Telegram-only authentication
  *
- * Provides a single interface for authenticating users regardless of auth method:
- * - Telegram Mini App: validates initData HMAC signature
- * - Web (Neon Auth): validates Stack Auth session cookie
+ * Provides authentication for Telegram Mini App users.
+ * Web users are redirected to Telegram WebApp.
  *
  * Usage in API routes:
  * ```ts
@@ -15,26 +14,20 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { sql, type User } from './db';
-import { getStackUserInfo, type StackUserInfo } from './neon-auth';
 
-// Auth method types
-export type AuthMethod = 'telegram' | 'telegram_fallback' | 'neon_auth';
+// Auth method types (only Telegram now)
+export type AuthMethod = 'telegram' | 'telegram_fallback';
 
 export interface AuthenticatedUser {
   user: User;
   authMethod: AuthMethod;
-  // Additional info based on auth method
   telegramUserId?: number;
-  neonAuthId?: string;
-  email?: string;
 }
 
 export interface AuthSuccess {
   user: User;
   authMethod: AuthMethod;
   telegramUserId?: number;
-  neonAuthId?: string;
-  email?: string;
 }
 
 export interface AuthError {
@@ -178,80 +171,8 @@ async function findOrCreateTelegramUser(telegramUserId: number, username?: strin
 }
 
 /**
- * Find or create user by Neon Auth ID
- * Uses INSERT ... ON CONFLICT to prevent race conditions
- */
-async function findOrCreateNeonAuthUser(stackUser: StackUserInfo): Promise<User> {
-  const { id: neonAuthId, email, name, avatarUrl, provider } = stackUser;
-
-  // Sanitize inputs
-  const safeName = name?.substring(0, 255) || null;
-  const safeAvatarUrl = avatarUrl?.substring(0, 2048) || null;
-  const safeProvider = provider || 'email';
-
-  // Try to upsert by neon_auth_id (atomic operation, no race condition)
-  let result = await sql`
-    INSERT INTO users (neon_auth_id, email, email_verified, name, avatar_url, auth_provider)
-    VALUES (${neonAuthId}, ${email}, TRUE, ${safeName}, ${safeAvatarUrl}, ${safeProvider})
-    ON CONFLICT (neon_auth_id) DO UPDATE SET
-      email = COALESCE(EXCLUDED.email, users.email),
-      name = COALESCE(EXCLUDED.name, users.name),
-      avatar_url = COALESCE(EXCLUDED.avatar_url, users.avatar_url),
-      updated_at = NOW()
-    RETURNING *
-  `;
-
-  if (result.length > 0) {
-    // User found/created by neon_auth_id
-    const user = result[0] as User;
-
-    // Create identity record if not exists
-    await sql`
-      INSERT INTO user_identities (user_id, provider, provider_user_id, provider_email, provider_name, provider_avatar_url)
-      VALUES (${user.id}, ${safeProvider}, ${neonAuthId}, ${email}, ${safeName}, ${safeAvatarUrl})
-      ON CONFLICT (provider, provider_user_id) DO UPDATE SET
-        provider_email = COALESCE(EXCLUDED.provider_email, user_identities.provider_email),
-        provider_name = COALESCE(EXCLUDED.provider_name, user_identities.provider_name),
-        last_used_at = NOW()
-    `;
-
-    return user;
-  }
-
-  // If neon_auth_id insert failed due to email conflict, try to link by email
-  if (email) {
-    result = await sql`
-      UPDATE users SET
-        neon_auth_id = ${neonAuthId},
-        email_verified = TRUE,
-        name = COALESCE(${safeName}, name),
-        avatar_url = COALESCE(${safeAvatarUrl}, avatar_url),
-        auth_provider = COALESCE(auth_provider, ${safeProvider}),
-        updated_at = NOW()
-      WHERE email = ${email} AND neon_auth_id IS NULL
-      RETURNING *
-    `;
-
-    if (result.length > 0) {
-      const user = result[0] as User;
-
-      // Create identity record
-      await sql`
-        INSERT INTO user_identities (user_id, provider, provider_user_id, provider_email, provider_name, provider_avatar_url)
-        VALUES (${user.id}, ${safeProvider}, ${neonAuthId}, ${email}, ${safeName}, ${safeAvatarUrl})
-        ON CONFLICT (provider, provider_user_id) DO NOTHING
-      `;
-
-      return user;
-    }
-  }
-
-  throw new Error('Failed to create or find Neon Auth user');
-}
-
-/**
  * Get authenticated user from request
- * Checks both Telegram initData and Neon Auth session
+ * Validates Telegram initData or trusts telegramUserId from body
  *
  * @returns AuthenticatedUser or null if not authenticated
  */
@@ -324,23 +245,7 @@ export async function getAuthenticatedUser(
     }
   }
 
-  // Method 2: Check Neon Auth session
-  const stackUser = await getStackUserInfo();
-
-  if (stackUser) {
-    try {
-      const user = await findOrCreateNeonAuthUser(stackUser);
-      return {
-        user,
-        authMethod: 'neon_auth',
-        neonAuthId: stackUser.id,
-        email: stackUser.email ?? undefined,
-      };
-    } catch (error) {
-      console.error('[Auth] Neon Auth user error:', error);
-    }
-  }
-
+  // No valid authentication found
   return null;
 }
 
