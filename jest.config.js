@@ -10,6 +10,9 @@ module.exports = {
     '/node_modules/',
     '/tests/e2e/',
     '/tests/integration/',
+    '/.openchamber/',
+    '/.opencode/',
+    '/.next/',
   ],
   collectCoverageFrom: [
     'lib/**/*.{ts,tsx}',

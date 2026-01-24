@@ -2,6 +2,8 @@
  * Unit Tests for /api/referral/code
  *
  * GET: Получить или создать реферальный код пользователя
+ *
+ * Updated to match current dual-code API (telegram + web)
  */
 
 import { NextRequest } from "next/server"
@@ -13,6 +15,14 @@ import { NextRequest } from "next/server"
 const mockSql = jest.fn()
 jest.mock("@/lib/db", () => ({
   sql: (...args: any[]) => mockSql(...args),
+}))
+
+const mockFindUserByIdentifier = jest.fn()
+const mockExtractIdentifierFromRequest = jest.fn()
+
+jest.mock("@/lib/user-identity", () => ({
+  extractIdentifierFromRequest: (...args: any[]) => mockExtractIdentifierFromRequest(...args),
+  findUserByIdentifier: (...args: any[]) => mockFindUserByIdentifier(...args),
 }))
 
 // ============================================================================
@@ -36,6 +46,15 @@ function createRequest(url: string): NextRequest {
 describe("GET /api/referral/code", () => {
   beforeEach(() => {
     jest.clearAllMocks()
+
+    // Default mock implementations
+    mockExtractIdentifierFromRequest.mockImplementation((data) => ({
+      telegramUserId: data.telegram_user_id ? parseInt(data.telegram_user_id) : undefined,
+      neonUserId: data.neon_user_id,
+    }))
+
+    // Default: user not found
+    mockFindUserByIdentifier.mockResolvedValue(null)
   })
 
   describe("Validation", () => {
@@ -49,20 +68,20 @@ describe("GET /api/referral/code", () => {
       expect(data.error).toContain("telegram_user_id")
     })
 
-    it("should return 400 when telegram_user_id is NaN", async () => {
-      const request = createRequest("/api/referral/code?telegram_user_id=invalid")
+    it("should return 400 when only invalid params provided", async () => {
+      const request = createRequest("/api/referral/code?invalid=123")
 
       const response = await GET(request)
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toContain("Invalid")
+      expect(data.error).toContain("required")
     })
   })
 
   describe("User Not Found", () => {
     it("should return 404 when user does not exist", async () => {
-      mockSql.mockResolvedValueOnce([]) // No user
+      mockFindUserByIdentifier.mockResolvedValue(null)
 
       const request = createRequest("/api/referral/code?telegram_user_id=123456789")
 
@@ -74,12 +93,17 @@ describe("GET /api/referral/code", () => {
     })
   })
 
-  describe("Existing Code", () => {
-    it("should return existing referral code", async () => {
+  describe("Existing Codes", () => {
+    it("should return existing referral codes", async () => {
       // User found
-      mockSql.mockResolvedValueOnce([{ id: 1 }])
-      // Existing code
-      mockSql.mockResolvedValueOnce([{ code: "ABC123", is_active: true }])
+      mockFindUserByIdentifier.mockResolvedValue({ id: 1, telegram_user_id: 123456789 })
+
+      // Existing codes in referral_balances
+      mockSql.mockResolvedValueOnce([{
+        referral_code: "TG1234",
+        referral_code_telegram: "TG1234",
+        referral_code_web: "WEB567"
+      }])
 
       const request = createRequest("/api/referral/code?telegram_user_id=123456789")
 
@@ -87,36 +111,29 @@ describe("GET /api/referral/code", () => {
       const data = await response.json()
 
       expect(response.status).toBe(200)
-      expect(data.code).toBe("ABC123")
+      expect(data.referralCodeTelegram).toBe("TG1234")
+      expect(data.referralCodeWeb).toBe("WEB567")
+      expect(data.code).toBe("TG1234") // Legacy field
       expect(data.isActive).toBe(true)
-    })
-
-    it("should return inactive code status", async () => {
-      mockSql.mockResolvedValueOnce([{ id: 1 }])
-      mockSql.mockResolvedValueOnce([{ code: "OLD123", is_active: false }])
-
-      const request = createRequest("/api/referral/code?telegram_user_id=123456789")
-
-      const response = await GET(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(200)
-      expect(data.code).toBe("OLD123")
-      expect(data.isActive).toBe(false)
+      expect(data.telegramLink).toContain("t.me/")
+      expect(data.webLink).toContain("ref=")
     })
   })
 
   describe("New Code Generation", () => {
-    it("should generate new code when none exists", async () => {
+    it("should generate new codes when none exist", async () => {
       // User found
-      mockSql.mockResolvedValueOnce([{ id: 1 }])
-      // No existing code
+      mockFindUserByIdentifier.mockResolvedValue({ id: 1, telegram_user_id: 123456789 })
+
+      // No existing balance
       mockSql.mockResolvedValueOnce([])
-      // No duplicate on first try
+
+      // Check for telegram code duplicate - no duplicate
       mockSql.mockResolvedValueOnce([])
-      // Insert code success
+      // Check for web code duplicate - no duplicate
       mockSql.mockResolvedValueOnce([])
-      // Insert balance success
+
+      // Insert/upsert success
       mockSql.mockResolvedValueOnce([])
 
       const request = createRequest("/api/referral/code?telegram_user_id=123456789")
@@ -125,22 +142,26 @@ describe("GET /api/referral/code", () => {
       const data = await response.json()
 
       expect(response.status).toBe(200)
-      expect(data.code).toBeDefined()
-      expect(data.code).toHaveLength(6) // Default code length
+      expect(data.referralCodeTelegram).toBeDefined()
+      expect(data.referralCodeTelegram).toHaveLength(6)
+      expect(data.referralCodeWeb).toBeDefined()
+      expect(data.referralCodeWeb).toHaveLength(6)
       expect(data.isActive).toBe(true)
     })
 
-    it("should retry on duplicate code", async () => {
-      // User found
-      mockSql.mockResolvedValueOnce([{ id: 1 }])
-      // No existing code
+    it("should retry on duplicate telegram code", async () => {
+      mockFindUserByIdentifier.mockResolvedValue({ id: 1 })
+
+      // No existing balance
       mockSql.mockResolvedValueOnce([])
-      // First code is duplicate
+
+      // First telegram code is duplicate
       mockSql.mockResolvedValueOnce([{ id: 99 }])
-      // Second code is unique
+      // Second telegram code is unique
+      mockSql.mockResolvedValueOnce([])
+      // Web code is unique
       mockSql.mockResolvedValueOnce([])
       // Insert success
-      mockSql.mockResolvedValueOnce([])
       mockSql.mockResolvedValueOnce([])
 
       const request = createRequest("/api/referral/code?telegram_user_id=123456789")
@@ -149,15 +170,16 @@ describe("GET /api/referral/code", () => {
       const data = await response.json()
 
       expect(response.status).toBe(200)
-      expect(data.code).toBeDefined()
+      expect(data.referralCodeTelegram).toBeDefined()
     })
 
     it("should fail after max attempts for unique code", async () => {
-      // User found
-      mockSql.mockResolvedValueOnce([{ id: 1 }])
-      // No existing code
+      mockFindUserByIdentifier.mockResolvedValue({ id: 1 })
+
+      // No existing balance
       mockSql.mockResolvedValueOnce([])
-      // All codes are duplicates (10 attempts)
+
+      // All telegram codes are duplicates (10 attempts max)
       for (let i = 0; i < 10; i++) {
         mockSql.mockResolvedValueOnce([{ id: i + 1 }])
       }
@@ -168,13 +190,37 @@ describe("GET /api/referral/code", () => {
       const data = await response.json()
 
       expect(response.status).toBe(500)
-      expect(data.error).toContain("unique code")
+      expect(data.error).toBe("Internal server error")
+    })
+  })
+
+  describe("Web User Support", () => {
+    it("should accept neon_user_id for web users", async () => {
+      mockExtractIdentifierFromRequest.mockReturnValue({
+        telegramUserId: undefined,
+        neonUserId: "neon-123-abc"
+      })
+      mockFindUserByIdentifier.mockResolvedValue({ id: 2, neon_auth_id: "neon-123-abc" })
+
+      // Existing codes
+      mockSql.mockResolvedValueOnce([{
+        referral_code_telegram: "TG9999",
+        referral_code_web: "WEB999"
+      }])
+
+      const request = createRequest("/api/referral/code?neon_user_id=neon-123-abc")
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.referralCodeWeb).toBe("WEB999")
     })
   })
 
   describe("Error Handling", () => {
     it("should return 500 on database error", async () => {
-      mockSql.mockRejectedValueOnce(new Error("Connection lost"))
+      mockFindUserByIdentifier.mockRejectedValue(new Error("Connection lost"))
 
       const request = createRequest("/api/referral/code?telegram_user_id=123456789")
 
@@ -183,6 +229,19 @@ describe("GET /api/referral/code", () => {
 
       expect(response.status).toBe(500)
       expect(data.error).toContain("Internal")
+    })
+
+    it("should return 500 on SQL error during code generation", async () => {
+      mockFindUserByIdentifier.mockResolvedValue({ id: 1 })
+      mockSql.mockRejectedValueOnce(new Error("SQL Error"))
+
+      const request = createRequest("/api/referral/code?telegram_user_id=123456789")
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(data.error).toBe("Internal server error")
     })
   })
 })
