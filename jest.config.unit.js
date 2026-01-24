@@ -45,18 +45,23 @@ const config = {
 
   coverageThreshold: {
     global: {
-      branches: 50,
-      functions: 50,
-      lines: 55,
-      statements: 55,
+      branches: 60,
+      functions: 60,
+      lines: 60,
+      statements: 60,
     },
     './lib/tbank.ts': {
-      branches: 60,
-      functions: 80,
-      lines: 70,
-      statements: 70,
+      branches: 90,
+      functions: 90,
+      lines: 90,
+      statements: 90,
     },
-    // Note: imagen.ts threshold removed - file not covered by current tests
+    './lib/imagen.ts': {
+      branches: 85,
+      functions: 85,
+      lines: 85,
+      statements: 85,
+    },
   },
 
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],

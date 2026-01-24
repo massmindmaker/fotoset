@@ -38,6 +38,15 @@ const eslintConfig = [
       "pinglass/prefer-returning": "warn",
     },
   },
+  // Disable strict rules for test files
+  {
+    files: ["tests/**/*", "**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
+    rules: {
+      "pinglass/no-user-status": "off",
+      "pinglass/no-wrong-table": "off",
+      "pinglass/no-hardcoded-price": "off",
+    },
+  },
 ];
 
 export default eslintConfig;
