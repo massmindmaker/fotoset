@@ -6,6 +6,8 @@ import { paymentLogger as log } from "@/lib/logger"
 import { getTBankCredentials } from "@/lib/admin/mode"
 import { checkRateLimit, recordLoginAttempt, getClientIP } from "@/lib/admin/rate-limit"
 
+export const runtime = 'edge'
+
 // Default pricing tiers (fallback if admin settings not configured)
 const DEFAULT_TIER_PRICES: Record<string, { price: number; photos: number; discount?: number }> = {
   starter: { price: 499, photos: 7 },

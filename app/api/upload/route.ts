@@ -5,6 +5,9 @@ import {
   created,
   createLogger,
 } from "@/lib/api-utils"
+
+export const runtime = 'edge'
+
 import {
   uploadImage,
   uploadBase64Image,

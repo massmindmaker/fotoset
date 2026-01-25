@@ -12,6 +12,8 @@ import {
   type UserIdentifier,
 } from "@/lib/auth-utils"
 
+export const runtime = 'edge'
+
 const logger = createLogger("Avatars/[id]")
 
 // ============================================================================
