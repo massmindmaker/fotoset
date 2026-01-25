@@ -84,15 +84,30 @@ function DebugPanel() {
 
 // Script to update debug panel after hydration
 const debugScript = `
-  setTimeout(function() {
-    var panel = document.getElementById('debug-panel');
-    if (panel) {
+  (function() {
+    var tick = 0;
+    function update() {
+      var panel = document.getElementById('debug-panel');
+      if (!panel) return;
+      
       var tg = window.Telegram && window.Telegram.WebApp;
-      panel.textContent = 'hydrated | tg:' + (tg ? 'yes' : 'no') + 
+      var hasSpinner = !!document.querySelector('.animate-spin');
+      var hasError = !!document.querySelector('[style*="ffcccc"]');
+      var mainContent = document.querySelector('.min-h-screen');
+      var childCount = mainContent ? mainContent.children.length : 0;
+      
+      panel.textContent = 't:' + tick + 
+        ' | tg:' + (tg ? 'yes' : 'no') + 
         ' | user:' + (tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 'none') +
-        ' | init:' + (tg && tg.initData ? tg.initData.length : 0);
+        ' | spin:' + (hasSpinner ? 'yes' : 'no') +
+        ' | err:' + (hasError ? 'yes' : 'no') +
+        ' | kids:' + childCount;
+      tick++;
     }
-  }, 100);
+    
+    update();
+    setInterval(update, 1000);
+  })();
 `
 
 export default function Home() {
