@@ -102,9 +102,15 @@ export default function Home() {
         DEBUG: Page loaded - {new Date().toISOString().slice(0, 19)}
       </div>
       <DebugPanel />
+      <div style={{ marginTop: 80, padding: 20 }}>
+        <h1>Test page without PersonaApp</h1>
+        <p>If you see this and DebugPanel shows tg info, hydration works.</p>
+      </div>
+      {/* PersonaApp temporarily disabled for debugging
       <DebugErrorBoundary>
         <PersonaApp />
       </DebugErrorBoundary>
+      */}
     </>
   )
 }
