@@ -2,8 +2,6 @@ import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"
 import { success, error, createLogger } from "@/lib/api-utils"
 
-export const runtime = 'edge'
-
 const logger = createLogger("Packs")
 
 // ============================================================================
