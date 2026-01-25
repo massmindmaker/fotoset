@@ -1,8 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { findOrCreateUser } from "@/lib/user-identity"
 import { sql } from "@/lib/db"
-import { trackReferralApplied } from "@/lib/sentry-events"
+// import { trackReferralApplied } from "@/lib/sentry-events" // Disabled for Edge compatibility
 import { validateTelegramInitData } from "@/lib/telegram-auth"
+
+export const runtime = 'edge'
 
 /**
  * POST /api/user
@@ -114,7 +116,7 @@ export async function POST(request: NextRequest) {
                 DO UPDATE SET referrals_count = referral_balances.referrals_count + 1
               `
               console.log(`[User API] +1 referral count for user ${referrerId} (referrer of ${user.id})`)
-              trackReferralApplied(user.id, referrerId)
+              // trackReferralApplied(user.id, referrerId) // Disabled for Edge
             } else {
               console.log(`[User API] Referral link already exists for user ${user.id}`)
             }
