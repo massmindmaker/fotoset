@@ -494,7 +494,7 @@ export default function PersonaApp() {
                 const newAssets = data.photos.map((p: { id: number; image_url: string; created_at: string }) => ({
                   id: p.id.toString(),
                   url: p.image_url,
-                  type: "image" as const,
+                  type: "PHOTO" as const,
                   createdAt: new Date(p.created_at).getTime(),
                 }))
 
