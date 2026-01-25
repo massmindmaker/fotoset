@@ -11,8 +11,7 @@ import {
 } from "@/lib/api-utils"
 // User identity handled by getAuthenticatedUser
 import { getAuthenticatedUser } from "@/lib/auth-middleware"
-
-export const runtime = 'edge'
+// NOTE: Cannot use edge runtime - auth-middleware uses Node.js crypto
 
 const logger = createLogger("Avatars")
 

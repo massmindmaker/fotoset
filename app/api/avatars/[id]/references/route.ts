@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/db"
 import { getAuthenticatedUser } from "@/lib/auth-middleware"
-
-export const runtime = 'edge'
+// NOTE: Cannot use edge runtime - auth-middleware uses Node.js crypto
 
 interface RouteParams {
   params: Promise<{ id: string }>
