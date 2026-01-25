@@ -14,10 +14,10 @@
 import { authLogger as log } from './logger';
 
 // Web Crypto HMAC-SHA256 helper
-async function hmacSha256(key: ArrayBuffer | Uint8Array, data: string): Promise<ArrayBuffer> {
+async function hmacSha256(key: BufferSource, data: string): Promise<ArrayBuffer> {
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    key,
+    key instanceof ArrayBuffer ? key : new Uint8Array(key as ArrayBuffer),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
