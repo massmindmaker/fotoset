@@ -58,24 +58,13 @@ class DebugErrorBoundary extends Component<
   }
 }
 
-// Debug panel - minimal version
+// Debug panel - no useEffect, direct render
 function DebugPanel() {
-  const [info, setInfo] = useState("loading...")
-
-  useEffect(() => {
-    try {
-      const tg = (window as any).Telegram?.WebApp
-      const data = [
-        `tg:${tg ? 'yes' : 'no'}`,
-        `user:${tg?.initDataUnsafe?.user?.id || 'none'}`,
-        `init:${tg?.initData?.length || 0}`,
-        `plat:${tg?.platform || '?'}`,
-      ].join(' | ')
-      setInfo(data)
-    } catch (e) {
-      setInfo(`error: ${e}`)
-    }
-  }, [])
+  // Direct access without state/effect
+  const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null
+  const info = typeof window === 'undefined' 
+    ? 'SSR' 
+    : `tg:${tg ? 'yes' : 'no'} | user:${tg?.initDataUnsafe?.user?.id || 'none'} | init:${tg?.initData?.length || 0} | plat:${tg?.platform || '?'}`
 
   return (
     <div style={{
