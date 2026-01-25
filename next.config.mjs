@@ -1,4 +1,5 @@
-import { withSentryConfig } from "@sentry/nextjs";
+// TEMPORARILY DISABLED Sentry wrapper for debugging Node.js hanging issue
+// import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -68,16 +69,19 @@ const nextConfig = {
   turbopack: {},
 };
 
-export default withSentryConfig(nextConfig, {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  silent: !process.env.CI,
-  widenClientFileUpload: true,
-  reactComponentAnnotation: {
-    enabled: true,
-  },
-  tunnelRoute: "/monitoring",
-  hideSourceMaps: true,
-  disableLogger: true,
-  automaticVercelMonitors: true,
-});
+// TEMPORARILY DISABLED for debugging
+// export default withSentryConfig(nextConfig, {
+//   org: process.env.SENTRY_ORG,
+//   project: process.env.SENTRY_PROJECT,
+//   silent: !process.env.CI,
+//   widenClientFileUpload: true,
+//   reactComponentAnnotation: {
+//     enabled: true,
+//   },
+//   tunnelRoute: "/monitoring",
+//   hideSourceMaps: true,
+//   disableLogger: true,
+//   automaticVercelMonitors: true,
+// });
+
+export default nextConfig;
