@@ -1,7 +1,7 @@
 // maxDuration not needed - all generation runs via QStash (no local fallback)
 // Keeping 60s for API validation/response
 export const maxDuration = 60
-// NOTE: Cannot use edge runtime - auth-middleware uses Node.js crypto
+export const runtime = 'edge'
 
 import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"

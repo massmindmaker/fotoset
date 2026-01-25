@@ -43,19 +43,36 @@ export interface AuthError {
 
 type AuthResult = AuthSuccess | AuthError;
 
+// Web Crypto HMAC-SHA256 helper for Edge runtime compatibility
+async function hmacSha256(key: ArrayBuffer | Uint8Array, data: string): Promise<ArrayBuffer> {
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    key,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const encoder = new TextEncoder();
+  return crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(data));
+}
+
+function arrayBufferToHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 /**
  * Validate Telegram initData HMAC signature
  * @see https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
  */
-function validateTelegramInitData(initData: string): { valid: boolean; userId?: number; username?: string } {
+async function validateTelegramInitData(initData: string): Promise<{ valid: boolean; userId?: number; username?: string }> {
   try {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     if (!botToken) {
       console.warn('[Auth] TELEGRAM_BOT_TOKEN not configured');
       return { valid: false };
     }
-
-    const crypto = require('crypto');
 
     // Parse initData manually to preserve original encoding for hash calculation
     // URLSearchParams auto-decodes values which breaks hash verification
@@ -95,18 +112,12 @@ function validateTelegramInitData(initData: string): { valid: boolean; userId?: 
       .map(([key, value]) => `${key}=${value}`)
       .join('\n');
 
-    // Calculate HMAC - Per Telegram docs: "WebAppData" is KEY, botToken is MESSAGE
-    // See https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
-    // Quote: "the constant string WebAppData used as a key"
-    const secretKey = crypto
-      .createHmac('sha256', 'WebAppData')
-      .update(botToken)
-      .digest();
-
-    const calculatedHash = crypto
-      .createHmac('sha256', secretKey)
-      .update(sortedParams)
-      .digest('hex');
+    // Calculate HMAC using Web Crypto API (Edge compatible)
+    // Per Telegram docs: "WebAppData" is KEY, botToken is MESSAGE
+    const encoder = new TextEncoder();
+    const secretKey = await hmacSha256(encoder.encode('WebAppData'), botToken);
+    const calculatedHashBuffer = await hmacSha256(secretKey, sortedParams);
+    const calculatedHash = arrayBufferToHex(calculatedHashBuffer);
 
     if (calculatedHash !== hash) {
       console.error('[Auth] Hash mismatch:', {
@@ -277,7 +288,7 @@ export async function getAuthenticatedUser(
   });
 
   if (telegramInitData) {
-    const validation = validateTelegramInitData(telegramInitData);
+    const validation = await validateTelegramInitData(telegramInitData);
 
     console.log('[Auth] Telegram initData validation:', {
       valid: validation.valid,

@@ -7,10 +7,30 @@
  * - Returns validated user data or null if validation fails
  *
  * Reference: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+ *
+ * NOTE: Uses Web Crypto API for Edge runtime compatibility
  */
 
-import { createHmac } from 'crypto';
 import { authLogger as log } from './logger';
+
+// Web Crypto HMAC-SHA256 helper
+async function hmacSha256(key: ArrayBuffer | Uint8Array, data: string): Promise<ArrayBuffer> {
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    key,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const encoder = new TextEncoder();
+  return crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(data));
+}
+
+function arrayBufferToHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 export interface TelegramUser {
   id: number;
@@ -73,11 +93,11 @@ function parseInitData(initDataRaw: string): Record<string, string> {
  * @param maxAge - Maximum age of initData in seconds (default: 86400 = 24 hours)
  * @returns Validated TelegramInitData or null if invalid
  */
-export function validateTelegramInitData(
+export async function validateTelegramInitData(
   initDataRaw: string,
   botToken: string,
   maxAge: number = 86400
-): TelegramInitData | null {
+): Promise<TelegramInitData | null> {
   try {
     // Parse initData
     const data = parseInitData(initDataRaw);
@@ -101,14 +121,12 @@ export function validateTelegramInitData(
     // Calculate secret key: HMAC-SHA256(key="WebAppData", data=bot_token)
     // See https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
     // Quote: "the constant string WebAppData used as a key"
-    const secretKey = createHmac('sha256', 'WebAppData')
-      .update(botToken)
-      .digest();
+    const encoder = new TextEncoder();
+    const secretKey = await hmacSha256(encoder.encode('WebAppData'), botToken);
 
     // Calculate expected hash: HMAC-SHA256(secret_key, data_check_string)
-    const expectedHash = createHmac('sha256', secretKey)
-      .update(dataCheckString)
-      .digest('hex');
+    const expectedHashBuffer = await hmacSha256(secretKey, dataCheckString);
+    const expectedHash = arrayBufferToHex(expectedHashBuffer);
 
     // Constant-time comparison to prevent timing attacks
     if (!constantTimeCompare(expectedHash, receivedHash)) {

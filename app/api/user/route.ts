@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const validation = validateTelegramInitData(initData, botToken)
+    const validation = await validateTelegramInitData(initData, botToken)
     if (!validation || !validation.user?.id) {
       console.warn("[User API] Invalid initData signature")
       return NextResponse.json(

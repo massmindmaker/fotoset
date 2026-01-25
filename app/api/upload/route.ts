@@ -5,7 +5,9 @@ import {
   created,
   createLogger,
 } from "@/lib/api-utils"
-// NOTE: Cannot use edge runtime - auth-middleware uses Node.js crypto
+
+export const runtime = 'edge'
+
 import {
   uploadImage,
   uploadBase64Image,
