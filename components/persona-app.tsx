@@ -849,12 +849,41 @@ export default function PersonaApp() {
   }, [getActivePersona, telegramUserId, neonUserId, userIdentifier, loadAvatarsFromServer, showMessage])
 
   // Open Avatar Detail View
-  const handleSelectAvatar = useCallback((id: string) => {
+  const handleSelectAvatar = useCallback(async (id: string) => {
     const p = getPersona(id)
     if (!p) return
 
     // Clear stale reference photos before switching view to prevent "0/8" flash
     setReferencePhotos([])
+
+    // If avatar is ready but has no photos locally, try to fetch them
+    if (p.status === "ready" && p.generatedAssets.length === 0) {
+      console.log("[Avatar] Ready avatar has no local photos, fetching from server...")
+      try {
+        const res = await fetch(`/api/avatars/${id}/photos`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success && data.photos?.length > 0) {
+            const loadedAssets = data.photos.map((photo: { id: number; image_url: string; style_id: string; prompt?: string; created_at: string }) => ({
+              id: String(photo.id),
+              type: "PHOTO" as const,
+              url: photo.image_url,
+              styleId: photo.style_id,
+              prompt: photo.prompt,
+              createdAt: new Date(photo.created_at).getTime(),
+            }))
+            updatePersona(id, { generatedAssets: loadedAssets })
+            console.log("[Avatar] Loaded", loadedAssets.length, "photos from server")
+            // Now show detail view with photos
+            setViewState({ view: "AVATAR_DETAIL", personaId: id })
+            loadReferencePhotos(id)
+            return
+          }
+        }
+      } catch (err) {
+        console.error("[Avatar] Failed to fetch photos:", err)
+      }
+    }
 
     // If avatar has reference photos, show detail view
     // If it's draft without refs, go to upload
@@ -869,7 +898,7 @@ export default function PersonaApp() {
       setViewState({ view: "AVATAR_DETAIL", personaId: id })
       loadReferencePhotos(id)
     }
-  }, [getPersona, loadReferencePhotos])
+  }, [getPersona, loadReferencePhotos, updatePersona])
 
   // Upload complete handler
   const handleUploadComplete = useCallback(async () => {
