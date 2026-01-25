@@ -651,24 +651,11 @@ export default function PersonaApp() {
       return
     }
 
-    // Skip /api/user call - user will be created on first API interaction
-    // Just load avatars and go to dashboard
-    try {
-      const newIdentifier = {
-        type: "telegram" as const,
-        telegramUserId: tgUser.id,
-        visibleUserId: tgUser.id,
-        deviceId: `tg_${tgUser.id}`,
-      }
-      await loadAvatarsFromServer(newIdentifier)
-    } catch (err) {
-      console.error("[Onboarding] Failed to load avatars:", err)
-      // Continue anyway - dashboard will handle empty state
-    }
-
+    // Skip all API calls - just go to dashboard immediately
+    // APIs are hanging, dashboard will retry loading later
     localStorage.setItem("pinglass_onboarding_complete", "true")
     setViewState({ view: "DASHBOARD" })
-  }, [loadAvatarsFromServer, showMessage])
+  }, [showMessage])
 
   // Create persona handler - immediately creates avatar on server
   const handleCreatePersona = useCallback(async () => {
