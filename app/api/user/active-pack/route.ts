@@ -3,6 +3,8 @@ import { sql } from "@/lib/db"
 import { success, error, createLogger } from "@/lib/api-utils"
 import { getAuthenticatedUser } from "@/lib/auth-middleware"
 
+export const runtime = 'edge'
+
 const logger = createLogger("UserActivePack")
 
 /**

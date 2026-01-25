@@ -4,6 +4,8 @@
  * No authentication required - returns only enabled/disabled status and pricing
  */
 
+export const runtime = 'edge'
+
 import { NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { DEFAULT_PAYMENT_METHODS } from '@/lib/admin/types'

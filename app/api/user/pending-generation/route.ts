@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 
+export const runtime = 'edge'
+
 // GET /api/user/pending-generation?telegram_user_id=XXX
 // Check if user has pending generation after successful payment
 export async function GET(request: NextRequest) {

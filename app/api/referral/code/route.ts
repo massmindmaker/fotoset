@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { extractIdentifierFromRequest, findUserByIdentifier } from "@/lib/user-identity"
 
+export const runtime = 'edge'
+
 // Generate unique referral code
 function generateCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // No 0,O,1,I for clarity
