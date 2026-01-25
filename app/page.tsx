@@ -1,6 +1,6 @@
 "use client"
 
-import { Component, ReactNode } from "react"
+import { Component, ReactNode, useState, useEffect } from "react"
 import PersonaApp from "@/components/persona-app"
 
 // Temporary debug error boundary - shows errors on screen
@@ -58,6 +58,60 @@ class DebugErrorBoundary extends Component<
   }
 }
 
+// Debug panel to show Telegram SDK and auth state
+function DebugPanel() {
+  const [debugInfo, setDebugInfo] = useState<Record<string, unknown>>({})
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    const update = () => {
+      const tg = (window as any).Telegram?.WebApp
+      setDebugInfo({
+        hasTelegram: !!(window as any).Telegram,
+        hasWebApp: !!tg,
+        initDataLength: tg?.initData?.length || 0,
+        hasUser: !!tg?.initDataUnsafe?.user,
+        userId: tg?.initDataUnsafe?.user?.id || 'none',
+        platform: tg?.platform || 'unknown',
+        version: tg?.version || 'unknown',
+        colorScheme: tg?.colorScheme || 'unknown',
+        isExpanded: tg?.isExpanded || false,
+        viewportHeight: tg?.viewportHeight || 0,
+      })
+    }
+    
+    update()
+    const interval = setInterval(() => {
+      update()
+      setTick(t => t + 1)
+    }, 1000)
+    
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 30,
+      left: 0,
+      right: 0,
+      background: '#333',
+      color: '#0f0',
+      padding: '8px',
+      fontSize: '10px',
+      fontFamily: 'monospace',
+      zIndex: 99998,
+      maxHeight: '150px',
+      overflow: 'auto'
+    }}>
+      <div>Tick: {tick} | {new Date().toISOString().slice(11, 19)}</div>
+      {Object.entries(debugInfo).map(([key, value]) => (
+        <div key={key}>{key}: {String(value)}</div>
+      ))}
+    </div>
+  )
+}
+
 export default function Home() {
   return (
     <>
@@ -75,6 +129,7 @@ export default function Home() {
       }}>
         DEBUG: Page loaded - {new Date().toISOString().slice(0, 19)}
       </div>
+      <DebugPanel />
       <DebugErrorBoundary>
         <PersonaApp />
       </DebugErrorBoundary>
