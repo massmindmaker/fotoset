@@ -12,6 +12,8 @@ import {
 // User identity handled by getAuthenticatedUser
 import { getAuthenticatedUser } from "@/lib/auth-middleware"
 
+export const runtime = 'edge'
+
 const logger = createLogger("Avatars")
 
 // ============================================================================

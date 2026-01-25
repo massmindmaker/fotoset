@@ -3,6 +3,8 @@
  * Public endpoint for fetching active pricing tiers
  */
 
+export const runtime = 'edge'
+
 import { NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { DEFAULT_PRICING, type PricingTiers } from '@/lib/pricing'
