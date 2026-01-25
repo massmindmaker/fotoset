@@ -35,9 +35,8 @@ export default function RootLayout({
         <script src="https://telegram.org/js/telegram-web-app.js" />
       </head>
       <body className="font-sans antialiased">
-        <Providers>
-          {children}
-        </Providers>
+        {/* Providers temporarily disabled for debugging */}
+        {children}
         <Analytics />
       </body>
     </html>
