@@ -125,13 +125,13 @@ export async function POST(request: Request) {
       const chunkPromptIds = promptIds.slice(startIndex, endIndex)
 
       const packPrompts = await sql`
-        SELECT id, prompt_text
+        SELECT id, prompt
         FROM pack_prompts
         WHERE id = ANY(${chunkPromptIds}::int[])
         ORDER BY array_position(${chunkPromptIds}::int[], id)
       `
 
-      promptsToProcess = packPrompts.map((row: any) => row.prompt_text)
+      promptsToProcess = packPrompts.map((row: any) => row.prompt)
       packPromptIds = packPrompts.map((row: any) => row.id)
 
       console.log(`[Jobs/Process] Loaded ${promptsToProcess.length} prompts from pack ${packId}`)
