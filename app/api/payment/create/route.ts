@@ -6,7 +6,7 @@ import { paymentLogger as log } from "@/lib/logger"
 import { getTBankCredentials } from "@/lib/admin/mode"
 import { checkRateLimit, recordLoginAttempt, getClientIP } from "@/lib/admin/rate-limit"
 
-export const runtime = 'edge'
+// NOTE: Cannot use edge runtime - tbank.ts uses Node.js crypto module
 
 // Default pricing tiers (fallback if admin settings not configured)
 const DEFAULT_TIER_PRICES: Record<string, { price: number; photos: number; discount?: number }> = {
