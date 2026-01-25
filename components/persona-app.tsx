@@ -662,20 +662,20 @@ export default function PersonaApp() {
     }
 
     try {
-      // FIX: Send telegramUserId (not initData) and markOnboardingComplete
-      // This triggers referral link creation if user has pending_referral_code
+      // Send initData for secure Telegram authentication
       showMessage("Создание пользователя...")
       const res = await fetch("/api/user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          telegramUserId: tgUser.id,
+          initData,
           markOnboardingComplete: true,
         }),
       })
 
       if (!res.ok) {
-        showMessage(`Ошибка API: ${res.status}`)
+        const errData = await res.json().catch(() => ({}))
+        showMessage(`Ошибка API: ${res.status} - ${errData.error || 'unknown'}`)
         return
       }
     } catch (err) {
