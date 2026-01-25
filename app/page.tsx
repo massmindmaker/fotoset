@@ -114,15 +114,9 @@ export default function Home() {
       </div>
       <DebugPanel />
       <script dangerouslySetInnerHTML={{ __html: debugScript }} />
-      <div style={{ marginTop: 80, padding: 20 }}>
-        <h1>Test page without PersonaApp</h1>
-        <p>If you see this and DebugPanel shows tg info, hydration works.</p>
-      </div>
-      {/* PersonaApp temporarily disabled for debugging
       <DebugErrorBoundary>
         <PersonaApp />
       </DebugErrorBoundary>
-      */}
     </>
   )
 }
