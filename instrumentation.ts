@@ -3,18 +3,17 @@
 // https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
 
 export async function register() {
+  // TEMPORARILY DISABLED for debugging Node.js hanging issue on Vercel Preview
+  // TODO: Re-enable after fixing the root cause
+  console.log("[Instrumentation] Runtime:", process.env.NEXT_RUNTIME);
+  
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    // Validate environment variables at startup
-    const { validateEnvOrThrow, ensureQstashTable } = await import("./lib/env-validation");
-    validateEnvOrThrow();
-
-    // Ensure critical tables exist (non-blocking)
-    ensureQstashTable().catch(err => {
-      console.warn("[Startup] QStash table check failed:", err);
-    });
-
-    // Server-side Sentry initialization
-    await import("./sentry.server.config");
+    console.log("[Instrumentation] Node.js runtime - skipping validation for debug");
+    // Skip validation and Sentry to isolate the hanging issue
+    // const { validateEnvOrThrow, ensureQstashTable } = await import("./lib/env-validation");
+    // validateEnvOrThrow();
+    // ensureQstashTable().catch(err => console.warn("[Startup] QStash table check failed:", err));
+    // await import("./sentry.server.config");
   }
 
   if (process.env.NEXT_RUNTIME === "edge") {
