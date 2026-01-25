@@ -643,59 +643,27 @@ export default function PersonaApp() {
 
   // Create user on onboarding start
   const handleStartOnboarding = useCallback(async () => {
-    // DEBUG: Visual feedback for mobile
-    showMessage("Загрузка...")
-    
     const tg = window.Telegram?.WebApp
-    const initData = tg?.initData
-
-    if (!initData) {
-      showMessage("Ошибка: нет initData. Откройте через @PinGlassTestBot")
-      return
-    }
-
     const tgUser = tg?.initDataUnsafe?.user
     
     if (!tgUser?.id) {
-      showMessage("Ошибка: нет tgUser. Перезапустите приложение.")
+      showMessage("Ошибка: нет данных Telegram. Перезапустите приложение.")
       return
     }
 
+    // Skip /api/user call - user will be created on first API interaction
+    // Just load avatars and go to dashboard
     try {
-      // Send initData for secure Telegram authentication
-      showMessage("Создание пользователя...")
-      const res = await fetch("/api/user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          initData,
-          markOnboardingComplete: true,
-        }),
-      })
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        showMessage(`Ошибка API: ${res.status} - ${errData.error || 'unknown'}`)
-        return
-      }
-    } catch (err) {
-      showMessage(`Ошибка сети: ${err}`)
-      return
-    }
-
-    try {
-      showMessage("Загрузка аватаров...")
       const newIdentifier = {
         type: "telegram" as const,
         telegramUserId: tgUser.id,
         visibleUserId: tgUser.id,
         deviceId: `tg_${tgUser.id}`,
       }
-      const avatars = await loadAvatarsFromServer(newIdentifier)
-      showMessage(`Загружено ${avatars.length} аватаров`)
+      await loadAvatarsFromServer(newIdentifier)
     } catch (err) {
-      showMessage(`Ошибка загрузки: ${err}`)
-      return
+      console.error("[Onboarding] Failed to load avatars:", err)
+      // Continue anyway - dashboard will handle empty state
     }
 
     localStorage.setItem("pinglass_onboarding_complete", "true")
