@@ -643,8 +643,12 @@ export default function PersonaApp() {
 
   // Create user on onboarding start
   const handleStartOnboarding = useCallback(async () => {
+    console.log("[Onboarding] handleStartOnboarding called")
+    
     const tg = window.Telegram?.WebApp
     const initData = tg?.initData
+
+    console.log("[Onboarding] Telegram WebApp:", !!tg, "initData:", !!initData, "length:", initData?.length)
 
     if (!initData) {
       console.error("[Onboarding] No Telegram initData available")
@@ -653,6 +657,8 @@ export default function PersonaApp() {
     }
 
     const tgUser = tg?.initDataUnsafe?.user
+    console.log("[Onboarding] tgUser:", tgUser?.id, tgUser?.username)
+    
     if (!tgUser?.id) {
       console.error("[Onboarding] No telegram user in initDataUnsafe!")
       showMessage("Не удалось получить данные Telegram. Перезапустите приложение.")
