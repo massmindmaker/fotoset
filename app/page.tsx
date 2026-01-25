@@ -58,31 +58,42 @@ class DebugErrorBoundary extends Component<
   }
 }
 
-// Debug panel - no useEffect, direct render
+// Debug panel - client-only with suppressHydrationWarning
 function DebugPanel() {
-  // Direct access without state/effect
-  const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null
-  const info = typeof window === 'undefined' 
-    ? 'SSR' 
-    : `tg:${tg ? 'yes' : 'no'} | user:${tg?.initDataUnsafe?.user?.id || 'none'} | init:${tg?.initData?.length || 0} | plat:${tg?.platform || '?'}`
-
   return (
-    <div style={{
-      position: 'fixed',
-      top: 30,
-      left: 0,
-      right: 0,
-      background: '#333',
-      color: '#0f0',
-      padding: '6px',
-      fontSize: '11px',
-      fontFamily: 'monospace',
-      zIndex: 99998,
-    }}>
-      {info}
+    <div 
+      id="debug-panel"
+      suppressHydrationWarning
+      style={{
+        position: 'fixed',
+        top: 30,
+        left: 0,
+        right: 0,
+        background: '#333',
+        color: '#0f0',
+        padding: '6px',
+        fontSize: '11px',
+        fontFamily: 'monospace',
+        zIndex: 99998,
+      }}
+    >
+      checking...
     </div>
   )
 }
+
+// Script to update debug panel after hydration
+const debugScript = `
+  setTimeout(function() {
+    var panel = document.getElementById('debug-panel');
+    if (panel) {
+      var tg = window.Telegram && window.Telegram.WebApp;
+      panel.textContent = 'hydrated | tg:' + (tg ? 'yes' : 'no') + 
+        ' | user:' + (tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 'none') +
+        ' | init:' + (tg && tg.initData ? tg.initData.length : 0);
+    }
+  }, 100);
+`
 
 export default function Home() {
   return (
@@ -99,9 +110,10 @@ export default function Home() {
         fontSize: '12px',
         zIndex: 99999
       }}>
-        DEBUG: Page loaded - {new Date().toISOString().slice(0, 19)}
+        DEBUG v2
       </div>
       <DebugPanel />
+      <script dangerouslySetInnerHTML={{ __html: debugScript }} />
       <div style={{ marginTop: 80, padding: 20 }}>
         <h1>Test page without PersonaApp</h1>
         <p>If you see this and DebugPanel shows tg info, hydration works.</p>
