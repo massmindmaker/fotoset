@@ -9,16 +9,14 @@
  */
 
 import { ReactNode } from 'react'
-import { TonConnectProvider } from '@/lib/tonconnect/provider'
+// TonConnect temporarily disabled for debugging
+// import { TonConnectProvider } from '@/lib/tonconnect/provider'
 
 interface ProvidersProps {
   children: ReactNode
 }
 
 export function Providers({ children }: ProvidersProps) {
-  return (
-    <TonConnectProvider>
-      {children}
-    </TonConnectProvider>
-  )
+  // TonConnect disabled - testing if it blocks hydration
+  return <>{children}</>
 }
