@@ -15,14 +15,8 @@ import { PRICING_TIERS } from "./views/dashboard-view"
 import { useAuth, useAvatars, useGeneration, usePayment, usePolling, useSync, usePricing } from "./hooks"
 import { useNetworkStatus } from "@/lib/network-status"
 
-// Safe useSession wrapper - Neon Auth may not be configured for test environment
-let useSessionSafe: () => { data: unknown; isPending: boolean }
-try {
-  const { useSession } = require("@/lib/auth/client")
-  useSessionSafe = useSession
-} catch {
-  useSessionSafe = () => ({ data: null, isPending: false })
-}
+// Neon Auth disabled for debugging - require() was blocking hydration
+const useSessionSafe = () => ({ data: null, isPending: false })
 
 // Import error handling components
 import { ErrorModal, OfflineBanner } from "./error-modal"
