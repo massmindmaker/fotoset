@@ -92,16 +92,12 @@ const debugScript = `
       
       var tg = window.Telegram && window.Telegram.WebApp;
       var hasSpinner = !!document.querySelector('.animate-spin');
-      var hasError = !!document.querySelector('[style*="ffcccc"]');
-      var mainContent = document.querySelector('.min-h-screen');
-      var childCount = mainContent ? mainContent.children.length : 0;
+      var auth = window.__authDebug || { status: 'none', step: 'none' };
       
       panel.textContent = 't:' + tick + 
-        ' | tg:' + (tg ? 'yes' : 'no') + 
-        ' | user:' + (tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 'none') +
+        ' | auth:' + auth.status + '/' + auth.step +
         ' | spin:' + (hasSpinner ? 'yes' : 'no') +
-        ' | err:' + (hasError ? 'yes' : 'no') +
-        ' | kids:' + childCount;
+        ' | user:' + (tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 'none');
       tick++;
     }
     
