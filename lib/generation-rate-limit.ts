@@ -23,11 +23,13 @@ export interface GenerationRateLimitResult {
  */
 export async function checkGenerationRateLimit(userId: number): Promise<GenerationRateLimitResult> {
   // Count active generations (pending or processing)
+  // NOTE: generation_jobs doesn't have user_id - must JOIN via avatars
   const activeCount = await sql`
     SELECT COUNT(*) as count
-    FROM generation_jobs
-    WHERE user_id = ${userId}
-      AND status IN ('pending', 'processing')
+    FROM generation_jobs j
+    JOIN avatars a ON a.id = j.avatar_id
+    WHERE a.user_id = ${userId}
+      AND j.status IN ('pending', 'processing')
   `.then((rows: any[]) => parseInt(rows[0]?.count || '0'))
 
   if (activeCount >= MAX_CONCURRENT_GENERATIONS) {
@@ -39,11 +41,13 @@ export async function checkGenerationRateLimit(userId: number): Promise<Generati
   }
 
   // Check cooldown - last generation start time
+  // NOTE: generation_jobs doesn't have user_id - must JOIN via avatars
   const lastGeneration = await sql`
-    SELECT created_at
-    FROM generation_jobs
-    WHERE user_id = ${userId}
-    ORDER BY created_at DESC
+    SELECT j.created_at
+    FROM generation_jobs j
+    JOIN avatars a ON a.id = j.avatar_id
+    WHERE a.user_id = ${userId}
+    ORDER BY j.created_at DESC
     LIMIT 1
   `.then((rows: any[]) => rows[0]?.created_at)
 
