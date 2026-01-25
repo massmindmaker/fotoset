@@ -64,14 +64,9 @@ export function useAuth() {
   useEffect(() => {
     if (typeof window === "undefined") return
 
-    // Debug: expose auth state to window for debugging
-    (window as any).__authDebug = { status: 'starting', step: 'init' }
-
     const abortController = new AbortController()
 
     const initAuth = async () => {
-      (window as any).__authDebug = { status: 'running', step: 'theme' }
-      
       // Load saved theme (default to light)
       const savedTheme = localStorage.getItem("pinglass_theme") as "dark" | "light" | null
       const effectiveTheme = savedTheme || "light"
@@ -105,14 +100,6 @@ export function useAuth() {
         tg = window.Telegram?.WebApp
       }
 
-      (window as any).__authDebug = { 
-        status: 'checking', 
-        step: 'tg_state',
-        hasTg: !!tg,
-        hasValidInitData: isValidInitData(tg?.initData),
-        userId: tg?.initDataUnsafe?.user?.id,
-      }
-      
       console.log("[TG] WebApp state:", {
         hasTg: !!tg,
         hasValidInitData: isValidInitData(tg?.initData),
@@ -141,7 +128,6 @@ export function useAuth() {
 
         setUserIdentifier(identifier)
         setAuthStatus('success')
-        ;(window as any).__authDebug = { status: 'success', step: 'tg_auth', userId: tgUser.id }
         console.log("[TG] Auth success:", tgUser.id, tgUser.username || tgUser.first_name)
 
         // Handle start_param (passed via Telegram deep link)
@@ -238,11 +224,9 @@ export function useAuth() {
           hasInitData: !!tg?.initData,
           initDataLength: tg?.initData?.length || 0,
         })
-        ;(window as any).__authDebug = { status: 'not_in_telegram', step: 'no_initdata' }
         setAuthStatus('not_in_telegram')
       } else {
         console.log("[TG] Has valid initData but no user - failed auth")
-        ;(window as any).__authDebug = { status: 'failed', step: 'no_user' }
         setAuthStatus('failed')
       }
     }
