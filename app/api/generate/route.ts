@@ -1,7 +1,7 @@
 // maxDuration not needed - all generation runs via QStash (no local fallback)
 // Keeping 60s for API validation/response
 export const maxDuration = 60
-export const runtime = 'edge'
+// NOTE: Cannot use Edge runtime - imports lib/tbank.ts which uses Node.js crypto
 
 import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"

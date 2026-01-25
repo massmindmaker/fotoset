@@ -6,7 +6,7 @@ import {
   createLogger,
 } from "@/lib/api-utils"
 
-export const runtime = 'edge'
+// NOTE: Cannot use Edge runtime - uses Sharp for image compression
 
 import {
   uploadImage,
