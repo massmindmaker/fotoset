@@ -58,35 +58,23 @@ class DebugErrorBoundary extends Component<
   }
 }
 
-// Debug panel to show Telegram SDK and auth state
+// Debug panel - minimal version
 function DebugPanel() {
-  const [debugInfo, setDebugInfo] = useState<Record<string, unknown>>({})
-  const [tick, setTick] = useState(0)
+  const [info, setInfo] = useState("loading...")
 
   useEffect(() => {
-    const update = () => {
+    try {
       const tg = (window as any).Telegram?.WebApp
-      setDebugInfo({
-        hasTelegram: !!(window as any).Telegram,
-        hasWebApp: !!tg,
-        initDataLength: tg?.initData?.length || 0,
-        hasUser: !!tg?.initDataUnsafe?.user,
-        userId: tg?.initDataUnsafe?.user?.id || 'none',
-        platform: tg?.platform || 'unknown',
-        version: tg?.version || 'unknown',
-        colorScheme: tg?.colorScheme || 'unknown',
-        isExpanded: tg?.isExpanded || false,
-        viewportHeight: tg?.viewportHeight || 0,
-      })
+      const data = [
+        `tg:${tg ? 'yes' : 'no'}`,
+        `user:${tg?.initDataUnsafe?.user?.id || 'none'}`,
+        `init:${tg?.initData?.length || 0}`,
+        `plat:${tg?.platform || '?'}`,
+      ].join(' | ')
+      setInfo(data)
+    } catch (e) {
+      setInfo(`error: ${e}`)
     }
-    
-    update()
-    const interval = setInterval(() => {
-      update()
-      setTick(t => t + 1)
-    }, 1000)
-    
-    return () => clearInterval(interval)
   }, [])
 
   return (
@@ -97,17 +85,12 @@ function DebugPanel() {
       right: 0,
       background: '#333',
       color: '#0f0',
-      padding: '8px',
-      fontSize: '10px',
+      padding: '6px',
+      fontSize: '11px',
       fontFamily: 'monospace',
       zIndex: 99998,
-      maxHeight: '150px',
-      overflow: 'auto'
     }}>
-      <div>Tick: {tick} | {new Date().toISOString().slice(11, 19)}</div>
-      {Object.entries(debugInfo).map(([key, value]) => (
-        <div key={key}>{key}: {String(value)}</div>
-      ))}
+      {info}
     </div>
   )
 }
