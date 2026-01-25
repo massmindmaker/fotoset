@@ -113,6 +113,14 @@ const PaymentModal = lazy(() => import("./payment-modal").then((m) => ({ default
 const ReferralPanel = lazy(() => import("./referral-panel").then((m) => ({ default: m.ReferralPanel })))
 
 export default function PersonaApp() {
+  // DEBUG: Track component mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__personaAppMounted = true
+      ;(window as any).__authDebug = { status: 'persona_mounted', step: 'start' }
+    }
+  }, [])
+
   // Custom hooks
   const { userIdentifier, authStatus, telegramUserId, isWebUser, isTelegramUser, neonUserId, theme, toggleTheme, showMessage, setWebUser, hapticImpact, hapticNotification, hapticSelection } = useAuth()
   const { data: neonSession, isPending: isNeonAuthPending } = useSessionSafe() // Neon Auth session for web users
