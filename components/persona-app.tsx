@@ -664,6 +664,7 @@ export default function PersonaApp() {
     try {
       // FIX: Send telegramUserId (not initData) and markOnboardingComplete
       // This triggers referral link creation if user has pending_referral_code
+      showMessage("Создание пользователя...")
       const res = await fetch("/api/user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -674,16 +675,16 @@ export default function PersonaApp() {
       })
 
       if (!res.ok) {
-        console.error("[Onboarding] Failed to complete onboarding, status:", res.status)
-      } else {
-        console.log("[Onboarding] Onboarding completed, referral link created if applicable")
+        showMessage(`Ошибка API: ${res.status}`)
+        return
       }
     } catch (err) {
-      console.error("[Onboarding] Onboarding completion error:", err)
+      showMessage(`Ошибка сети: ${err}`)
+      return
     }
 
-    console.log("[Onboarding] Reloading avatars after user creation...")
     try {
+      showMessage("Загрузка аватаров...")
       const newIdentifier = {
         type: "telegram" as const,
         telegramUserId: tgUser.id,
@@ -691,9 +692,10 @@ export default function PersonaApp() {
         deviceId: `tg_${tgUser.id}`,
       }
       const avatars = await loadAvatarsFromServer(newIdentifier)
-      console.log("[Onboarding] Loaded", avatars.length, "avatars")
+      showMessage(`Загружено ${avatars.length} аватаров`)
     } catch (err) {
-      console.error("[Onboarding] Failed to reload avatars:", err)
+      showMessage(`Ошибка загрузки: ${err}`)
+      return
     }
 
     localStorage.setItem("pinglass_onboarding_complete", "true")
