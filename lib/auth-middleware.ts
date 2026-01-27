@@ -258,18 +258,42 @@ export async function getAuthenticatedUser(
     }
   }
 
+  // Check for telegramUserId from body or headers
   const telegramUserIdFromBody = body?.telegramUserId as number | undefined;
+  const telegramUserIdFromHeader = request.headers.get('X-Telegram-User-Id')
+    || request.headers.get('x-telegram-user-id');
+  const telegramUserIdFallback = telegramUserIdFromBody
+    || (telegramUserIdFromHeader ? parseInt(telegramUserIdFromHeader, 10) : undefined);
 
-  if (telegramUserIdFromBody && typeof telegramUserIdFromBody === 'number') {
+  if (telegramUserIdFallback && typeof telegramUserIdFallback === 'number' && !isNaN(telegramUserIdFallback)) {
     try {
-      const user = await findOrCreateTelegramUser(telegramUserIdFromBody);
+      const user = await findOrCreateTelegramUser(telegramUserIdFallback);
       return {
         user,
         authMethod: telegramInitData ? 'telegram' : 'telegram_fallback',
-        telegramUserId: telegramUserIdFromBody,
+        telegramUserId: telegramUserIdFallback,
       };
     } catch (error) {
       console.error('[Auth] Telegram user error:', error);
+    }
+  }
+
+  // Check for neonUserId from headers (for GET requests without body)
+  const neonUserIdFromHeader = request.headers.get('X-Neon-User-Id')
+    || request.headers.get('x-neon-user-id');
+
+  if (neonUserIdFromHeader) {
+    try {
+      const users = await sql`SELECT * FROM users WHERE neon_auth_id = ${neonUserIdFromHeader} LIMIT 1`;
+      if (users.length > 0) {
+        return {
+          user: users[0] as User,
+          authMethod: 'neon_auth',
+          neonAuthId: neonUserIdFromHeader,
+        };
+      }
+    } catch (error) {
+      console.error('[Auth] Neon Auth user error:', error);
     }
   }
 
