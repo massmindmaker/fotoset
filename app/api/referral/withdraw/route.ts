@@ -6,14 +6,22 @@ const MIN_WITHDRAWAL = 5000
 const NDFL_RATE = 0.13
 
 // POST: Create withdrawal request
+// Supports both Telegram users (telegramUserId) and Web users (neonAuthId)
 export async function POST(request: NextRequest) {
   try {
-    const { telegramUserId, payoutMethod, cardNumber, phone, recipientName } =
+    const { telegramUserId, neonAuthId, payoutMethod, cardNumber, phone, recipientName } =
       await request.json()
 
-    if (!telegramUserId || !payoutMethod || !recipientName) {
+    if (!telegramUserId && !neonAuthId) {
       return NextResponse.json(
-        { error: "telegramUserId, payoutMethod, and recipientName required" },
+        { error: "telegramUserId or neonAuthId required" },
+        { status: 400 }
+      )
+    }
+
+    if (!payoutMethod || !recipientName) {
+      return NextResponse.json(
+        { error: "payoutMethod and recipientName required" },
         { status: 400 }
       )
     }
@@ -49,10 +57,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get user by telegram_user_id
-    const user = await sql`
-      SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
-    `.then((rows: any[]) => rows[0])
+    // Get user by telegram_user_id or neon_auth_id
+    let user
+    if (neonAuthId) {
+      user = await sql`
+        SELECT id FROM users WHERE neon_auth_id = ${neonAuthId}
+      `.then((rows: any[]) => rows[0])
+    } else {
+      user = await sql`
+        SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
+      `.then((rows: any[]) => rows[0])
+    }
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
@@ -162,23 +177,31 @@ export async function POST(request: NextRequest) {
 }
 
 // GET: Get withdrawal history
+// Supports both Telegram users (telegram_user_id) and Web users (neon_auth_id)
 export async function GET(request: NextRequest) {
   try {
     const telegramUserIdParam = request.nextUrl.searchParams.get("telegram_user_id")
+    const neonAuthId = request.nextUrl.searchParams.get("neon_auth_id")
 
-    if (!telegramUserIdParam) {
-      return NextResponse.json({ error: "telegram_user_id required" }, { status: 400 })
+    if (!telegramUserIdParam && !neonAuthId) {
+      return NextResponse.json({ error: "telegram_user_id or neon_auth_id required" }, { status: 400 })
     }
 
-    const telegramUserId = parseInt(telegramUserIdParam)
-    if (isNaN(telegramUserId)) {
-      return NextResponse.json({ error: "Invalid telegram_user_id" }, { status: 400 })
+    // Get user by telegram_user_id or neon_auth_id
+    let user
+    if (neonAuthId) {
+      user = await sql`
+        SELECT id FROM users WHERE neon_auth_id = ${neonAuthId}
+      `.then((rows: any[]) => rows[0])
+    } else {
+      const telegramUserId = parseInt(telegramUserIdParam!)
+      if (isNaN(telegramUserId)) {
+        return NextResponse.json({ error: "Invalid telegram_user_id" }, { status: 400 })
+      }
+      user = await sql`
+        SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
+      `.then((rows: any[]) => rows[0])
     }
-
-    // Get user by telegram_user_id
-    const user = await sql`
-      SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
-    `.then((rows: any[]) => rows[0])
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })

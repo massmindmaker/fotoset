@@ -193,14 +193,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<UnifiedLo
         )
       }
 
-      // Create partner session
-      const session = await createPartnerSession({
-        id: partner.id,
-        email: partner.email,
-        userId: partner.user_id,
-        firstName: partner.first_name,
-        lastName: partner.last_name
-      })
+      // Create partner session (positional args: partnerId, userId, email, ip, userAgent)
+      const token = await createPartnerSession(
+        partner.id,
+        partner.user_id,
+        partner.email,
+        ip,
+        userAgent
+      )
 
       // Record successful login
       await recordLoginAttempt(ip, normalizedEmail, true)
@@ -227,7 +227,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UnifiedLo
       })
 
       // Set partner session cookie
-      response.cookies.set('partner_session', session.token, {
+      response.cookies.set('partner_session', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
