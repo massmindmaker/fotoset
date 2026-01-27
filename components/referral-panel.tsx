@@ -90,9 +90,21 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
     : `telegram_user_id=${telegramUserId}`
 
   useEffect(() => {
-    if (isOpen && (telegramUserId || neonUserId)) {
-      fetchStats()
-      fetchPartnerStatus()
+    if (isOpen) {
+      if (telegramUserId || neonUserId) {
+        // Reset state before fetching
+        setLoading(true)
+        setError(null)
+        fetchStats()
+        fetchPartnerStatus()
+      } else {
+        // Panel opened but no user identifier yet - stop loading spinner
+        setLoading(false)
+        setError("Не удалось определить пользователя. Попробуйте перезапустить приложение.")
+      }
+    } else {
+      // Reset state when panel closes
+      setError(null)
     }
   }, [isOpen, telegramUserId, neonUserId])
 
