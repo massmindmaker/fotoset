@@ -21,7 +21,7 @@ function generateCode(): string {
  *
  * Supports both Telegram and Web users:
  * - Telegram: via telegram_user_id query param
- * - Web: via neon_user_id query param
+ * - Web: via neon_auth_id query param
  *
  * Returns:
  * - referralCodeTelegram: Code for t.me/pinglassbot?start=CODE
@@ -33,11 +33,11 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const telegramUserId = searchParams.get("telegram_user_id")
-    const neonUserId = searchParams.get("neon_user_id")
+    const neonAuthId = searchParams.get("neon_auth_id")
 
-    if (!telegramUserId && !neonUserId) {
+    if (!telegramUserId && !neonAuthId) {
       return NextResponse.json(
-        { error: "telegram_user_id or neon_user_id required" },
+        { error: "telegram_user_id or neon_auth_id required" },
         { status: 400 }
       )
     }
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     // Get user by identifier
     const identifier = extractIdentifierFromRequest({
       telegram_user_id: telegramUserId,
-      neon_user_id: neonUserId
+      neon_auth_id: neonAuthId
     })
 
     const user = await findUserByIdentifier(identifier)

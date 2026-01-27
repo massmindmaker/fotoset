@@ -107,6 +107,7 @@ export function extractIdentifierFromRequest(data: {
   telegram_user_id?: string | number | null
   telegramUserId?: number | null
   neon_user_id?: string | null
+  neon_auth_id?: string | null
   neonUserId?: string | null
   user_id?: string | number | null
   userId?: number | null
@@ -130,11 +131,13 @@ export function extractIdentifierFromRequest(data: {
     }
   }
 
-  // Parse neon_user_id
+  // Parse neon_user_id / neon_auth_id (both refer to the same thing)
   let neonUserId: string | undefined
 
   if (data.neon_user_id && typeof data.neon_user_id === 'string') {
     neonUserId = data.neon_user_id
+  } else if (data.neon_auth_id && typeof data.neon_auth_id === 'string') {
+    neonUserId = data.neon_auth_id
   } else if (data.neonUserId && typeof data.neonUserId === 'string') {
     neonUserId = data.neonUserId
   }
