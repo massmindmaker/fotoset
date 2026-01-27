@@ -78,7 +78,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
   const isFull = persona.images.length >= MAX_PHOTOS
 
   return (
-    <div className="space-y-6 pb-40 sm:pb-6">
+    <div className="space-y-6 pb-24 sm:pb-6">
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}
@@ -173,22 +173,9 @@ export const UploadView: React.FC<UploadViewProps> = ({ persona, updatePersona, 
             </button>
           </div>
         ))}
-        {/* Skeleton placeholders для визуализации оставшихся слотов */}
-        {!isFull && persona.images.length < MIN_PHOTOS && Array.from({ length: Math.min(3, MIN_PHOTOS - persona.images.length) }).map((_, i) => (
-          <div
-            key={`skeleton-${i}`}
-            onClick={() => fileInputRef.current?.click()}
-            className="aspect-square rounded-xl overflow-hidden relative cursor-pointer group"
-          >
-            <Skeleton className="w-full h-full" />
-            <div className="absolute inset-0 flex items-center justify-center opacity-50 group-hover:opacity-80 transition-opacity">
-              <Plus className="w-6 h-6 text-muted-foreground" />
-            </div>
-          </div>
-        ))}
       </div>
-      {/* Fixed bottom CTA - v4 design, positioned above BottomNav (h-14 + safe-area) */}
-      <div className="fixed bottom-[calc(56px+max(12px,env(safe-area-inset-bottom)))] left-0 right-0 p-4 bg-background/95 backdrop-blur-xl border-t border-border/50 sm:relative sm:bottom-auto sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 z-30">
+      {/* Fixed bottom CTA - positioned at bottom with safe area */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-xl border-t border-border/50 sm:relative sm:bottom-auto sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 z-30 safe-area-inset-bottom">
         <Button
           onClick={onNext}
           disabled={!isReady || isLoading}
