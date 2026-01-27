@@ -141,16 +141,21 @@ export function useAuth() {
             sessionStorage.setItem("pinglass_from_telegram_deeplink", "true")
             localStorage.setItem("pinglass_onboarding_complete", "true")
             try {
-              await fetch("/api/user", {
+              const res = await fetch("/api/user", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
+                  initData: tg!.initData, // Required for security verification
                   telegramUserId: tgUser.id,
                   telegramUsername: tgUser.username,
                   markOnboardingComplete: true,
                 }),
               })
-              console.log("[TG] Onboarding marked complete on server")
+              if (res.ok) {
+                console.log("[TG] Onboarding marked complete on server")
+              } else {
+                console.error("[TG] Failed to mark onboarding complete:", await res.text())
+              }
             } catch (err) {
               console.error("[TG] Failed to mark onboarding complete:", err)
             }
@@ -162,6 +167,7 @@ export function useAuth() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
+                  initData: tg!.initData, // Required for security verification
                   telegramUserId: tgUser.id,
                   telegramUsername: tgUser.username,
                   referralCode: startParam.toUpperCase(),
@@ -169,25 +175,31 @@ export function useAuth() {
               })
               if (res.ok) {
                 console.log("[TG] Referral code saved to DB:", startParam.toUpperCase())
+              } else {
+                console.error("[TG] Failed to save referral code:", await res.text())
               }
             } catch (err) {
               console.error("[TG] Error saving referral code:", err)
             }
           }
-        } else {
-          // No start_param - still register user in DB
-          try {
-            await fetch("/api/user", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                telegramUserId: tgUser.id,
-                telegramUsername: tgUser.username,
-              }),
-            })
-          } catch {
-            // Non-critical
+        }
+
+        // Always register user in database with verified initData (idempotent upsert)
+        try {
+          const res = await fetch("/api/user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              initData: tg!.initData, // Required for security verification
+              telegramUserId: tgUser.id,
+              telegramUsername: tgUser.username,
+            }),
+          })
+          if (!res.ok) {
+            console.error("[TG] Failed to register user:", await res.text())
           }
+        } catch (err) {
+          console.error("[TG] Failed to register user:", err)
         }
 
         try { tg!.ready() } catch { /* ignore */ }
