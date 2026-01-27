@@ -1566,8 +1566,8 @@ export default function PersonaApp() {
               )
             )}
           </main>
-          {/* Bottom Navigation - show only in Telegram WebApp, not in web version */}
-          {isTelegramUser && !isGenerating && (
+          {/* Bottom Navigation - show only on DASHBOARD and STYLES_LIST views (other views have their own action buttons) */}
+          {isTelegramUser && !isGenerating && (viewState.view === 'DASHBOARD' || viewState.view === 'STYLES_LIST') && (
             <BottomNav
               activeTab={activeTab}
               onTabChange={(tab) => {
