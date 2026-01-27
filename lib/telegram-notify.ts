@@ -31,7 +31,7 @@ export async function sendGenerationNotification(
   }
 
   try {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://pinglass.app"
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://pinglass.ru"
 
     const response = await fetchWithTimeout(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`,
@@ -87,7 +87,7 @@ export async function sendTextNotification(
   }
 
   try {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://pinglass.app"
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://pinglass.ru"
 
     const response = await fetchWithTimeout(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,

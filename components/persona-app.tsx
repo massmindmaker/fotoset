@@ -1612,7 +1612,7 @@ export default function PersonaApp() {
         </Suspense>
       )}
       <Suspense fallback={null}>
-        <ReferralPanel telegramUserId={telegramUserId} neonUserId={neonUserId} isOpen={isReferralOpen} onClose={() => setIsReferralOpen(false)} />
+        <ReferralPanel telegramUserId={telegramUserId} isOpen={isReferralOpen} onClose={() => setIsReferralOpen(false)} />
       </Suspense>
     </div>
   )

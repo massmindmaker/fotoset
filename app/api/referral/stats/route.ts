@@ -14,32 +14,23 @@ function generateCode(): string {
   return code
 }
 
-// GET: Get partner statistics
-// Supports both Telegram users (telegram_user_id) and Web users (neon_auth_id)
+// GET: Get partner statistics (Telegram users only)
 export async function GET(request: NextRequest) {
   try {
     const telegramUserIdParam = request.nextUrl.searchParams.get("telegram_user_id")
-    const neonUserId = request.nextUrl.searchParams.get("neon_auth_id")
 
-    if (!telegramUserIdParam && !neonUserId) {
-      return NextResponse.json({ error: "telegram_user_id or neon_auth_id required" }, { status: 400 })
+    if (!telegramUserIdParam) {
+      return NextResponse.json({ error: "telegram_user_id required" }, { status: 400 })
     }
 
-    // Get user by telegram_user_id or neon_auth_id (don't create - require existing user)
-    let user
-    if (neonUserId) {
-      user = await sql`
-        SELECT id FROM users WHERE neon_auth_id = ${neonUserId}
-      `.then((rows: any[]) => rows[0])
-    } else {
-      const telegramUserId = parseInt(telegramUserIdParam!)
-      if (isNaN(telegramUserId)) {
-        return NextResponse.json({ error: "Invalid telegram_user_id" }, { status: 400 })
-      }
-      user = await sql`
-        SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
-      `.then((rows: any[]) => rows[0])
+    const telegramUserId = parseInt(telegramUserIdParam)
+    if (isNaN(telegramUserId)) {
+      return NextResponse.json({ error: "Invalid telegram_user_id" }, { status: 400 })
     }
+
+    const user = await sql`
+      SELECT id FROM users WHERE telegram_user_id = ${telegramUserId}
+    `.then((rows: any[]) => rows[0])
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
@@ -54,37 +45,52 @@ export async function GET(request: NextRequest) {
 
     let referralCode: string | null = codeResult?.code || null
 
-    // Create referral code if doesn't exist
+    // Create referral code if doesn't exist (batch uniqueness check + atomic insert)
     if (!referralCode) {
-      let code = generateCode()
-      let attempts = 0
-      const maxAttempts = 10
+      // Generate 10 candidates at once, check uniqueness in single query
+      const candidates = Array.from({ length: 10 }, () => generateCode())
+      const existing = await sql`
+        SELECT code FROM referral_codes WHERE code = ANY(${candidates})
+      `
+      const existingCodes = new Set(existing.map((r: { code: string }) => r.code))
+      const uniqueCode = candidates.find(c => !existingCodes.has(c))
 
-      // Ensure unique code
-      while (attempts < maxAttempts) {
-        const duplicate = await sql`SELECT id FROM referral_codes WHERE code = ${code}`.then((rows: any[]) => rows[0])
-        if (!duplicate) break
-        code = generateCode()
-        attempts++
-      }
-
-      if (attempts < maxAttempts) {
-        await sql`INSERT INTO referral_codes (user_id, code, is_active) VALUES (${userId}, ${code}, true)`
-        referralCode = code
+      if (uniqueCode) {
+        // Atomic insert with conflict handling to prevent race condition
+        const inserted = await sql`
+          INSERT INTO referral_codes (user_id, code, is_active)
+          VALUES (${userId}, ${uniqueCode}, true)
+          ON CONFLICT (user_id) WHERE is_active = true DO NOTHING
+          RETURNING code
+        `
+        if (inserted.length > 0) {
+          referralCode = inserted[0].code
+        } else {
+          // Race condition: another request created it, re-fetch
+          const refetch = await sql`
+            SELECT code FROM referral_codes WHERE user_id = ${userId} AND is_active = true
+          `.then((rows: any[]) => rows[0])
+          referralCode = refetch?.code || null
+        }
       }
     }
 
-    // Get or create balance record
+    // Get or create balance record (atomic insert to prevent race condition)
     let balanceResult = await sql`
       SELECT * FROM referral_balances WHERE user_id = ${userId}
     `.then((rows: any[]) => rows[0])
 
     if (!balanceResult) {
+      // Atomic insert with conflict handling
       await sql`
         INSERT INTO referral_balances (user_id, balance, total_earned, total_withdrawn, referrals_count)
         VALUES (${userId}, 0, 0, 0, 0)
+        ON CONFLICT (user_id) DO NOTHING
       `
-      balanceResult = { balance: 0, total_earned: 0, total_withdrawn: 0, referrals_count: 0 }
+      // Re-fetch to handle race condition
+      balanceResult = await sql`
+        SELECT * FROM referral_balances WHERE user_id = ${userId}
+      `.then((rows: any[]) => rows[0]) || { balance: 0, total_earned: 0, total_withdrawn: 0, referrals_count: 0 }
     }
 
     const balance = balanceResult

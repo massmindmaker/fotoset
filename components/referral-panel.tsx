@@ -61,12 +61,11 @@ interface WithdrawalPreview {
 
 interface ReferralPanelProps {
   telegramUserId?: number
-  neonUserId?: string  // Web users have neonUserId instead of telegramUserId
   isOpen: boolean
   onClose: () => void
 }
 
-export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: ReferralPanelProps) {
+export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanelProps) {
   const [stats, setStats] = useState<ReferralStats | null>(null)
   const [earnings, setEarnings] = useState<ReferralEarning[]>([])
   const [loading, setLoading] = useState(true)
@@ -83,15 +82,13 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
   const isTelegramWebApp = typeof window !== 'undefined' &&
     !!(window as unknown as { Telegram?: { WebApp?: object } }).Telegram?.WebApp
 
-  // Build query params based on auth type
-  // Note: API uses neon_auth_id (not neon_user_id)
-  const authParam = neonUserId
-    ? `neon_auth_id=${encodeURIComponent(neonUserId)}`
-    : `telegram_user_id=${telegramUserId}`
+  // Build query params - only Telegram auth supported
+  // Returns null if no valid telegramUserId to prevent "telegram_user_id=undefined"
+  const authParam = telegramUserId ? `telegram_user_id=${telegramUserId}` : null
 
   useEffect(() => {
     if (isOpen) {
-      if (telegramUserId || neonUserId) {
+      if (telegramUserId) {
         // Reset state before fetching
         setLoading(true)
         setError(null)
@@ -106,11 +103,11 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
       // Reset state when panel closes
       setError(null)
     }
-  }, [isOpen, telegramUserId, neonUserId])
+  }, [isOpen, telegramUserId])
 
   const fetchPartnerStatus = async () => {
     try {
-      if (!telegramUserId && !neonUserId) return
+      if (!authParam) return
       const res = await fetch(`/api/partner/status?${authParam}`)
       const data = await res.json()
       if (data.success) {
@@ -131,12 +128,12 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
     setLoading(true)
     setError(null)
     try {
-      if (!telegramUserId && !neonUserId) {
+      if (!authParam) {
         setError("Не удалось определить пользователя")
         return
       }
 
-      // Fetch referral codes (Telegram + Web)
+      // Fetch referral code
       const codeRes = await fetch(`/api/referral/code?${authParam}`)
       const codeData = await codeRes.json()
 
@@ -684,7 +681,6 @@ export function ReferralPanel({ telegramUserId, neonUserId, isOpen, onClose }: R
       {showPartnerForm && (
         <PartnerApplicationModal
           telegramUserId={telegramUserId}
-          neonUserId={neonUserId}
           onClose={() => setShowPartnerForm(false)}
           onSuccess={() => {
             setShowPartnerForm(false)
@@ -903,12 +899,10 @@ function WithdrawModal({
 
 function PartnerApplicationModal({
   telegramUserId,
-  neonUserId,
   onClose,
   onSuccess
 }: {
   telegramUserId?: number
-  neonUserId?: string
   onClose: () => void
   onSuccess: () => void
 }) {
@@ -967,7 +961,6 @@ function PartnerApplicationModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           telegramUserId,
-          neonUserId,
           ...formData,
         })
       })
