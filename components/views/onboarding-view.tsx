@@ -194,7 +194,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
           </button>
         ) : (
           <a
-            href={process.env.NEXT_PUBLIC_TELEGRAM_WEBAPP_URL || "https://t.me/PinGlassBot/app"}
+            href={process.env.NEXT_PUBLIC_TELEGRAM_WEBAPP_URL || "https://t.me/pinglasstestbot/app"}
             target="_blank"
             rel="noopener noreferrer"
             className={
