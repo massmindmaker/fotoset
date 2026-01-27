@@ -83,6 +83,20 @@ export async function middleware(request: NextRequest) {
     // Middleware just checks for cookie presence for performance
   }
 
+  // Partner panel authentication check
+  // Skip login page and auth API routes
+  if (pathname.startsWith('/partner') && !pathname.startsWith('/partner/login')) {
+    const sessionCookie = request.cookies.get('partner_session');
+
+    if (!sessionCookie?.value) {
+      // Redirect to login if no session
+      return NextResponse.redirect(new URL('/partner/login', request.url));
+    }
+
+    // Note: Full session validation happens in layout/API routes
+    // Middleware just checks for cookie presence for performance
+  }
+
   // Web dashboard authentication check (Neon Auth)
   // Protected routes: /dashboard, /settings, /create, /avatar
   const webProtectedRoutes = ['/dashboard', '/settings', '/create', '/avatar'];
@@ -107,6 +121,18 @@ export async function middleware(request: NextRequest) {
   // Protect admin API routes (except auth routes)
   if (pathname.startsWith('/api/admin') && !pathname.startsWith('/api/admin/auth')) {
     const sessionCookie = request.cookies.get('admin_session');
+
+    if (!sessionCookie?.value) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+  }
+
+  // Protect partner API routes (except auth routes)
+  if (pathname.startsWith('/api/partner') && !pathname.startsWith('/api/partner/auth')) {
+    const sessionCookie = request.cookies.get('partner_session');
 
     if (!sessionCookie?.value) {
       return new NextResponse(
