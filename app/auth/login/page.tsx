@@ -76,13 +76,6 @@ export default function UnifiedLoginPage() {
       const data = await res.json()
 
       if (data.success && data.redirect) {
-        // For partner login, save userId to localStorage (needed by partner hooks)
-        if (data.userType === 'partner' && data.user?.userId) {
-          localStorage.setItem('pinglass_partner_user_id', String(data.user.userId))
-          // Also set as telegram_user_id for compatibility with existing hooks
-          localStorage.setItem('pinglass_telegram_user_id', String(data.user.userId))
-        }
-
         // Small delay to ensure cookie is set before redirect
         // Using window.location for more reliable cookie handling
         await new Promise(r => setTimeout(r, 150))

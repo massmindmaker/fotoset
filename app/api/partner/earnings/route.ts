@@ -3,13 +3,12 @@
  *
  * Returns partner's earnings history with pagination
  *
- * Supports both Telegram and Web users:
- * - Telegram: via telegram_user_id query param
- * - Web: via neon_user_id query param
+ * Authentication methods (in priority order):
+ * 1. Partner session cookie (for web login)
+ * 2. telegram_user_id query param (for Telegram WebApp)
+ * 3. neon_user_id query param (for Neon Auth)
  *
  * Query params:
- * - telegram_user_id: Telegram user ID (for Telegram users)
- * - neon_user_id: Neon Auth UUID (for Web users)
  * - page: Page number (default: 1)
  * - limit: Items per page (default: 20, max: 100)
  * - status: Filter by status (pending, credited, cancelled, all)
@@ -19,33 +18,44 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
 import { extractIdentifierFromRequest, findUserByIdentifier } from '@/lib/user-identity'
+import { getCurrentPartnerSession } from '@/lib/partner/session'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const telegramUserId = searchParams.get('telegram_user_id')
-    // Accept both neon_auth_id and neon_user_id for backwards compatibility
-    const neonUserId = searchParams.get('neon_auth_id') || searchParams.get('neon_user_id')
+    let userId: number | null = null
 
-    if (!telegramUserId && !neonUserId) {
-      return NextResponse.json(
-        { error: 'telegram_user_id or neon_auth_id required' },
-        { status: 400 }
-      )
+    // Priority 1: Get userId from partner session cookie
+    try {
+      const session = await getCurrentPartnerSession()
+      if (session?.userId) {
+        userId = session.userId
+      }
+    } catch {
+      // Session check failed, continue with query params
     }
 
-    // Get user by identifier
-    const identifier = extractIdentifierFromRequest({
-      telegram_user_id: telegramUserId,
-      neon_auth_id: neonUserId
-    })
+    // Priority 2: Get from query params (Telegram/Neon auth)
+    if (!userId) {
+      const telegramUserId = searchParams.get('telegram_user_id')
+      const neonUserId = searchParams.get('neon_auth_id') || searchParams.get('neon_user_id')
 
-    const user = await findUserByIdentifier(identifier)
+      if (telegramUserId || neonUserId) {
+        const identifier = extractIdentifierFromRequest({
+          telegram_user_id: telegramUserId,
+          neon_auth_id: neonUserId
+        })
+        const basicUser = await findUserByIdentifier(identifier)
+        if (basicUser) {
+          userId = basicUser.id
+        }
+      }
+    }
 
-    if (!user) {
+    if (!userId) {
       return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
+        { error: 'Authentication required' },
+        { status: 401 }
       )
     }
 
@@ -64,7 +74,7 @@ export async function GET(request: NextRequest) {
     const countResult = await sql`
       SELECT COUNT(*) as count
       FROM referral_earnings
-      WHERE referrer_id = ${user.id}
+      WHERE referrer_id = ${userId}
         AND (${statusCondition}::text IS NULL OR status = ${statusCondition})
         AND (${currencyCondition}::text IS NULL OR currency = ${currencyCondition})
     `.then((rows: any[]) => rows[0])
@@ -90,7 +100,7 @@ export async function GET(request: NextRequest) {
       FROM referral_earnings re
       JOIN users u ON u.id = re.referred_user_id
       LEFT JOIN payments p ON p.id = re.payment_id
-      WHERE re.referrer_id = ${user.id}
+      WHERE re.referrer_id = ${userId}
         AND (${statusCondition}::text IS NULL OR re.status = ${statusCondition})
         AND (${currencyCondition}::text IS NULL OR re.currency = ${currencyCondition})
       ORDER BY re.created_at DESC
@@ -105,7 +115,7 @@ export async function GET(request: NextRequest) {
         COUNT(*) as count,
         COALESCE(SUM(amount), 0) as total
       FROM referral_earnings
-      WHERE referrer_id = ${user.id}
+      WHERE referrer_id = ${userId}
       GROUP BY status, currency
     `
 

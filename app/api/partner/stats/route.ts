@@ -3,9 +3,10 @@
  *
  * Returns partner dashboard statistics
  *
- * Supports both Telegram and Web users:
- * - Telegram: via telegram_user_id query param
- * - Web: via neon_user_id query param
+ * Authentication methods (in priority order):
+ * 1. Partner session cookie (for web login)
+ * 2. telegram_user_id query param (for Telegram WebApp)
+ * 3. neon_user_id query param (for Neon Auth)
  *
  * Includes:
  * - Current balance (RUB + TON)
@@ -19,37 +20,48 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
 import { extractIdentifierFromRequest, findUserByIdentifier } from '@/lib/user-identity'
+import { getCurrentPartnerSession } from '@/lib/partner/session'
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const telegramUserId = searchParams.get('telegram_user_id')
-    // Accept both neon_auth_id and neon_user_id for backwards compatibility
-    const neonUserId = searchParams.get('neon_auth_id') || searchParams.get('neon_user_id')
+    let userId: number | null = null
 
-    if (!telegramUserId && !neonUserId) {
+    // Priority 1: Get userId from partner session cookie
+    try {
+      const session = await getCurrentPartnerSession()
+      if (session?.userId) {
+        userId = session.userId
+      }
+    } catch {
+      // Session check failed, continue with query params
+    }
+
+    // Priority 2: Get from query params (Telegram/Neon auth)
+    if (!userId) {
+      const { searchParams } = new URL(request.url)
+      const telegramUserId = searchParams.get('telegram_user_id')
+      const neonUserId = searchParams.get('neon_auth_id') || searchParams.get('neon_user_id')
+
+      if (telegramUserId || neonUserId) {
+        const identifier = extractIdentifierFromRequest({
+          telegram_user_id: telegramUserId,
+          neon_auth_id: neonUserId
+        })
+        const basicUser = await findUserByIdentifier(identifier)
+        if (basicUser) {
+          userId = basicUser.id
+        }
+      }
+    }
+
+    if (!userId) {
       return NextResponse.json(
-        { error: 'telegram_user_id or neon_auth_id required' },
-        { status: 400 }
+        { error: 'Authentication required' },
+        { status: 401 }
       )
     }
 
-    // Get user by identifier
-    const identifier = extractIdentifierFromRequest({
-      telegram_user_id: telegramUserId,
-      neon_auth_id: neonUserId
-    })
-
-    const basicUser = await findUserByIdentifier(identifier)
-
-    if (!basicUser) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
-    }
-
-    // Get user with referral balance
+    // Get user with referral balance using userId from session or query params
     const user = await sql`
       SELECT
         u.id,
@@ -68,7 +80,7 @@ export async function GET(request: NextRequest) {
         rb.promoted_at
       FROM users u
       LEFT JOIN referral_balances rb ON rb.user_id = u.id
-      WHERE u.id = ${basicUser.id}
+      WHERE u.id = ${userId}
     `.then((rows: any[]) => rows[0])
 
     if (!user) {

@@ -3,6 +3,11 @@
  *
  * Returns list of partner's referrals with pagination
  *
+ * Authentication methods (in priority order):
+ * 1. Partner session cookie (for web login)
+ * 2. telegram_user_id query param (for Telegram WebApp)
+ * 3. neon_user_id query param (for Neon Auth)
+ *
  * Query params:
  * - page: Page number (default: 1)
  * - limit: Items per page (default: 20, max: 100)
@@ -11,24 +16,54 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
+import { extractIdentifierFromRequest, findUserByIdentifier } from '@/lib/user-identity'
+import { getCurrentPartnerSession } from '@/lib/partner/session'
 
 export async function GET(request: NextRequest) {
   try {
-    const telegramUserId = request.headers.get('x-telegram-user-id')
+    const { searchParams } = new URL(request.url)
+    let userId: number | null = null
 
-    if (!telegramUserId) {
+    // Priority 1: Get userId from partner session cookie
+    try {
+      const session = await getCurrentPartnerSession()
+      if (session?.userId) {
+        userId = session.userId
+      }
+    } catch {
+      // Session check failed, continue with query params
+    }
+
+    // Priority 2: Get from query params (Telegram/Neon auth)
+    if (!userId) {
+      const telegramUserId = searchParams.get('telegram_user_id')
+      const neonUserId = searchParams.get('neon_auth_id') || searchParams.get('neon_user_id')
+
+      if (telegramUserId || neonUserId) {
+        const identifier = extractIdentifierFromRequest({
+          telegram_user_id: telegramUserId,
+          neon_auth_id: neonUserId
+        })
+        const basicUser = await findUserByIdentifier(identifier)
+        if (basicUser) {
+          userId = basicUser.id
+        }
+      }
+    }
+
+    if (!userId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Authentication required' },
         { status: 401 }
       )
     }
 
-    // Get user
+    // Get user with referral balance
     const user = await sql`
       SELECT u.id, rb.id as balance_id
       FROM users u
       LEFT JOIN referral_balances rb ON rb.user_id = u.id
-      WHERE u.telegram_user_id = ${telegramUserId}
+      WHERE u.id = ${userId}
     `.then((rows: any[]) => rows[0])
 
     if (!user) {
@@ -51,7 +86,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Parse query params
-    const { searchParams } = new URL(request.url)
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20')))
     const offset = (page - 1) * limit
