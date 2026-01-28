@@ -11,44 +11,49 @@ import { getCurrentSession } from '@/lib/admin/session'
 import { findAdminById } from '@/lib/admin/auth'
 
 export async function GET() {
-  console.log('[Admin Session] Checking session...')
-
-  // Check if required env vars are set
-  if (!process.env.ADMIN_SESSION_SECRET) {
-    console.error('[Admin Session] ADMIN_SESSION_SECRET is not set!')
-    return NextResponse.json({
-      authenticated: false,
-      error: 'Server configuration error: ADMIN_SESSION_SECRET not set'
-    }, { status: 500 })
+  // Quick response first to test if route works at all
+  const envCheck = {
+    hasSecret: !!process.env.ADMIN_SESSION_SECRET,
+    hasDb: !!process.env.DATABASE_URL,
+    runtime: 'nodejs'
   }
 
-  if (!process.env.DATABASE_URL) {
-    console.error('[Admin Session] DATABASE_URL is not set!')
+  // If env vars are missing, return immediately
+  if (!envCheck.hasSecret || !envCheck.hasDb) {
     return NextResponse.json({
       authenticated: false,
-      error: 'Server configuration error: DATABASE_URL not set'
+      error: !envCheck.hasSecret
+        ? 'ADMIN_SESSION_SECRET not set'
+        : 'DATABASE_URL not set',
+      envCheck
     }, { status: 500 })
   }
 
   try {
-    const session = await getCurrentSession()
-    console.log('[Admin Session] Session result:', session ? 'found' : 'not found')
+    // Get session with timeout protection
+    const sessionPromise = getCurrentSession()
+    const timeoutPromise = new Promise<null>((_, reject) =>
+      setTimeout(() => reject(new Error('Session check timeout after 10s')), 10000)
+    )
+
+    const session = await Promise.race([sessionPromise, timeoutPromise])
 
     if (!session) {
       return NextResponse.json({
         authenticated: false,
-        error: 'No session'
+        error: 'No session',
+        envCheck
       })
     }
 
-    // Verify admin still exists and is active
+    // Verify admin exists
     const admin = await findAdminById(session.adminId)
-    console.log('[Admin Session] Admin lookup:', admin ? 'found' : 'not found')
 
     if (!admin || !admin.isActive) {
       return NextResponse.json({
         authenticated: false,
-        error: 'Admin not found or inactive'
+        error: 'Admin not found or inactive',
+        envCheck
       })
     }
 
@@ -63,10 +68,10 @@ export async function GET() {
       }
     })
   } catch (error) {
-    console.error('[Admin Session] Error:', error)
     return NextResponse.json({
       authenticated: false,
-      error: error instanceof Error ? error.message : 'Session check failed'
+      error: error instanceof Error ? error.message : 'Session check failed',
+      envCheck
     }, { status: 500 })
   }
 }

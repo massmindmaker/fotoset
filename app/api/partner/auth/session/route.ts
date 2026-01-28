@@ -5,36 +5,35 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentPartnerSession } from '@/lib/partner/session'
 
 export async function GET(_request: NextRequest) {
-  console.log('[Partner Session] Checking session...')
-
-  // Check if required env vars are set (uses PARTNER_SESSION_SECRET or ADMIN_SESSION_SECRET)
-  const sessionSecret = process.env.PARTNER_SESSION_SECRET || process.env.ADMIN_SESSION_SECRET
-  if (!sessionSecret) {
-    console.error('[Partner Session] PARTNER_SESSION_SECRET and ADMIN_SESSION_SECRET are not set!')
-    return NextResponse.json({
-      success: false,
-      authenticated: false,
-      error: 'Server configuration error: Session secret not set'
-    }, { status: 500 })
+  const envCheck = {
+    hasSecret: !!(process.env.PARTNER_SESSION_SECRET || process.env.ADMIN_SESSION_SECRET),
+    hasDb: !!process.env.DATABASE_URL,
+    runtime: 'nodejs'
   }
 
-  if (!process.env.DATABASE_URL) {
-    console.error('[Partner Session] DATABASE_URL is not set!')
+  if (!envCheck.hasSecret || !envCheck.hasDb) {
     return NextResponse.json({
       success: false,
       authenticated: false,
-      error: 'Server configuration error: DATABASE_URL not set'
+      error: !envCheck.hasSecret ? 'Session secret not set' : 'DATABASE_URL not set',
+      envCheck
     }, { status: 500 })
   }
 
   try {
-    const session = await getCurrentPartnerSession()
-    console.log('[Partner Session] Session result:', session ? 'found' : 'not found')
+    // Get session with timeout protection
+    const sessionPromise = getCurrentPartnerSession()
+    const timeoutPromise = new Promise<null>((_, reject) =>
+      setTimeout(() => reject(new Error('Session check timeout after 10s')), 10000)
+    )
+
+    const session = await Promise.race([sessionPromise, timeoutPromise])
 
     if (!session) {
       return NextResponse.json({
         success: true,
-        authenticated: false
+        authenticated: false,
+        envCheck
       })
     }
 
@@ -51,11 +50,11 @@ export async function GET(_request: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('[Partner Session] Error:', error)
     return NextResponse.json({
       success: false,
       authenticated: false,
-      error: error instanceof Error ? error.message : 'Session check failed'
+      error: error instanceof Error ? error.message : 'Session check failed',
+      envCheck
     }, { status: 500 })
   }
 }
