@@ -179,7 +179,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[Partner Earnings] Error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown',
+        stack: error instanceof Error ? error.stack?.split('\n').slice(0, 5) : undefined
+      },
       { status: 500 }
     )
   }
