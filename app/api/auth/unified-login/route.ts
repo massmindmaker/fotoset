@@ -225,6 +225,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UnifiedLo
         redirect: '/partner/dashboard',
         user: {
           id: partner.id,
+          userId: partner.user_id, // User ID for localStorage (needed by partner hooks)
           email: partner.email,
           firstName: partner.first_name,
           lastName: partner.last_name,
