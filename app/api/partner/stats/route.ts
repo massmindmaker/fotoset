@@ -77,10 +77,10 @@ export async function GET(request: NextRequest) {
         rb.referral_code,
         rb.balance_rub,
         rb.balance_ton,
-        rb.total_earned_rub,
-        rb.total_earned_ton,
-        rb.total_withdrawn_rub,
-        rb.total_withdrawn_ton,
+        rb.earned_rub,
+        rb.earned_ton,
+        rb.withdrawn_rub,
+        rb.withdrawn_ton,
         rb.is_partner,
         rb.commission_rate,
         rb.promoted_at
@@ -192,12 +192,12 @@ export async function GET(request: NextRequest) {
         ton: parseFloat(pendingEarnings?.pending_ton || '0')
       },
       totalEarned: {
-        rub: parseFloat(user.total_earned_rub || '0'),
-        ton: parseFloat(user.total_earned_ton || '0')
+        rub: parseFloat(user.earned_rub || '0'),
+        ton: parseFloat(user.earned_ton || '0')
       },
       totalWithdrawn: {
-        rub: parseFloat(user.total_withdrawn_rub || '0'),
-        ton: parseFloat(user.total_withdrawn_ton || '0')
+        rub: parseFloat(user.withdrawn_rub || '0'),
+        ton: parseFloat(user.withdrawn_ton || '0')
       },
       referrals: {
         total: totalReferrals,
