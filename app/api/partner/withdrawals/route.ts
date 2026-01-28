@@ -10,6 +10,9 @@
  * 3. neon_user_id query param (for Neon Auth)
  */
 
+export const runtime = 'edge'
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { validateLuhn } from "@/lib/validation"
