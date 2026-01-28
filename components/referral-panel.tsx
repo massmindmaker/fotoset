@@ -4,15 +4,13 @@ import React, { useState, useEffect } from "react"
 import {
   Gift, Copy, Check, Users, Wallet, TrendingUp, ArrowRight,
   Loader2, X, CreditCard, Phone, AlertCircle, ChevronDown, Send,
-  Star, Crown, ExternalLink, Clock, Globe
+  Star, Crown, ExternalLink, Clock
 } from "lucide-react"
 
 interface ReferralStats {
   code: string | null  // Legacy field for backward compatibility
   referralCodeTelegram?: string
-  referralCodeWeb?: string
   telegramLink?: string
-  webLink?: string
   balance: number
   totalEarned: number
   totalWithdrawn: number
@@ -73,16 +71,10 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [showEarnings, setShowEarnings] = useState(false)
   const [copiedTelegram, setCopiedTelegram] = useState(false)
-  const [copiedWeb, setCopiedWeb] = useState(false)
   const [partnerStatus, setPartnerStatus] = useState<PartnerStatus | null>(null)
   const [showPartnerForm, setShowPartnerForm] = useState(false)
 
-  // Detect if running inside Telegram WebApp
-  // Check for Telegram.WebApp object existence, not just initData (which may be empty string)
-  const isTelegramWebApp = typeof window !== 'undefined' &&
-    !!(window as unknown as { Telegram?: { WebApp?: object } }).Telegram?.WebApp
-
-  // Build query params - only Telegram auth supported
+  // Build query params - only Telegram auth supported (app is Telegram-only)
   // Returns null if no valid telegramUserId to prevent "telegram_user_id=undefined"
   const authParam = telegramUserId ? `telegram_user_id=${telegramUserId}` : null
 
@@ -152,13 +144,11 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
       }
 
       if (statsData.success) {
-        // Merge codes and stats
+        // Merge codes and stats (Telegram-only, no web link)
         setStats({
           code: codeData.code,  // Legacy field
           referralCodeTelegram: codeData.referralCodeTelegram,
-          referralCodeWeb: codeData.referralCodeWeb,
           telegramLink: codeData.telegramLink,
-          webLink: codeData.webLink,
           balance: statsData.balance,
           totalEarned: statsData.totalEarned,
           totalWithdrawn: statsData.totalWithdrawn,
@@ -270,63 +260,6 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
     }
   }
 
-  const copyWebLink = async () => {
-    if (!stats?.webLink) return
-
-    try {
-      // Try Clipboard API first
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(stats.webLink)
-        setCopiedWeb(true)
-        setTimeout(() => setCopiedWeb(false), 2000)
-        return
-      }
-
-      // Fallback: create temporary textarea
-      const textArea = document.createElement('textarea')
-      textArea.value = stats.webLink
-      textArea.style.position = 'fixed'
-      textArea.style.left = '-9999px'
-      textArea.style.top = '-9999px'
-      document.body.appendChild(textArea)
-      textArea.focus()
-      textArea.select()
-
-      const success = document.execCommand('copy')
-      document.body.removeChild(textArea)
-
-      if (success) {
-        setCopiedWeb(true)
-        setTimeout(() => setCopiedWeb(false), 2000)
-      } else {
-        alert('Не удалось скопировать. Ссылка: ' + stats.webLink)
-      }
-    } catch {
-      alert('Ссылка для копирования:\n' + stats.webLink)
-    }
-  }
-
-  const shareWeb = () => {
-    if (!stats?.webLink) return
-    const shareText = 'Создай свои AI-фотографии в PinGlass!'
-
-    // Use Web Share API if available
-    if (navigator.share) {
-      navigator.share({
-        title: 'PinGlass - AI фотопортреты',
-        text: shareText,
-        url: stats.webLink
-      }).catch(() => {
-        // User cancelled or error - fallback to copy
-        copyWebLink()
-      })
-      return
-    }
-
-    // Fallback: just copy the link
-    copyWebLink()
-  }
-
   if (!isOpen) return null
 
   return (
@@ -388,8 +321,8 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
             </div>
           ) : stats ? (
             <>
-              {/* Telegram Link - shown FIRST in Telegram WebApp */}
-              {isTelegramWebApp && stats.telegramLink && (
+              {/* Telegram Referral Link (app is Telegram-only) */}
+              {stats.telegramLink && (
                 <div className="p-4 bg-gradient-to-br from-sky-500/10 to-blue-600/5 rounded-2xl border border-sky-500/20">
                   <div className="flex items-center gap-2 mb-2">
                     <Send className="w-4 h-4 text-sky-500" />
@@ -415,37 +348,6 @@ export function ReferralPanel({ telegramUserId, isOpen, onClose }: ReferralPanel
                   >
                     <Send className="w-4 h-4" />
                     Поделиться в Telegram
-                  </button>
-                </div>
-              )}
-
-              {/* Web Referral Link - shown in regular browser OR as secondary in Telegram */}
-              {stats.webLink && !isTelegramWebApp && (
-                <div className="p-4 bg-gradient-to-br from-green-500/10 to-emerald-600/5 rounded-2xl border border-green-500/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Globe className="w-4 h-4 text-green-500" />
-                    <p className="text-sm font-medium text-green-600 dark:text-green-400">Web ссылка:</p>
-                  </div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <input
-                      type="text"
-                      readOnly
-                      value={stats.webLink}
-                      className="flex-1 min-w-0 px-3 py-2 bg-green-500/5 rounded-xl text-sm text-foreground truncate border border-green-500/10"
-                    />
-                    <button
-                      onClick={copyWebLink}
-                      className="shrink-0 w-10 h-10 bg-green-500 text-white rounded-xl text-sm font-medium hover:bg-green-600 transition-colors flex items-center justify-center"
-                    >
-                      {copiedWeb ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  <button
-                    onClick={shareWeb}
-                    className="w-full py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg shadow-green-500/25"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    Поделиться ссылкой
                   </button>
                 </div>
               )}

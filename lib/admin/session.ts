@@ -30,6 +30,7 @@ export interface AdminSession {
 function getSecretKey(): Uint8Array {
   const secret = process.env.ADMIN_SESSION_SECRET
   if (!secret) {
+    console.error('[Admin Session] FATAL: ADMIN_SESSION_SECRET is not set!')
     throw new Error('ADMIN_SESSION_SECRET is not set')
   }
   return new TextEncoder().encode(secret)

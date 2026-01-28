@@ -32,6 +32,7 @@ function getSecretKey(): Uint8Array {
   // Use shared secret or dedicated partner secret
   const secret = process.env.PARTNER_SESSION_SECRET || process.env.ADMIN_SESSION_SECRET
   if (!secret) {
+    console.error('[Partner Session] FATAL: Neither PARTNER_SESSION_SECRET nor ADMIN_SESSION_SECRET is set!')
     throw new Error('PARTNER_SESSION_SECRET or ADMIN_SESSION_SECRET is not set')
   }
   return new TextEncoder().encode(secret)
