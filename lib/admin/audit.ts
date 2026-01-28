@@ -5,7 +5,7 @@
  * Supports both new session-based auth and legacy Telegram auth.
  */
 
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
 
 export type AuditTargetType =
   | 'user'
@@ -88,11 +88,6 @@ export interface AuditLogEntry {
   ipAddress?: string
 }
 
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
 
 /**
  * Log an admin action to the audit trail
@@ -109,7 +104,6 @@ function getSql() {
  * })
  */
 export async function logAdminAction(entry: AuditLogEntry): Promise<void> {
-  const sql = getSql()
 
   try {
     await sql`
@@ -159,7 +153,6 @@ export async function getRecentActivity(
   }>
   total: number
 }> {
-  const sql = getSql()
 
   // For simple case, use parameterized query
   const entries = await sql`

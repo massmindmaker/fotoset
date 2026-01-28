@@ -182,6 +182,7 @@ export async function middleware(request: NextRequest) {
       'https://fotoset.vercel.app',
       'https://pinglass.ru',
       'https://www.pinglass.ru',
+      'https://test.pinglass.ru',
       'https://telegram.org',
       'https://web.telegram.org',
     ];

@@ -5,7 +5,7 @@
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose'
 import { cookies } from 'next/headers'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
 
 const SESSION_COOKIE_NAME = 'admin_session'
 const SESSION_TTL = parseInt(process.env.ADMIN_SESSION_TTL || '86400', 10) // 24 hours default
@@ -36,12 +36,6 @@ function getSecretKey(): Uint8Array {
   return new TextEncoder().encode(secret)
 }
 
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 /**
  * Create a new admin session
  */
@@ -52,7 +46,6 @@ export async function createSession(
   ipAddress?: string,
   userAgent?: string
 ): Promise<string> {
-  const sql = getSql()
   const expiresAt = new Date(Date.now() + SESSION_TTL * 1000)
 
   // Generate unique session token
@@ -94,7 +87,6 @@ export async function verifySession(token: string): Promise<AdminSession | null>
     const sessionPayload = payload as AdminSessionPayload
 
     // Verify session exists in database and not expired
-    const sql = getSql()
     const [session] = await sql`
       SELECT s.id, s.expires_at, u.email, u.role, u.first_name, u.last_name, u.avatar_url, u.is_active
       FROM admin_sessions s
@@ -154,7 +146,6 @@ export async function setSessionCookie(token: string): Promise<void> {
  * Delete session (logout)
  */
 export async function deleteSession(sessionId: number): Promise<void> {
-  const sql = getSql()
   await sql`
     DELETE FROM admin_sessions WHERE id = ${sessionId}
   `
@@ -172,7 +163,6 @@ export async function clearSessionCookie(): Promise<void> {
  * Clean up expired sessions (run periodically)
  */
 export async function cleanupExpiredSessions(): Promise<number> {
-  const sql = getSql()
   const result = await sql`
     DELETE FROM admin_sessions WHERE expires_at < NOW()
   `
