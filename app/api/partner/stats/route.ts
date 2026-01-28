@@ -82,8 +82,7 @@ export async function GET(request: NextRequest) {
         rb.withdrawn_rub,
         rb.withdrawn_ton,
         rb.is_partner,
-        rb.commission_rate,
-        rb.promoted_at
+        rb.commission_rate
       FROM users u
       LEFT JOIN referral_balances rb ON rb.user_id = u.id
       WHERE u.id = ${userId}
@@ -210,7 +209,6 @@ export async function GET(request: NextRequest) {
       isPartner: user.is_partner || false,
       commissionRate: parseFloat(user.commission_rate || '0.10'),
       referralCode: user.referral_code,
-      promotedAt: user.promoted_at,
       monthlyEarnings: monthlyEarnings.map((m: any) => ({
         month: m.month,
         rub: parseFloat(m.rub || '0'),
