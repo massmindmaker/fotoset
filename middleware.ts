@@ -131,10 +131,15 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protect partner API routes (except auth routes)
+  // Allow access with either: session cookie OR telegram_user_id/neon_auth_id query params
   if (pathname.startsWith('/api/partner') && !pathname.startsWith('/api/partner/auth')) {
     const sessionCookie = request.cookies.get('partner_session');
+    const url = new URL(request.url);
+    const hasTelegramId = url.searchParams.has('telegram_user_id');
+    const hasNeonId = url.searchParams.has('neon_auth_id') || url.searchParams.has('neon_user_id');
 
-    if (!sessionCookie?.value) {
+    // Allow if either session cookie or query params present
+    if (!sessionCookie?.value && !hasTelegramId && !hasNeonId) {
       return new NextResponse(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { 'Content-Type': 'application/json' } }
