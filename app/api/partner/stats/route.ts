@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
     // Get pending withdrawals
     const pendingWithdrawals = await sql`
       SELECT COALESCE(SUM(amount), 0) as pending
-      FROM withdrawals
+      FROM referral_withdrawals
       WHERE user_id = ${user.id} AND status IN ('pending', 'processing')
     `.then((rows: any[]) => parseFloat(rows[0]?.pending || '0'))
 
