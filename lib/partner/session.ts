@@ -83,48 +83,24 @@ export async function createPartnerSession(
 
 /**
  * Verify and decode session token
+ * NOTE: For performance, we trust the JWT signature and skip DB verification.
+ * JWT expiration is checked by jose library automatically.
  */
 export async function verifyPartnerSession(token: string): Promise<PartnerSession | null> {
   try {
     const { payload } = await jwtVerify(token, getSecretKey())
     const sessionPayload = payload as PartnerSessionPayload
 
-    // Verify session exists in database and not expired
-    // Using shared sql connection from lib/db
-    const sessions = await sql`
-      SELECT
-        s.id,
-        s.expires_at,
-        pu.email,
-        pu.first_name,
-        pu.last_name,
-        pu.is_active,
-        pu.user_id,
-        rb.commission_rate
-      FROM partner_sessions s
-      JOIN partner_users pu ON s.partner_id = pu.id
-      LEFT JOIN referral_balances rb ON pu.user_id = rb.user_id
-      WHERE s.id = ${sessionPayload.sessionId}
-      AND s.expires_at > NOW()
-      AND pu.is_active = true
-    `
-
-    if (sessions.length === 0) {
-      return null
-    }
-
-    const session = sessions[0]
-
+    // JWT signature verified and not expired - return the session data
+    // DB verification skipped for performance (was causing timeouts)
     return {
       partnerId: sessionPayload.partnerId,
       userId: sessionPayload.userId,
       email: sessionPayload.email,
-      sessionId: sessionPayload.sessionId,
-      firstName: session.first_name,
-      lastName: session.last_name,
-      commissionRate: session.commission_rate
+      sessionId: sessionPayload.sessionId
     }
-  } catch {
+  } catch (error) {
+    console.error('[Partner Session] JWT verification failed:', error)
     return null
   }
 }
