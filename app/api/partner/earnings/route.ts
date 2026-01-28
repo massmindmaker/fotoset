@@ -25,13 +25,16 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     let userId: number | null = null
 
-    // Priority 1: Get userId from partner session cookie
+    // Priority 1: Get userId from partner session cookie (with timeout)
     try {
-      const session = await getCurrentPartnerSession()
+      const sessionPromise = getCurrentPartnerSession()
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
+      const session = await Promise.race([sessionPromise, timeoutPromise])
       if (session?.userId) {
         userId = session.userId
       }
-    } catch {
+    } catch (e) {
+      console.error('[Partner Earnings] Session check error:', e)
       // Session check failed, continue with query params
     }
 

@@ -21,13 +21,16 @@ const NDFL_RATE = 0.13
 
 // Helper function to get authenticated user ID
 async function getAuthenticatedUserId(request: NextRequest): Promise<number | null> {
-  // Priority 1: Get userId from partner session cookie
+  // Priority 1: Get userId from partner session cookie (with timeout)
   try {
-    const session = await getCurrentPartnerSession()
+    const sessionPromise = getCurrentPartnerSession()
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
+    const session = await Promise.race([sessionPromise, timeoutPromise])
     if (session?.userId) {
       return session.userId
     }
-  } catch {
+  } catch (e) {
+    console.error('[Partner Withdrawals] Session check error:', e)
     // Session check failed, continue with query params
   }
 
