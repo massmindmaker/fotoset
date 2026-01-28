@@ -11,11 +11,10 @@ import { getCurrentSession } from '@/lib/admin/session'
 import { findAdminById } from '@/lib/admin/auth'
 
 export async function GET() {
-  // Quick response first to test if route works at all
   const envCheck = {
     hasSecret: !!process.env.ADMIN_SESSION_SECRET,
     hasDb: !!process.env.DATABASE_URL,
-    runtime: 'nodejs'
+    runtime: 'edge'
   }
 
   // If env vars are missing, return immediately

@@ -8,7 +8,7 @@ export async function GET(_request: NextRequest) {
   const envCheck = {
     hasSecret: !!(process.env.PARTNER_SESSION_SECRET || process.env.ADMIN_SESSION_SECRET),
     hasDb: !!process.env.DATABASE_URL,
-    runtime: 'nodejs'
+    runtime: 'edge'
   }
 
   if (!envCheck.hasSecret || !envCheck.hasDb) {
