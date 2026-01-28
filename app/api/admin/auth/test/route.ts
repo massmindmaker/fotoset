@@ -2,7 +2,7 @@
  * Simple test endpoint for admin auth
  */
 
-export const runtime = 'nodejs'
+export const runtime = 'edge'
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
