@@ -76,8 +76,11 @@ export default function UnifiedLoginPage() {
       const data = await res.json()
 
       if (data.success && data.redirect) {
-        // Redirect based on user type
-        router.replace(data.redirect)
+        // Small delay to ensure cookie is set before redirect
+        // Using window.location for more reliable cookie handling
+        await new Promise(r => setTimeout(r, 150))
+        window.location.href = data.redirect
+        return // Prevent setLoading(false) during redirect
       } else {
         setError(data.error || 'Ошибка входа')
       }
