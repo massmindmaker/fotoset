@@ -36,6 +36,9 @@ export async function POST(request: NextRequest) {
 
     const admin = admins[0]
     steps.push(`admin id: ${admin.id}, active: ${admin.is_active}`)
+    steps.push(`hash length: ${admin.password_hash?.length}`)
+    steps.push(`hash prefix: ${admin.password_hash?.substring(0, 30)}`)
+    steps.push(`password: '${password}'`)
 
     // Step 3: Verify password with bcryptjs (try both sync and async)
     steps.push('verifying password with bcryptjs')
@@ -60,6 +63,11 @@ export async function POST(request: NextRequest) {
 
     const isValid = isValidSync || isValidAsync
     steps.push(`final result: ${isValid}`)
+
+    // Generate a test hash on server to compare
+    const serverHash = bcrypt.hashSync('admin123', 10)
+    const serverCompare = bcrypt.compareSync('admin123', serverHash)
+    steps.push(`server self-test: ${serverCompare}`)
 
     return NextResponse.json({
       success: isValid,
