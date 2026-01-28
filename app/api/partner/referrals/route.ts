@@ -102,44 +102,42 @@ export async function GET(request: NextRequest) {
       statusCondition = "AND (rs.last_activity_at IS NULL OR rs.last_activity_at <= NOW() - INTERVAL '30 days')"
     }
 
-    // Get total count using referrals table
-    const countResult = await sql`
-      SELECT COUNT(DISTINCT r.referred_id) as count
-      FROM referrals r
-      LEFT JOIN referral_earnings re ON re.referred_id = r.referred_id AND re.referrer_id = r.referrer_id
-      WHERE r.referrer_id = ${user.id}
-      ${status === 'active' ? sql`AND re.created_at > NOW() - INTERVAL '30 days'` : sql``}
-      ${status === 'inactive' ? sql`AND (re.created_at IS NULL OR re.created_at <= NOW() - INTERVAL '30 days')` : sql``}
-    `.then((rows: any[]) => rows[0])
-    const total = parseInt(countResult?.count || '0')
-
-    // Get referrals with aggregated earnings data
-    const referrals = await sql`
+    // Get referrals with aggregated earnings data (simple query, filter in JS)
+    const allReferrals = await sql`
       SELECT
         r.referred_id as referred_user_id,
         u.telegram_username,
-        COUNT(re.id) as total_payments,
-        COALESCE(SUM(re.original_amount), 0) as total_spent,
-        COALESCE(SUM(re.amount), 0) as total_commission,
+        COUNT(re.id)::int as total_payments,
+        COALESCE(SUM(re.original_amount), 0)::float as total_spent,
+        COALESCE(SUM(re.amount), 0)::float as total_commission,
         'RUB' as currency,
         MIN(re.created_at) as first_payment_at,
         MAX(re.created_at) as last_payment_at,
         MAX(re.created_at) as last_activity_at,
-        r.created_at,
-        CASE
-          WHEN MAX(re.created_at) > NOW() - INTERVAL '30 days' THEN 'active'
-          ELSE 'inactive'
-        END as status
+        r.created_at
       FROM referrals r
       JOIN users u ON u.id = r.referred_id
       LEFT JOIN referral_earnings re ON re.referred_id = r.referred_id AND re.referrer_id = r.referrer_id
       WHERE r.referrer_id = ${user.id}
       GROUP BY r.referred_id, u.telegram_username, r.created_at
-      ${status === 'active' ? sql`HAVING MAX(re.created_at) > NOW() - INTERVAL '30 days'` : sql``}
-      ${status === 'inactive' ? sql`HAVING MAX(re.created_at) IS NULL OR MAX(re.created_at) <= NOW() - INTERVAL '30 days'` : sql``}
-      ORDER BY SUM(re.amount) DESC NULLS LAST, r.created_at DESC
-      LIMIT ${limit} OFFSET ${offset}
+      ORDER BY COALESCE(SUM(re.amount), 0) DESC, r.created_at DESC
     `
+
+    // Filter by status in JS and add status field
+    const now = new Date()
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+    const referralsWithStatus = allReferrals.map((r: any) => ({
+      ...r,
+      status: r.last_activity_at && new Date(r.last_activity_at) > thirtyDaysAgo ? 'active' : 'inactive'
+    }))
+
+    const filteredReferrals = status === 'all'
+      ? referralsWithStatus
+      : referralsWithStatus.filter((r: any) => r.status === status)
+
+    const total = filteredReferrals.length
+    const referrals = filteredReferrals.slice(offset, offset + limit)
 
     return NextResponse.json({
       referrals: referrals.map((r: any) => ({
