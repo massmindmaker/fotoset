@@ -14,6 +14,9 @@
  * - status: Filter by status (active, inactive, all)
  */
 
+export const runtime = 'edge'
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
 import { extractIdentifierFromRequest, findUserByIdentifier } from '@/lib/user-identity'
@@ -168,7 +171,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[Partner Referrals] Error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown',
+        stack: error instanceof Error ? error.stack?.split('\n').slice(0, 5) : undefined
+      },
       { status: 500 }
     )
   }
