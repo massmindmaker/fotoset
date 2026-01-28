@@ -6,6 +6,9 @@
  * Returns user type and sets appropriate session cookie.
  */
 
+export const runtime = 'edge'
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
 import bcrypt from 'bcryptjs'
