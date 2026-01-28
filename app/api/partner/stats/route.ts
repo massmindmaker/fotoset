@@ -126,14 +126,15 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Get referral counts
+    // Get referral counts from referrals + referral_earnings tables
     const referralStats = await sql`
       SELECT
-        COUNT(*) as total,
-        COUNT(CASE WHEN last_activity_at > NOW() - INTERVAL '30 days' THEN 1 END) as active_30d,
-        COUNT(CASE WHEN total_spent > 0 THEN 1 END) as with_payments
-      FROM referral_stats
-      WHERE referrer_id = ${user.id}
+        COUNT(DISTINCT r.referred_id) as total,
+        COUNT(DISTINCT CASE WHEN re.created_at > NOW() - INTERVAL '30 days' THEN r.referred_id END) as active_30d,
+        COUNT(DISTINCT CASE WHEN re.id IS NOT NULL THEN r.referred_id END) as with_payments
+      FROM referrals r
+      LEFT JOIN referral_earnings re ON re.referred_id = r.referred_id AND re.referrer_id = r.referrer_id
+      WHERE r.referrer_id = ${user.id}
     `.then((rows: any[]) => rows[0])
 
     // Get pending earnings count
