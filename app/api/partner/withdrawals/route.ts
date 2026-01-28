@@ -68,10 +68,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get withdrawals
+    // Get withdrawals (using method column from migration 007)
     const withdrawalsResult = await sql`
-      SELECT id, amount, ndfl_amount, payout_amount, status, payout_method,
-             card_number, phone, recipient_name, rejection_reason, created_at, processed_at
+      SELECT id, amount, ndfl_amount, payout_amount, status, method,
+             card_number, phone, created_at, processed_at
       FROM referral_withdrawals
       WHERE user_id = ${userId}
       ORDER BY created_at DESC
@@ -82,14 +82,12 @@ export async function GET(request: NextRequest) {
       withdrawals: withdrawalsResult.map((w: any) => ({
         id: w.id,
         amount: Number(w.amount),
-        ndflAmount: Number(w.ndfl_amount),
+        ndflAmount: Number(w.ndfl_amount || 0),
         payoutAmount: Number(w.payout_amount),
         status: w.status,
-        method: w.payout_method,
+        method: w.method || 'card',
         cardNumber: w.card_number,
         phone: w.phone,
-        recipientName: w.recipient_name,
-        rejectionReason: w.rejection_reason,
         createdAt: w.created_at,
         processedAt: w.processed_at,
       })),

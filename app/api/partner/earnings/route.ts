@@ -86,25 +86,23 @@ export async function GET(request: NextRequest) {
     `.then((rows: any[]) => rows[0])
     const total = parseInt(countResult?.count || '0')
 
-    // Get earnings
+    // Get earnings (using correct column names from migrations)
     const earnings = await sql`
       SELECT
         re.id,
         re.payment_id,
-        re.referred_user_id,
+        re.referred_id,
         u.telegram_username,
         re.amount,
         re.currency,
-        re.commission_rate,
+        re.rate,
         re.status,
         re.created_at,
         re.credited_at,
-        re.cancelled_at,
-        re.cancelled_reason,
         p.amount as payment_amount,
         p.provider as payment_provider
       FROM referral_earnings re
-      JOIN users u ON u.id = re.referred_user_id
+      JOIN users u ON u.id = re.referred_id
       LEFT JOIN payments p ON p.id = re.payment_id
       WHERE re.referrer_id = ${userId}
         AND (${statusCondition}::text IS NULL OR re.status = ${statusCondition})
@@ -151,17 +149,15 @@ export async function GET(request: NextRequest) {
         id: e.id,
         paymentId: e.payment_id,
         referredUser: {
-          id: e.referred_user_id,
+          id: e.referred_id,
           username: e.telegram_username ? '@' + e.telegram_username : null
         },
         amount: parseFloat(e.amount || '0'),
         currency: e.currency || 'RUB',
-        commissionRate: parseFloat(e.commission_rate || '0'),
+        commissionRate: parseFloat(e.rate || '0.10'),
         status: e.status,
         createdAt: e.created_at,
         creditedAt: e.credited_at,
-        cancelledAt: e.cancelled_at,
-        cancelledReason: e.cancelled_reason,
         payment: e.payment_id ? {
           amount: parseFloat(e.payment_amount || '0'),
           provider: e.payment_provider
