@@ -36,10 +36,29 @@ export async function POST(request: NextRequest) {
     const admin = admins[0]
     steps.push(`admin id: ${admin.id}, active: ${admin.is_active}`)
 
-    // Step 3: Verify password with bcryptjs
+    // Step 3: Verify password with bcryptjs (try both sync and async)
     steps.push('verifying password with bcryptjs')
-    const isValid = await bcrypt.compare(password, admin.password_hash)
-    steps.push(`password valid: ${isValid}`)
+
+    // Try sync version
+    let isValidSync = false
+    try {
+      isValidSync = bcrypt.compareSync(password, admin.password_hash)
+      steps.push(`sync compare: ${isValidSync}`)
+    } catch (e) {
+      steps.push(`sync error: ${e instanceof Error ? e.message : 'unknown'}`)
+    }
+
+    // Try async version
+    let isValidAsync = false
+    try {
+      isValidAsync = await bcrypt.compare(password, admin.password_hash)
+      steps.push(`async compare: ${isValidAsync}`)
+    } catch (e) {
+      steps.push(`async error: ${e instanceof Error ? e.message : 'unknown'}`)
+    }
+
+    const isValid = isValidSync || isValidAsync
+    steps.push(`final result: ${isValid}`)
 
     return NextResponse.json({
       success: isValid,
