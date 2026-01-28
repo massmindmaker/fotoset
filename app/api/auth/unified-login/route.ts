@@ -6,8 +6,11 @@
  * Returns user type and sets appropriate session cookie.
  */
 
-export const runtime = 'edge'
+// NOTE: Must use Node.js runtime because bcryptjs doesn't work correctly in Edge runtime
+// bcrypt.compare() always returns false in Edge environment
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+export const maxDuration = 30 // Increase timeout to 30s for Node.js
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
