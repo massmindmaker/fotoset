@@ -83,11 +83,16 @@ export async function POST(request: NextRequest) {
 
     // Step 5: Create some test referrals
     // First create referred users
-    for (let i = 1; i <= 5; i++) {
+    const intervals = [1, 3, 7, 14, 30] // days ago
+    for (let i = 0; i < 5; i++) {
+      const telegramId = 100000 + i + 1
+      const username = 'referral_user_' + (i + 1)
+      const daysAgo = intervals[i]
+
       const refUserId = await sql`
         INSERT INTO users (telegram_user_id, telegram_username, created_at)
-        VALUES (${100000 + i}, ${'referral_user_' + i}, NOW() - INTERVAL '${i} days')
-        ON CONFLICT (telegram_user_id) DO UPDATE SET telegram_username = ${'referral_user_' + i}
+        VALUES (${telegramId}, ${username}, NOW() - MAKE_INTERVAL(days => ${daysAgo}))
+        ON CONFLICT (telegram_user_id) DO UPDATE SET telegram_username = ${username}
         RETURNING id
       `.then((r: any[]) => r[0]?.id)
 
@@ -95,15 +100,17 @@ export async function POST(request: NextRequest) {
         // Create referral link
         await sql`
           INSERT INTO referrals (referrer_id, referred_id, created_at)
-          VALUES (${userId}, ${refUserId}, NOW() - INTERVAL '${i} days')
+          VALUES (${userId}, ${refUserId}, NOW() - MAKE_INTERVAL(days => ${daysAgo}))
           ON CONFLICT (referrer_id, referred_id) DO NOTHING
         `
 
         // Create some earnings for first 3 referrals
-        if (i <= 3) {
+        if (i < 3) {
+          const amount = 100 + (i + 1) * 50
+          const originalAmount = 1000 + (i + 1) * 500
           await sql`
             INSERT INTO referral_earnings (referrer_id, referred_id, amount, original_amount, rate, currency, status, created_at)
-            VALUES (${userId}, ${refUserId}, ${100 + i * 50}, ${1000 + i * 500}, 0.10, 'RUB', 'credited', NOW() - INTERVAL '${i} days')
+            VALUES (${userId}, ${refUserId}, ${amount}, ${originalAmount}, 0.10, 'RUB', 'credited', NOW() - MAKE_INTERVAL(days => ${daysAgo}))
             ON CONFLICT DO NOTHING
           `
         }
@@ -113,7 +120,7 @@ export async function POST(request: NextRequest) {
     // Step 6: Create test withdrawal
     await sql`
       INSERT INTO referral_withdrawals (user_id, amount, ndfl_amount, payout_amount, method, card_number, status, created_at)
-      VALUES (${userId}, 1000.00, 130.00, 870.00, 'card', '**** 1234', 'completed', NOW() - INTERVAL '7 days')
+      VALUES (${userId}, 1000.00, 130.00, 870.00, 'card', '**** 1234', 'completed', NOW() - MAKE_INTERVAL(days => 7))
       ON CONFLICT DO NOTHING
     `
 
