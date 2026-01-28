@@ -19,6 +19,19 @@ export async function POST(request: NextRequest) {
 
     const results: string[] = []
 
+    if (migration === 'referral_codes_constraint' || migration === 'all') {
+      // Add partial unique constraint for referral_codes
+      try {
+        await sql`
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_referral_codes_user_active
+          ON referral_codes (user_id) WHERE is_active = true
+        `
+        results.push('Created partial unique index on referral_codes(user_id) WHERE is_active')
+      } catch (e) {
+        results.push(`Index already exists or error: ${e instanceof Error ? e.message : 'unknown'}`)
+      }
+    }
+
     if (migration === 'partner_users' || migration === 'all') {
       // Create partner_users table
       await sql`
