@@ -3,6 +3,9 @@
  * Check if admin session is valid
  */
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server'
 import { getCurrentSession } from '@/lib/admin/session'
 import { findAdminById } from '@/lib/admin/auth'
