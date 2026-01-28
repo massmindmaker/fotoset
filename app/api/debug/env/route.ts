@@ -18,10 +18,13 @@ export async function GET() {
   const hostMatch = dbUrl.match(/@([^/]+)/)
   const host = hostMatch ? hostMatch[1] : 'unknown'
 
+  // Get full host for debugging
+  const fullHost = hostMatch ? hostMatch[1] : 'unknown'
+
   return NextResponse.json({
     hasDbUrl: !!process.env.DATABASE_URL,
-    hostSuffix: host.slice(-30),
+    fullHost,
     dbName: dbUrl.split('/').pop()?.split('?')[0] || 'unknown',
-    maskedUrl: masked.slice(0, 50) + '...'
+    urlLength: dbUrl.length
   })
 }
