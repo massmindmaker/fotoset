@@ -45,7 +45,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      tables: tables.map(t => t.table_name),
+      tables: tables.map((t: { table_name: string }) => t.table_name),
       referral_codes_columns: codeColumns,
       referral_codes_constraints: constraints
     })
