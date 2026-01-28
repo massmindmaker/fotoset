@@ -6,7 +6,7 @@
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose'
 import { cookies } from 'next/headers'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
 
 const SESSION_COOKIE_NAME = 'partner_session'
 const SESSION_TTL = parseInt(process.env.PARTNER_SESSION_TTL || '604800', 10) // 7 days default
@@ -38,12 +38,6 @@ function getSecretKey(): Uint8Array {
   return new TextEncoder().encode(secret)
 }
 
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 /**
  * Create a new partner session
  */
@@ -54,7 +48,7 @@ export async function createPartnerSession(
   ipAddress?: string,
   userAgent?: string
 ): Promise<string> {
-  const sql = getSql()
+  // Using shared sql connection from lib/db
   const expiresAt = new Date(Date.now() + SESSION_TTL * 1000)
 
   // Generate unique session token
@@ -96,7 +90,7 @@ export async function verifyPartnerSession(token: string): Promise<PartnerSessio
     const sessionPayload = payload as PartnerSessionPayload
 
     // Verify session exists in database and not expired
-    const sql = getSql()
+    // Using shared sql connection from lib/db
     const sessions = await sql`
       SELECT
         s.id,
@@ -167,7 +161,7 @@ export async function setPartnerSessionCookie(token: string): Promise<void> {
  * Delete session (logout)
  */
 export async function deletePartnerSession(sessionId: number): Promise<void> {
-  const sql = getSql()
+  // Using shared sql connection from lib/db
   await sql`
     DELETE FROM partner_sessions WHERE id = ${sessionId}
   `
@@ -185,7 +179,7 @@ export async function clearPartnerSessionCookie(): Promise<void> {
  * Clean up expired sessions (run periodically)
  */
 export async function cleanupExpiredPartnerSessions(): Promise<number> {
-  const sql = getSql()
+  // Using shared sql connection from lib/db
   const result = await sql`
     DELETE FROM partner_sessions WHERE expires_at < NOW()
   `
