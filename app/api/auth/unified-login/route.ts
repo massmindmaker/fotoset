@@ -125,24 +125,54 @@ export async function POST(request: NextRequest): Promise<NextResponse<UnifiedLo
       }
 
       // Create admin session
-      const token = await createSession(
-        admin.id,
-        admin.email,
-        admin.role,
-        ip,
-        userAgent
-      )
+      console.log('[UnifiedLogin] Creating session...')
+      let token: string
+      try {
+        token = await createSession(
+          admin.id,
+          admin.email,
+          admin.role,
+          ip,
+          userAgent
+        )
+        console.log('[UnifiedLogin] Session created successfully')
+      } catch (sessionError) {
+        console.error('[UnifiedLogin] Session creation failed:', sessionError)
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Ошибка создания сессии',
+            debug: {
+              step: 'createSession',
+              error: sessionError instanceof Error ? sessionError.message : String(sessionError)
+            }
+          },
+          { status: 500 }
+        )
+      }
 
       // Record successful login
-      await recordLoginAttempt(ip, normalizedEmail, true)
+      console.log('[UnifiedLogin] Recording login attempt...')
+      try {
+        await recordLoginAttempt(ip, normalizedEmail, true)
+      } catch (recordError) {
+        console.error('[UnifiedLogin] recordLoginAttempt failed:', recordError)
+        // Continue anyway - non-critical
+      }
 
       // Log admin action
-      await logAdminAction({
-        adminId: admin.id,
-        action: 'login',
-        metadata: { method: 'unified_login' },
-        ipAddress: ip
-      })
+      console.log('[UnifiedLogin] Logging admin action...')
+      try {
+        await logAdminAction({
+          adminId: admin.id,
+          action: 'login',
+          metadata: { method: 'unified_login' },
+          ipAddress: ip
+        })
+      } catch (auditError) {
+        console.error('[UnifiedLogin] logAdminAction failed:', auditError)
+        // Continue anyway - non-critical
+      }
 
       // Set cookie and return response
       const response = NextResponse.json({
