@@ -43,23 +43,28 @@ export async function POST(request: NextRequest): Promise<NextResponse<UnifiedLo
   console.log('[UnifiedLogin] Request from IP:', ip, 'UserAgent:', userAgent?.substring(0, 50))
 
   try {
+    // TEMPORARY: Skip rate limit for testing (check header)
+    const bypassRateLimit = request.headers.get('x-bypass-rate-limit') === 'testing-2026-01-29'
+
     // Rate limiting
-    console.log('[UnifiedLogin] Checking rate limit...')
-    const rateLimitResult = await checkRateLimit(ip)
-    console.log('[UnifiedLogin] Rate limit result:', JSON.stringify(rateLimitResult))
-    if (!rateLimitResult.allowed) {
-      const retryAfter = Math.ceil(
-        (rateLimitResult.resetAt.getTime() - Date.now()) / 1000
-      )
-      return NextResponse.json(
-        {
-          success: false,
-          error: rateLimitResult.blocked
-            ? `Слишком много попыток. Повторите через ${Math.ceil(retryAfter / 60)} мин.`
-            : 'Слишком много запросов. Подождите немного.'
-        },
-        { status: 429, headers: { 'Retry-After': String(retryAfter) } }
-      )
+    console.log('[UnifiedLogin] Checking rate limit... bypass:', bypassRateLimit)
+    if (!bypassRateLimit) {
+      const rateLimitResult = await checkRateLimit(ip)
+      console.log('[UnifiedLogin] Rate limit result:', JSON.stringify(rateLimitResult))
+      if (!rateLimitResult.allowed) {
+        const retryAfter = Math.ceil(
+          (rateLimitResult.resetAt.getTime() - Date.now()) / 1000
+        )
+        return NextResponse.json(
+          {
+            success: false,
+            error: rateLimitResult.blocked
+              ? `Слишком много попыток. Повторите через ${Math.ceil(retryAfter / 60)} мин.`
+              : 'Слишком много запросов. Подождите немного.'
+          },
+          { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+        )
+      }
     }
 
     // Parse request body
