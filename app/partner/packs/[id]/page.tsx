@@ -9,15 +9,18 @@ import {
   Save,
   Send,
   Plus,
-  Trash2,
   Edit2,
-  X,
   AlertCircle,
   CheckCircle,
   Clock,
   XCircle,
-  GripVertical
+  FlaskConical,
+  Package,
+  Info,
 } from 'lucide-react'
+import { ReferenceUploader } from '@/components/admin/ReferenceUploader'
+import { PartnerTestBlock, PartnerQuotaIndicator, PartnerPromptsList } from '@/components/partner'
+import type { ReferenceImage } from '@/lib/admin/types'
 
 interface Pack {
   id: number
@@ -47,6 +50,28 @@ interface Prompt {
   createdAt: string
 }
 
+interface TestBlock {
+  id: string
+  prompt: string
+  photoCount: 1 | 2 | 3 | 4
+  status: 'idle' | 'generating' | 'completed' | 'failed'
+  results?: Array<{
+    imageUrl: string
+    latency: number
+    taskId: string
+    aspectRatio?: string
+  }>
+  error?: string
+  startedAt?: number
+  completedAt?: number
+}
+
+interface Quota {
+  limit: number
+  used: number
+  remaining: number
+}
+
 export default function EditPackPage() {
   const router = useRouter()
   const params = useParams()
@@ -58,38 +83,43 @@ export default function EditPackPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Quota
+  const [quota, setQuota] = useState<Quota>({ limit: 200, used: 0, remaining: 200 })
+
+  // Reference images (shared for all test blocks)
+  const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([])
+  const [referenceBase64Urls, setReferenceBase64Urls] = useState<string[]>([])
+
+  // Test blocks
+  const [testBlocks, setTestBlocks] = useState<TestBlock[]>([
+    {
+      id: '1',
+      prompt: '',
+      photoCount: 1,
+      status: 'idle',
+    },
+  ])
+
   // Edit pack form
   const [editMode, setEditMode] = useState(false)
   const [packForm, setPackForm] = useState({
     name: '',
     description: '',
-    iconEmoji: ''
+    iconEmoji: '',
   })
   const [saving, setSaving] = useState(false)
-
-  // Prompt modal
-  const [promptModal, setPromptModal] = useState<{
-    open: boolean
-    editing: Prompt | null
-  }>({ open: false, editing: null })
-  const [promptForm, setPromptForm] = useState({
-    prompt: '',
-    negativePrompt: '',
-    stylePrefix: '',
-    styleSuffix: ''
-  })
-  const [savingPrompt, setSavingPrompt] = useState(false)
 
   // Submit for moderation
   const [submitting, setSubmitting] = useState(false)
 
+  // Fetch pack data
   const fetchPack = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
 
       const res = await fetch(`/api/partner/packs/${packId}`, {
-        credentials: 'include'
+        credentials: 'include',
       })
 
       if (!res.ok) {
@@ -107,7 +137,7 @@ export default function EditPackPage() {
       setPackForm({
         name: data.pack.name,
         description: data.pack.description || '',
-        iconEmoji: data.pack.iconEmoji || ''
+        iconEmoji: data.pack.iconEmoji || '',
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
@@ -116,9 +146,99 @@ export default function EditPackPage() {
     }
   }, [packId, router])
 
+  // Fetch quota
+  const fetchQuota = useCallback(async () => {
+    try {
+      const res = await fetch('/api/partner/test-quota', {
+        credentials: 'include',
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setQuota(data.quota)
+      }
+    } catch (err) {
+      console.error('[EditPackPage] Failed to fetch quota:', err)
+    }
+  }, [])
+
   useEffect(() => {
     fetchPack()
-  }, [fetchPack])
+    fetchQuota()
+  }, [fetchPack, fetchQuota])
+
+  // Convert reference images to base64
+  useEffect(() => {
+    const convertToBase64 = async () => {
+      const urls: string[] = []
+      for (const img of referenceImages) {
+        try {
+          const base64 = await fileToBase64(img.file)
+          urls.push(base64)
+        } catch (error) {
+          console.error('[EditPackPage] Failed to convert image:', error)
+        }
+      }
+      setReferenceBase64Urls(urls)
+    }
+
+    if (referenceImages.length > 0) {
+      convertToBase64()
+    } else {
+      setReferenceBase64Urls([])
+    }
+  }, [referenceImages])
+
+  // Test block handlers
+  const addTestBlock = () => {
+    const newBlock: TestBlock = {
+      id: Date.now().toString(),
+      prompt: '',
+      photoCount: 1,
+      status: 'idle',
+    }
+    setTestBlocks([...testBlocks, newBlock])
+  }
+
+  const updateTestBlock = (id: string, updates: Partial<TestBlock>) => {
+    setTestBlocks((blocks) =>
+      blocks.map((block) =>
+        block.id === id ? { ...block, ...updates } : block
+      )
+    )
+  }
+
+  const removeTestBlock = (id: string) => {
+    if (testBlocks.length === 1) {
+      alert('Должен быть хотя бы один тестовый блок')
+      return
+    }
+    setTestBlocks((blocks) => blocks.filter((block) => block.id !== id))
+  }
+
+  // Add prompt to pack from test block
+  const handleAddToPack = async (prompt: string, previewUrl: string) => {
+    try {
+      const res = await fetch(`/api/partner/packs/${packId}/prompts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          prompt: prompt.trim(),
+          previewUrl: previewUrl,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.message || 'Ошибка добавления')
+      }
+
+      // Refresh prompts list
+      fetchPack()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Ошибка добавления в пак')
+    }
+  }
 
   // Save pack changes
   const handleSavePack = async () => {
@@ -136,8 +256,8 @@ export default function EditPackPage() {
         body: JSON.stringify({
           name: packForm.name.trim(),
           description: packForm.description.trim() || null,
-          iconEmoji: packForm.iconEmoji.trim() || null
-        })
+          iconEmoji: packForm.iconEmoji.trim() || null,
+        }),
       })
 
       if (!res.ok) {
@@ -155,88 +275,6 @@ export default function EditPackPage() {
     }
   }
 
-  // Open prompt modal
-  const openPromptModal = (prompt?: Prompt) => {
-    if (prompt) {
-      setPromptForm({
-        prompt: prompt.prompt,
-        negativePrompt: prompt.negativePrompt || '',
-        stylePrefix: prompt.stylePrefix || '',
-        styleSuffix: prompt.styleSuffix || ''
-      })
-      setPromptModal({ open: true, editing: prompt })
-    } else {
-      setPromptForm({
-        prompt: '',
-        negativePrompt: '',
-        stylePrefix: '',
-        styleSuffix: ''
-      })
-      setPromptModal({ open: true, editing: null })
-    }
-  }
-
-  // Save prompt
-  const handleSavePrompt = async () => {
-    if (!promptForm.prompt.trim()) {
-      alert('Промпт обязателен')
-      return
-    }
-
-    setSavingPrompt(true)
-    try {
-      const isEditing = !!promptModal.editing
-      const url = isEditing
-        ? `/api/partner/packs/${packId}/prompts/${promptModal.editing!.id}`
-        : `/api/partner/packs/${packId}/prompts`
-
-      const res = await fetch(url, {
-        method: isEditing ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          prompt: promptForm.prompt.trim(),
-          negativePrompt: promptForm.negativePrompt.trim() || null,
-          stylePrefix: promptForm.stylePrefix.trim() || null,
-          styleSuffix: promptForm.styleSuffix.trim() || null
-        })
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.message || 'Failed to save prompt')
-      }
-
-      setPromptModal({ open: false, editing: null })
-      fetchPack() // Refresh prompts
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Ошибка сохранения')
-    } finally {
-      setSavingPrompt(false)
-    }
-  }
-
-  // Delete prompt
-  const handleDeletePrompt = async (promptId: number) => {
-    if (!confirm('Удалить этот промпт?')) return
-
-    try {
-      const res = await fetch(`/api/partner/packs/${packId}/prompts/${promptId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.message || 'Failed to delete prompt')
-      }
-
-      fetchPack() // Refresh prompts
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Ошибка удаления')
-    }
-  }
-
   // Submit for moderation
   const handleSubmit = async () => {
     if (prompts.length < 7) {
@@ -248,7 +286,11 @@ export default function EditPackPage() {
       return
     }
 
-    if (!confirm('Отправить пак на модерацию? После этого редактирование будет недоступно до завершения проверки.')) {
+    if (
+      !confirm(
+        'Отправить пак на модерацию? После этого редактирование будет недоступно до завершения проверки.'
+      )
+    ) {
       return
     }
 
@@ -257,7 +299,7 @@ export default function EditPackPage() {
       const res = await fetch(`/api/partner/packs/${packId}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
+        credentials: 'include',
       })
 
       if (!res.ok) {
@@ -265,7 +307,7 @@ export default function EditPackPage() {
         throw new Error(data.message || 'Failed to submit pack')
       }
 
-      fetchPack() // Refresh pack status
+      fetchPack()
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Ошибка отправки')
     } finally {
@@ -276,36 +318,53 @@ export default function EditPackPage() {
   // Status helpers
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'draft': return <Edit2 className="w-4 h-4" />
-      case 'pending': return <Clock className="w-4 h-4" />
-      case 'approved': return <CheckCircle className="w-4 h-4" />
-      case 'rejected': return <XCircle className="w-4 h-4" />
-      default: return null
+      case 'draft':
+        return <Edit2 className="w-4 h-4" />
+      case 'pending':
+        return <Clock className="w-4 h-4" />
+      case 'approved':
+        return <CheckCircle className="w-4 h-4" />
+      case 'rejected':
+        return <XCircle className="w-4 h-4" />
+      default:
+        return null
     }
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft': return 'bg-gray-500/10 text-gray-500'
-      case 'pending': return 'bg-yellow-500/10 text-yellow-600'
-      case 'approved': return 'bg-green-500/10 text-green-600'
-      case 'rejected': return 'bg-red-500/10 text-red-600'
-      default: return ''
+      case 'draft':
+        return 'bg-gray-500/10 text-gray-500'
+      case 'pending':
+        return 'bg-yellow-500/10 text-yellow-600'
+      case 'approved':
+        return 'bg-green-500/10 text-green-600'
+      case 'rejected':
+        return 'bg-red-500/10 text-red-600'
+      default:
+        return ''
     }
   }
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'draft': return 'Черновик'
-      case 'pending': return 'На модерации'
-      case 'approved': return 'Одобрен'
-      case 'rejected': return 'Отклонён'
-      default: return status
+      case 'draft':
+        return 'Черновик'
+      case 'pending':
+        return 'На модерации'
+      case 'approved':
+        return 'Одобрен'
+      case 'rejected':
+        return 'Отклонён'
+      default:
+        return status
     }
   }
 
-  const canEdit = pack?.moderationStatus === 'draft' || pack?.moderationStatus === 'rejected'
+  const canEdit =
+    pack?.moderationStatus === 'draft' || pack?.moderationStatus === 'rejected'
   const canSubmit = canEdit && prompts.length >= 7 && prompts.length <= 23
+  const isReady = referenceImages.length >= 5
 
   if (loading) {
     return (
@@ -331,351 +390,332 @@ export default function EditPackPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/partner/packs"
-            className="p-2 hover:bg-accent rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold">{pack.name}</h1>
-              <span className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-full ${getStatusColor(pack.moderationStatus)}`}>
-                {getStatusIcon(pack.moderationStatus)}
-                {getStatusLabel(pack.moderationStatus)}
-              </span>
-            </div>
-            <p className="text-muted-foreground">
-              {prompts.length} промптов • Создан {new Date(pack.createdAt).toLocaleDateString('ru')}
-            </p>
-          </div>
-        </div>
-
-        {canSubmit && (
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-          >
-            {submitting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-            На модерацию
-          </button>
-        )}
-      </div>
-
-      {/* Rejection reason */}
-      {pack.moderationStatus === 'rejected' && pack.rejectionReason && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-          <div className="flex gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+      <div className="flex-shrink-0 pb-4 border-b border-slate-200 mb-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link
+              href="/partner/packs"
+              className="p-2 hover:bg-accent rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
             <div>
-              <p className="font-medium text-red-600">Пак отклонён</p>
-              <p className="text-sm text-muted-foreground mt-1">{pack.rejectionReason}</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Исправьте замечания и отправьте пак на модерацию повторно.
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl font-bold">{pack.name}</h1>
+                <span
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-full ${getStatusColor(
+                    pack.moderationStatus
+                  )}`}
+                >
+                  {getStatusIcon(pack.moderationStatus)}
+                  {getStatusLabel(pack.moderationStatus)}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {prompts.length} промптов
               </p>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Pack Info Card */}
-      <div className="bg-card border rounded-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Информация о паке</h2>
-          {canEdit && !editMode && (
+          {canSubmit && (
             <button
-              onClick={() => setEditMode(true)}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent rounded-lg transition-colors"
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
             >
-              <Edit2 className="w-4 h-4" />
-              Редактировать
+              {submitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+              На модерацию
             </button>
           )}
         </div>
 
-        {editMode ? (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Название *</label>
-              <input
-                type="text"
-                value={packForm.name}
-                onChange={(e) => setPackForm({ ...packForm, name: e.target.value })}
-                className="w-full px-4 py-2 bg-background border rounded-lg focus:ring-2 focus:ring-primary"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Описание</label>
-              <textarea
-                value={packForm.description}
-                onChange={(e) => setPackForm({ ...packForm, description: e.target.value })}
-                rows={3}
-                className="w-full px-4 py-2 bg-background border rounded-lg focus:ring-2 focus:ring-primary resize-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Иконка (emoji)</label>
-              <input
-                type="text"
-                value={packForm.iconEmoji}
-                onChange={(e) => setPackForm({ ...packForm, iconEmoji: e.target.value })}
-                className="w-20 px-4 py-2 bg-background border rounded-lg text-center text-2xl"
-                maxLength={2}
-              />
-            </div>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setEditMode(false)}
-                className="px-4 py-2 text-muted-foreground hover:text-foreground"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleSavePack}
-                disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Сохранить
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">{pack.iconEmoji || ''}</span>
+        {/* Rejection reason */}
+        {pack.moderationStatus === 'rejected' && pack.rejectionReason && (
+          <div className="mt-4 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+            <div className="flex gap-3">
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
               <div>
-                <p className="font-medium">{pack.name}</p>
-                <p className="text-sm text-muted-foreground">slug: {pack.slug}</p>
+                <p className="font-medium text-red-600 text-sm">Пак отклонён</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {pack.rejectionReason}
+                </p>
               </div>
             </div>
-            {pack.description && (
-              <p className="text-muted-foreground">{pack.description}</p>
-            )}
           </div>
         )}
       </div>
 
-      {/* Prompts Section */}
-      <div className="bg-card border rounded-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold">Промпты ({prompts.length}/23)</h2>
-            <p className="text-sm text-muted-foreground">
-              Минимум 7, максимум 23 промпта
-            </p>
-          </div>
-          {canEdit && prompts.length < 23 && (
-            <button
-              onClick={() => openPromptModal()}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Добавить промпт
-            </button>
-          )}
-        </div>
+      {/* Main 3-column layout */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
+        {/* Left Column: Tester (5 cols) */}
+        <div className="lg:col-span-5 flex flex-col min-h-0 overflow-hidden">
+          <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+            <div className="flex-shrink-0 p-4 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <FlaskConical className="w-5 h-5 text-blue-600" />
+                Тестер промптов
+              </h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Reference Images */}
+              <ReferenceUploader
+                images={referenceImages}
+                onImagesChange={setReferenceImages}
+                minPhotos={5}
+                maxPhotos={10}
+              />
 
-        {/* Progress bar */}
-        <div className="mb-4">
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div
-              className={`h-full transition-all ${
-                prompts.length < 7 ? 'bg-yellow-500' :
-                prompts.length <= 23 ? 'bg-green-500' : 'bg-red-500'
-              }`}
-              style={{ width: `${Math.min((prompts.length / 23) * 100, 100)}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-xs text-muted-foreground mt-1">
-            <span>0</span>
-            <span className={prompts.length >= 7 ? 'text-green-500' : ''}>7 (мин)</span>
-            <span>23 (макс)</span>
-          </div>
-        </div>
-
-        {/* Prompts List */}
-        {prompts.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground mb-4">Пока нет промптов</p>
-            {canEdit && (
-              <button
-                onClick={() => openPromptModal()}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
-              >
-                <Plus className="w-4 h-4" />
-                Добавить первый промпт
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {prompts.map((prompt, index) => (
-              <div
-                key={prompt.id}
-                className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg group"
-              >
-                <div className="flex items-center gap-2 text-muted-foreground shrink-0">
-                  <GripVertical className="w-4 h-4 opacity-0 group-hover:opacity-50" />
-                  <span className="w-6 text-center text-sm">{index + 1}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm line-clamp-2">{prompt.prompt}</p>
-                  {prompt.negativePrompt && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Negative: {prompt.negativePrompt}
-                    </p>
-                  )}
-                </div>
-                {canEdit && (
-                  <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              {/* Test Blocks */}
+              {isReady && canEdit && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-slate-800">
+                      Тестовые блоки
+                    </h4>
                     <button
-                      onClick={() => openPromptModal(prompt)}
-                      className="p-1.5 hover:bg-accent rounded"
-                      title="Редактировать"
+                      onClick={addTestBlock}
+                      className="px-3 py-1.5 bg-pink-50 hover:bg-pink-100 text-pink-600 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
                     >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeletePrompt(prompt.id)}
-                      className="p-1.5 hover:bg-red-500/10 text-red-500 rounded"
-                      title="Удалить"
-                    >
-                      <Trash2 className="w-4 h-4" />
+                      <Plus className="w-4 h-4" />
+                      Добавить
                     </button>
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
-      {/* Submit Info */}
-      {canEdit && (
-        <div className={`border rounded-lg p-4 ${
-          prompts.length < 7 
-            ? 'bg-yellow-500/10 border-yellow-500/20' 
-            : 'bg-green-500/10 border-green-500/20'
-        }`}>
-          <div className="flex gap-3">
-            {prompts.length < 7 ? (
-              <AlertCircle className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
-            ) : (
-              <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-            )}
-            <div className="text-sm">
-              {prompts.length < 7 ? (
-                <>
-                  <p className="font-medium text-yellow-600">Недостаточно промптов</p>
-                  <p className="text-muted-foreground mt-1">
-                    Добавьте ещё {7 - prompts.length} промптов, чтобы отправить пак на модерацию
+                  {testBlocks.map((block) => (
+                    <PartnerTestBlock
+                      key={block.id}
+                      block={block}
+                      referenceImages={referenceBase64Urls}
+                      onUpdate={updateTestBlock}
+                      onRemove={removeTestBlock}
+                      isOnlyBlock={testBlocks.length === 1}
+                      onAddToPack={handleAddToPack}
+                      quotaRemaining={quota.remaining}
+                      onQuotaUpdate={(remaining) =>
+                        setQuota({ ...quota, remaining, used: quota.limit - remaining })
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Not ready message */}
+              {!isReady && referenceImages.length > 0 && (
+                <div className="bg-pink-50 rounded-xl p-3 border border-pink-200">
+                  <p className="text-sm text-slate-700 text-center">
+                    Загрузите ещё {5 - referenceImages.length} фото
                   </p>
-                </>
-              ) : (
-                <>
-                  <p className="font-medium text-green-600">Готово к отправке</p>
-                  <p className="text-muted-foreground mt-1">
-                    Пак содержит {prompts.length} промптов и готов к модерации
+                </div>
+              )}
+
+              {/* Locked message for non-editable packs */}
+              {!canEdit && (
+                <div className="bg-slate-50 rounded-xl p-6 text-center border border-slate-200">
+                  <Clock className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-sm text-slate-600">
+                    Пак находится на модерации. Редактирование недоступно.
                   </p>
-                </>
+                </div>
               )}
             </div>
           </div>
         </div>
-      )}
 
-      {/* Prompt Modal */}
-      {promptModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-card rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-auto m-4">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold">
-                {promptModal.editing ? 'Редактировать промпт' : 'Новый промпт'}
+        {/* Center Column: Prompts List (4 cols) */}
+        <div className="lg:col-span-4 min-h-0 overflow-hidden">
+          <PartnerPromptsList
+            prompts={prompts}
+            packId={parseInt(packId)}
+            canEdit={canEdit}
+            onRefresh={fetchPack}
+          />
+        </div>
+
+        {/* Right Column: Pack Info (3 cols) */}
+        <div className="lg:col-span-3 flex flex-col gap-4 min-h-0 overflow-y-auto">
+          {/* Quota Indicator */}
+          <PartnerQuotaIndicator
+            limit={quota.limit}
+            used={quota.used}
+          />
+
+          {/* Pack Info Card */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <Info className="w-4 h-4 text-slate-500" />
+                Информация
               </h3>
-              <button
-                onClick={() => setPromptModal({ open: false, editing: null })}
-                className="p-2 hover:bg-accent rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              {canEdit && !editMode && (
+                <button
+                  onClick={() => setEditMode(true)}
+                  className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <Edit2 className="w-4 h-4 text-slate-500" />
+                </button>
+              )}
             </div>
 
-            <div className="p-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Промпт *</label>
-                <textarea
-                  value={promptForm.prompt}
-                  onChange={(e) => setPromptForm({ ...promptForm, prompt: e.target.value })}
-                  placeholder="Опишите стиль генерации..."
-                  rows={4}
-                  className="w-full px-4 py-2 bg-background border rounded-lg focus:ring-2 focus:ring-primary resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Негативный промпт</label>
-                <textarea
-                  value={promptForm.negativePrompt}
-                  onChange={(e) => setPromptForm({ ...promptForm, negativePrompt: e.target.value })}
-                  placeholder="Что исключить из генерации..."
-                  rows={2}
-                  className="w-full px-4 py-2 bg-background border rounded-lg focus:ring-2 focus:ring-primary resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+            {editMode ? (
+              <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Префикс стиля</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Название *
+                  </label>
                   <input
                     type="text"
-                    value={promptForm.stylePrefix}
-                    onChange={(e) => setPromptForm({ ...promptForm, stylePrefix: e.target.value })}
-                    placeholder="professional photo"
-                    className="w-full px-4 py-2 bg-background border rounded-lg focus:ring-2 focus:ring-primary"
+                    value={packForm.name}
+                    onChange={(e) =>
+                      setPackForm({ ...packForm, name: e.target.value })
+                    }
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Суффикс стиля</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Описание
+                  </label>
+                  <textarea
+                    value={packForm.description}
+                    onChange={(e) =>
+                      setPackForm({ ...packForm, description: e.target.value })
+                    }
+                    rows={2}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Иконка
+                  </label>
                   <input
                     type="text"
-                    value={promptForm.styleSuffix}
-                    onChange={(e) => setPromptForm({ ...promptForm, styleSuffix: e.target.value })}
-                    placeholder="8k, detailed"
-                    className="w-full px-4 py-2 bg-background border rounded-lg focus:ring-2 focus:ring-primary"
+                    value={packForm.iconEmoji}
+                    onChange={(e) =>
+                      setPackForm({ ...packForm, iconEmoji: e.target.value })
+                    }
+                    className="w-16 px-3 py-2 text-center text-lg bg-slate-50 border border-slate-200 rounded-lg"
+                    maxLength={2}
                   />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditMode(false)}
+                    className="flex-1 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={handleSavePack}
+                    disabled={saving}
+                    className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {saving ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    Сохранить
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{pack.iconEmoji || '📦'}</span>
+                  <div>
+                    <p className="font-medium text-slate-800">{pack.name}</p>
+                    <p className="text-xs text-slate-500">/{pack.slug}</p>
+                  </div>
+                </div>
+                {pack.description && (
+                  <p className="text-sm text-slate-600">{pack.description}</p>
+                )}
+                <p className="text-xs text-slate-400">
+                  Создан {new Date(pack.createdAt).toLocaleDateString('ru')}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Submit Status */}
+          {canEdit && (
+            <div
+              className={`rounded-xl p-4 border ${
+                prompts.length < 7
+                  ? 'bg-amber-50 border-amber-200'
+                  : 'bg-green-50 border-green-200'
+              }`}
+            >
+              <div className="flex gap-3">
+                {prompts.length < 7 ? (
+                  <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
+                ) : (
+                  <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
+                )}
+                <div className="text-sm">
+                  {prompts.length < 7 ? (
+                    <>
+                      <p className="font-medium text-amber-700">
+                        Недостаточно промптов
+                      </p>
+                      <p className="text-amber-600 text-xs mt-1">
+                        Добавьте ещё {7 - prompts.length} промптов
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium text-green-700">
+                        Готово к отправке
+                      </p>
+                      <p className="text-green-600 text-xs mt-1">
+                        {prompts.length} промптов
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
+          )}
 
-            <div className="flex justify-end gap-3 p-4 border-t">
-              <button
-                onClick={() => setPromptModal({ open: false, editing: null })}
-                className="px-4 py-2 text-muted-foreground hover:text-foreground"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleSavePrompt}
-                disabled={savingPrompt || !promptForm.prompt.trim()}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
-              >
-                {savingPrompt ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Сохранить
-              </button>
-            </div>
+          {/* How it works */}
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200">
+            <h4 className="font-medium text-slate-800 mb-2 flex items-center gap-2">
+              <Package className="w-4 h-4 text-purple-500" />
+              Как создать пак
+            </h4>
+            <ol className="text-xs text-slate-600 space-y-1.5">
+              <li>1. Загрузите 5-10 референсных фото</li>
+              <li>2. Напишите промпт и нажмите «Генерировать»</li>
+              <li>3. Если результат хороший — «Добавить в пак»</li>
+              <li>4. Повторите для 7-23 промптов</li>
+              <li>5. Отправьте на модерацию</li>
+            </ol>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
+}
+
+// Helper: Convert File to base64 data URI
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result)
+      } else {
+        reject(new Error('Failed to convert to base64'))
+      }
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }

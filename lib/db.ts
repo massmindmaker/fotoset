@@ -190,6 +190,9 @@ export type ReferralBalance = {
   is_partner: boolean
   partner_approved_at: string | null
   partner_approved_by: string | null
+  // Partner test generation quota
+  test_generations_limit: number
+  test_generations_used: number
   updated_at: string
 }
 
