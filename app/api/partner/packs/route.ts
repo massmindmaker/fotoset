@@ -1,6 +1,43 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { getAuthenticatedUser } from "@/lib/auth-middleware"
+import { getCurrentPartnerSession } from "@/lib/partner/session"
+import { extractIdentifierFromRequest, findUserByIdentifier } from "@/lib/user-identity"
+
+/**
+ * Helper to get authenticated partner user ID
+ * Checks: 1) partner_session cookie, 2) query params (telegram/neon)
+ */
+async function getPartnerUserId(request: NextRequest): Promise<number | null> {
+  // Priority 1: Partner session cookie
+  try {
+    const sessionPromise = getCurrentPartnerSession()
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
+    const session = await Promise.race([sessionPromise, timeoutPromise])
+    if (session?.userId) {
+      return session.userId
+    }
+  } catch (e) {
+    console.error('[Partner Packs] Session check error:', e)
+  }
+
+  // Priority 2: Query params (Telegram/Neon auth)
+  const { searchParams } = new URL(request.url)
+  const telegramUserId = searchParams.get('telegram_user_id')
+  const neonUserId = searchParams.get('neon_auth_id') || searchParams.get('neon_user_id')
+
+  if (telegramUserId || neonUserId) {
+    const identifier = extractIdentifierFromRequest({
+      telegram_user_id: telegramUserId,
+      neon_auth_id: neonUserId
+    })
+    const basicUser = await findUserByIdentifier(identifier)
+    if (basicUser) {
+      return basicUser.id
+    }
+  }
+
+  return null
+}
 
 /**
  * GET /api/partner/packs
@@ -8,9 +45,9 @@ import { getAuthenticatedUser } from "@/lib/auth-middleware"
  */
 export async function GET(request: NextRequest) {
   try {
-    const authUser = await getAuthenticatedUser(request)
+    const userId = await getPartnerUserId(request)
 
-    if (!authUser) {
+    if (!userId) {
       return NextResponse.json(
         { error: "UNAUTHORIZED", message: "Authentication required" },
         { status: 401 }
@@ -19,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     // Check if user is partner
     const partnerCheck = await sql`
-      SELECT is_partner FROM referral_balances WHERE user_id = ${authUser.user.id}
+      SELECT is_partner FROM referral_balances WHERE user_id = ${userId}
     `
     if (partnerCheck.length === 0 || !partnerCheck[0].is_partner) {
       return NextResponse.json(
@@ -50,7 +87,7 @@ export async function GET(request: NextRequest) {
         COUNT(pp.id) as prompt_count
       FROM photo_packs p
       LEFT JOIN pack_prompts pp ON pp.pack_id = p.id AND pp.is_active = TRUE
-      WHERE p.partner_user_id = ${authUser.user.id}
+      WHERE p.partner_user_id = ${userId}
       GROUP BY p.id
       ORDER BY p.created_at DESC
     `
@@ -92,10 +129,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const authUser = await getAuthenticatedUser(request, body)
+    const userId = await getPartnerUserId(request)
 
-    if (!authUser) {
+    if (!userId) {
       return NextResponse.json(
         { error: "UNAUTHORIZED", message: "Authentication required" },
         { status: 401 }
@@ -104,7 +140,7 @@ export async function POST(request: NextRequest) {
 
     // Check if user is partner
     const partnerCheck = await sql`
-      SELECT is_partner FROM referral_balances WHERE user_id = ${authUser.user.id}
+      SELECT is_partner FROM referral_balances WHERE user_id = ${userId}
     `
     if (partnerCheck.length === 0 || !partnerCheck[0].is_partner) {
       return NextResponse.json(
@@ -112,6 +148,8 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       )
     }
+
+    const body = await request.json()
 
     // Validate required fields
     const { name, description, iconEmoji, previewImages } = body
@@ -126,7 +164,7 @@ export async function POST(request: NextRequest) {
     // Check pack limit (max 5 per partner)
     const packCount = await sql`
       SELECT COUNT(*) as count FROM photo_packs
-      WHERE partner_user_id = ${authUser.user.id}
+      WHERE partner_user_id = ${userId}
     `
     if (parseInt(packCount[0].count) >= 5) {
       return NextResponse.json(
@@ -174,14 +212,14 @@ export async function POST(request: NextRequest) {
         ${iconEmoji?.trim() || '🎨'},
         ${previewImages && Array.isArray(previewImages) ? previewImages : []},
         'partner',
-        ${authUser.user.id},
+        ${userId},
         'draft',
         FALSE
       )
       RETURNING *
     `
 
-    console.log(`[Partner Packs] Created pack #${result[0].id} by user ${authUser.user.id}`)
+    console.log(`[Partner Packs] Created pack #${result[0].id} by user ${userId}`)
 
     return NextResponse.json({
       success: true,
