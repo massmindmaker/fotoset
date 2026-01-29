@@ -97,43 +97,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<UnifiedLo
       }
 
       // Verify password
-      console.log('[UnifiedLogin] Admin found, verifying password...')
-      console.log('[UnifiedLogin] Password length:', password.length)
-      console.log('[UnifiedLogin] Hash prefix:', admin.password_hash.substring(0, 20))
-      console.log('[UnifiedLogin] Hash length:', admin.password_hash.length)
-
       const isValidPassword = await bcrypt.compare(password, admin.password_hash)
-      console.log('[UnifiedLogin] bcrypt.compare result:', isValidPassword)
-
-      // DEBUG: Early return to test if we reach this point
-      if (isValidPassword) {
-        return NextResponse.json({
-          success: false,
-          error: 'DEBUG_CHECKPOINT: bcrypt passed, session creation next',
-          debug: {
-            checkpoint: 'after_bcrypt',
-            bcryptResult: isValidPassword,
-            adminId: admin.id,
-            adminEmail: admin.email
-          }
-        })
-      }
 
       if (!isValidPassword) {
         await recordLoginAttempt(ip, normalizedEmail, false)
-        // DEBUG: Include bcrypt info in response
         return NextResponse.json(
-          {
-            success: false,
-            error: 'Неверный email или пароль',
-            debug: {
-              passwordLength: password.length,
-              hashPrefix: admin.password_hash.substring(0, 20),
-              hashLength: admin.password_hash.length,
-              bcryptResult: isValidPassword,
-              nodeVersion: process.version
-            }
-          },
+          { success: false, error: 'Неверный email или пароль' },
           { status: 401 }
         )
       }
@@ -321,12 +290,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<UnifiedLo
 
   } catch (error) {
     console.error('[Unified Login] Error:', error)
-    // Temporary detailed error for debugging - REMOVE IN PRODUCTION
-    const errorDetails = error instanceof Error
-      ? { message: error.message, stack: error.stack?.split('\n').slice(0, 3).join(' | ') }
-      : String(error)
     return NextResponse.json(
-      { success: false, error: 'Ошибка сервера', debug: errorDetails },
+      { success: false, error: 'Ошибка сервера' },
       { status: 500 }
     )
   }
