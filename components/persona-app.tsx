@@ -1501,7 +1501,16 @@ export default function PersonaApp() {
               getActivePersona() ? (
                 <TierSelectView
                   persona={getActivePersona()!}
-                  onBack={() => setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: viewState.personaId })}
+                  onBack={() => {
+                    // If avatar is already in DB (not temp), go to Dashboard instead of UploadView
+                    // because UploadView uses local File objects which are lost after sync
+                    const persona = getActivePersona()
+                    if (persona && !persona.id.startsWith("temp_")) {
+                      setViewState({ view: "DASHBOARD" })
+                    } else {
+                      setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: viewState.personaId })
+                    }
+                  }}
                   onGenerate={handleGenerate}
                   isGenerating={isGenerating}
                   isProcessingPayment={isPaymentOpen}
