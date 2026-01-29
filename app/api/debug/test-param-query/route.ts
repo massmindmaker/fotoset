@@ -44,24 +44,18 @@ export async function POST(request: NextRequest) {
     const admin = withHash[0]
     console.log('[TestParamQuery] Got admin, hash prefix:', admin.password_hash?.substring(0, 20))
 
-    // Check 3: Before bcrypt
+    // Check 3: bcrypt compare
+    console.log('[TestParamQuery] Step 3: bcrypt compare...')
+    const isValidPassword = await bcrypt.compare(password, admin.password_hash)
+    console.log('[TestParamQuery] bcrypt result:', isValidPassword)
+
     return NextResponse.json({
-      checkpoint: 'before_bcrypt',
+      checkpoint: 'after_bcrypt',
       admin: {
         id: admin.id,
         email: admin.email,
         hashPrefix: admin.password_hash?.substring(0, 30),
         hashLength: admin.password_hash?.length
-      }
-    })
-
-    return NextResponse.json({
-      success: true,
-      admin: {
-        id: admin.id,
-        email: admin.email,
-        role: admin.role,
-        hashPrefix: admin.password_hash?.substring(0, 30)
       },
       bcrypt: {
         isValid: isValidPassword
