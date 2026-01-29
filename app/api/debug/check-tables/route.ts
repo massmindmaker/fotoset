@@ -10,44 +10,54 @@ import { sql } from '@/lib/db'
 
 export async function GET() {
   try {
-    // Check tables
+    // Check admin/session tables
     const tables = await sql`
       SELECT table_name
       FROM information_schema.tables
       WHERE table_schema = 'public'
-        AND (table_name LIKE '%referral%' OR table_name LIKE '%partner%')
+        AND table_name IN ('admin_users', 'admin_sessions', 'partner_users', 'partner_sessions', 'login_attempts')
       ORDER BY table_name
     `
 
-    // Check referral_codes columns
-    let codeColumns: any[] = []
+    // Check admin_sessions columns
+    let sessionColumns: Record<string, unknown>[] = []
+    let sessionError = null
     try {
-      codeColumns = await sql`
-        SELECT column_name, data_type, is_nullable
+      sessionColumns = await sql`
+        SELECT column_name, data_type
         FROM information_schema.columns
-        WHERE table_name = 'referral_codes'
+        WHERE table_name = 'admin_sessions'
         ORDER BY ordinal_position
       `
     } catch (e) {
-      codeColumns = [{ error: 'Table not found' }]
+      sessionError = e instanceof Error ? e.message : String(e)
     }
 
-    // Check referral_codes constraints
-    let constraints: any[] = []
+    // Count admin_sessions
+    let sessionsCount = null
     try {
-      constraints = await sql`
-        SELECT constraint_name, constraint_type
-        FROM information_schema.table_constraints
-        WHERE table_name = 'referral_codes'
-      `
+      const [result] = await sql`SELECT COUNT(*) as count FROM admin_sessions`
+      sessionsCount = result.count
     } catch (e) {
-      constraints = []
+      // Ignore
     }
+
+    // Check ADMIN_SESSION_SECRET
+    const hasSecret = !!process.env.ADMIN_SESSION_SECRET
+    const secretLength = process.env.ADMIN_SESSION_SECRET?.length || 0
 
     return NextResponse.json({
       tables: tables.map((t: { table_name: string }) => t.table_name),
-      referral_codes_columns: codeColumns,
-      referral_codes_constraints: constraints
+      adminSessions: {
+        columns: sessionColumns,
+        count: sessionsCount,
+        error: sessionError
+      },
+      env: {
+        hasAdminSecret: hasSecret,
+        secretLength,
+        nodeEnv: process.env.NODE_ENV
+      }
     })
 
   } catch (error) {
