@@ -259,8 +259,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<UnifiedLo
 
   } catch (error) {
     console.error('[Unified Login] Error:', error)
+    // Temporary detailed error for debugging - REMOVE IN PRODUCTION
+    const errorDetails = error instanceof Error
+      ? { message: error.message, stack: error.stack?.split('\n').slice(0, 3).join(' | ') }
+      : String(error)
     return NextResponse.json(
-      { success: false, error: 'Ошибка сервера' },
+      { success: false, error: 'Ошибка сервера', debug: errorDetails },
       { status: 500 }
     )
   }
