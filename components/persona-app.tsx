@@ -1611,6 +1611,10 @@ export default function PersonaApp() {
             telegramUserId={telegramUserId}
             tier={selectedTier || PRICING_TIERS[1]}
             personaId={"personaId" in viewState ? String(viewState.personaId) : undefined}
+            onChangeStyle={() => {
+              setIsPaymentOpen(false)
+              setViewState({ view: "STYLES_LIST" })
+            }}
           />
         </Suspense>
       )}
