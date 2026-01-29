@@ -97,7 +97,11 @@ export function PartnerTestBlock({
       const data = await response.json()
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error?.userMessage || "Ошибка генерации")
+        // Handle middleware auth error (returns {error: "Unauthorized"})
+        if (data.error === "Unauthorized") {
+          throw new Error("Сессия истекла. Пожалуйста, войдите заново.")
+        }
+        throw new Error(data.error?.userMessage || data.message || data.error || "Ошибка генерации")
       }
 
       onUpdate(block.id, {
