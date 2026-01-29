@@ -14,7 +14,7 @@ export interface ActivePack {
   previewImages: string[]
 }
 
-const DEFAULT_PACK_SLUG = "pinglass-premium"
+const DEFAULT_PACK_SLUG = "pinglass"
 
 /**
  * Check if initData is valid (not empty, has required fields)
