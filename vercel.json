@@ -26,6 +26,24 @@
     "app/api/telegram/send-photos/route.ts": {
       "maxDuration": 60
     },
+    "app/api/partner/auth/login/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/partner/auth/logout/route.ts": {
+      "maxDuration": 15
+    },
+    "app/api/partner/auth/session/route.ts": {
+      "maxDuration": 15
+    },
+    "app/api/admin/auth/login/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/admin/auth/logout/route.ts": {
+      "maxDuration": 15
+    },
+    "app/api/admin/auth/me/route.ts": {
+      "maxDuration": 15
+    },
     "app/api/jobs/process/route.ts": {
       "maxDuration": 60
     },
