@@ -47,8 +47,7 @@ export async function GET(request: NextRequest) {
       email: admin.email,
       isActive: admin.is_active,
       hashPrefix: admin.password_hash.substring(0, 20) + '...',
-      passwordValid: isValid,
-      bcryptVersion: bcrypt.version || 'unknown'
+      passwordValid: isValid
     })
 
   } catch (error) {
