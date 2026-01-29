@@ -1501,11 +1501,15 @@ export default function PersonaApp() {
               getActivePersona() ? (
                 <TierSelectView
                   persona={getActivePersona()!}
-                  onBack={() => {
+                  onBack={async () => {
                     // If avatar is already in DB (not temp), go to Dashboard instead of UploadView
                     // because UploadView uses local File objects which are lost after sync
                     const persona = getActivePersona()
                     if (persona && !persona.id.startsWith("temp_")) {
+                      // Reload avatars from server to get updated referenceCount
+                      if (userIdentifier) {
+                        await loadAvatarsFromServer(userIdentifier)
+                      }
                       setViewState({ view: "DASHBOARD" })
                     } else {
                       setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: viewState.personaId })
