@@ -27,27 +27,33 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = email.toLowerCase().trim()
     console.log('[TestParamQuery] Normalized email:', normalizedEmail)
 
-    // Step 2: Parameterized SELECT (exactly like unified-login)
-    console.log('[TestParamQuery] Executing SELECT...')
-    const admins = await sql`
-      SELECT id, email, password_hash, role, first_name, last_name, is_active
-      FROM admin_users
-      WHERE LOWER(email) = ${normalizedEmail}
+    // Check 1: Can we just select id?
+    console.log('[TestParamQuery] Step 2a: Simple SELECT...')
+    const simpleCheck = await sql`
+      SELECT id, email FROM admin_users WHERE LOWER(email) = ${normalizedEmail}
     `
-    console.log('[TestParamQuery] SELECT done, rows:', admins.length)
-
-    if (admins.length === 0) {
-      return NextResponse.json({ error: 'Admin not found' })
+    if (simpleCheck.length === 0) {
+      return NextResponse.json({ checkpoint: 'step2a', error: 'Admin not found' })
     }
 
-    const admin = admins[0]
-    console.log('[TestParamQuery] Admin id:', admin.id)
-    console.log('[TestParamQuery] Hash prefix:', admin.password_hash?.substring(0, 30))
+    // Check 2: Add password_hash
+    console.log('[TestParamQuery] Step 2b: SELECT with password_hash...')
+    const withHash = await sql`
+      SELECT id, email, password_hash FROM admin_users WHERE LOWER(email) = ${normalizedEmail}
+    `
+    const admin = withHash[0]
+    console.log('[TestParamQuery] Got admin, hash prefix:', admin.password_hash?.substring(0, 20))
 
-    // Step 3: bcrypt compare
-    console.log('[TestParamQuery] Comparing password...')
-    const isValidPassword = await bcrypt.compare(password, admin.password_hash)
-    console.log('[TestParamQuery] bcrypt result:', isValidPassword)
+    // Check 3: Before bcrypt
+    return NextResponse.json({
+      checkpoint: 'before_bcrypt',
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        hashPrefix: admin.password_hash?.substring(0, 30),
+        hashLength: admin.password_hash?.length
+      }
+    })
 
     return NextResponse.json({
       success: true,
