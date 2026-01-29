@@ -4,10 +4,10 @@ import { sql } from "@/lib/db"
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ jobId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { jobId } = await params
-  const parsedJobId = parseInt(jobId)
+  const { id } = await params
+  const parsedJobId = parseInt(id)
   
   if (isNaN(parsedJobId)) {
     return NextResponse.json({ error: "Invalid jobId" }, { status: 400 })
