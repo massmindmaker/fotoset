@@ -97,11 +97,29 @@ export async function POST(request: NextRequest): Promise<NextResponse<UnifiedLo
       }
 
       // Verify password
+      console.log('[UnifiedLogin] Admin found, verifying password...')
+      console.log('[UnifiedLogin] Password length:', password.length)
+      console.log('[UnifiedLogin] Hash prefix:', admin.password_hash.substring(0, 20))
+      console.log('[UnifiedLogin] Hash length:', admin.password_hash.length)
+
       const isValidPassword = await bcrypt.compare(password, admin.password_hash)
+      console.log('[UnifiedLogin] bcrypt.compare result:', isValidPassword)
+
       if (!isValidPassword) {
         await recordLoginAttempt(ip, normalizedEmail, false)
+        // DEBUG: Include bcrypt info in response
         return NextResponse.json(
-          { success: false, error: 'Неверный email или пароль' },
+          {
+            success: false,
+            error: 'Неверный email или пароль',
+            debug: {
+              passwordLength: password.length,
+              hashPrefix: admin.password_hash.substring(0, 20),
+              hashLength: admin.password_hash.length,
+              bcryptResult: isValidPassword,
+              nodeVersion: process.version
+            }
+          },
           { status: 401 }
         )
       }
