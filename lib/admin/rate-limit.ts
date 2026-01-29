@@ -23,12 +23,15 @@ export interface RateLimitResult {
  * Check if an IP address is rate limited
  */
 export async function checkRateLimit(ipAddress: string): Promise<RateLimitResult> {
+  console.log('[RateLimit] Checking for IP:', ipAddress)
+
   const now = new Date()
   const windowStart = new Date(now.getTime() - WINDOW_MINUTES * 60 * 1000)
   const blockStart = new Date(now.getTime() - BLOCK_MINUTES * 60 * 1000)
 
   // Ensure table exists (safe for first run)
   await ensureTableExists()
+  console.log('[RateLimit] Table ensured')
 
   // Count failed attempts in the block window (for blocked check)
   const blockedCount = await sql`
@@ -38,6 +41,7 @@ export async function checkRateLimit(ipAddress: string): Promise<RateLimitResult
       AND success = FALSE
       AND attempted_at > ${blockStart}
   `.then((rows: any[]) => parseInt(rows[0]?.count || '0'))
+  console.log('[RateLimit] blockedCount:', blockedCount, 'for IP:', ipAddress)
 
   // If 5+ failed attempts in last hour, they're blocked
   if (blockedCount >= MAX_ATTEMPTS) {
@@ -71,16 +75,19 @@ export async function checkRateLimit(ipAddress: string): Promise<RateLimitResult
     WHERE ip_address = ${ipAddress}
       AND attempted_at > ${windowStart}
   `.then((rows: any[]) => parseInt(rows[0]?.count || '0'))
+  console.log('[RateLimit] windowCount:', windowCount, 'MAX_ATTEMPTS:', MAX_ATTEMPTS, 'allowed:', windowCount < MAX_ATTEMPTS)
 
   const remaining = Math.max(0, MAX_ATTEMPTS - windowCount)
   const resetAt = new Date(now.getTime() + WINDOW_MINUTES * 60 * 1000)
 
-  return {
+  const result = {
     allowed: windowCount < MAX_ATTEMPTS,
     remaining,
     resetAt,
     blocked: false,
   }
+  console.log('[RateLimit] Final result:', JSON.stringify(result))
+  return result
 }
 
 /**

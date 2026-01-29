@@ -40,10 +40,13 @@ interface UnifiedLoginResponse {
 export async function POST(request: NextRequest): Promise<NextResponse<UnifiedLoginResponse>> {
   const ip = getClientIP(request)
   const userAgent = request.headers.get('user-agent') || undefined
+  console.log('[UnifiedLogin] Request from IP:', ip, 'UserAgent:', userAgent?.substring(0, 50))
 
   try {
     // Rate limiting
+    console.log('[UnifiedLogin] Checking rate limit...')
     const rateLimitResult = await checkRateLimit(ip)
+    console.log('[UnifiedLogin] Rate limit result:', JSON.stringify(rateLimitResult))
     if (!rateLimitResult.allowed) {
       const retryAfter = Math.ceil(
         (rateLimitResult.resetAt.getTime() - Date.now()) / 1000
