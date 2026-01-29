@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PinGlass — Pitch Deck</title>
+  <style>
+    /* ===== RESET & BASE ===== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --primary: #FF6B6B;
+      --primary-dark: #E85555;
+      --secondary: #FF8E53;
+      --accent: #A78BFA;
+      --success: #4ADE80;
+      --warning: #FBBF24;
+      --ton-blue: #0098EA;
+      --bg-dark: #0a0a0f;
+      --bg-card: #12121a;
+      --bg-surface: #1a1a24;
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0b0;
+      --text-muted: #606070;
+      --gradient-primary: linear-gradient(135deg, var(--primary), var(--secondary));
+      --gradient-accent: linear-gradient(135deg, var(--accent), var(--primary));
+    }
+
+    html { scroll-behavior: smooth; scroll-snap-type: y mandatory; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    /* ===== SLIDE LAYOUT ===== */
+    .slide {
+      min-height: 100vh;
+      padding: 60px 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      scroll-snap-align: start;
+      overflow: hidden;
+    }
+
+    .slide::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(255, 107, 107, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(167, 139, 250, 0.05) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    .slide-content {
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .slide-number {
+      position: absolute;
+      bottom: 30px;
+      right: 40px;
+      font-size: 14px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* ===== TYPOGRAPHY ===== */
+    h1 {
+      font-size: 72px;
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 24px;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    h2 {
+      font-size: 48px;
+      font-weight: 700;
+      margin-bottom: 32px;
+      color: var(--text-primary);
+    }
+
+    h3 {
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+    }
+
+    h4 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+
+    .subtitle {
+      font-size: 24px;
+      color: var(--text-secondary);
+      margin-bottom: 40px;
+      max-width: 700px;
+    }
+
+    .highlight { color: var(--primary); font-weight: 600; }
+    .gradient-text {
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* ===== CARDS & CONTAINERS ===== */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 32px;
+    }
+
+    .card-glass {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 32px;
+    }
+
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 32px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+    .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+
+    /* ===== NAVIGATION ===== */
+    .nav {
+      position: fixed;
+      right: 30px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .nav-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .nav-dot:hover, .nav-dot.active {
+      background: var(--primary);
+      transform: scale(1.3);
+    }
+
+    /* ===== TITLE SLIDE ===== */
+    .title-slide {
+      text-align: center;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .logo {
+      width: 120px;
+      height: 120px;
+      background: var(--gradient-primary);
+      border-radius: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 60px;
+      margin: 0 auto 40px;
+      box-shadow: 0 20px 60px rgba(255, 107, 107, 0.3);
+    }
+
+    .title-slide h1 { font-size: 96px; }
+
+    .tagline {
+      font-size: 32px;
+      color: var(--text-secondary);
+      margin-bottom: 60px;
+    }
+
+    .title-stats {
+      display: flex;
+      justify-content: center;
+      gap: 60px;
+      margin-top: 40px;
+    }
+
+    .title-stat { text-align: center; }
+
+    .title-stat-value {
+      font-size: 48px;
+      font-weight: 700;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .title-stat-label {
+      font-size: 16px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* ===== PROBLEM SLIDE ===== */
+    .problem-list {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      margin-top: 40px;
+    }
+
+    .problem-item {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      padding: 28px 32px;
+      background: rgba(255, 107, 107, 0.08);
+      border: 1px solid rgba(255, 107, 107, 0.2);
+      border-radius: 16px;
+    }
+
+    .problem-icon {
+      width: 56px;
+      height: 56px;
+      background: rgba(255, 107, 107, 0.15);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+
+    .problem-text {
+      font-size: 22px;
+      color: var(--text-primary);
+    }
+
+    .problem-text strong { color: var(--primary); }
+
+    /* ===== SOLUTION SLIDE ===== */
+    .solution-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      margin: 50px 0;
+    }
+
+    .solution-step {
+      text-align: center;
+      padding: 32px 24px;
+      background: var(--bg-card);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      width: 200px;
+    }
+
+    .solution-step-icon {
+      width: 72px;
+      height: 72px;
+      background: var(--gradient-primary);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      margin: 0 auto 16px;
+    }
+
+    .solution-step-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .solution-step-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .solution-arrow {
+      font-size: 32px;
+      color: var(--primary);
+    }
+
+    /* ===== PHONE MOCKUP ===== */
+    .phone-mockup {
+      width: 220px;
+      height: 460px;
+      background: linear-gradient(145deg, #1e1e22, #16161a);
+      border-radius: 32px;
+      border: 3px solid #333;
+      padding: 10px;
+      position: relative;
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+      flex-shrink: 0;
+    }
+
+    .phone-mockup::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 24px;
+      background: #000;
+      border-radius: 0 0 12px 12px;
+      z-index: 10;
+    }
+
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      background: var(--bg-dark);
+      border-radius: 24px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 40px 12px 12px;
+    }
+
+    .phone-title {
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .phone-label {
+      position: absolute;
+      bottom: -35px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 13px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* ===== APP SCREENS ===== */
+    .screens-container {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-top: 30px;
+      flex-wrap: wrap;
+    }
+
+    .screen-card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 16px;
+      text-align: center;
+      width: 180px;
+    }
+
+    .screen-icon {
+      font-size: 40px;
+      margin-bottom: 8px;
+    }
+
+    .screen-name {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .screen-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* ===== PRICING ===== */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 40px;
+    }
+
+    .pricing-card {
+      background: var(--bg-card);
+      border: 2px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+      padding: 32px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .pricing-card.popular {
+      border-color: var(--primary);
+      transform: scale(1.05);
+      background: linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(167, 139, 250, 0.05));
+    }
+
+    .pricing-badge {
+      background: var(--gradient-primary);
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 16px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-bottom: 16px;
+    }
+
+    .pricing-name {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .pricing-photos {
+      font-size: 48px;
+      font-weight: 800;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .pricing-photos-label {
+      font-size: 16px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .pricing-price {
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .pricing-per {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    /* ===== PARTNER CABINET ===== */
+    .partner-section {
+      background: var(--bg-card);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .partner-section h4 {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .partner-section h4 span {
+      font-size: 24px;
+    }
+
+    .partner-features {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .partner-feature {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .partner-feature::before {
+      content: '✓';
+      color: var(--success);
+      font-weight: bold;
+    }
+
+    /* ===== UNIT ECONOMICS ===== */
+    .unit-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    .unit-table th, .unit-table td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .unit-table th {
+      background: var(--bg-surface);
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .unit-table td {
+      font-size: 14px;
+    }
+
+    .unit-negative { color: var(--primary); }
+    .unit-positive { color: var(--success); font-weight: 600; }
+
+    /* ===== MARKET ===== */
+    .market-circles {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 60px;
+      margin: 50px 0;
+    }
+
+    .market-circle { text-align: center; }
+
+    .market-circle-ring {
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .market-circle-ring.tam {
+      background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(255, 107, 107, 0.05));
+      border: 3px solid var(--primary);
+    }
+
+    .market-circle-ring.sam {
+      background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(167, 139, 250, 0.05));
+      border: 3px solid var(--accent);
+      width: 150px;
+      height: 150px;
+    }
+
+    .market-circle-ring.som {
+      background: linear-gradient(135deg, rgba(74, 222, 128, 0.2), rgba(74, 222, 128, 0.05));
+      border: 3px solid var(--success);
+      width: 120px;
+      height: 120px;
+    }
+
+    .market-value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .market-label {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    /* ===== COMPETITORS ===== */
+    .competitor-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
+    }
+
+    .competitor-table th, .competitor-table td {
+      padding: 16px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .competitor-table th {
+      background: var(--bg-surface);
+      font-size: 13px;
+    }
+
+    .competitor-table td:first-child {
+      text-align: left;
+      font-weight: 500;
+    }
+
+    .competitor-us {
+      background: rgba(255, 107, 107, 0.1);
+    }
+
+    .check { color: var(--success); font-size: 18px; }
+    .cross { color: var(--text-muted); font-size: 18px; }
+
+    /* ===== FINANCE ===== */
+    .finance-chart {
+      background: var(--bg-card);
+      border-radius: 20px;
+      padding: 32px;
+      margin-top: 30px;
+    }
+
+    .chart-bars {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      height: 200px;
+      margin-top: 24px;
+      padding: 0 10px;
+    }
+
+    .chart-bar {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+    }
+
+    .chart-bar-value {
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text-secondary);
+    }
+
+    .chart-bar-fill {
+      width: 30px;
+      background: var(--gradient-primary);
+      border-radius: 6px 6px 0 0;
+      min-height: 10px;
+    }
+
+    .chart-bar-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* ===== CTA ===== */
+    .cta-card {
+      background: var(--gradient-primary);
+      border-radius: 24px;
+      padding: 48px;
+      text-align: center;
+      margin-top: 40px;
+    }
+
+    .cta-card h3 {
+      color: white;
+      font-size: 32px;
+      margin-bottom: 16px;
+    }
+
+    .cta-card p {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 18px;
+    }
+
+    /* ===== ADVANTAGES ===== */
+    .advantage-card {
+      display: flex;
+      gap: 20px;
+      padding: 24px;
+      background: var(--bg-card);
+      border-radius: 16px;
+      margin-bottom: 16px;
+    }
+
+    .advantage-icon {
+      font-size: 36px;
+      flex-shrink: 0;
+    }
+
+    .advantage-content h3 {
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+
+    .advantage-content p {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVIGATION -->
+  <nav class="nav">
+    <button class="nav-dot active" onclick="scrollToSlide(1)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(2)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(3)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(4)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(5)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(6)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(7)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(8)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(9)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(10)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(11)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(12)"></button>
+  </nav>
+
+  <!-- SLIDE 1: TITLE -->
+  <section class="slide title-slide" id="slide-1">
+    <div class="slide-content">
+      <div class="logo">👓</div>
+      <h1>PinGlass</h1>
+      <p class="tagline">AI-портреты за 5 минут вместо 5 часов в студии</p>
+
+      <div class="title-stats">
+        <div class="title-stat">
+          <div class="title-stat-value">499₽</div>
+          <div class="title-stat-label">от стоимости</div>
+        </div>
+        <div class="title-stat">
+          <div class="title-stat-value">23</div>
+          <div class="title-stat-label">фото за сессию</div>
+        </div>
+        <div class="title-stat">
+          <div class="title-stat-value">50%</div>
+          <div class="title-stat-label">партнёрам</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 60px;">
+        <p style="color: var(--text-muted); font-size: 14px;">Telegram WebApp • T-Bank • Партнёрская программа</p>
+      </div>
+    </div>
+    <div class="slide-number">01 / 12</div>
+  </section>
+
+  <!-- SLIDE 2: PROBLEM -->
+  <section class="slide" id="slide-2">
+    <div class="slide-content">
+      <h2>Проблема</h2>
+      <p class="subtitle">Людям нужны качественные фото для соцсетей и дейтинга, но...</p>
+
+      <div class="problem-list">
+        <div class="problem-item">
+          <div class="problem-icon">💸</div>
+          <div class="problem-text">
+            Фотосессия в студии стоит <strong>5 000 - 15 000 ₽</strong>
+          </div>
+        </div>
+        <div class="problem-item">
+          <div class="problem-icon">⏰</div>
+          <div class="problem-text">
+            Нужно <strong>записываться, ехать, ждать</strong> — потеря целого дня
+          </div>
+        </div>
+        <div class="problem-item">
+          <div class="problem-icon">😕</div>
+          <div class="problem-text">
+            Результат <strong>непредсказуем</strong> — можно не узнать себя
+          </div>
+        </div>
+        <div class="problem-item">
+          <div class="problem-icon">📱</div>
+          <div class="problem-text">
+            <strong>105 млн</strong> пользователей Telegram в России ищут решение
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">02 / 12</div>
+  </section>
+
+  <!-- SLIDE 3: SOLUTION -->
+  <section class="slide" id="slide-3">
+    <div class="slide-content">
+      <h2>Решение: PinGlass</h2>
+      <p class="subtitle">AI генерирует 23 профессиональных портрета за 5-10 минут</p>
+
+      <div class="solution-flow">
+        <div class="solution-step">
+          <div class="solution-step-icon">📤</div>
+          <div class="solution-step-title">Загрузи</div>
+          <div class="solution-step-desc">5-8 своих фото</div>
+        </div>
+        <div class="solution-arrow">→</div>
+        <div class="solution-step">
+          <div class="solution-step-icon">🎨</div>
+          <div class="solution-step-title">Выбери</div>
+          <div class="solution-step-desc">Стиль пакета</div>
+        </div>
+        <div class="solution-arrow">→</div>
+        <div class="solution-step">
+          <div class="solution-step-icon">💳</div>
+          <div class="solution-step-title">Оплати</div>
+          <div class="solution-step-desc">от 499₽</div>
+        </div>
+        <div class="solution-arrow">→</div>
+        <div class="solution-step">
+          <div class="solution-step-icon">✨</div>
+          <div class="solution-step-title">Получи</div>
+          <div class="solution-step-desc">7-23 портрета</div>
+        </div>
+      </div>
+
+      <div class="grid-3" style="margin-top: 40px;">
+        <div class="card" style="text-align: center;">
+          <div style="font-size: 36px; margin-bottom: 12px;">🤖</div>
+          <h4>Kie.ai</h4>
+          <p style="font-size: 14px; color: var(--text-muted);">Google Gemini 3.0 Pro Image<br>Nano Banana Pro модель</p>
+        </div>
+        <div class="card" style="text-align: center;">
+          <div style="font-size: 36px; margin-bottom: 12px;">⚡</div>
+          <h4>Async архитектура</h4>
+          <p style="font-size: 14px; color: var(--text-muted);">Fire-and-forget + Cron<br>Нет таймаутов</p>
+        </div>
+        <div class="card" style="text-align: center;">
+          <div style="font-size: 36px; margin-bottom: 12px;">📱</div>
+          <h4>Telegram WebApp</h4>
+          <p style="font-size: 14px; color: var(--text-muted);">Нативный опыт<br>Без установки</p>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">03 / 12</div>
+  </section>
+
+  <!-- SLIDE 4: APP SCREENS - USER JOURNEY -->
+  <section class="slide" id="slide-4">
+    <div class="slide-content">
+      <h2>Путь пользователя</h2>
+      <p class="subtitle">9 экранов — от онбординга до галереи результатов</p>
+
+      <div class="screens-container">
+        <div class="screen-card">
+          <div class="screen-icon">👋</div>
+          <div class="screen-name">Onboarding</div>
+          <div class="screen-desc">3 шага ознакомления с примерами</div>
+        </div>
+        <div class="screen-card">
+          <div class="screen-icon">🏠</div>
+          <div class="screen-name">Dashboard</div>
+          <div class="screen-desc">Мои аватары + тарифы</div>
+        </div>
+        <div class="screen-card">
+          <div class="screen-icon">📤</div>
+          <div class="screen-name">Upload</div>
+          <div class="screen-desc">Drag-n-drop 5-8 фото</div>
+        </div>
+        <div class="screen-card">
+          <div class="screen-icon">🎨</div>
+          <div class="screen-name">Styles List</div>
+          <div class="screen-desc">Каталог пакетов стилей</div>
+        </div>
+        <div class="screen-card">
+          <div class="screen-icon">🔍</div>
+          <div class="screen-name">Style Detail</div>
+          <div class="screen-desc">Превью + описание пакета</div>
+        </div>
+      </div>
+
+      <div class="screens-container" style="margin-top: 20px;">
+        <div class="screen-card">
+          <div class="screen-icon">💎</div>
+          <div class="screen-name">Select Tier</div>
+          <div class="screen-desc">7 / 15 / 23 фото</div>
+        </div>
+        <div class="screen-card">
+          <div class="screen-icon">⏳</div>
+          <div class="screen-name">Generating</div>
+          <div class="screen-desc">Прогресс 5-10 минут</div>
+        </div>
+        <div class="screen-card">
+          <div class="screen-icon">🖼️</div>
+          <div class="screen-name">Results</div>
+          <div class="screen-desc">Галерея + скачивание</div>
+        </div>
+        <div class="screen-card">
+          <div class="screen-icon">👤</div>
+          <div class="screen-name">Avatar Detail</div>
+          <div class="screen-desc">История генераций</div>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 30px;">
+        <p style="color: var(--text-muted); font-size: 14px;">
+          Bottom Navigation: <strong>Аватары</strong> • <strong>Стили</strong> • <strong>Видео</strong> (скоро)
+        </p>
+      </div>
+    </div>
+    <div class="slide-number">04 / 12</div>
+  </section>
+
+  <!-- SLIDE 5: PRICING -->
+  <section class="slide" id="slide-5">
+    <div class="slide-content">
+      <h2>Тарифы</h2>
+      <p class="subtitle">Три пакета на выбор — от экономного до премиального</p>
+
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <div class="pricing-name">Starter</div>
+          <div class="pricing-photos">7</div>
+          <div class="pricing-photos-label">фотографий</div>
+          <div class="pricing-price">499 ₽</div>
+          <div class="pricing-per">~71 ₽ за фото</div>
+        </div>
+
+        <div class="pricing-card popular">
+          <div class="pricing-badge">ХИТ</div>
+          <div class="pricing-name">Standard</div>
+          <div class="pricing-photos">15</div>
+          <div class="pricing-photos-label">фотографий</div>
+          <div class="pricing-price">999 ₽</div>
+          <div class="pricing-per">~67 ₽ за фото</div>
+        </div>
+
+        <div class="pricing-card">
+          <div class="pricing-name">Premium</div>
+          <div class="pricing-photos">23</div>
+          <div class="pricing-photos-label">фотографий</div>
+          <div class="pricing-price">1 499 ₽</div>
+          <div class="pricing-per">~65 ₽ за фото</div>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 40px;">
+        <p style="color: var(--text-secondary); font-size: 16px;">
+          Сравните: фотосессия в студии = <span class="highlight">5 000 - 15 000 ₽</span> за те же 20 фото
+        </p>
+      </div>
+    </div>
+    <div class="slide-number">05 / 12</div>
+  </section>
+
+  <!-- SLIDE 6: PARTNER CABINET -->
+  <section class="slide" id="slide-6">
+    <div class="slide-content">
+      <h2>Партнёрский кабинет</h2>
+      <p class="subtitle">Полноценная платформа для заработка на рефералах</p>
+
+      <div class="grid-2">
+        <!-- LEFT COLUMN -->
+        <div>
+          <div class="partner-section">
+            <h4><span>📊</span> Dashboard</h4>
+            <div class="partner-features">
+              <div class="partner-feature">Общий заработок (RUB/TON)</div>
+              <div class="partner-feature">Доступно к выводу</div>
+              <div class="partner-feature">Ожидающие начисления</div>
+              <div class="partner-feature">Количество рефералов</div>
+              <div class="partner-feature">Конверсия (рег → оплата)</div>
+              <div class="partner-feature">График заработков</div>
+            </div>
+          </div>
+
+          <div class="partner-section">
+            <h4><span>💰</span> Выплаты</h4>
+            <div class="partner-features">
+              <div class="partner-feature">Минимум: 5 000 ₽</div>
+              <div class="partner-feature">НДФЛ 13% авто-удержание</div>
+              <div class="partner-feature">Карта (Visa/MC)</div>
+              <div class="partner-feature">СБП (по номеру телефона)</div>
+              <div class="partner-feature">История всех выплат</div>
+              <div class="partner-feature">Статусы: pending → completed</div>
+            </div>
+          </div>
+
+          <div class="partner-section">
+            <h4><span>👥</span> Рефералы</h4>
+            <div class="partner-features">
+              <div class="partner-feature">Юзернейм реферала</div>
+              <div class="partner-feature">Дата регистрации</div>
+              <div class="partner-feature">Последняя активность</div>
+              <div class="partner-feature">Всего платежей</div>
+              <div class="partner-feature">Сумма потрачена</div>
+              <div class="partner-feature">Заработано с реферала</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div>
+          <div class="partner-section" style="border: 2px solid var(--primary);">
+            <h4><span>🎨</span> Создание фотопаков</h4>
+            <div class="partner-features">
+              <div class="partner-feature">До 5 пакетов на партнёра</div>
+              <div class="partner-feature">7-23 промпта в пакете</div>
+              <div class="partner-feature">Название + описание</div>
+              <div class="partner-feature">Emoji-иконка пакета</div>
+              <div class="partner-feature">4 превью-фото</div>
+              <div class="partner-feature">Тестер промптов</div>
+            </div>
+            <div style="margin-top: 16px; padding: 12px; background: var(--bg-surface); border-radius: 8px;">
+              <p style="font-size: 12px; color: var(--text-muted);">
+                <strong>Модерация:</strong> Draft → Pending → Approved / Rejected
+              </p>
+            </div>
+          </div>
+
+          <div class="partner-section">
+            <h4><span>📝</span> Редактор промптов</h4>
+            <div class="partner-features">
+              <div class="partner-feature">Основной промпт</div>
+              <div class="partner-feature">Negative prompt</div>
+              <div class="partner-feature">Style prefix / suffix</div>
+              <div class="partner-feature">Превью генерации</div>
+              <div class="partner-feature">Drag-n-drop сортировка</div>
+              <div class="partner-feature">Позиция в пакете</div>
+            </div>
+          </div>
+
+          <div class="partner-section">
+            <h4><span>🔗</span> Реферальная ссылка</h4>
+            <div style="background: var(--bg-surface); padding: 12px; border-radius: 8px; font-family: monospace; font-size: 14px;">
+              pinglass.ru?ref=<span style="color: var(--primary);">{your_code}</span>
+            </div>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Копирование в 1 клик</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">06 / 12</div>
+  </section>
+
+  <!-- SLIDE 7: COMMISSIONS -->
+  <section class="slide" id="slide-7">
+    <div class="slide-content">
+      <h2>Комиссионная модель</h2>
+      <p class="subtitle">Честные условия для партнёров и рефереров</p>
+
+      <div class="grid-2" style="margin-top: 40px;">
+        <div class="card" style="text-align: center; border: 2px solid var(--text-muted);">
+          <div style="font-size: 48px; margin-bottom: 16px;">👤</div>
+          <h3>Обычный реферер</h3>
+          <div style="font-size: 64px; font-weight: 800; color: var(--accent); margin: 20px 0;">10%</div>
+          <p style="color: var(--text-secondary);">Автоматически при регистрации</p>
+          <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <p style="font-size: 14px; color: var(--text-muted);">
+              Starter: <strong>~50₽</strong><br>
+              Standard: <strong>~100₽</strong><br>
+              Premium: <strong>~150₽</strong>
+            </p>
+          </div>
+        </div>
+
+        <div class="card" style="text-align: center; border: 2px solid var(--primary);">
+          <div style="font-size: 48px; margin-bottom: 16px;">🤝</div>
+          <h3>Партнёр</h3>
+          <div style="font-size: 64px; font-weight: 800; background: var(--gradient-primary); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin: 20px 0;">50%</div>
+          <p style="color: var(--text-secondary);">После одобрения заявки</p>
+          <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <p style="font-size: 14px; color: var(--text-muted);">
+              Starter: <strong>~250₽</strong><br>
+              Standard: <strong>~500₽</strong><br>
+              Premium: <strong>~750₽</strong>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 30px; text-align: center;">
+        <h4 style="color: var(--success);">Защита от рефанда</h4>
+        <p style="font-size: 16px; color: var(--text-secondary);">
+          Комиссия начисляется только <strong>ПОСЛЕ</strong> успешной генерации фото.<br>
+          Статусы: <code>pending</code> → <code>credited</code> → <code>confirmed</code>
+        </p>
+      </div>
+    </div>
+    <div class="slide-number">07 / 12</div>
+  </section>
+
+  <!-- SLIDE 8: UNIT ECONOMICS -->
+  <section class="slide" id="slide-8">
+    <div class="slide-content">
+      <h2>Unit Economics</h2>
+      <p class="subtitle">Реальные цифры из кодовой базы</p>
+
+      <table class="unit-table">
+        <thead>
+          <tr>
+            <th>Статья</th>
+            <th>Starter (7 фото)</th>
+            <th>Standard (15 фото)</th>
+            <th>Premium (23 фото)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Выручка</td>
+            <td>499 ₽</td>
+            <td>999 ₽</td>
+            <td>1 499 ₽</td>
+          </tr>
+          <tr>
+            <td>Kie.ai (Nano Banana Pro)</td>
+            <td class="unit-negative">— расчёт по API</td>
+            <td class="unit-negative">— расчёт по API</td>
+            <td class="unit-negative">— расчёт по API</td>
+          </tr>
+          <tr>
+            <td>Партнёру 50%</td>
+            <td class="unit-negative">−250 ₽</td>
+            <td class="unit-negative">−500 ₽</td>
+            <td class="unit-negative">−750 ₽</td>
+          </tr>
+          <tr>
+            <td>Платёжная комиссия T-Bank</td>
+            <td class="unit-negative">~3%</td>
+            <td class="unit-negative">~3%</td>
+            <td class="unit-negative">~3%</td>
+          </tr>
+          <tr>
+            <td>УСН 6%</td>
+            <td class="unit-negative">−30 ₽</td>
+            <td class="unit-negative">−60 ₽</td>
+            <td class="unit-negative">−90 ₽</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="grid-3" style="margin-top: 30px;">
+        <div class="card" style="text-align: center;">
+          <div style="font-size: 28px; font-weight: 700; color: var(--primary);">T-Bank</div>
+          <div style="color: var(--text-muted); margin-top: 4px;">Основной метод оплаты</div>
+        </div>
+        <div class="card" style="text-align: center;">
+          <div style="font-size: 28px; font-weight: 700; color: var(--ton-blue);">TON</div>
+          <div style="color: var(--text-muted); margin-top: 4px;">Криптовалюта (готово)</div>
+        </div>
+        <div class="card" style="text-align: center;">
+          <div style="font-size: 28px; font-weight: 700; color: var(--accent);">Stars</div>
+          <div style="color: var(--text-muted); margin-top: 4px;">Telegram Stars (готово)</div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">08 / 12</div>
+  </section>
+
+  <!-- SLIDE 9: MARKET -->
+  <section class="slide" id="slide-9">
+    <div class="slide-content">
+      <h2>Рынок</h2>
+      <p class="subtitle">AI-генерация изображений — один из самых быстрорастущих сегментов</p>
+
+      <div class="market-circles">
+        <div class="market-circle">
+          <div class="market-circle-ring tam">
+            <div class="market-value">$60B</div>
+            <div class="market-label">к 2030</div>
+          </div>
+          <h4>TAM</h4>
+          <p style="font-size: 13px; color: var(--text-muted);">AI Image Generation<br>(MarketsandMarkets)</p>
+        </div>
+
+        <div class="market-circle">
+          <div class="market-circle-ring sam">
+            <div class="market-value">$500M</div>
+            <div class="market-label">2025</div>
+          </div>
+          <h4>SAM</h4>
+          <p style="font-size: 13px; color: var(--text-muted);">AI Headshots<br>(Headsnap Research)</p>
+        </div>
+
+        <div class="market-circle">
+          <div class="market-circle-ring som">
+            <div class="market-value">$5M</div>
+            <div class="market-label">цель Y1</div>
+          </div>
+          <h4>SOM</h4>
+          <p style="font-size: 13px; color: var(--text-muted);">Россия + СНГ<br>Telegram</p>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top: 30px;">
+        <div class="card">
+          <h4>🇷🇺 Telegram Россия</h4>
+          <div style="font-size: 32px; font-weight: 700; color: var(--primary);">105 млн</div>
+          <p style="color: var(--text-muted); font-size: 14px;">активных пользователей (Ноябрь 2025)</p>
+        </div>
+        <div class="card">
+          <h4>💕 Дейтинг-аудитория</h4>
+          <div style="font-size: 32px; font-weight: 700; color: var(--accent);">15+ млн</div>
+          <p style="color: var(--text-muted); font-size: 14px;">Давинчик бот, VK Dating, Tinder</p>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">09 / 12</div>
+  </section>
+
+  <!-- SLIDE 10: COMPETITORS -->
+  <section class="slide" id="slide-10">
+    <div class="slide-content">
+      <h2>Конкуренты</h2>
+      <p class="subtitle">Мы единственные с Telegram-native опытом и партнёрской программой</p>
+
+      <table class="competitor-table">
+        <thead>
+          <tr>
+            <th>Функция</th>
+            <th>PinGlass</th>
+            <th>Headsnap</th>
+            <th>Remini</th>
+            <th>Photoroom</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="competitor-us">
+            <td>Telegram WebApp</td>
+            <td><span class="check">✓</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="cross">✗</span></td>
+          </tr>
+          <tr>
+            <td>Партнёрка 50%</td>
+            <td><span class="check">✓</span></td>
+            <td><span class="cross">✗</span></td>
+            <td>10%</td>
+            <td><span class="cross">✗</span></td>
+          </tr>
+          <tr class="competitor-us">
+            <td>Оплата рублями</td>
+            <td><span class="check">✓</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="cross">✗</span></td>
+          </tr>
+          <tr>
+            <td>TON / Stars</td>
+            <td><span class="check">✓</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="cross">✗</span></td>
+          </tr>
+          <tr class="competitor-us">
+            <td>Создание фотопаков</td>
+            <td><span class="check">✓</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="cross">✗</span></td>
+          </tr>
+          <tr>
+            <td>Цена от</td>
+            <td><strong>499₽</strong></td>
+            <td>$29</td>
+            <td>$9.99</td>
+            <td>$12.99</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="card" style="margin-top: 30px; text-align: center;">
+        <h4 style="color: var(--primary);">Наше позиционирование</h4>
+        <p style="font-size: 18px; color: var(--text-secondary); margin-top: 12px;">
+          Единственный <strong>Telegram-native</strong> сервис с <strong>3 способами оплаты</strong> и <strong>50% партнёрам</strong>
+        </p>
+      </div>
+    </div>
+    <div class="slide-number">10 / 12</div>
+  </section>
+
+  <!-- SLIDE 11: ADVANTAGES -->
+  <section class="slide" id="slide-11">
+    <div class="slide-content">
+      <h2>Почему мы</h2>
+      <p class="subtitle">4 ключевых преимущества перед конкурентами</p>
+
+      <div class="grid-2" style="margin-top: 30px;">
+        <div class="advantage-card">
+          <div class="advantage-icon">📱</div>
+          <div class="advantage-content">
+            <h3>Telegram-native</h3>
+            <p>Работает как WebApp внутри Telegram. Не нужно скачивать приложение — 105 млн потенциальных пользователей.</p>
+          </div>
+        </div>
+
+        <div class="advantage-card">
+          <div class="advantage-icon">🤝</div>
+          <div class="advantage-content">
+            <h3>50% партнёрам</h3>
+            <p>Самая щедрая партнёрка на рынке. Инфлюенсеры мотивированы продвигать — виральный рост без затрат на рекламу.</p>
+          </div>
+        </div>
+
+        <div class="advantage-card">
+          <div class="advantage-icon">🎨</div>
+          <div class="advantage-content">
+            <h3>Кастомные фотопаки</h3>
+            <p>Партнёры создают уникальные стили под свою аудиторию. До 5 пакетов × 23 промпта = эксклюзивный контент.</p>
+          </div>
+        </div>
+
+        <div class="advantage-card">
+          <div class="advantage-icon">💳</div>
+          <div class="advantage-content">
+            <h3>3 способа оплаты</h3>
+            <p>T-Bank (рубли), TON (крипто), Telegram Stars. Охватываем 100% аудитории без ограничений по платежам.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">11 / 12</div>
+  </section>
+
+  <!-- SLIDE 12: CTA -->
+  <section class="slide" id="slide-12">
+    <div class="slide-content">
+      <div style="text-align: center;">
+        <h2>Выгода для всех</h2>
+
+        <div class="grid-3" style="margin-top: 40px;">
+          <div class="card" style="padding: 32px; border: 2px solid var(--primary);">
+            <div style="font-size: 48px; margin-bottom: 16px;">👤</div>
+            <h3 style="color: var(--primary); margin-bottom: 12px;">Пользователь</h3>
+            <div style="font-size: 28px; font-weight: 700; margin-bottom: 8px;">499₽ вместо 10К</div>
+            <ul style="text-align: left; font-size: 14px; color: var(--text-secondary); list-style: none;">
+              <li>✓ 23 фото за 5-10 минут</li>
+              <li>✓ Без поездки в студию</li>
+              <li>✓ Прямо в Telegram</li>
+            </ul>
+          </div>
+
+          <div class="card" style="padding: 32px; border: 2px solid var(--success);">
+            <div style="font-size: 48px; margin-bottom: 16px;">🤝</div>
+            <h3 style="color: var(--success); margin-bottom: 12px;">Партнёр</h3>
+            <div style="font-size: 28px; font-weight: 700; margin-bottom: 8px;">500₽ с клиента</div>
+            <ul style="text-align: left; font-size: 14px; color: var(--text-secondary); list-style: none;">
+              <li>✓ 50% от каждой продажи</li>
+              <li>✓ Выплаты на карту/СБП</li>
+              <li>✓ Свои фотопаки</li>
+            </ul>
+          </div>
+
+          <div class="card" style="padding: 32px; border: 2px solid var(--accent);">
+            <div style="font-size: 48px; margin-bottom: 16px;">🚀</div>
+            <h3 style="color: var(--accent); margin-bottom: 12px;">Инвестор</h3>
+            <div style="font-size: 28px; font-weight: 700; margin-bottom: 8px;">Виральный рост</div>
+            <ul style="text-align: left; font-size: 14px; color: var(--text-secondary); list-style: none;">
+              <li>✓ 0₽ на рекламу</li>
+              <li>✓ 105М аудитория Telegram</li>
+              <li>✓ Масштабируемая модель</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="cta-card">
+          <h3>Готовы к сотрудничеству</h3>
+          <p style="margin-top: 16px;">
+            Telegram: <strong>@pinglass_bot</strong><br>
+            Email: <strong>hello@pinglass.ru</strong>
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">12 / 12</div>
+  </section>
+
+  <script>
+    function scrollToSlide(n) {
+      document.getElementById('slide-' + n).scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Update nav dots on scroll
+    const slides = document.querySelectorAll('.slide');
+    const dots = document.querySelectorAll('.nav-dot');
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const slideNum = entry.target.id.replace('slide-', '');
+          dots.forEach((dot, i) => {
+            dot.classList.toggle('active', i === parseInt(slideNum) - 1);
+          });
+        }
+      });
+    }, { threshold: 0.5 });
+
+    slides.forEach(slide => observer.observe(slide));
+  </script>
+
+</body>
+</html>

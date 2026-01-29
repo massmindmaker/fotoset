@@ -1,0 +1,41 @@
+﻿
+> pinglass@1.0.0 build
+> next build
+
+node.exe : [@sentry/nextjs] WARNING: You are using the Sentry SDK with `next build --turbo`. The Sentry SDK doesn't yet
+ fully support Turbopack. The SDK will not be loaded in the browser, and serverside instrumentation will be inaccurate 
+or incomplete. If you are just trying out Sentry or attempting to configure the SDK, we recommend temporarily removing 
+the `--turbo` flag while you are developing locally. Follow this issue for progress on Sentry + Turbopack: https://gith
+ub.com/getsentry/sentry-javascript/issues/8105. (You can suppress this warning by setting SENTRY_SUPPRESS_TURBOPACK_WAR
+NING=1 as environment variable)
+строка:1 знак:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\bob\AppData\Roaming\np ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([@sentry/nextjs...nment variable):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+тЪа Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\bob\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it'
+s not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\bob\Projects\Fotoset\package-lock.json
+
+тЦ▓ Next.js 16.1.4 (Turbopack)
+- Environments: .env.local
+- Experiments (use with caution):
+  ┬╖ clientTraceMetadata
+  ┬╖ optimizePackageImports
+
+тЪа The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/mes
+sages/middleware-to-proxy
+  Creating an optimized production build ...
+[@sentry/nextjs] WARNING: You are using the Sentry SDK with `next build --turbo`. The Sentry SDK doesn't yet fully supp
+ort Turbopack. The SDK will not be loaded in the browser, and serverside instrumentation will be inaccurate or incomple
+te. If you are just trying out Sentry or attempting to configure the SDK, we recommend temporarily removing the `--turb
+o` flag while you are developing locally. Follow this issue for progress on Sentry + Turbopack: https://github.com/gets
+entry/sentry-javascript/issues/8105. (You can suppress this warning by setting SENTRY_SUPPRESS_TURBOPACK_WARNING=1 as e
+nvironment variable)
+тЬУ Compiled successfully in 3.6min
+  Running TypeScript ...
