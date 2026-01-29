@@ -1525,6 +1525,9 @@ export default function PersonaApp() {
                   selectedTier={selectedTier || dynamicPricingTiers[1] || PRICING_TIERS[1]}
                   onSelectTier={setSelectedTier}
                   pricingTiers={dynamicPricingTiers.length > 0 ? dynamicPricingTiers : PRICING_TIERS}
+                  telegramUserId={telegramUserId}
+                  neonUserId={neonUserId}
+                  onChangeStyle={() => setViewState({ view: "STYLES_LIST" })}
                 />
               ) : (
                 <div className="flex items-center justify-center py-12">
@@ -1611,10 +1614,6 @@ export default function PersonaApp() {
             telegramUserId={telegramUserId}
             tier={selectedTier || PRICING_TIERS[1]}
             personaId={"personaId" in viewState ? String(viewState.personaId) : undefined}
-            onChangeStyle={() => {
-              setIsPaymentOpen(false)
-              setViewState({ view: "STYLES_LIST" })
-            }}
           />
         </Suspense>
       )}

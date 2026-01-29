@@ -2,11 +2,10 @@
 
 import type React from "react"
 import { useState, useEffect, useCallback } from "react"
-import { X, Check, Loader2, Mail, ShieldCheck, CreditCard, Coins, Star, Image, Palette } from "lucide-react"
+import { X, Check, Loader2, Mail, ShieldCheck, CreditCard, Coins, Star, Image } from "lucide-react"
 import { extractErrorMessage, getErrorMessage } from "@/lib/error-utils"
 import { usePaymentMethods } from "./hooks/usePaymentMethods"
 import { usePricing } from "./hooks/usePricing"
-import { useActivePack } from "./hooks/useActivePack"
 import { useTonConnect } from "@/lib/tonconnect/provider"
 import { Button } from "@/components/ui/button"
 
@@ -27,7 +26,6 @@ interface PaymentModalProps {
   neonUserId?: string
   tier?: PricingTier // Optional - if not provided, show tier selection
   personaId?: string
-  onChangeStyle?: () => void // Callback to change selected style
 }
 
 interface PaymentResponse {
@@ -50,8 +48,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   telegramUserId,
   neonUserId,
   tier: initialTier,
-  personaId,
-  onChangeStyle
+  personaId
 }) => {
   const [step, setStep] = useState<"FORM" | "PROCESSING" | "REDIRECT" | "SUCCESS" | "ERROR" | "STARS_WAITING" | "TON_PAYMENT">("FORM")
   const [loading, setLoading] = useState(false)
@@ -80,9 +77,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   // Fetch available payment methods and pricing
   const { methods, altMethodsCount, isLoading: methodsLoading } = usePaymentMethods()
   const { tiers, isLoading: pricingLoading } = usePricing()
-  
-  // Fetch active pack for display
-  const { activePack, isLoading: packLoading } = useActivePack(telegramUserId, neonUserId)
 
   // TonConnect hook
   const { wallet, connect, sendTransaction } = useTonConnect()
@@ -440,60 +434,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         <div className="p-4 pb-6">
           {step === "FORM" && (
             <div className="space-y-4">
-              {/* Selected Style Block */}
-              {activePack && (
-                <div className="p-3 bg-muted/30 rounded-xl border border-border">
-                  <div className="flex items-center gap-3">
-                    {/* Preview image or emoji */}
-                    <div className="w-14 h-14 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                      {activePack.previewImages?.[0] ? (
-                        <img 
-                          src={activePack.previewImages[0]} 
-                          alt={activePack.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-2xl">
-                          {activePack.iconEmoji || <Palette className="w-6 h-6 text-muted-foreground" />}
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground">Стиль</p>
-                      <p className="font-medium truncate">
-                        {activePack.iconEmoji && <span className="mr-1">{activePack.iconEmoji}</span>}
-                        {activePack.name}
-                      </p>
-                    </div>
-                    
-                    {/* Change button */}
-                    {onChangeStyle && (
-                      <button
-                        onClick={onChangeStyle}
-                        className="text-sm text-primary hover:underline flex-shrink-0"
-                      >
-                        Изменить
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              {/* Loading state for pack */}
-              {packLoading && (
-                <div className="p-3 bg-muted/30 rounded-xl border border-border animate-pulse">
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-lg bg-muted" />
-                    <div className="flex-1">
-                      <div className="h-3 w-12 bg-muted rounded mb-2" />
-                      <div className="h-4 w-32 bg-muted rounded" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Tier Selection Cards - Only show if no tier was pre-selected */}
               {!initialTier && (
                 <div className="space-y-3">
