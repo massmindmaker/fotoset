@@ -10,14 +10,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
 import bcrypt from 'bcryptjs'
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   // Only allow in development/preview
   if (process.env.NODE_ENV === 'production' && !request.url.includes('test.pinglass.ru')) {
     return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
   }
 
   try {
-    const { email, password } = await request.json()
+    const url = new URL(request.url)
+    const email = url.searchParams.get('email') || ''
+    const password = url.searchParams.get('password') || ''
 
     // Find admin
     const admins = await sql`
