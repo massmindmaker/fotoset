@@ -23,6 +23,12 @@ export interface RateLimitResult {
  * Check if an IP address is rate limited
  */
 export async function checkRateLimit(ipAddress: string): Promise<RateLimitResult> {
+  // TEMPORARY: Disable rate limit for testing (2026-01-29)
+  // TODO: Remove after testing complete
+  if (process.env.DISABLE_RATE_LIMIT === 'true') {
+    console.log('[RateLimit] DISABLED for testing')
+    return { allowed: true, remaining: 999, resetAt: new Date(), blocked: false }
+  }
   console.log('[RateLimit] Checking for IP:', ipAddress)
 
   const now = new Date()
