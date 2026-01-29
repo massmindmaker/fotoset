@@ -3,6 +3,31 @@ import { sql } from "@/lib/db"
 import { getCurrentPartnerSession } from "@/lib/partner/session"
 import { extractIdentifierFromRequest, findUserByIdentifier } from "@/lib/user-identity"
 import { updatePackPreviewImages } from "@/lib/pack-helpers"
+import { uploadFromUrl, isR2Configured } from "@/lib/r2"
+
+/**
+ * Check if URL is external (not already in R2)
+ * Returns true if the image should be copied to R2
+ */
+function isExternalPreviewUrl(url: string | null | undefined): boolean {
+  if (!url) return false
+  // R2 URLs - already in our storage
+  if (url.includes('.r2.dev')) return false
+  if (url.includes('r2.cloudflarestorage.com')) return false
+  // Our specific R2 public bucket
+  if (url.includes('pub-8c1af6d8a8944be49e5e168a1b0f03c8')) return false
+  // External URL that should be copied
+  return url.startsWith('http')
+}
+
+/**
+ * Generate R2 key for pack prompt preview
+ * Format: previews/pack-{packId}/prompt-{promptId}-{timestamp}.jpg
+ */
+function generatePreviewKey(packId: number, promptId: number): string {
+  const timestamp = Date.now()
+  return `previews/pack-${packId}/prompt-${promptId}-${timestamp}.jpg`
+}
 
 /**
  * Helper to get authenticated partner user ID
@@ -248,8 +273,33 @@ export async function POST(
       `[Partner Pack Prompts] Added prompt #${result[0].id} to pack #${packId} by user ${userId}`
     )
 
-    // Update pack preview images if the new prompt has a preview
-    if (result[0].preview_url) {
+    // Copy external preview image to R2 for permanent storage
+    let finalPreviewUrl = result[0].preview_url
+    if (isExternalPreviewUrl(result[0].preview_url) && isR2Configured()) {
+      try {
+        const key = generatePreviewKey(packId, result[0].id)
+        console.log(`[Partner Pack Prompts] Copying external preview to R2: ${key}`)
+        
+        const uploadResult = await uploadFromUrl(result[0].preview_url, key)
+        
+        // Update the prompt with permanent R2 URL
+        await sql`
+          UPDATE pack_prompts 
+          SET preview_url = ${uploadResult.url}
+          WHERE id = ${result[0].id}
+        `
+        
+        finalPreviewUrl = uploadResult.url
+        console.log(`[Partner Pack Prompts] Preview copied to R2: ${uploadResult.url}`)
+      } catch (uploadError) {
+        // Non-critical error - keep original URL, log warning
+        console.error("[Partner Pack Prompts] Failed to copy preview to R2:", uploadError)
+        console.warn("[Partner Pack Prompts] Keeping original external URL - may not display in WebApp")
+      }
+    }
+
+    // Update pack preview images if the prompt has a preview
+    if (finalPreviewUrl) {
       try {
         await updatePackPreviewImages(packId)
         console.log(`[Partner Pack Prompts] Updated preview images for pack #${packId}`)
@@ -267,7 +317,7 @@ export async function POST(
         negativePrompt: result[0].negative_prompt,
         stylePrefix: result[0].style_prefix,
         styleSuffix: result[0].style_suffix,
-        previewUrl: result[0].preview_url,
+        previewUrl: finalPreviewUrl,
         position: result[0].position,
         isActive: result[0].is_active,
         createdAt: result[0].created_at,
