@@ -4,15 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 interface RouteContext {
   params: Promise<{ id: string }>
 }
@@ -55,9 +49,6 @@ export async function POST(
         { status: 400 }
       )
     }
-
-    const sql = getSql()
-
     // Check pack exists and is eligible for review
     const packCheck = await sql`
       SELECT

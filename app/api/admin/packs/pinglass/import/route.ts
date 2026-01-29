@@ -1,16 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
 import { PINGLASS, allPinGlassPrompts } from '@/data/packs/pinglass'
-
-function getSql() {
-  const connectionString = process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED
-  if (!connectionString) {
-    throw new Error('DATABASE_URL is not set')
-  }
-  return neon(connectionString)
-}
-
 /**
  * POST /api/admin/packs/pinglass/import
  * Imports all PinGlass prompts into the database
@@ -24,9 +16,6 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
-
-    const sql = getSql()
-
     // Check if PinGlass pack already exists
     const existingPack = await sql`
       SELECT id FROM photo_packs WHERE name = ${PINGLASS.nameRU}

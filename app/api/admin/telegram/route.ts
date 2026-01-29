@@ -4,16 +4,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
 import type { TelegramQueueStats, TelegramQueueMessage } from '@/lib/admin/types'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 export async function GET(request: NextRequest) {
   try {
     const session = await getCurrentSession()
@@ -31,9 +25,6 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10))
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)))
     const offset = (page - 1) * limit
-
-    const sql = getSql()
-
     // Check if table exists first
     const tableCheck = await sql`
       SELECT EXISTS (

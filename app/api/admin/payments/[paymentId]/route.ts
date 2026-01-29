@@ -4,15 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ paymentId: string }> }
@@ -29,9 +23,6 @@ export async function GET(
     if (isNaN(paymentIdNum)) {
       return NextResponse.json({ error: 'Invalid payment ID' }, { status: 400 })
     }
-
-    const sql = getSql()
-
     const [payment] = await sql`
       SELECT
         p.id,

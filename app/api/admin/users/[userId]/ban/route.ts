@@ -4,17 +4,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
 import { hasPermission } from '@/lib/admin/permissions'
 import { logAdminAction } from '@/lib/admin/audit'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ userId: string }> }
@@ -43,9 +37,6 @@ export async function POST(
     if (typeof isBanned !== 'boolean') {
       return NextResponse.json({ error: 'isBanned is required (boolean)' }, { status: 400 })
     }
-
-    const sql = getSql()
-
     // Check if user exists
     const [user] = await sql`
       SELECT id, is_banned, telegram_user_id FROM users WHERE id = ${userIdNum}

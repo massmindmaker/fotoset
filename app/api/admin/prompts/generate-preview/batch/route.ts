@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
 import { generateWithKie, isKieConfigured } from '@/lib/kie'
 import { uploadFromUrl, getPublicUrl, isR2Configured } from '@/lib/r2'
 
 // Increase timeout for batch Kie.ai generation (can take several minutes)
 export const maxDuration = 300
-
-function getSql() {
-  const connectionString = process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED
-  if (!connectionString) {
-    throw new Error('DATABASE_URL is not set')
-  }
-  return neon(connectionString)
-}
-
 /**
  * POST /api/admin/prompts/generate-preview/batch
  * Generate preview images for multiple prompts (batch mode)
@@ -50,9 +42,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { promptIds, referenceImageUrl, all } = body
-
-    const sql = getSql()
-
     // Get prompts to process
     let prompts: any[]
     if (all) {

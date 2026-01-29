@@ -4,17 +4,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
 import { getCurrentMode } from '@/lib/admin/mode'
 import type { AdminGenerationJob, GenerationStats } from '@/lib/admin/types'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 export async function GET(request: NextRequest) {
   try {
     const session = await getCurrentSession()
@@ -31,9 +25,6 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1', 10)
     const limit = parseInt(searchParams.get('limit') || '20', 10)
     const offset = (page - 1) * limit
-
-    const sql = getSql()
-
     // Parse filters
     const statusFilter = status || null
     const dateFromFilter = dateFrom || null

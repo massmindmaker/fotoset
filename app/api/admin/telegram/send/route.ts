@@ -4,16 +4,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
 import { logAdminAction } from '@/lib/admin/audit'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 export async function POST(request: NextRequest) {
   try {
     const session = await getCurrentSession()
@@ -39,9 +33,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-
-    const sql = getSql()
-
     // Find user by telegram_user_id
     const [user] = await sql`
       SELECT id FROM users

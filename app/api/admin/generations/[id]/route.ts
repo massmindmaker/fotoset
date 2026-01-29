@@ -4,16 +4,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
 import type { GenerationDetails } from '@/lib/admin/types'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -30,9 +24,6 @@ export async function GET(
     if (isNaN(jobId)) {
       return NextResponse.json({ error: 'Invalid job ID' }, { status: 400 })
     }
-
-    const sql = getSql()
-
     // Get job details
     const [job] = await sql`
       SELECT

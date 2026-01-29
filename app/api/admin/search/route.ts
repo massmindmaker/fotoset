@@ -4,15 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 interface SearchResult {
   type: 'user' | 'payment' | 'generation' | 'referral'
   id: number
@@ -42,7 +36,6 @@ export async function GET(request: NextRequest) {
       str.replace(/[%_\\]/g, '\\$&')
 
     const safeQuery = escapeLikePattern(query)
-    const sql = getSql()
     const results: SearchResult[] = []
 
     // Search by Telegram ID (numeric)

@@ -4,20 +4,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
 import { logAdminAction } from '@/lib/admin/audit'
 import {
   PaymentMethodsSettings,
   DEFAULT_PAYMENT_METHODS
 } from '@/lib/admin/types'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 const SETTINGS_KEY = 'payment_methods'
 
 /**
@@ -90,9 +84,6 @@ export async function GET() {
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    const sql = getSql()
-
     // Get settings from admin_settings table
     const [setting] = await sql`
       SELECT value, updated_at FROM admin_settings WHERE key = ${SETTINGS_KEY}
@@ -153,9 +144,6 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       )
     }
-
-    const sql = getSql()
-
     // Get old settings for audit log
     const [oldSetting] = await sql`
       SELECT value FROM admin_settings WHERE key = ${SETTINGS_KEY}

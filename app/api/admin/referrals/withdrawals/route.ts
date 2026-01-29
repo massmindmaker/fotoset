@@ -4,15 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 export async function GET(request: NextRequest) {
   try {
     const session = await getCurrentSession()
@@ -26,7 +20,6 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20', 10)
     const offset = (page - 1) * limit
 
-    const sql = getSql()
     const statusFilter = status || null
 
     // Get total count
@@ -116,9 +109,6 @@ export async function PATCH(request: NextRequest) {
     if (!withdrawalId || !status) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
-
-    const sql = getSql()
-
     const result = await sql`
       UPDATE referral_withdrawals
       SET

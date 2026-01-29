@@ -4,15 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ promptId: string }> }
@@ -29,9 +23,6 @@ export async function GET(
     if (isNaN(id)) {
       return NextResponse.json({ error: 'Invalid prompt ID' }, { status: 400 })
     }
-
-    const sql = getSql()
-
     const [prompt] = await sql`
       SELECT
         sp.*,
@@ -74,9 +65,6 @@ export async function PUT(
 
     const body = await request.json()
     const { name, prompt, negative_prompt, style_id, preview_url, is_favorite, tags } = body
-
-    const sql = getSql()
-
     const [updated] = await sql`
       UPDATE saved_prompts SET
         name = COALESCE(${name}, name),
@@ -121,9 +109,6 @@ export async function DELETE(
     if (isNaN(id)) {
       return NextResponse.json({ error: 'Invalid prompt ID' }, { status: 400 })
     }
-
-    const sql = getSql()
-
     const [deleted] = await sql`
       DELETE FROM saved_prompts
       WHERE id = ${id}

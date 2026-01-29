@@ -7,16 +7,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
 import { addSavedPromptToPack, updatePackPreviewImages } from '@/lib/pack-helpers'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 interface RouteContext {
   params: Promise<{ id: string }>
 }
@@ -56,7 +50,6 @@ export async function POST(
     }
 
     // Verify pack exists
-    const sql = getSql()
     const packCheck = await sql`
       SELECT id FROM photo_packs WHERE id = ${packId}
     `
@@ -122,9 +115,6 @@ export async function DELETE(
         { status: 400 }
       )
     }
-
-    const sql = getSql()
-
     // Delete prompt from pack
     const result = await sql`
       DELETE FROM pack_prompts
@@ -192,9 +182,6 @@ export async function PATCH(
         { status: 400 }
       )
     }
-
-    const sql = getSql()
-
     // Update positions for each prompt
     for (let i = 0; i < promptIds.length; i++) {
       await sql`

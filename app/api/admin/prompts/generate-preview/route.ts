@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
 import { createKieTask, isKieConfigured } from '@/lib/kie'
 import { isR2Configured } from '@/lib/r2'
 
 // Keep under Vercel timeout - we use async task creation
 export const maxDuration = 55
-
-function getSql() {
-  const connectionString = process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED
-  if (!connectionString) {
-    throw new Error('DATABASE_URL is not set')
-  }
-  return neon(connectionString)
-}
-
 /**
  * POST /api/admin/prompts/generate-preview
  * Start async preview generation for a saved prompt using Kie.ai
@@ -54,9 +46,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-
-    const sql = getSql()
-
     // Get the prompt
     const [prompt] = await sql`
       SELECT id, name, prompt, negative_prompt, style_id
@@ -145,9 +134,6 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       )
     }
-
-    const sql = getSql()
-
     const [task] = await sql`
       SELECT pt.*, sp.preview_url
       FROM preview_tasks pt

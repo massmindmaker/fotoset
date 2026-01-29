@@ -4,14 +4,8 @@
  */
 
 import { NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
 import { getCurrentSession } from '@/lib/admin/session'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
 
 export async function GET() {
   try {
@@ -19,8 +13,6 @@ export async function GET() {
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    const sql = getSql()
 
     // NOTE: We don't filter by test mode in stats - show ALL data
     // The mode toggle only affects which T-Bank terminal is used for NEW payments
