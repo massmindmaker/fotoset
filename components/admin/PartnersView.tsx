@@ -17,8 +17,11 @@ import {
   ChevronUp,
   Percent,
   UserCheck,
-  UserX
+  UserX,
+  Package,
+  ShieldCheck
 } from 'lucide-react'
+import { PackModerationView } from './PackModerationView'
 
 interface PartnerApplication {
   id: number
@@ -65,7 +68,7 @@ interface PartnerStats {
   partnerReferrals: number
 }
 
-type Tab = 'pending' | 'approved' | 'rejected' | 'active'
+type Tab = 'pending' | 'approved' | 'rejected' | 'active' | 'moderation'
 
 export function PartnersView() {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
@@ -248,17 +251,18 @@ export function PartnersView() {
 
       {/* Tabs */}
       <div className="border-b border-slate-200">
-        <div className="flex gap-4">
+        <div className="flex gap-4 overflow-x-auto">
           {[
             { id: 'pending', label: `Заявки (${counts.pending})`, icon: Clock },
             { id: 'active', label: `Партнёры (${stats?.totalPartners || 0})`, icon: Star },
+            { id: 'moderation', label: 'Модерация паков', icon: ShieldCheck },
             { id: 'approved', label: 'Одобренные', icon: CheckCircle },
             { id: 'rejected', label: 'Отклонённые', icon: XCircle },
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as Tab)}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-pink-500 text-slate-800'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -286,6 +290,11 @@ export function PartnersView() {
           <p>{error}</p>
           <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-600">×</button>
         </div>
+      )}
+
+      {/* Pack Moderation Tab */}
+      {activeTab === 'moderation' && (
+        <PackModerationView />
       )}
 
       {/* Active Partners Tab */}
