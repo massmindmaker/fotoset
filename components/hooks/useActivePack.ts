@@ -40,50 +40,47 @@ export function useActivePack(telegramUserId?: number, neonUserId?: string) {
   const [error, setError] = useState<string | null>(null)
 
   const fetchActivePack = useCallback(async () => {
-    // Need at least one auth identifier
-    if (!telegramUserId && !neonUserId) {
-      setIsLoading(false)
-      return
-    }
-
     setIsLoading(true)
     setError(null)
 
     try {
-      // Build headers for authentication
-      const headers: HeadersInit = {
-        "Content-Type": "application/json",
-      }
-      
-      // Telegram auth: pass initData for server-side HMAC validation
-      const initData = typeof window !== 'undefined' ? window.Telegram?.WebApp?.initData : undefined
-      if (isValidInitData(initData)) {
-        headers["x-telegram-init-data"] = initData
-      }
-      
-      // Neon Auth for web users
-      if (neonUserId) {
-        headers["X-Neon-User-Id"] = neonUserId
-      }
-
-      // Try to get user's active pack
-      const response = await fetch("/api/user/active-pack", {
-        headers,
-        credentials: "include",
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        
-        if (data.data?.activePack) {
-          setActivePack(data.data.activePack)
-          setIsLoading(false)
-          return
+      // If authenticated, try to get user's active pack first
+      if (telegramUserId || neonUserId) {
+        const headers: HeadersInit = {
+          "Content-Type": "application/json",
         }
+        
+        // Telegram auth: pass initData for server-side HMAC validation
+        const initData = typeof window !== 'undefined' ? window.Telegram?.WebApp?.initData : undefined
+        if (isValidInitData(initData)) {
+          headers["x-telegram-init-data"] = initData
+        }
+        
+        // Neon Auth for web users
+        if (neonUserId) {
+          headers["X-Neon-User-Id"] = neonUserId
+        }
+
+        // Try to get user's active pack
+        const response = await fetch("/api/user/active-pack", {
+          headers,
+          credentials: "include",
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          
+          if (data.data?.activePack) {
+            setActivePack(data.data.activePack)
+            setIsLoading(false)
+            return
+          }
+        }
+        // If API fails or no active pack - continue to default
       }
 
-      // No active pack set - fetch default pack
-      console.log("[useActivePack] No active pack, fetching default:", DEFAULT_PACK_SLUG)
+      // Fallback: always load default pack
+      console.log("[useActivePack] Loading default pack:", DEFAULT_PACK_SLUG)
       const defaultResponse = await fetch(`/api/packs/${DEFAULT_PACK_SLUG}`)
       
       if (defaultResponse.ok) {
