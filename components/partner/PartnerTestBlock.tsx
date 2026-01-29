@@ -133,11 +133,27 @@ export function PartnerTestBlock({
     setAddedToPack(true)
   }
 
-  const handleDownload = (imageUrl: string, index: number) => {
-    const link = document.createElement("a")
-    link.href = imageUrl
-    link.download = `test-${block.id}-${index + 1}.jpg`
-    link.click()
+  const handleDownload = async (imageUrl: string, index: number) => {
+    try {
+      // Fetch image as blob to avoid navigating away from the page
+      const response = await fetch(imageUrl)
+      const blob = await response.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      
+      const link = document.createElement("a")
+      link.href = blobUrl
+      link.download = `test-${block.id}-${index + 1}.jpg`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      // Clean up blob URL after download
+      URL.revokeObjectURL(blobUrl)
+    } catch (err) {
+      console.error("[PartnerTestBlock] Download error:", err)
+      // Fallback: open in new tab if blob download fails
+      window.open(imageUrl, "_blank")
+    }
   }
 
   const totalLatency = block.results

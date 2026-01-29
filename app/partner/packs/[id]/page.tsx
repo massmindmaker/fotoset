@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -72,6 +72,25 @@ interface Quota {
   remaining: number
 }
 
+// Draft data structure for localStorage autosave
+interface DraftData {
+  testBlocks: Array<{
+    id: string
+    prompt: string
+    photoCount: 1 | 2 | 3 | 4
+  }>
+  packForm?: {
+    name: string
+    description: string
+    iconEmoji: string
+  }
+  editMode?: boolean
+  savedAt: number
+}
+
+const DRAFT_KEY_PREFIX = 'pinglass_partner_pack_draft_'
+const DRAFT_EXPIRY_MS = 24 * 60 * 60 * 1000 // 24 hours
+
 export default function EditPackPage() {
   const router = useRouter()
   const params = useParams()
@@ -111,6 +130,58 @@ export default function EditPackPage() {
 
   // Submit for moderation
   const [submitting, setSubmitting] = useState(false)
+
+  // Draft restored indicator
+  const [draftRestored, setDraftRestored] = useState(false)
+  const draftKey = `${DRAFT_KEY_PREFIX}${packId}`
+  const isInitialMount = useRef(true)
+
+  // Draft functions
+  const saveDraft = useCallback(() => {
+    try {
+      const draft: DraftData = {
+        testBlocks: testBlocks.map(b => ({
+          id: b.id,
+          prompt: b.prompt,
+          photoCount: b.photoCount,
+        })),
+        packForm: editMode ? packForm : undefined,
+        editMode,
+        savedAt: Date.now(),
+      }
+      localStorage.setItem(draftKey, JSON.stringify(draft))
+    } catch (err) {
+      console.error('[EditPackPage] Failed to save draft:', err)
+    }
+  }, [draftKey, testBlocks, packForm, editMode])
+
+  const loadDraft = useCallback((): DraftData | null => {
+    try {
+      const saved = localStorage.getItem(draftKey)
+      if (!saved) return null
+      
+      const draft: DraftData = JSON.parse(saved)
+      
+      // Check if draft is expired
+      if (Date.now() - draft.savedAt > DRAFT_EXPIRY_MS) {
+        localStorage.removeItem(draftKey)
+        return null
+      }
+      
+      return draft
+    } catch (err) {
+      console.error('[EditPackPage] Failed to load draft:', err)
+      return null
+    }
+  }, [draftKey])
+
+  const clearDraft = useCallback(() => {
+    try {
+      localStorage.removeItem(draftKey)
+    } catch (err) {
+      console.error('[EditPackPage] Failed to clear draft:', err)
+    }
+  }, [draftKey])
 
   // Fetch pack data
   const fetchPack = useCallback(async () => {
@@ -165,6 +236,51 @@ export default function EditPackPage() {
     fetchPack()
     fetchQuota()
   }, [fetchPack, fetchQuota])
+
+  // Restore draft on initial load (after pack data is loaded)
+  useEffect(() => {
+    if (!pack || !isInitialMount.current) return
+    isInitialMount.current = false
+
+    const draft = loadDraft()
+    if (draft && draft.testBlocks.length > 0) {
+      // Check if there's any meaningful content to restore
+      const hasContent = draft.testBlocks.some(b => b.prompt.trim().length > 0)
+      
+      if (hasContent) {
+        // Restore test blocks (without results - they're regenerated)
+        setTestBlocks(draft.testBlocks.map(b => ({
+          ...b,
+          status: 'idle' as const,
+          results: undefined,
+          error: undefined,
+        })))
+        
+        // Restore edit mode and form if applicable
+        if (draft.editMode && draft.packForm) {
+          setEditMode(true)
+          setPackForm(draft.packForm)
+        }
+        
+        setDraftRestored(true)
+        
+        // Auto-hide notification after 5 seconds
+        setTimeout(() => setDraftRestored(false), 5000)
+      }
+    }
+  }, [pack, loadDraft])
+
+  // Autosave draft on changes (debounced)
+  useEffect(() => {
+    // Skip autosave on initial mount
+    if (isInitialMount.current) return
+    
+    const timeoutId = setTimeout(() => {
+      saveDraft()
+    }, 1000) // Debounce 1 second
+
+    return () => clearTimeout(timeoutId)
+  }, [testBlocks, packForm, editMode, saveDraft])
 
   // Convert reference images to base64
   useEffect(() => {
@@ -268,6 +384,9 @@ export default function EditPackPage() {
       const data = await res.json()
       setPack(data.pack)
       setEditMode(false)
+      
+      // Clear draft on successful save
+      clearDraft()
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Ошибка сохранения')
     } finally {
@@ -307,6 +426,9 @@ export default function EditPackPage() {
         throw new Error(data.message || 'Failed to submit pack')
       }
 
+      // Clear draft on successful submission
+      clearDraft()
+      
       fetchPack()
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Ошибка отправки')
@@ -446,6 +568,38 @@ export default function EditPackPage() {
                   {pack.rejectionReason}
                 </p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Draft restored notification */}
+        {draftRestored && (
+          <div className="mt-4 bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-blue-500 shrink-0" />
+                <p className="text-sm text-blue-700">
+                  Черновик восстановлен
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setDraftRestored(false)
+                  clearDraft()
+                  setTestBlocks([{ id: '1', prompt: '', photoCount: 1, status: 'idle' }])
+                  if (pack) {
+                    setPackForm({
+                      name: pack.name,
+                      description: pack.description || '',
+                      iconEmoji: pack.iconEmoji || '',
+                    })
+                  }
+                  setEditMode(false)
+                }}
+                className="text-xs text-blue-600 hover:text-blue-800 underline"
+              >
+                Сбросить
+              </button>
             </div>
           </div>
         )}
