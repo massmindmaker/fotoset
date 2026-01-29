@@ -2,6 +2,9 @@
  * GET /api/admin/users/[userId]
  * Get detailed user info including avatars, payments, referral data
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'

@@ -1,3 +1,6 @@
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from "next/server"
 import { createKieTask, checkKieTaskStatus } from "@/lib/kie"
 import type { TestPromptRequest, TestPromptResponse, TestResult } from "@/lib/admin/types"

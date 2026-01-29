@@ -2,6 +2,9 @@
  * GET /api/admin/packs/[id]
  * Get full pack details with all prompts
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'

@@ -2,6 +2,9 @@
  * POST /api/admin/notifications/[id]/read
  * Mark notification as read
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'

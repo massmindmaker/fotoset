@@ -2,6 +2,9 @@
  * POST /api/admin/referrals/withdrawals/[id]
  * Approve or reject a withdrawal request
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'

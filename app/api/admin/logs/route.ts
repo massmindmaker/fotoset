@@ -1,3 +1,6 @@
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from "next/server"
 import { fetchSentryEvents, type SentryFilters } from "@/lib/admin/sentry-api"
 import { getCurrentSession } from "@/lib/admin/session"

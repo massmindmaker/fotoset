@@ -2,6 +2,9 @@
  * GET /api/admin/generations
  * List generation jobs with filters and stats
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'

@@ -2,6 +2,9 @@
  * GET /api/admin/payments/[paymentId]
  * Get detailed payment information
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'

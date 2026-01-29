@@ -2,6 +2,9 @@
  * GET /api/admin/auth/google/callback
  * Google OAuth callback handler
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { findOrCreateGoogleAdmin } from '@/lib/admin/auth'

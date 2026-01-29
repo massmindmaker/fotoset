@@ -2,6 +2,9 @@
  * POST /api/admin/telegram/[id]/retry
  * Retry a failed telegram message
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'

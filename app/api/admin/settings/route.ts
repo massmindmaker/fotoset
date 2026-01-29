@@ -2,6 +2,9 @@
  * GET/PUT /api/admin/settings
  * Get and update admin settings
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'

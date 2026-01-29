@@ -2,6 +2,9 @@
  * POST /api/admin/generations/[id]/retry
  * Retry a failed generation job
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'

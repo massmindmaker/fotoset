@@ -2,6 +2,9 @@
  * POST /api/admin/auth/logout
  * Logout endpoint - clears session
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextResponse } from 'next/server'
 import { getCurrentSession, deleteSession, clearSessionCookie } from '@/lib/admin/session'

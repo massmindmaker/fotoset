@@ -5,6 +5,9 @@
  * POST /api/admin/tickets/[id]/messages
  * Add operator response message and send notification to user via Telegram
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentSession } from '@/lib/admin/session'

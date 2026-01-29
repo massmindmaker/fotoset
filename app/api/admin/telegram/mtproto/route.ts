@@ -4,6 +4,9 @@
  * POST /api/admin/mtproto
  * Actions: start-auth, verify-code, verify-2fa, logout, status
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentSession } from '@/lib/admin/session'

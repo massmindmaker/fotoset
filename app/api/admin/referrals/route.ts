@@ -3,6 +3,9 @@
  * Get referral system stats and top referrers
  * Optimized: parallel queries instead of sequential
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextResponse } from 'next/server'
 import { sql } from '@/lib/db'

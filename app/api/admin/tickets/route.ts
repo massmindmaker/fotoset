@@ -10,6 +10,9 @@
  * - search: string (optional) - searches ticket_number, user_name, telegram_username, subject
  * - assignedTo: string (optional) - filter by assigned operator username
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentSession } from '@/lib/admin/session'

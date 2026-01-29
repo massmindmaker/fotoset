@@ -2,6 +2,9 @@
  * GET /api/admin/auth/me
  * Get current authenticated admin info
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextResponse } from 'next/server'
 import { getCurrentSession } from '@/lib/admin/session'

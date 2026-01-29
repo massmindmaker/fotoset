@@ -7,6 +7,9 @@
  * - Photo messages with caption
  * - Target: all users, users with payments, or specific user IDs
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'

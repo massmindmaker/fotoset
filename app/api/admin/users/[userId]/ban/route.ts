@@ -2,6 +2,9 @@
  * POST /api/admin/users/[userId]/ban
  * Ban or unban a user
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'

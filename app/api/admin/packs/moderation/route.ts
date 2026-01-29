@@ -2,6 +2,9 @@
  * GET /api/admin/packs/moderation
  * List packs awaiting moderation (pending) or all packs by status
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'

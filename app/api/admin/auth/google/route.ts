@@ -2,6 +2,9 @@
  * GET /api/admin/auth/google
  * Initiates Google OAuth flow
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 import { NextResponse } from 'next/server'
 
