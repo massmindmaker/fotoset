@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform jobs to match AdminGenerationJob type
-    const formattedJobs: AdminGenerationJob[] = jobs.map((job) => ({
+    const formattedJobs: AdminGenerationJob[] = jobs.map((job: any) => ({
       id: job.id as number,
       avatar_id: job.avatar_id as number,
       avatar_name: job.avatar_name as string | null,

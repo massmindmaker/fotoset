@@ -202,7 +202,7 @@ export async function GET() {
     }))
 
     // Tier distribution
-    const tiers = tierStats.reduce((acc: Record<string, { count: number; revenue: number }>, t) => {
+    const tiers = tierStats.reduce((acc: Record<string, { count: number; revenue: number }>, t: any) => {
       acc[t.tier || 'unknown'] = {
         count: parseInt(t.count, 10),
         revenue: parseFloat(t.revenue)
@@ -230,12 +230,12 @@ export async function GET() {
         pendingGenerations
       },
       charts: {
-        revenueByDay: revenueByDay.map(r => ({
+        revenueByDay: revenueByDay.map((r: any) => ({
           date: r.date,
           revenue: parseFloat(r.revenue),
           transactions: parseInt(r.transactions, 10)
         })),
-        registrationsByDay: registrationsByDay.map(r => ({
+        registrationsByDay: registrationsByDay.map((r: any) => ({
           date: r.date,
           registrations: parseInt(r.registrations, 10)
         })),
@@ -243,7 +243,7 @@ export async function GET() {
       },
       providerStats,
       recent: {
-        payments: recentPayments.map(p => ({
+        payments: recentPayments.map((p: any) => ({
           id: p.id,
           amount: parseFloat(p.amount),
           tier: p.tier,
@@ -254,12 +254,12 @@ export async function GET() {
           originalAmount: p.original_amount ? parseFloat(p.original_amount) : null,
           originalCurrency: p.original_currency
         })),
-        users: recentUsers.map(u => ({
+        users: recentUsers.map((u: any) => ({
           id: u.id,
           telegramUserId: u.telegram_user_id,
           createdAt: u.created_at
         })),
-        generations: recentGenerations.map(g => ({
+        generations: recentGenerations.map((g: any) => ({
           id: g.id,
           status: g.status,
           tier: g.tier,

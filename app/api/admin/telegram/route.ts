@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
       OFFSET ${offset}
     `
 
-    const messages: TelegramQueueMessage[] = messagesQuery.map((row) => ({
+    const messages: TelegramQueueMessage[] = messagesQuery.map((row: any) => ({
       id: row.id,
       user_id: row.user_id || null,
       telegram_user_id: String(row.telegram_user_id || row.telegram_chat_id || ''),

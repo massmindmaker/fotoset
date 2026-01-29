@@ -20,7 +20,7 @@ export async function GET() {
       FROM admin_settings
     `
 
-    const settingsMap = settings.reduce((acc: Record<string, unknown>, s) => {
+    const settingsMap = settings.reduce((acc: Record<string, unknown>, s: any) => {
       acc[s.key] = s.value
       return acc
     }, {})

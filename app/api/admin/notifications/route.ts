@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     `
 
     return NextResponse.json({
-      notifications: notifications.map(n => ({
+      notifications: notifications.map((n: any) => ({
         id: n.id,
         type: n.type,
         title: n.title,

@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     `
 
     return NextResponse.json({
-      withdrawals: withdrawals.map(w => ({
+      withdrawals: withdrawals.map((w: any) => ({
         id: w.id,
         user_id: w.user_id,
         telegram_user_id: String(w.telegram_user_id),
