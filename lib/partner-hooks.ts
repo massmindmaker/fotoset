@@ -181,6 +181,68 @@ export function useWithdrawals() {
   return { data, loading, error, refetch: fetchWithdrawals }
 }
 
+// Hook for partner packs
+export interface PartnerPack {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  iconEmoji: string
+  previewImages: string[]
+  moderationStatus: 'draft' | 'pending' | 'approved' | 'rejected'
+  isActive: boolean
+  isFeatured: boolean
+  sortOrder: number
+  usageCount: number
+  promptCount: number
+  submittedAt: string | null
+  reviewedAt: string | null
+  rejectionReason: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PartnerPacksResponse {
+  success: boolean
+  packs: PartnerPack[]
+}
+
+export function usePartnerPacks() {
+  const [packs, setPacks] = useState<PartnerPack[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchPacks = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      // Build URL with optional query params (for Telegram WebApp compatibility)
+      // API will use session cookie if no query params provided
+      const queryParams = buildQueryParams()
+      const url = queryParams ? `/api/partner/packs?${queryParams}` : '/api/partner/packs'
+
+      const res = await fetch(url, { credentials: 'include' })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || data.message || 'Failed to fetch packs')
+      }
+      const data: PartnerPacksResponse = await res.json()
+      setPacks(data.packs || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchPacks()
+  }, [fetchPacks])
+
+  return { packs, loading, error, refetch: fetchPacks }
+}
+
 // Hook for creating withdrawal
 export function useCreateWithdrawal() {
   const [loading, setLoading] = useState(false)
