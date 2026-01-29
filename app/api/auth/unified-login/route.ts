@@ -105,6 +105,20 @@ export async function POST(request: NextRequest): Promise<NextResponse<UnifiedLo
       const isValidPassword = await bcrypt.compare(password, admin.password_hash)
       console.log('[UnifiedLogin] bcrypt.compare result:', isValidPassword)
 
+      // DEBUG: Early return to test if we reach this point
+      if (isValidPassword) {
+        return NextResponse.json({
+          success: false,
+          error: 'DEBUG_CHECKPOINT: bcrypt passed, session creation next',
+          debug: {
+            checkpoint: 'after_bcrypt',
+            bcryptResult: isValidPassword,
+            adminId: admin.id,
+            adminEmail: admin.email
+          }
+        })
+      }
+
       if (!isValidPassword) {
         await recordLoginAttempt(ip, normalizedEmail, false)
         // DEBUG: Include bcrypt info in response
