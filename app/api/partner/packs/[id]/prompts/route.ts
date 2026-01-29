@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { getCurrentPartnerSession } from "@/lib/partner/session"
 import { extractIdentifierFromRequest, findUserByIdentifier } from "@/lib/user-identity"
+import { updatePackPreviewImages } from "@/lib/pack-helpers"
 
 /**
  * Helper to get authenticated partner user ID
@@ -246,6 +247,17 @@ export async function POST(
     console.log(
       `[Partner Pack Prompts] Added prompt #${result[0].id} to pack #${packId} by user ${userId}`
     )
+
+    // Update pack preview images if the new prompt has a preview
+    if (result[0].preview_url) {
+      try {
+        await updatePackPreviewImages(packId)
+        console.log(`[Partner Pack Prompts] Updated preview images for pack #${packId}`)
+      } catch (previewError) {
+        // Non-critical error, log but don't fail the request
+        console.error("[Partner Pack Prompts] Failed to update preview images:", previewError)
+      }
+    }
 
     return NextResponse.json({
       success: true,
