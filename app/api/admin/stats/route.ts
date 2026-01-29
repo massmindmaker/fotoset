@@ -2,6 +2,9 @@
  * GET /api/admin/stats
  * Dashboard statistics and metrics
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 import { NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
