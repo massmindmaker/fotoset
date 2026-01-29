@@ -8,8 +8,15 @@ import { sql } from '@/lib/db'
 import { getCurrentSession } from '@/lib/admin/session'
 
 export async function GET() {
+  const startTime = Date.now()
+  console.log('[Admin Stats] Starting request...')
+
   try {
+    console.log('[Admin Stats] Step 1: Getting session...')
+    const t1 = Date.now()
     const session = await getCurrentSession()
+    console.log(`[Admin Stats] Step 1 done in ${Date.now() - t1}ms, session: ${!!session}`)
+
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -19,6 +26,9 @@ export async function GET() {
     // Admin should see complete analytics regardless of current mode setting
 
     // Run all queries in parallel
+    console.log('[Admin Stats] Step 2: Running 13 queries in parallel...')
+    const t2 = Date.now()
+
     const [
       usersTotal,
       proUsers,
@@ -164,6 +174,10 @@ export async function GET() {
       `
     ])
 
+    console.log(`[Admin Stats] Step 2 done in ${Date.now() - t2}ms`)
+    console.log('[Admin Stats] Step 3: Processing results...')
+    const t3 = Date.now()
+
     // Calculate metrics
     const totalUsers = parseInt(usersTotal[0]?.count || '0', 10)
     const totalProUsers = parseInt(proUsers[0]?.count || '0', 10)
@@ -209,6 +223,9 @@ export async function GET() {
       }
       return acc
     }, {})
+
+    console.log(`[Admin Stats] Step 3 done in ${Date.now() - t3}ms`)
+    console.log(`[Admin Stats] Total time: ${Date.now() - startTime}ms`)
 
     return NextResponse.json({
       kpi: {
@@ -271,9 +288,15 @@ export async function GET() {
       }
     })
   } catch (error) {
-    console.error('[Admin Stats] Error:', error)
+    console.error('[Admin Stats] Error after', Date.now() - startTime, 'ms:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch stats' },
+      {
+        error: 'Failed to fetch stats',
+        debug: {
+          elapsed: Date.now() - startTime,
+          message: error instanceof Error ? error.message : String(error)
+        }
+      },
       { status: 500 }
     )
   }
