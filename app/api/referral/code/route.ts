@@ -102,8 +102,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Build Telegram link (app is Telegram-only)
-    const TELEGRAM_BOT = process.env.TELEGRAM_BOT_USERNAME || 'pinglassbot'
-    const telegramLink = `https://t.me/${TELEGRAM_BOT}?start=${referralCodeTelegram}`
+    // Format: https://t.me/BotName/app?startapp=CODE - opens WebApp directly
+    const telegramLink = `https://t.me/PinGlassBot/app?startapp=${referralCodeTelegram}`
 
     return NextResponse.json({
       referralCodeTelegram,
