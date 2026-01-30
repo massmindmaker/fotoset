@@ -2,19 +2,17 @@
  * POST /api/admin/referrals/withdrawals/[id]
  * Approve or reject a withdrawal request
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
 import { hasPermission } from '@/lib/admin/permissions'
 import { logAdminAction } from '@/lib/admin/audit'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -43,9 +41,6 @@ export async function POST(
     if (!['approve', 'reject'].includes(action)) {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }
-
-    const sql = getSql()
-
     // Get withdrawal
     const [withdrawal] = await sql`
       SELECT

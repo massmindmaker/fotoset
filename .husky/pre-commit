@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# PinGlass Pre-commit Hook
+# Checks for anti-patterns before allowing commit
+
+echo "🔍 Running anti-pattern check..."
+
+node scripts/check-antipatterns.mjs
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ Pre-commit check failed. Please fix the issues above."
+  echo "   Use 'git commit --no-verify' to bypass (not recommended)."
+  exit 1
+fi
+
+echo "✅ Pre-commit check passed!"

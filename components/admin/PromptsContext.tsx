@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useRef, useMemo, ReactNode } from 'react'
 
 // Types (shared across all columns)
 export interface SavedPrompt {
@@ -114,22 +114,36 @@ export function PromptsProvider({ children }: { children: ReactNode }) {
     setAddToPackTarget(null)
   }, [])
 
+  // Memoize context value to prevent infinite re-renders
+  // when child components depend on the context object
+  const contextValue = useMemo<PromptsContextValue>(() => ({
+    referenceImages,
+    referenceBase64Urls,
+    setReferenceImages,
+    setReferenceBase64Urls,
+    refreshSavedPrompts,
+    refreshPacks,
+    registerPromptsRefresh,
+    registerPacksRefresh,
+    addToPackTarget,
+    openAddToPackPopover,
+    closeAddToPackPopover,
+  }), [
+    referenceImages,
+    referenceBase64Urls,
+    setReferenceImages,
+    setReferenceBase64Urls,
+    refreshSavedPrompts,
+    refreshPacks,
+    registerPromptsRefresh,
+    registerPacksRefresh,
+    addToPackTarget,
+    openAddToPackPopover,
+    closeAddToPackPopover,
+  ])
+
   return (
-    <PromptsContext.Provider
-      value={{
-        referenceImages,
-        referenceBase64Urls,
-        setReferenceImages,
-        setReferenceBase64Urls,
-        refreshSavedPrompts,
-        refreshPacks,
-        registerPromptsRefresh,
-        registerPacksRefresh,
-        addToPackTarget,
-        openAddToPackPopover,
-        closeAddToPackPopover,
-      }}
-    >
+    <PromptsContext.Provider value={contextValue}>
       {children}
     </PromptsContext.Provider>
   )

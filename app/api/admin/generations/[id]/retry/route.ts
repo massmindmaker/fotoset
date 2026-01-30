@@ -2,18 +2,16 @@
  * POST /api/admin/generations/[id]/retry
  * Retry a failed generation job
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
 import { logAdminAction } from '@/lib/admin/audit'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -30,9 +28,6 @@ export async function POST(
     if (isNaN(jobId)) {
       return NextResponse.json({ error: 'Invalid job ID' }, { status: 400 })
     }
-
-    const sql = getSql()
-
     // Get current job
     const [job] = await sql`
       SELECT

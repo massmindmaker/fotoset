@@ -14,6 +14,10 @@
  *    - Updates withdrawal status to 'processing'
  * 4. Jump.Finance webhook updates status to 'completed' or 'failed'
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'

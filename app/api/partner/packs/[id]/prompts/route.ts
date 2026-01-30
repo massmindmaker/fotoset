@@ -1,6 +1,69 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { getAuthenticatedUser } from "@/lib/auth-middleware"
+import { getCurrentPartnerSession } from "@/lib/partner/session"
+import { extractIdentifierFromRequest, findUserByIdentifier } from "@/lib/user-identity"
+import { updatePackPreviewImages } from "@/lib/pack-helpers"
+import { uploadFromUrl, isR2Configured } from "@/lib/r2"
+
+/**
+ * Check if URL is external (not already in R2)
+ * Returns true if the image should be copied to R2
+ */
+function isExternalPreviewUrl(url: string | null | undefined): boolean {
+  if (!url) return false
+  // R2 URLs - already in our storage
+  if (url.includes('.r2.dev')) return false
+  if (url.includes('r2.cloudflarestorage.com')) return false
+  // Our specific R2 public bucket
+  if (url.includes('pub-8c1af6d8a8944be49e5e168a1b0f03c8')) return false
+  // External URL that should be copied
+  return url.startsWith('http')
+}
+
+/**
+ * Generate R2 key for pack prompt preview
+ * Format: previews/pack-{packId}/prompt-{promptId}-{timestamp}.jpg
+ */
+function generatePreviewKey(packId: number, promptId: number): string {
+  const timestamp = Date.now()
+  return `previews/pack-${packId}/prompt-${promptId}-${timestamp}.jpg`
+}
+
+/**
+ * Helper to get authenticated partner user ID
+ * Checks: 1) partner_session cookie, 2) query params (telegram/neon)
+ */
+async function getPartnerUserId(request: NextRequest): Promise<number | null> {
+  // Priority 1: Partner session cookie
+  try {
+    const sessionPromise = getCurrentPartnerSession()
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
+    const session = await Promise.race([sessionPromise, timeoutPromise])
+    if (session?.userId) {
+      return session.userId
+    }
+  } catch (e) {
+    console.error('[Partner Pack Prompts] Session check error:', e)
+  }
+
+  // Priority 2: Query params (Telegram/Neon auth)
+  const { searchParams } = new URL(request.url)
+  const telegramUserId = searchParams.get('telegram_user_id')
+  const neonUserId = searchParams.get('neon_auth_id') || searchParams.get('neon_user_id')
+
+  if (telegramUserId || neonUserId) {
+    const identifier = extractIdentifierFromRequest({
+      telegram_user_id: telegramUserId,
+      neon_auth_id: neonUserId
+    })
+    const basicUser = await findUserByIdentifier(identifier)
+    if (basicUser) {
+      return basicUser.id
+    }
+  }
+
+  return null
+}
 
 /**
  * GET /api/partner/packs/[id]/prompts
@@ -12,9 +75,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const authUser = await getAuthenticatedUser(request)
+    const userId = await getPartnerUserId(request)
 
-    if (!authUser) {
+    if (!userId) {
       return NextResponse.json(
         { error: "UNAUTHORIZED", message: "Authentication required" },
         { status: 401 }
@@ -23,7 +86,7 @@ export async function GET(
 
     // Check if user is partner
     const partnerCheck = await sql`
-      SELECT is_partner FROM referral_balances WHERE user_id = ${authUser.user.id}
+      SELECT is_partner FROM referral_balances WHERE user_id = ${userId}
     `
     if (partnerCheck.length === 0 || !partnerCheck[0].is_partner) {
       return NextResponse.json(
@@ -43,7 +106,7 @@ export async function GET(
     // Verify pack ownership
     const pack = await sql`
       SELECT id FROM photo_packs
-      WHERE id = ${packId} AND partner_user_id = ${authUser.user.id}
+      WHERE id = ${packId} AND partner_user_id = ${userId}
     `
 
     if (pack.length === 0) {
@@ -94,9 +157,9 @@ export async function POST(
   try {
     const { id } = await params
     const body = await request.json()
-    const authUser = await getAuthenticatedUser(request, body)
+    const userId = await getPartnerUserId(request)
 
-    if (!authUser) {
+    if (!userId) {
       return NextResponse.json(
         { error: "UNAUTHORIZED", message: "Authentication required" },
         { status: 401 }
@@ -105,7 +168,7 @@ export async function POST(
 
     // Check if user is partner
     const partnerCheck = await sql`
-      SELECT is_partner FROM referral_balances WHERE user_id = ${authUser.user.id}
+      SELECT is_partner FROM referral_balances WHERE user_id = ${userId}
     `
     if (partnerCheck.length === 0 || !partnerCheck[0].is_partner) {
       return NextResponse.json(
@@ -125,7 +188,7 @@ export async function POST(
     // Get pack and verify ownership
     const pack = await sql`
       SELECT * FROM photo_packs
-      WHERE id = ${packId} AND partner_user_id = ${authUser.user.id}
+      WHERE id = ${packId} AND partner_user_id = ${userId}
     `
 
     if (pack.length === 0) {
@@ -207,8 +270,44 @@ export async function POST(
     }
 
     console.log(
-      `[Partner Pack Prompts] Added prompt #${result[0].id} to pack #${packId} by user ${authUser.user.id}`
+      `[Partner Pack Prompts] Added prompt #${result[0].id} to pack #${packId} by user ${userId}`
     )
+
+    // Copy external preview image to R2 for permanent storage
+    let finalPreviewUrl = result[0].preview_url
+    if (isExternalPreviewUrl(result[0].preview_url) && isR2Configured()) {
+      try {
+        const key = generatePreviewKey(packId, result[0].id)
+        console.log(`[Partner Pack Prompts] Copying external preview to R2: ${key}`)
+        
+        const uploadResult = await uploadFromUrl(result[0].preview_url, key)
+        
+        // Update the prompt with permanent R2 URL
+        await sql`
+          UPDATE pack_prompts 
+          SET preview_url = ${uploadResult.url}
+          WHERE id = ${result[0].id}
+        `
+        
+        finalPreviewUrl = uploadResult.url
+        console.log(`[Partner Pack Prompts] Preview copied to R2: ${uploadResult.url}`)
+      } catch (uploadError) {
+        // Non-critical error - keep original URL, log warning
+        console.error("[Partner Pack Prompts] Failed to copy preview to R2:", uploadError)
+        console.warn("[Partner Pack Prompts] Keeping original external URL - may not display in WebApp")
+      }
+    }
+
+    // Update pack preview images if the prompt has a preview
+    if (finalPreviewUrl) {
+      try {
+        await updatePackPreviewImages(packId)
+        console.log(`[Partner Pack Prompts] Updated preview images for pack #${packId}`)
+      } catch (previewError) {
+        // Non-critical error, log but don't fail the request
+        console.error("[Partner Pack Prompts] Failed to update preview images:", previewError)
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -218,7 +317,7 @@ export async function POST(
         negativePrompt: result[0].negative_prompt,
         stylePrefix: result[0].style_prefix,
         styleSuffix: result[0].style_suffix,
-        previewUrl: result[0].preview_url,
+        previewUrl: finalPreviewUrl,
         position: result[0].position,
         isActive: result[0].is_active,
         createdAt: result[0].created_at,

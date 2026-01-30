@@ -665,56 +665,46 @@ export default function PersonaApp() {
       return
     }
 
-    try {
-      // Get Telegram initData for authentication (required in production)
-      const tg = window.Telegram?.WebApp
-      const initData = isTelegramUser ? (tg?.initData || '') : undefined
-
-      // Create avatar on server immediately (supports both Telegram and Web users)
-      const res = await fetch("/api/avatars", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // Send initData header for Telegram auth (lowercase for Next.js compatibility)
-          ...(initData && { "x-telegram-init-data": initData }),
-        },
-        credentials: "include", // Include cookies for Neon Auth
-        body: JSON.stringify({
-          // Also send initData in body as fallback
-          ...(initData && { initData }),
-          telegramUserId: isWebUser ? undefined : telegramUserId,
-          neonUserId: isWebUser ? neonUserId : undefined,
-          name: "Мой аватар",
-        }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        // Handle LIMIT_REACHED with user-friendly message
-        if (data.error?.code === "LIMIT_REACHED") {
-          showMessage("Достигнут лимит аватаров (3). Удалите существующий аватар.")
-          return
-        }
-        throw new Error(data.error?.message || "Не удалось создать аватар")
-      }
-      const dbId = String(data.data?.id || data.id)
-
-      // Create local persona with DB ID
-      const newPersona: Persona = {
-        id: dbId,
-        name: "Мой аватар",
-        status: "draft",
-        images: [],
-        generatedAssets: [],
-      }
-
-      setPersonas((prev) => [...prev, newPersona])
-      setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: dbId })
-    } catch (error) {
-      showMessage(`Ошибка: ${error instanceof Error ? error.message : "Не удалось создать аватар"}`)
+    // Check avatar limit locally before creating temp avatar
+    // This is a soft check - server will enforce the limit during actual creation
+    const MAX_AVATARS = 3
+    const existingAvatarsCount = personas.filter(p => !p.id.startsWith("temp_")).length
+    if (existingAvatarsCount >= MAX_AVATARS) {
+      showMessage("Достигнут лимит аватаров (3). Удалите существующий аватар.")
+      return
     }
-  }, [telegramUserId, neonUserId, isWebUser, setPersonas, showMessage])
+
+    // Create temporary local persona (NOT in DB yet)
+    // Avatar will be created in DB only when user uploads photos
+    const tempId = `temp_${Date.now()}`
+    const newPersona: Persona = {
+      id: tempId,
+      name: "Мой аватар",
+      status: "draft",
+      images: [],
+      generatedAssets: [],
+    }
+
+    setPersonas((prev) => [...prev, newPersona])
+    setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: tempId })
+  }, [telegramUserId, neonUserId, personas, setPersonas, showMessage])
+
+  // Handle back from upload view - remove temp avatar if no photos uploaded
+  const handleUploadBack = useCallback(() => {
+    const activePersona = getActivePersona()
+    
+    // If it's a temporary avatar (not yet in DB), remove it from local state
+    if (activePersona && activePersona.id.startsWith("temp_")) {
+      // Cleanup blob URLs to prevent memory leaks
+      activePersona.images.forEach(img => {
+        if (img.previewUrl) URL.revokeObjectURL(img.previewUrl)
+      })
+      // Remove temp persona from state
+      setPersonas((prev) => prev.filter(p => p.id !== activePersona.id))
+    }
+    
+    setViewState({ view: "DASHBOARD" })
+  }, [getActivePersona, setPersonas])
 
   // Delete persona handler with Telegram-native confirm (supports both Telegram and Web users)
   const handleDeletePersona = useCallback((id: string, e: React.MouseEvent) => {
@@ -1497,7 +1487,7 @@ export default function PersonaApp() {
                 <UploadView
                   persona={getActivePersona()!}
                   updatePersona={updatePersona}
-                  onBack={() => setViewState({ view: "DASHBOARD" })}
+                  onBack={handleUploadBack}
                   onNext={handleUploadComplete}
                   isLoading={isSyncing}
                 />
@@ -1511,7 +1501,20 @@ export default function PersonaApp() {
               getActivePersona() ? (
                 <TierSelectView
                   persona={getActivePersona()!}
-                  onBack={() => setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: viewState.personaId })}
+                  onBack={async () => {
+                    // If avatar is already in DB (not temp), go to Dashboard instead of UploadView
+                    // because UploadView uses local File objects which are lost after sync
+                    const persona = getActivePersona()
+                    if (persona && !persona.id.startsWith("temp_")) {
+                      // Reload avatars from server to get updated referenceCount
+                      if (userIdentifier) {
+                        await loadAvatarsFromServer(userIdentifier)
+                      }
+                      setViewState({ view: "DASHBOARD" })
+                    } else {
+                      setViewState({ view: "CREATE_PERSONA_UPLOAD", personaId: viewState.personaId })
+                    }
+                  }}
                   onGenerate={handleGenerate}
                   isGenerating={isGenerating}
                   isProcessingPayment={isPaymentOpen}
@@ -1522,6 +1525,9 @@ export default function PersonaApp() {
                   selectedTier={selectedTier || dynamicPricingTiers[1] || PRICING_TIERS[1]}
                   onSelectTier={setSelectedTier}
                   pricingTiers={dynamicPricingTiers.length > 0 ? dynamicPricingTiers : PRICING_TIERS}
+                  telegramUserId={telegramUserId}
+                  neonUserId={neonUserId}
+                  onChangeStyle={() => setViewState({ view: "STYLES_LIST" })}
                 />
               ) : (
                 <div className="flex items-center justify-center py-12">
@@ -1566,8 +1572,8 @@ export default function PersonaApp() {
               )
             )}
           </main>
-          {/* Bottom Navigation - show only in Telegram WebApp, not in web version */}
-          {isTelegramUser && !isGenerating && (
+          {/* Bottom Navigation - show only on DASHBOARD and STYLES_LIST views (other views have their own action buttons) */}
+          {isTelegramUser && !isGenerating && (viewState.view === 'DASHBOARD' || viewState.view === 'STYLES_LIST') && (
             <BottomNav
               activeTab={activeTab}
               onTabChange={(tab) => {
@@ -1612,7 +1618,7 @@ export default function PersonaApp() {
         </Suspense>
       )}
       <Suspense fallback={null}>
-        <ReferralPanel telegramUserId={telegramUserId} neonUserId={neonUserId} isOpen={isReferralOpen} onClose={() => setIsReferralOpen(false)} />
+        <ReferralPanel telegramUserId={telegramUserId} isOpen={isReferralOpen} onClose={() => setIsReferralOpen(false)} />
       </Suspense>
     </div>
   )

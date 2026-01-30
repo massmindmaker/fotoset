@@ -2,25 +2,21 @@
  * GET /api/admin/stats
  * Dashboard statistics and metrics
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 import { NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
 import { getCurrentSession } from '@/lib/admin/session'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
 
 export async function GET() {
   try {
     const session = await getCurrentSession()
+
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    const sql = getSql()
 
     // NOTE: We don't filter by test mode in stats - show ALL data
     // The mode toggle only affects which T-Bank terminal is used for NEW payments
@@ -210,7 +206,7 @@ export async function GET() {
     }))
 
     // Tier distribution
-    const tiers = tierStats.reduce((acc: Record<string, { count: number; revenue: number }>, t) => {
+    const tiers = tierStats.reduce((acc: Record<string, { count: number; revenue: number }>, t: any) => {
       acc[t.tier || 'unknown'] = {
         count: parseInt(t.count, 10),
         revenue: parseFloat(t.revenue)
@@ -238,12 +234,12 @@ export async function GET() {
         pendingGenerations
       },
       charts: {
-        revenueByDay: revenueByDay.map(r => ({
+        revenueByDay: revenueByDay.map((r: any) => ({
           date: r.date,
           revenue: parseFloat(r.revenue),
           transactions: parseInt(r.transactions, 10)
         })),
-        registrationsByDay: registrationsByDay.map(r => ({
+        registrationsByDay: registrationsByDay.map((r: any) => ({
           date: r.date,
           registrations: parseInt(r.registrations, 10)
         })),
@@ -251,7 +247,7 @@ export async function GET() {
       },
       providerStats,
       recent: {
-        payments: recentPayments.map(p => ({
+        payments: recentPayments.map((p: any) => ({
           id: p.id,
           amount: parseFloat(p.amount),
           tier: p.tier,
@@ -262,12 +258,12 @@ export async function GET() {
           originalAmount: p.original_amount ? parseFloat(p.original_amount) : null,
           originalCurrency: p.original_currency
         })),
-        users: recentUsers.map(u => ({
+        users: recentUsers.map((u: any) => ({
           id: u.id,
           telegramUserId: u.telegram_user_id,
           createdAt: u.created_at
         })),
-        generations: recentGenerations.map(g => ({
+        generations: recentGenerations.map((g: any) => ({
           id: g.id,
           status: g.status,
           tier: g.tier,
@@ -279,9 +275,11 @@ export async function GET() {
       }
     })
   } catch (error) {
-    console.error('[Admin Stats] Error:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch stats' },
+      {
+        error: 'Failed to fetch stats',
+        message: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     )
   }

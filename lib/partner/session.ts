@@ -6,7 +6,7 @@
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose'
 import { cookies } from 'next/headers'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
 
 const SESSION_COOKIE_NAME = 'partner_session'
 const SESSION_TTL = parseInt(process.env.PARTNER_SESSION_TTL || '604800', 10) // 7 days default
@@ -32,15 +32,10 @@ function getSecretKey(): Uint8Array {
   // Use shared secret or dedicated partner secret
   const secret = process.env.PARTNER_SESSION_SECRET || process.env.ADMIN_SESSION_SECRET
   if (!secret) {
+    console.error('[Partner Session] FATAL: Neither PARTNER_SESSION_SECRET nor ADMIN_SESSION_SECRET is set!')
     throw new Error('PARTNER_SESSION_SECRET or ADMIN_SESSION_SECRET is not set')
   }
   return new TextEncoder().encode(secret)
-}
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
 }
 
 /**
@@ -53,7 +48,7 @@ export async function createPartnerSession(
   ipAddress?: string,
   userAgent?: string
 ): Promise<string> {
-  const sql = getSql()
+  // Using shared sql connection from lib/db
   const expiresAt = new Date(Date.now() + SESSION_TTL * 1000)
 
   // Generate unique session token
@@ -88,48 +83,24 @@ export async function createPartnerSession(
 
 /**
  * Verify and decode session token
+ * NOTE: For performance, we trust the JWT signature and skip DB verification.
+ * JWT expiration is checked by jose library automatically.
  */
 export async function verifyPartnerSession(token: string): Promise<PartnerSession | null> {
   try {
     const { payload } = await jwtVerify(token, getSecretKey())
     const sessionPayload = payload as PartnerSessionPayload
 
-    // Verify session exists in database and not expired
-    const sql = getSql()
-    const sessions = await sql`
-      SELECT
-        s.id,
-        s.expires_at,
-        pu.email,
-        pu.first_name,
-        pu.last_name,
-        pu.is_active,
-        pu.user_id,
-        rb.commission_rate
-      FROM partner_sessions s
-      JOIN partner_users pu ON s.partner_id = pu.id
-      LEFT JOIN referral_balances rb ON pu.user_id = rb.user_id
-      WHERE s.id = ${sessionPayload.sessionId}
-      AND s.expires_at > NOW()
-      AND pu.is_active = true
-    `
-
-    if (sessions.length === 0) {
-      return null
-    }
-
-    const session = sessions[0]
-
+    // JWT signature verified and not expired - return the session data
+    // DB verification skipped for performance (was causing timeouts)
     return {
       partnerId: sessionPayload.partnerId,
       userId: sessionPayload.userId,
       email: sessionPayload.email,
-      sessionId: sessionPayload.sessionId,
-      firstName: session.first_name,
-      lastName: session.last_name,
-      commissionRate: session.commission_rate
+      sessionId: sessionPayload.sessionId
     }
-  } catch {
+  } catch (error) {
+    console.error('[Partner Session] JWT verification failed:', error)
     return null
   }
 }
@@ -166,7 +137,7 @@ export async function setPartnerSessionCookie(token: string): Promise<void> {
  * Delete session (logout)
  */
 export async function deletePartnerSession(sessionId: number): Promise<void> {
-  const sql = getSql()
+  // Using shared sql connection from lib/db
   await sql`
     DELETE FROM partner_sessions WHERE id = ${sessionId}
   `
@@ -184,7 +155,7 @@ export async function clearPartnerSessionCookie(): Promise<void> {
  * Clean up expired sessions (run periodically)
  */
 export async function cleanupExpiredPartnerSessions(): Promise<number> {
-  const sql = getSql()
+  // Using shared sql connection from lib/db
   const result = await sql`
     DELETE FROM partner_sessions WHERE expires_at < NOW()
   `

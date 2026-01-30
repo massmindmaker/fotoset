@@ -2,6 +2,10 @@
  * POST /api/admin/auth/login
  * Email/Password login endpoint
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyPassword, findAdminByEmail, createAdmin, getSuperAdminEmail } from '@/lib/admin/auth'

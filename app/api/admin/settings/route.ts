@@ -2,34 +2,29 @@
  * GET/PUT /api/admin/settings
  * Get and update admin settings
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
 import { hasPermission } from '@/lib/admin/permissions'
 import { logAdminAction } from '@/lib/admin/audit'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 export async function GET() {
   try {
     const session = await getCurrentSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    const sql = getSql()
-
     const settings = await sql`
       SELECT key, value, updated_at
       FROM admin_settings
     `
 
-    const settingsMap = settings.reduce((acc: Record<string, unknown>, s) => {
+    const settingsMap = settings.reduce((acc: Record<string, unknown>, s: any) => {
       acc[s.key] = s.value
       return acc
     }, {})
@@ -66,9 +61,6 @@ export async function PUT(request: NextRequest) {
     if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
       return NextResponse.json({ error: 'Invalid settings data' }, { status: 400 })
     }
-
-    const sql = getSql()
-
     // Update each setting individually
     for (const [key, value] of Object.entries(settings)) {
       await sql`

@@ -51,8 +51,9 @@ const nextConfig = {
         hostname: '**.r2.cloudflarestorage.com',
       },
       {
+        // All R2 public buckets (pub-*.r2.dev)
         protocol: 'https',
-        hostname: 'pub-8c1af6d8a8944be49e5e168a1b0f03c8.r2.dev',
+        hostname: '**.r2.dev',
       },
       {
         protocol: 'https',

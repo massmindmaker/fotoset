@@ -3,26 +3,21 @@
  * Get referral system stats and top referrers
  * Optimized: parallel queries instead of sequential
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 
 import { NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 export async function GET() {
   try {
     const session = await getCurrentSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    const sql = getSql()
-
     // Run all queries in parallel
     const [statsResult, funnelResult, topReferrers, recentEarnings] = await Promise.all([
       // Stats query
@@ -40,7 +35,7 @@ export async function GET() {
           (SELECT COALESCE(SUM(balance_ton), 0) FROM referral_balances)::numeric as balance_ton,
           (SELECT COALESCE(SUM(withdrawn_rub), 0) FROM referral_balances)::numeric as withdrawn_rub,
           (SELECT COALESCE(SUM(withdrawn_ton), 0) FROM referral_balances)::numeric as withdrawn_ton
-      `.then(r => r[0]),
+      `.then((r: any) => r[0]),
 
       // Funnel query
       sql`
@@ -51,7 +46,7 @@ export async function GET() {
             FROM referrals r
             WHERE EXISTS (SELECT 1 FROM payments p WHERE p.user_id = r.referred_id AND p.status = 'succeeded')
           )::int as paid
-      `.then(r => r[0]),
+      `.then((r: any) => r[0]),
 
       // Top referrers with precomputed conversions
       sql`
@@ -119,7 +114,7 @@ export async function GET() {
           paid: parseInt(String(funnelResult?.paid || 0), 10)
         }
       },
-      topReferrers: topReferrers.map(r => ({
+      topReferrers: topReferrers.map((r: any) => ({
         user_id: r.user_id,
         telegram_user_id: String(r.telegram_user_id),
         referrals_count: r.referrals_count,
@@ -129,7 +124,7 @@ export async function GET() {
         referral_code: r.referral_code,
         conversions: r.conversions
       })),
-      recentEarnings: recentEarnings.map(e => ({
+      recentEarnings: recentEarnings.map((e: any) => ({
         id: e.id,
         referrer_id: e.referrer_id,
         referrer_telegram_id: String(e.referrer_telegram_id),

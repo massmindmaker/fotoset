@@ -3,9 +3,10 @@
  *
  * Returns partner dashboard statistics
  *
- * Supports both Telegram and Web users:
- * - Telegram: via telegram_user_id query param
- * - Web: via neon_user_id query param
+ * Authentication methods (in priority order):
+ * 1. Partner session cookie (for web login)
+ * 2. telegram_user_id query param (for Telegram WebApp)
+ * 3. neon_user_id query param (for Neon Auth)
  *
  * Includes:
  * - Current balance (RUB + TON)
@@ -16,39 +17,57 @@
  * - Monthly earnings chart data
  */
 
+export const runtime = 'edge'
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
 import { extractIdentifierFromRequest, findUserByIdentifier } from '@/lib/user-identity'
+import { getCurrentPartnerSession } from '@/lib/partner/session'
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const telegramUserId = searchParams.get('telegram_user_id')
-    const neonUserId = searchParams.get('neon_user_id')
+    let userId: number | null = null
 
-    if (!telegramUserId && !neonUserId) {
+    // Priority 1: Get userId from partner session cookie (with timeout)
+    try {
+      const sessionPromise = getCurrentPartnerSession()
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
+      const session = await Promise.race([sessionPromise, timeoutPromise])
+      if (session?.userId) {
+        userId = session.userId
+      }
+    } catch (e) {
+      console.error('[Partner Stats] Session check error:', e)
+      // Session check failed, continue with query params
+    }
+
+    // Priority 2: Get from query params (Telegram/Neon auth)
+    if (!userId) {
+      const { searchParams } = new URL(request.url)
+      const telegramUserId = searchParams.get('telegram_user_id')
+      const neonUserId = searchParams.get('neon_auth_id') || searchParams.get('neon_user_id')
+
+      if (telegramUserId || neonUserId) {
+        const identifier = extractIdentifierFromRequest({
+          telegram_user_id: telegramUserId,
+          neon_auth_id: neonUserId
+        })
+        const basicUser = await findUserByIdentifier(identifier)
+        if (basicUser) {
+          userId = basicUser.id
+        }
+      }
+    }
+
+    if (!userId) {
       return NextResponse.json(
-        { error: 'telegram_user_id or neon_user_id required' },
-        { status: 400 }
+        { error: 'Authentication required' },
+        { status: 401 }
       )
     }
 
-    // Get user by identifier
-    const identifier = extractIdentifierFromRequest({
-      telegram_user_id: telegramUserId,
-      neon_user_id: neonUserId
-    })
-
-    const basicUser = await findUserByIdentifier(identifier)
-
-    if (!basicUser) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
-    }
-
-    // Get user with referral balance
+    // Get user with referral balance using userId from session or query params
     const user = await sql`
       SELECT
         u.id,
@@ -58,16 +77,15 @@ export async function GET(request: NextRequest) {
         rb.referral_code,
         rb.balance_rub,
         rb.balance_ton,
-        rb.total_earned_rub,
-        rb.total_earned_ton,
-        rb.total_withdrawn_rub,
-        rb.total_withdrawn_ton,
+        rb.earned_rub,
+        rb.earned_ton,
+        rb.withdrawn_rub,
+        rb.withdrawn_ton,
         rb.is_partner,
-        rb.commission_rate,
-        rb.promoted_at
+        rb.commission_rate
       FROM users u
       LEFT JOIN referral_balances rb ON rb.user_id = u.id
-      WHERE u.id = ${basicUser.id}
+      WHERE u.id = ${userId}
     `.then((rows: any[]) => rows[0])
 
     if (!user) {
@@ -108,14 +126,15 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Get referral counts
+    // Get referral counts from referrals + referral_earnings tables
     const referralStats = await sql`
       SELECT
-        COUNT(*) as total,
-        COUNT(CASE WHEN last_activity_at > NOW() - INTERVAL '30 days' THEN 1 END) as active_30d,
-        COUNT(CASE WHEN total_spent > 0 THEN 1 END) as with_payments
-      FROM referral_stats
-      WHERE referrer_id = ${user.id}
+        COUNT(DISTINCT r.referred_id) as total,
+        COUNT(DISTINCT CASE WHEN re.created_at > NOW() - INTERVAL '30 days' THEN r.referred_id END) as active_30d,
+        COUNT(DISTINCT CASE WHEN re.id IS NOT NULL THEN r.referred_id END) as with_payments
+      FROM referrals r
+      LEFT JOIN referral_earnings re ON re.referred_id = r.referred_id AND re.referrer_id = r.referrer_id
+      WHERE r.referrer_id = ${user.id}
     `.then((rows: any[]) => rows[0])
 
     // Get pending earnings count
@@ -147,7 +166,7 @@ export async function GET(request: NextRequest) {
     // Get pending withdrawals
     const pendingWithdrawals = await sql`
       SELECT COALESCE(SUM(amount), 0) as pending
-      FROM withdrawals
+      FROM referral_withdrawals
       WHERE user_id = ${user.id} AND status IN ('pending', 'processing')
     `.then((rows: any[]) => parseFloat(rows[0]?.pending || '0'))
 
@@ -173,12 +192,12 @@ export async function GET(request: NextRequest) {
         ton: parseFloat(pendingEarnings?.pending_ton || '0')
       },
       totalEarned: {
-        rub: parseFloat(user.total_earned_rub || '0'),
-        ton: parseFloat(user.total_earned_ton || '0')
+        rub: parseFloat(user.earned_rub || '0'),
+        ton: parseFloat(user.earned_ton || '0')
       },
       totalWithdrawn: {
-        rub: parseFloat(user.total_withdrawn_rub || '0'),
-        ton: parseFloat(user.total_withdrawn_ton || '0')
+        rub: parseFloat(user.withdrawn_rub || '0'),
+        ton: parseFloat(user.withdrawn_ton || '0')
       },
       referrals: {
         total: totalReferrals,
@@ -191,7 +210,6 @@ export async function GET(request: NextRequest) {
       isPartner: user.is_partner || false,
       commissionRate: parseFloat(user.commission_rate || '0.10'),
       referralCode: user.referral_code,
-      promotedAt: user.promoted_at,
       monthlyEarnings: monthlyEarnings.map((m: any) => ({
         month: m.month,
         rub: parseFloat(m.rub || '0'),
@@ -203,7 +221,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[Partner Stats] Error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown',
+        stack: error instanceof Error ? error.stack?.split('\n').slice(0, 5) : undefined
+      },
       { status: 500 }
     )
   }

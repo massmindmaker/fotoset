@@ -143,9 +143,9 @@ export async function GET(request: NextRequest) {
       return success({ activePack: null })
     }
 
-    // Fetch pack details
+    // Fetch pack details with preview images
     const packResult = await sql`
-      SELECT id, slug, name, icon_emoji, is_active, moderation_status
+      SELECT id, slug, name, icon_emoji, cover_url, preview_images, is_active, moderation_status
       FROM photo_packs
       WHERE id = ${user.active_pack_id}
     `
@@ -189,6 +189,8 @@ export async function GET(request: NextRequest) {
         slug: pack.slug,
         name: pack.name,
         iconEmoji: pack.icon_emoji,
+        coverUrl: pack.cover_url,
+        previewImages: pack.preview_images || [],
       },
     })
   } catch (err) {

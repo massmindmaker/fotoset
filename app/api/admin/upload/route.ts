@@ -4,6 +4,10 @@
  *
  * Uses Cloudflare R2 for storage
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentSession } from '@/lib/admin/session'

@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PinGlass — Investor Pitch</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --primary: #FF6B6B;
+      --secondary: #FF8E53;
+      --accent: #A78BFA;
+      --success: #4ADE80;
+      --ton-blue: #0098EA;
+      --bg-dark: #0a0a0f;
+      --bg-card: #12121a;
+      --bg-surface: #1a1a24;
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0b0;
+      --text-muted: #606070;
+      --gradient-primary: linear-gradient(135deg, var(--primary), var(--secondary));
+    }
+    html { scroll-behavior: smooth; scroll-snap-type: y mandatory; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+    .slide {
+      min-height: 100vh;
+      padding: 50px 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      scroll-snap-align: start;
+    }
+    .slide::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 20% 20%, rgba(255,107,107,0.06) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    .slide-content {
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .slide-number {
+      position: absolute;
+      bottom: 20px;
+      right: 40px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    h1 { font-size: 80px; font-weight: 800; background: var(--gradient-primary); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 16px; }
+    h2 { font-size: 44px; font-weight: 700; margin-bottom: 24px; }
+    h3 { font-size: 24px; font-weight: 600; margin-bottom: 12px; }
+    h4 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .subtitle { font-size: 20px; color: var(--text-secondary); margin-bottom: 32px; }
+    .highlight { color: var(--primary); font-weight: 600; }
+    .card { background: var(--bg-card); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 24px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+    /* Navigation */
+    .nav { position: fixed; right: 24px; top: 50%; transform: translateY(-50%); z-index: 100; display: flex; flex-direction: column; gap: 10px; }
+    .nav-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; cursor: pointer; transition: all 0.3s; }
+    .nav-dot:hover, .nav-dot.active { background: var(--primary); transform: scale(1.3); }
+
+    /* Title */
+    .title-slide { text-align: center; }
+    .logo { width: 100px; height: 100px; background: var(--gradient-primary); border-radius: 28px; display: flex; align-items: center; justify-content: center; font-size: 50px; margin: 0 auto 32px; box-shadow: 0 20px 60px rgba(255,107,107,0.3); }
+    .title-stats { display: flex; justify-content: center; gap: 60px; margin-top: 40px; }
+    .title-stat-value { font-size: 42px; font-weight: 700; background: var(--gradient-primary); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .title-stat-label { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Problem */
+    .problem-item { display: flex; align-items: center; gap: 20px; padding: 20px 24px; background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.2); border-radius: 12px; margin-bottom: 16px; }
+    .problem-icon { width: 48px; height: 48px; background: rgba(255,107,107,0.15); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+    .problem-text { font-size: 18px; }
+    .problem-text strong { color: var(--primary); }
+
+    /* Solution Flow */
+    .solution-flow { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 32px 0; }
+    .solution-step { text-align: center; padding: 20px 16px; background: var(--bg-card); border-radius: 16px; width: 160px; }
+    .solution-step-icon { width: 56px; height: 56px; background: var(--gradient-primary); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 10px; }
+    .solution-step-title { font-size: 15px; font-weight: 600; }
+    .solution-step-desc { font-size: 12px; color: var(--text-muted); }
+    .solution-arrow { font-size: 24px; color: var(--primary); }
+
+    /* Pricing */
+    .pricing-card { background: var(--bg-card); border: 2px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 24px; text-align: center; }
+    .pricing-card.popular { border-color: var(--primary); background: linear-gradient(135deg, rgba(255,107,107,0.1), rgba(167,139,250,0.05)); }
+    .pricing-badge { background: var(--gradient-primary); color: white; font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 12px; display: inline-block; margin-bottom: 12px; }
+    .pricing-photos { font-size: 36px; font-weight: 800; background: var(--gradient-primary); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .pricing-price { font-size: 28px; font-weight: 700; margin: 8px 0 4px; }
+    .pricing-per { font-size: 12px; color: var(--text-muted); }
+
+    /* Market */
+    .market-circle { text-align: center; }
+    .market-ring { width: 140px; height: 140px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 12px; }
+    .market-ring.tam { background: linear-gradient(135deg, rgba(255,107,107,0.2), rgba(255,107,107,0.05)); border: 3px solid var(--primary); }
+    .market-ring.sam { background: linear-gradient(135deg, rgba(167,139,250,0.2), rgba(167,139,250,0.05)); border: 3px solid var(--accent); width: 120px; height: 120px; }
+    .market-ring.som { background: linear-gradient(135deg, rgba(74,222,128,0.2), rgba(74,222,128,0.05)); border: 3px solid var(--success); width: 100px; height: 100px; }
+    .market-value { font-size: 24px; font-weight: 700; }
+    .market-label { font-size: 12px; color: var(--text-muted); }
+
+    /* Partner */
+    .partner-feature { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
+    .partner-feature::before { content: '✓'; color: var(--success); font-weight: bold; }
+
+    /* Unit Economics */
+    .unit-table { width: 100%; border-collapse: collapse; }
+    .unit-table th, .unit-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 13px; }
+    .unit-table th { background: var(--bg-surface); font-weight: 600; }
+    .unit-negative { color: var(--primary); }
+    .unit-positive { color: var(--success); font-weight: 600; }
+
+    /* Chart */
+    .chart-bars { display: flex; align-items: flex-end; justify-content: space-between; height: 180px; padding: 0 8px; }
+    .chart-bar { display: flex; flex-direction: column; align-items: center; flex: 1; }
+    .chart-bar-value { font-size: 11px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary); }
+    .chart-bar-fill { width: 28px; background: var(--gradient-primary); border-radius: 4px 4px 0 0; min-height: 8px; }
+    .chart-bar-label { font-size: 10px; color: var(--text-muted); margin-top: 6px; }
+
+    /* CTA */
+    .cta-card { background: var(--gradient-primary); border-radius: 20px; padding: 40px; text-align: center; margin-top: 32px; }
+    .cta-card h3 { color: white; font-size: 28px; margin-bottom: 12px; }
+    .cta-card p { color: rgba(255,255,255,0.9); font-size: 16px; }
+
+    /* Big number */
+    .big-number { font-size: 48px; font-weight: 800; background: var(--gradient-primary); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <button class="nav-dot active" onclick="scrollToSlide(1)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(2)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(3)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(4)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(5)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(6)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(7)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(8)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(9)"></button>
+    <button class="nav-dot" onclick="scrollToSlide(10)"></button>
+  </nav>
+
+  <!-- SLIDE 1: TITLE -->
+  <section class="slide title-slide" id="slide-1">
+    <div class="slide-content">
+      <div class="logo">👓</div>
+      <h1>PinGlass</h1>
+      <p class="subtitle">AI-фотосессия за 5 минут вместо 5 часов в студии</p>
+      <div class="title-stats">
+        <div>
+          <div class="title-stat-value">499₽</div>
+          <div class="title-stat-label">от стоимости</div>
+        </div>
+        <div>
+          <div class="title-stat-value">23</div>
+          <div class="title-stat-label">фото за сессию</div>
+        </div>
+        <div>
+          <div class="title-stat-value">50%</div>
+          <div class="title-stat-label">партнёрам</div>
+        </div>
+      </div>
+      <p style="margin-top: 48px; color: var(--text-muted); font-size: 13px;">Telegram WebApp • T-Bank • TON • Stars</p>
+    </div>
+    <div class="slide-number">01 / 10</div>
+  </section>
+
+  <!-- SLIDE 2: PROBLEM -->
+  <section class="slide" id="slide-2">
+    <div class="slide-content">
+      <h2>Проблема</h2>
+      <p class="subtitle">Людям нужны качественные фото для соцсетей и дейтинга</p>
+
+      <div class="grid-2">
+        <div>
+          <div class="problem-item">
+            <div class="problem-icon">💸</div>
+            <div class="problem-text">Фотосессия в студии: <strong>5 000 – 15 000 ₽</strong></div>
+          </div>
+          <div class="problem-item">
+            <div class="problem-icon">⏰</div>
+            <div class="problem-text">Запись, поездка, ожидание: <strong>потеря дня</strong></div>
+          </div>
+          <div class="problem-item">
+            <div class="problem-icon">😕</div>
+            <div class="problem-text">Результат <strong>непредсказуем</strong></div>
+          </div>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; justify-content: center; text-align: center;">
+          <div class="big-number">105 млн</div>
+          <p style="color: var(--text-muted); margin-top: 8px;">пользователей Telegram в России<br>ищут решение</p>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">02 / 10</div>
+  </section>
+
+  <!-- SLIDE 3: SOLUTION + PRICING -->
+  <section class="slide" id="slide-3">
+    <div class="slide-content">
+      <h2>Решение</h2>
+      <p class="subtitle">AI генерирует профессиональные портреты за 5-10 минут</p>
+
+      <div class="solution-flow">
+        <div class="solution-step">
+          <div class="solution-step-icon">📤</div>
+          <div class="solution-step-title">Загрузи</div>
+          <div class="solution-step-desc">5-8 своих фото</div>
+        </div>
+        <div class="solution-arrow">→</div>
+        <div class="solution-step">
+          <div class="solution-step-icon">🎨</div>
+          <div class="solution-step-title">Выбери</div>
+          <div class="solution-step-desc">Стиль пакета</div>
+        </div>
+        <div class="solution-arrow">→</div>
+        <div class="solution-step">
+          <div class="solution-step-icon">💳</div>
+          <div class="solution-step-title">Оплати</div>
+          <div class="solution-step-desc">от 499₽</div>
+        </div>
+        <div class="solution-arrow">→</div>
+        <div class="solution-step">
+          <div class="solution-step-icon">✨</div>
+          <div class="solution-step-title">Получи</div>
+          <div class="solution-step-desc">7-23 портрета</div>
+        </div>
+      </div>
+
+      <div class="grid-3" style="margin-top: 24px;">
+        <div class="pricing-card">
+          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">Starter</div>
+          <div class="pricing-photos">7</div>
+          <div style="font-size: 12px; color: var(--text-muted);">фото</div>
+          <div class="pricing-price">499 ₽</div>
+          <div class="pricing-per">~71 ₽/фото</div>
+        </div>
+        <div class="pricing-card popular">
+          <div class="pricing-badge">ХИТ</div>
+          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">Standard</div>
+          <div class="pricing-photos">15</div>
+          <div style="font-size: 12px; color: var(--text-muted);">фото</div>
+          <div class="pricing-price">999 ₽</div>
+          <div class="pricing-per">~67 ₽/фото</div>
+        </div>
+        <div class="pricing-card">
+          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">Premium</div>
+          <div class="pricing-photos">23</div>
+          <div style="font-size: 12px; color: var(--text-muted);">фото</div>
+          <div class="pricing-price">1 499 ₽</div>
+          <div class="pricing-per">~65 ₽/фото</div>
+        </div>
+      </div>
+      <p style="text-align: center; margin-top: 16px; font-size: 14px; color: var(--text-muted);">
+        Студия: 5 000 – 15 000 ₽ за 20 фото → <span class="highlight">PinGlass в 10-30× дешевле</span>
+      </p>
+    </div>
+    <div class="slide-number">03 / 10</div>
+  </section>
+
+  <!-- SLIDE 4: AUDIENCE -->
+  <section class="slide" id="slide-4">
+    <div class="slide-content">
+      <h2>Целевая аудитория</h2>
+      <p class="subtitle">Пользователи Telegram, которым нужны качественные фото</p>
+
+      <div class="grid-3">
+        <div class="card" style="text-align: center;">
+          <div style="font-size: 40px; margin-bottom: 12px;">💕</div>
+          <h4>Дейтинг</h4>
+          <div class="big-number" style="font-size: 36px;">15+ млн</div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Давинчик бот, VK Dating,<br>Tinder, Badoo</p>
+        </div>
+        <div class="card" style="text-align: center;">
+          <div style="font-size: 40px; margin-bottom: 12px;">💼</div>
+          <h4>Профессионалы</h4>
+          <div class="big-number" style="font-size: 36px;">10+ млн</div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">LinkedIn, резюме,<br>бизнес-профили</p>
+        </div>
+        <div class="card" style="text-align: center;">
+          <div style="font-size: 40px; margin-bottom: 12px;">📸</div>
+          <h4>Контент-мейкеры</h4>
+          <div class="big-number" style="font-size: 36px;">5+ млн</div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Блогеры, инфлюенсеры,<br>авторы</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 24px; text-align: center;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 40px;">
+          <div>
+            <div class="big-number" style="font-size: 42px;">105 млн</div>
+            <p style="font-size: 14px; color: var(--text-muted);">Telegram Россия</p>
+          </div>
+          <div style="font-size: 32px; color: var(--text-muted);">×</div>
+          <div>
+            <div class="big-number" style="font-size: 42px;">0.03%</div>
+            <p style="font-size: 14px; color: var(--text-muted);">Конверсия</p>
+          </div>
+          <div style="font-size: 32px; color: var(--text-muted);">=</div>
+          <div>
+            <div class="big-number" style="font-size: 42px;">31 500</div>
+            <p style="font-size: 14px; color: var(--text-muted);">Платежей Y1</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">04 / 10</div>
+  </section>
+
+  <!-- SLIDE 5: MARKET -->
+  <section class="slide" id="slide-5">
+    <div class="slide-content">
+      <h2>Рынок</h2>
+      <p class="subtitle">AI-генерация изображений — один из самых быстрорастущих сегментов</p>
+
+      <div style="display: flex; justify-content: center; gap: 60px; margin: 40px 0;">
+        <div class="market-circle">
+          <div class="market-ring tam">
+            <div class="market-value">$60B</div>
+            <div class="market-label">к 2030</div>
+          </div>
+          <h4>TAM</h4>
+          <p style="font-size: 11px; color: var(--text-muted);">AI Image Generation</p>
+        </div>
+        <div class="market-circle">
+          <div class="market-ring sam">
+            <div class="market-value">$500M</div>
+            <div class="market-label">2025</div>
+          </div>
+          <h4>SAM</h4>
+          <p style="font-size: 11px; color: var(--text-muted);">AI Headshots</p>
+        </div>
+        <div class="market-circle">
+          <div class="market-ring som">
+            <div class="market-value">$5M</div>
+            <div class="market-label">Y1</div>
+          </div>
+          <h4>SOM</h4>
+          <p style="font-size: 11px; color: var(--text-muted);">Россия + СНГ</p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h4>Конкуренты в России</h4>
+          <p style="font-size: 32px; font-weight: 700; color: var(--success); margin: 8px 0;">0</p>
+          <p style="font-size: 13px; color: var(--text-muted);">Telegram-native сервисов с рублёвой оплатой и партнёркой</p>
+        </div>
+        <div class="card">
+          <h4>Западные альтернативы</h4>
+          <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">
+            Headsnap <span style="color: var(--primary);">$29</span> •
+            Remini <span style="color: var(--primary);">$10</span> •
+            Photoroom <span style="color: var(--primary);">$13</span><br>
+            <strong>Без рублей, без Telegram, без партнёрки</strong>
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">05 / 10</div>
+  </section>
+
+  <!-- SLIDE 6: GO TO MARKET -->
+  <section class="slide" id="slide-6">
+    <div class="slide-content">
+      <h2>Go-to-Market</h2>
+      <p class="subtitle">Виральный рост через партнёрскую программу — 0₽ на рекламу</p>
+
+      <div class="grid-2">
+        <div class="card" style="border: 2px solid var(--primary);">
+          <h3 style="color: var(--primary);">Партнёрская программа</h3>
+          <div style="display: flex; align-items: center; gap: 16px; margin: 16px 0;">
+            <div class="big-number" style="font-size: 56px;">50%</div>
+            <div>
+              <p style="font-size: 14px;">от каждой продажи</p>
+              <p style="font-size: 13px; color: var(--text-muted);">~500₽ с клиента (Standard)</p>
+            </div>
+          </div>
+          <div style="background: var(--bg-surface); padding: 12px; border-radius: 8px; margin-top: 12px;">
+            <p style="font-size: 13px; color: var(--text-secondary);">
+              <strong>Для кого:</strong> блогеры, владельцы Telegram-каналов,<br>инфлюенсеры дейтинг-тематики
+            </p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Реферальная система</h3>
+          <div style="display: flex; align-items: center; gap: 16px; margin: 16px 0;">
+            <div class="big-number" style="font-size: 56px; color: var(--accent); -webkit-text-fill-color: var(--accent);">10%</div>
+            <div>
+              <p style="font-size: 14px;">для всех пользователей</p>
+              <p style="font-size: 13px; color: var(--text-muted);">~100₽ с приглашённого</p>
+            </div>
+          </div>
+          <div style="background: var(--bg-surface); padding: 12px; border-radius: 8px; margin-top: 12px;">
+            <p style="font-size: 13px; color: var(--text-secondary);">
+              <strong>Механика:</strong> каждый пользователь получает<br>реферальную ссылку автоматически
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 20px;">
+        <h4>Воронка привлечения</h4>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 16px;">
+          <div style="text-align: center; flex: 1;">
+            <div style="font-size: 28px;">📢</div>
+            <p style="font-size: 13px; margin-top: 4px;">Партнёр публикует</p>
+          </div>
+          <div style="color: var(--primary);">→</div>
+          <div style="text-align: center; flex: 1;">
+            <div style="font-size: 28px;">👆</div>
+            <p style="font-size: 13px; margin-top: 4px;">Клик по ссылке</p>
+          </div>
+          <div style="color: var(--primary);">→</div>
+          <div style="text-align: center; flex: 1;">
+            <div style="font-size: 28px;">📱</div>
+            <p style="font-size: 13px; margin-top: 4px;">Открывает бот</p>
+          </div>
+          <div style="color: var(--primary);">→</div>
+          <div style="text-align: center; flex: 1;">
+            <div style="font-size: 28px;">💳</div>
+            <p style="font-size: 13px; margin-top: 4px;">Оплачивает</p>
+          </div>
+          <div style="color: var(--primary);">→</div>
+          <div style="text-align: center; flex: 1;">
+            <div style="font-size: 28px;">💰</div>
+            <p style="font-size: 13px; margin-top: 4px;">Партнёр получает 50%</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">06 / 10</div>
+  </section>
+
+  <!-- SLIDE 7: PARTNER CABINET -->
+  <section class="slide" id="slide-7">
+    <div class="slide-content">
+      <h2>Кабинет партнёра</h2>
+      <p class="subtitle">Полноценная платформа для заработка и создания контента</p>
+
+      <div class="grid-2">
+        <div>
+          <div class="card" style="margin-bottom: 16px;">
+            <h4>📊 Dashboard</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px;">
+              <div class="partner-feature">Общий заработок</div>
+              <div class="partner-feature">К выводу</div>
+              <div class="partner-feature">Кол-во рефералов</div>
+              <div class="partner-feature">Конверсия</div>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom: 16px;">
+            <h4>💰 Выплаты</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px;">
+              <div class="partner-feature">Min: 5 000 ₽</div>
+              <div class="partner-feature">НДФЛ 13% авто</div>
+              <div class="partner-feature">Карта / СБП</div>
+              <div class="partner-feature">История выплат</div>
+            </div>
+          </div>
+          <div class="card">
+            <h4>👥 Рефералы</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px;">
+              <div class="partner-feature">Список рефералов</div>
+              <div class="partner-feature">Их покупки</div>
+              <div class="partner-feature">Заработок с каждого</div>
+              <div class="partner-feature">Активность</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card" style="border: 2px solid var(--primary); margin-bottom: 16px;">
+            <h4>🎨 Создание фотопаков</h4>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 8px 0;">Уникальные стили под свою аудиторию</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div class="partner-feature">До 5 пакетов</div>
+              <div class="partner-feature">7-23 промпта</div>
+              <div class="partner-feature">4 превью-фото</div>
+              <div class="partner-feature">Тестер промптов</div>
+            </div>
+            <div style="background: var(--bg-surface); padding: 8px; border-radius: 6px; margin-top: 12px; font-size: 12px; color: var(--text-muted);">
+              Модерация: Draft → Pending → Approved
+            </div>
+          </div>
+          <div class="card">
+            <h4>🔗 Реферальная ссылка</h4>
+            <div style="background: var(--bg-surface); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 13px; margin-top: 8px;">
+              pinglass.ru?ref=<span style="color: var(--primary);">{code}</span>
+            </div>
+            <p style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">Копирование в 1 клик</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">07 / 10</div>
+  </section>
+
+  <!-- SLIDE 8: UNIT ECONOMICS -->
+  <section class="slide" id="slide-8">
+    <div class="slide-content">
+      <h2>Unit Economics</h2>
+      <p class="subtitle">Прозрачная экономика на примере Standard (999₽)</p>
+
+      <div class="grid-2">
+        <div>
+          <table class="unit-table">
+            <thead>
+              <tr><th>Статья</th><th>Сумма</th><th>%</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Выручка</td><td><strong>999 ₽</strong></td><td>100%</td></tr>
+              <tr><td>Партнёру 50%</td><td class="unit-negative">−500 ₽</td><td>50%</td></tr>
+              <tr><td>Kie.ai генерация</td><td class="unit-negative">−150 ₽</td><td>15%</td></tr>
+              <tr><td>T-Bank комиссия</td><td class="unit-negative">−30 ₽</td><td>3%</td></tr>
+              <tr><td>УСН 6%</td><td class="unit-negative">−60 ₽</td><td>6%</td></tr>
+              <tr><td><strong>Прибыль</strong></td><td class="unit-positive">259 ₽</td><td><strong>26%</strong></td></tr>
+            </tbody>
+          </table>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 12px;">* При органике (без партнёра): маржа ~64%</p>
+        </div>
+
+        <div>
+          <div class="card" style="text-align: center; margin-bottom: 16px;">
+            <p style="font-size: 13px; color: var(--text-muted);">Средняя прибыль с платежа</p>
+            <div class="big-number" style="font-size: 48px;">~260 ₽</div>
+            <p style="font-size: 12px; color: var(--text-muted);">при 50% партнёрской комиссии</p>
+          </div>
+          <div class="grid-3" style="gap: 12px;">
+            <div class="card" style="text-align: center; padding: 16px;">
+              <p style="font-size: 24px; font-weight: 700; color: var(--primary);">T-Bank</p>
+              <p style="font-size: 11px; color: var(--text-muted);">Рубли</p>
+            </div>
+            <div class="card" style="text-align: center; padding: 16px;">
+              <p style="font-size: 24px; font-weight: 700; color: var(--ton-blue);">TON</p>
+              <p style="font-size: 11px; color: var(--text-muted);">Крипто</p>
+            </div>
+            <div class="card" style="text-align: center; padding: 16px;">
+              <p style="font-size: 24px; font-weight: 700; color: var(--accent);">Stars</p>
+              <p style="font-size: 11px; color: var(--text-muted);">Telegram</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">08 / 10</div>
+  </section>
+
+  <!-- SLIDE 9: PROFIT FORECAST -->
+  <section class="slide" id="slide-9">
+    <div class="slide-content">
+      <h2>Прогноз прибыли</h2>
+      <p class="subtitle">Консервативный сценарий на 12 месяцев</p>
+
+      <div class="card">
+        <div class="chart-bars">
+          <div class="chart-bar"><div class="chart-bar-value">0.8M</div><div class="chart-bar-fill" style="height: 20px;"></div><div class="chart-bar-label">М1</div></div>
+          <div class="chart-bar"><div class="chart-bar-value">1.8M</div><div class="chart-bar-fill" style="height: 35px;"></div><div class="chart-bar-label">М2</div></div>
+          <div class="chart-bar"><div class="chart-bar-value">3.2M</div><div class="chart-bar-fill" style="height: 50px; background: var(--success);"></div><div class="chart-bar-label">М3</div></div>
+          <div class="chart-bar"><div class="chart-bar-value">5M</div><div class="chart-bar-fill" style="height: 65px;"></div><div class="chart-bar-label">М4</div></div>
+          <div class="chart-bar"><div class="chart-bar-value">7M</div><div class="chart-bar-fill" style="height: 80px;"></div><div class="chart-bar-label">М5</div></div>
+          <div class="chart-bar"><div class="chart-bar-value">10M</div><div class="chart-bar-fill" style="height: 100px;"></div><div class="chart-bar-label">М6</div></div>
+          <div class="chart-bar"><div class="chart-bar-value">13M</div><div class="chart-bar-fill" style="height: 115px;"></div><div class="chart-bar-label">М7</div></div>
+          <div class="chart-bar"><div class="chart-bar-value">17M</div><div class="chart-bar-fill" style="height: 130px;"></div><div class="chart-bar-label">М8</div></div>
+          <div class="chart-bar"><div class="chart-bar-value">21M</div><div class="chart-bar-fill" style="height: 145px;"></div><div class="chart-bar-label">М9</div></div>
+          <div class="chart-bar"><div class="chart-bar-value">26M</div><div class="chart-bar-fill" style="height: 160px;"></div><div class="chart-bar-label">М10</div></div>
+          <div class="chart-bar"><div class="chart-bar-value">32M</div><div class="chart-bar-fill" style="height: 175px;"></div><div class="chart-bar-label">М11</div></div>
+          <div class="chart-bar"><div class="chart-bar-value">40M</div><div class="chart-bar-fill" style="height: 190px; background: var(--accent);"></div><div class="chart-bar-label">М12</div></div>
+        </div>
+      </div>
+
+      <div class="grid-4" style="margin-top: 20px;">
+        <div class="card" style="text-align: center; padding: 16px;">
+          <p style="font-size: 24px; font-weight: 700; color: var(--success);">5.8M ₽</p>
+          <p style="font-size: 11px; color: var(--text-muted);">Прибыль Q1</p>
+        </div>
+        <div class="card" style="text-align: center; padding: 16px;">
+          <p style="font-size: 24px; font-weight: 700; color: var(--primary);">22M ₽</p>
+          <p style="font-size: 11px; color: var(--text-muted);">Прибыль H1</p>
+        </div>
+        <div class="card" style="text-align: center; padding: 16px;">
+          <p style="font-size: 24px; font-weight: 700; color: var(--accent);">40M ₽</p>
+          <p style="font-size: 11px; color: var(--text-muted);">Прибыль Y1</p>
+        </div>
+        <div class="card" style="text-align: center; padding: 16px;">
+          <p style="font-size: 24px; font-weight: 700;">0 ₽</p>
+          <p style="font-size: 11px; color: var(--text-muted);">Затраты на рекламу</p>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">09 / 10</div>
+  </section>
+
+  <!-- SLIDE 10: BENEFITS FOR ALL -->
+  <section class="slide" id="slide-10">
+    <div class="slide-content">
+      <h2>Выгода для всех участников</h2>
+
+      <div class="grid-3" style="margin-top: 32px;">
+        <div class="card" style="border: 2px solid var(--primary); text-align: center;">
+          <div style="font-size: 40px; margin-bottom: 12px;">👤</div>
+          <h3 style="color: var(--primary);">Пользователь</h3>
+          <div class="big-number" style="font-size: 32px; margin: 12px 0;">499₽</div>
+          <p style="font-size: 13px; color: var(--text-muted);">вместо 10К в студии</p>
+          <div style="text-align: left; margin-top: 16px; font-size: 13px; color: var(--text-secondary);">
+            <div class="partner-feature">23 фото за 5-10 минут</div>
+            <div class="partner-feature">Прямо в Telegram</div>
+            <div class="partner-feature">Без поездки в студию</div>
+          </div>
+        </div>
+
+        <div class="card" style="border: 2px solid var(--success); text-align: center;">
+          <div style="font-size: 40px; margin-bottom: 12px;">🤝</div>
+          <h3 style="color: var(--success);">Партнёр</h3>
+          <div class="big-number" style="font-size: 32px; margin: 12px 0; color: var(--success); -webkit-text-fill-color: var(--success);">500₽</div>
+          <p style="font-size: 13px; color: var(--text-muted);">с каждого клиента</p>
+          <div style="text-align: left; margin-top: 16px; font-size: 13px; color: var(--text-secondary);">
+            <div class="partner-feature">50% от продаж</div>
+            <div class="partner-feature">Свои фотопаки</div>
+            <div class="partner-feature">Вывод на карту/СБП</div>
+          </div>
+        </div>
+
+        <div class="card" style="border: 2px solid var(--accent); text-align: center;">
+          <div style="font-size: 40px; margin-bottom: 12px;">🚀</div>
+          <h3 style="color: var(--accent);">Инвестор</h3>
+          <div class="big-number" style="font-size: 32px; margin: 12px 0; color: var(--accent); -webkit-text-fill-color: var(--accent);">40M₽</div>
+          <p style="font-size: 13px; color: var(--text-muted);">прибыль за год</p>
+          <div style="text-align: left; margin-top: 16px; font-size: 13px; color: var(--text-secondary);">
+            <div class="partner-feature">0₽ на рекламу</div>
+            <div class="partner-feature">Виральный рост</div>
+            <div class="partner-feature">105М аудитория</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cta-card">
+        <h3>Готовы к сотрудничеству</h3>
+        <p>Telegram: <strong>@pinglass_bot</strong> • Email: <strong>hello@pinglass.ru</strong></p>
+      </div>
+    </div>
+    <div class="slide-number">10 / 10</div>
+  </section>
+
+  <script>
+    function scrollToSlide(n) {
+      document.getElementById('slide-' + n).scrollIntoView({ behavior: 'smooth' });
+    }
+    const slides = document.querySelectorAll('.slide');
+    const dots = document.querySelectorAll('.nav-dot');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const slideNum = entry.target.id.replace('slide-', '');
+          dots.forEach((dot, i) => dot.classList.toggle('active', i === parseInt(slideNum) - 1));
+        }
+      });
+    }, { threshold: 0.5 });
+    slides.forEach(slide => observer.observe(slide));
+  </script>
+
+</body>
+</html>

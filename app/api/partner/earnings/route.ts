@@ -3,48 +3,65 @@
  *
  * Returns partner's earnings history with pagination
  *
- * Supports both Telegram and Web users:
- * - Telegram: via telegram_user_id query param
- * - Web: via neon_user_id query param
+ * Authentication methods (in priority order):
+ * 1. Partner session cookie (for web login)
+ * 2. telegram_user_id query param (for Telegram WebApp)
+ * 3. neon_user_id query param (for Neon Auth)
  *
  * Query params:
- * - telegram_user_id: Telegram user ID (for Telegram users)
- * - neon_user_id: Neon Auth UUID (for Web users)
  * - page: Page number (default: 1)
  * - limit: Items per page (default: 20, max: 100)
  * - status: Filter by status (pending, credited, cancelled, all)
  * - currency: Filter by currency (RUB, TON, all)
  */
 
+export const runtime = 'edge'
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
 import { extractIdentifierFromRequest, findUserByIdentifier } from '@/lib/user-identity'
+import { getCurrentPartnerSession } from '@/lib/partner/session'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const telegramUserId = searchParams.get('telegram_user_id')
-    const neonUserId = searchParams.get('neon_user_id')
+    let userId: number | null = null
 
-    if (!telegramUserId && !neonUserId) {
-      return NextResponse.json(
-        { error: 'telegram_user_id or neon_user_id required' },
-        { status: 400 }
-      )
+    // Priority 1: Get userId from partner session cookie (with timeout)
+    try {
+      const sessionPromise = getCurrentPartnerSession()
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
+      const session = await Promise.race([sessionPromise, timeoutPromise])
+      if (session?.userId) {
+        userId = session.userId
+      }
+    } catch (e) {
+      console.error('[Partner Earnings] Session check error:', e)
+      // Session check failed, continue with query params
     }
 
-    // Get user by identifier
-    const identifier = extractIdentifierFromRequest({
-      telegram_user_id: telegramUserId,
-      neon_user_id: neonUserId
-    })
+    // Priority 2: Get from query params (Telegram/Neon auth)
+    if (!userId) {
+      const telegramUserId = searchParams.get('telegram_user_id')
+      const neonUserId = searchParams.get('neon_auth_id') || searchParams.get('neon_user_id')
 
-    const user = await findUserByIdentifier(identifier)
+      if (telegramUserId || neonUserId) {
+        const identifier = extractIdentifierFromRequest({
+          telegram_user_id: telegramUserId,
+          neon_auth_id: neonUserId
+        })
+        const basicUser = await findUserByIdentifier(identifier)
+        if (basicUser) {
+          userId = basicUser.id
+        }
+      }
+    }
 
-    if (!user) {
+    if (!userId) {
       return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
+        { error: 'Authentication required' },
+        { status: 401 }
       )
     }
 
@@ -63,33 +80,31 @@ export async function GET(request: NextRequest) {
     const countResult = await sql`
       SELECT COUNT(*) as count
       FROM referral_earnings
-      WHERE referrer_id = ${user.id}
+      WHERE referrer_id = ${userId}
         AND (${statusCondition}::text IS NULL OR status = ${statusCondition})
         AND (${currencyCondition}::text IS NULL OR currency = ${currencyCondition})
     `.then((rows: any[]) => rows[0])
     const total = parseInt(countResult?.count || '0')
 
-    // Get earnings
+    // Get earnings (using correct column names from migrations)
     const earnings = await sql`
       SELECT
         re.id,
         re.payment_id,
-        re.referred_user_id,
+        re.referred_id,
         u.telegram_username,
         re.amount,
         re.currency,
-        re.commission_rate,
+        re.rate,
         re.status,
         re.created_at,
         re.credited_at,
-        re.cancelled_at,
-        re.cancelled_reason,
         p.amount as payment_amount,
         p.provider as payment_provider
       FROM referral_earnings re
-      JOIN users u ON u.id = re.referred_user_id
+      JOIN users u ON u.id = re.referred_id
       LEFT JOIN payments p ON p.id = re.payment_id
-      WHERE re.referrer_id = ${user.id}
+      WHERE re.referrer_id = ${userId}
         AND (${statusCondition}::text IS NULL OR re.status = ${statusCondition})
         AND (${currencyCondition}::text IS NULL OR re.currency = ${currencyCondition})
       ORDER BY re.created_at DESC
@@ -104,7 +119,7 @@ export async function GET(request: NextRequest) {
         COUNT(*) as count,
         COALESCE(SUM(amount), 0) as total
       FROM referral_earnings
-      WHERE referrer_id = ${user.id}
+      WHERE referrer_id = ${userId}
       GROUP BY status, currency
     `
 
@@ -134,17 +149,15 @@ export async function GET(request: NextRequest) {
         id: e.id,
         paymentId: e.payment_id,
         referredUser: {
-          id: e.referred_user_id,
+          id: e.referred_id,
           username: e.telegram_username ? '@' + e.telegram_username : null
         },
         amount: parseFloat(e.amount || '0'),
         currency: e.currency || 'RUB',
-        commissionRate: parseFloat(e.commission_rate || '0'),
+        commissionRate: parseFloat(e.rate || '0.10'),
         status: e.status,
         createdAt: e.created_at,
         creditedAt: e.credited_at,
-        cancelledAt: e.cancelled_at,
-        cancelledReason: e.cancelled_reason,
         payment: e.payment_id ? {
           amount: parseFloat(e.payment_amount || '0'),
           provider: e.payment_provider
@@ -162,7 +175,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[Partner Earnings] Error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown',
+        stack: error instanceof Error ? error.stack?.split('\n').slice(0, 5) : undefined
+      },
       { status: 500 }
     )
   }

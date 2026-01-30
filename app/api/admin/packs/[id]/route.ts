@@ -2,17 +2,15 @@
  * GET /api/admin/packs/[id]
  * Get full pack details with all prompts
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 interface RouteContext {
   params: Promise<{ id: string }>
 }
@@ -36,9 +34,6 @@ export async function GET(
         { status: 400 }
       )
     }
-
-    const sql = getSql()
-
     // Get pack details
     const packResult = await sql`
       SELECT

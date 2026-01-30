@@ -10,21 +10,22 @@ import type {
   WithdrawResponse
 } from './partner-types'
 
-// Get user ID from localStorage
-function getUserId(): { telegramUserId?: string; neonUserId?: string } | null {
-  if (typeof window === 'undefined') return null
+/**
+ * Build query params for backward compatibility with Telegram WebApp.
+ * For web login, API will use session cookie instead.
+ */
+function buildQueryParams(): string {
+  if (typeof window === 'undefined') return ''
 
+  const params = new URLSearchParams()
+
+  // Check localStorage for Telegram WebApp users
   const telegramUserId = localStorage.getItem('pinglass_telegram_user_id')
   const neonUserId = localStorage.getItem('pinglass_neon_user_id')
 
-  if (!telegramUserId && !neonUserId) return null
-  return { telegramUserId: telegramUserId || undefined, neonUserId: neonUserId || undefined }
-}
+  if (telegramUserId) params.set('telegram_user_id', telegramUserId)
+  if (neonUserId) params.set('neon_user_id', neonUserId)
 
-function buildQueryParams(userId: { telegramUserId?: string; neonUserId?: string }): string {
-  const params = new URLSearchParams()
-  if (userId.telegramUserId) params.set('telegram_user_id', userId.telegramUserId)
-  if (userId.neonUserId) params.set('neon_user_id', userId.neonUserId)
   return params.toString()
 }
 
@@ -35,16 +36,15 @@ export function usePartnerStats() {
   const [error, setError] = useState<string | null>(null)
 
   const fetchStats = useCallback(async () => {
-    const userId = getUserId()
-    if (!userId) {
-      setError('Not authenticated')
-      setLoading(false)
-      return
-    }
-
     try {
       setLoading(true)
-      const res = await fetch(`/api/partner/stats?${buildQueryParams(userId)}`)
+
+      // Build URL with optional query params (for Telegram WebApp compatibility)
+      // API will use session cookie if no query params provided
+      const queryParams = buildQueryParams()
+      const url = queryParams ? `/api/partner/stats?${queryParams}` : '/api/partner/stats'
+
+      const res = await fetch(url, { credentials: 'include' })
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || 'Failed to fetch stats')
@@ -73,22 +73,18 @@ export function usePartnerEarnings(page = 1, limit = 20, status = 'all', currenc
   const [error, setError] = useState<string | null>(null)
 
   const fetchEarnings = useCallback(async () => {
-    const userId = getUserId()
-    if (!userId) {
-      setError('Not authenticated')
-      setLoading(false)
-      return
-    }
-
     try {
       setLoading(true)
-      const params = new URLSearchParams(buildQueryParams(userId))
+
+      // Build params with optional user IDs for backward compatibility
+      const baseParams = buildQueryParams()
+      const params = new URLSearchParams(baseParams)
       params.set('page', page.toString())
       params.set('limit', limit.toString())
       if (status !== 'all') params.set('status', status)
       if (currency !== 'all') params.set('currency', currency)
 
-      const res = await fetch(`/api/partner/earnings?${params}`)
+      const res = await fetch(`/api/partner/earnings?${params}`, { credentials: 'include' })
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || 'Failed to fetch earnings')
@@ -117,20 +113,16 @@ export function usePartnerReferrals(page = 1, limit = 20) {
   const [error, setError] = useState<string | null>(null)
 
   const fetchReferrals = useCallback(async () => {
-    const userId = getUserId()
-    if (!userId) {
-      setError('Not authenticated')
-      setLoading(false)
-      return
-    }
-
     try {
       setLoading(true)
-      const params = new URLSearchParams(buildQueryParams(userId))
+
+      // Build params with optional user IDs for backward compatibility
+      const baseParams = buildQueryParams()
+      const params = new URLSearchParams(baseParams)
       params.set('page', page.toString())
       params.set('limit', limit.toString())
 
-      const res = await fetch(`/api/partner/referrals?${params}`)
+      const res = await fetch(`/api/partner/referrals?${params}`, { credentials: 'include' })
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || 'Failed to fetch referrals')
@@ -159,16 +151,15 @@ export function useWithdrawals() {
   const [error, setError] = useState<string | null>(null)
 
   const fetchWithdrawals = useCallback(async () => {
-    const userId = getUserId()
-    if (!userId?.telegramUserId) {
-      setError('Not authenticated')
-      setLoading(false)
-      return
-    }
-
     try {
       setLoading(true)
-      const res = await fetch(`/api/referral/withdraw?telegram_user_id=${userId.telegramUserId}`)
+
+      // Build URL with optional query params (for Telegram WebApp compatibility)
+      // API will use session cookie if no query params provided
+      const queryParams = buildQueryParams()
+      const url = queryParams ? `/api/partner/withdrawals?${queryParams}` : '/api/partner/withdrawals'
+
+      const res = await fetch(url, { credentials: 'include' })
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || 'Failed to fetch withdrawals')
@@ -190,29 +181,83 @@ export function useWithdrawals() {
   return { data, loading, error, refetch: fetchWithdrawals }
 }
 
+// Hook for partner packs
+export interface PartnerPack {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  iconEmoji: string
+  previewImages: string[]
+  moderationStatus: 'draft' | 'pending' | 'approved' | 'rejected'
+  isActive: boolean
+  isFeatured: boolean
+  sortOrder: number
+  usageCount: number
+  promptCount: number
+  submittedAt: string | null
+  reviewedAt: string | null
+  rejectionReason: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PartnerPacksResponse {
+  success: boolean
+  packs: PartnerPack[]
+}
+
+export function usePartnerPacks() {
+  const [packs, setPacks] = useState<PartnerPack[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchPacks = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      // Build URL with optional query params (for Telegram WebApp compatibility)
+      // API will use session cookie if no query params provided
+      const queryParams = buildQueryParams()
+      const url = queryParams ? `/api/partner/packs?${queryParams}` : '/api/partner/packs'
+
+      const res = await fetch(url, { credentials: 'include' })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || data.message || 'Failed to fetch packs')
+      }
+      const data: PartnerPacksResponse = await res.json()
+      setPacks(data.packs || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchPacks()
+  }, [fetchPacks])
+
+  return { packs, loading, error, refetch: fetchPacks }
+}
+
 // Hook for creating withdrawal
 export function useCreateWithdrawal() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const createWithdrawal = useCallback(async (request: Omit<WithdrawRequest, 'telegramUserId'>): Promise<WithdrawResponse | null> => {
-    const userId = getUserId()
-    if (!userId?.telegramUserId) {
-      setError('Not authenticated')
-      return null
-    }
-
     try {
       setLoading(true)
       setError(null)
 
-      const res = await fetch('/api/referral/withdraw', {
+      const res = await fetch('/api/partner/withdrawals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...request,
-          telegramUserId: parseInt(userId.telegramUserId)
-        })
+        credentials: 'include',
+        body: JSON.stringify(request)
       })
 
       const data = await res.json()

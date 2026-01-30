@@ -1,3 +1,6 @@
+export const runtime = 'edge'
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/db"
 import { extractIdentifierFromRequest, findUserByIdentifier } from "@/lib/user-identity"

@@ -5,17 +5,15 @@
  * Requires admin authentication
  * @see components/admin/PackModerationView.tsx
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 interface RouteContext {
   params: Promise<{ id: string }>
 }
@@ -37,9 +35,6 @@ export async function GET(
     if (isNaN(packId)) {
       return NextResponse.json({ error: 'Invalid pack ID' }, { status: 400 })
     }
-
-    const sql = getSql()
-
     // Verify pack exists
     const packCheck = await sql`
       SELECT id FROM photo_packs WHERE id = ${packId}

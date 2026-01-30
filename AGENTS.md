@@ -273,6 +273,48 @@ await publishGenerationJob({ jobId, avatarId })
 
 ---
 
+## Partner Packs System
+
+Partners can create custom style packs with AI prompts for the marketplace.
+
+### Partner Authentication
+- Login via `/partner/login` with email/password
+- Session stored in `partner_session` cookie (7 days)
+- Partner status: `referral_balances.is_partner = true`
+
+### Partner Pack Workflow
+```
+CREATE (draft) → ADD PROMPTS → SUBMIT → ADMIN REVIEW → APPROVED/REJECTED
+```
+
+### Key Files
+| File | Purpose |
+|------|---------|
+| `app/partner/` | Partner UI pages |
+| `app/api/partner/packs/` | Partner packs CRUD API |
+| `lib/partner/session.ts` | Partner session management |
+| `lib/pack-helpers.ts` | Pack preview image helpers |
+| `components/partner/PartnerTestBlock.tsx` | Prompt tester component |
+
+### Prompt Tester
+Partners can test prompts before adding to pack:
+- **Quota:** 200 test generations per partner
+- **Stored in:** `referral_balances.test_generations_used`
+- **Preview images:** Auto-copied to R2 on save
+
+### R2 Preview Storage
+External preview URLs (from Kie.ai) are automatically copied to R2:
+- **Path:** `previews/pack-{packId}/prompt-{promptId}-{timestamp}.jpg`
+- **Triggered on:** POST/PUT to `/api/partner/packs/[id]/prompts`
+- **Function:** `uploadFromUrl()` from `lib/r2.ts`
+
+### Pack Editor Features
+- 3-column layout: prompts list, editor, test area
+- Autosave draft to localStorage (1s debounce, 24h expiry)
+- Blob download for test images (prevents navigation)
+
+---
+
 ## OpenSpec Workflow
 
 For new features, create a proposal first:

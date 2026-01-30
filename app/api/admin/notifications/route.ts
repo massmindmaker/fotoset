@@ -2,17 +2,15 @@
  * GET /api/admin/notifications
  * Get admin notifications list
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 export interface AdminNotification {
   id: number
   type: string
@@ -33,9 +31,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const unreadOnly = searchParams.get('unread') === 'true'
     const limit = parseInt(searchParams.get('limit') || '20', 10)
-
-    const sql = getSql()
-
     // Check if table exists
     const tableCheck = await sql`
       SELECT EXISTS (
@@ -91,7 +86,7 @@ export async function GET(request: NextRequest) {
     `
 
     return NextResponse.json({
-      notifications: notifications.map(n => ({
+      notifications: notifications.map((n: any) => ({
         id: n.id,
         type: n.type,
         title: n.title,

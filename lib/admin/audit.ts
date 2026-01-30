@@ -5,7 +5,7 @@
  * Supports both new session-based auth and legacy Telegram auth.
  */
 
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
 
 export type AuditTargetType =
   | 'user'
@@ -88,11 +88,6 @@ export interface AuditLogEntry {
   ipAddress?: string
 }
 
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
 
 /**
  * Log an admin action to the audit trail
@@ -109,7 +104,6 @@ function getSql() {
  * })
  */
 export async function logAdminAction(entry: AuditLogEntry): Promise<void> {
-  const sql = getSql()
 
   try {
     await sql`
@@ -159,7 +153,6 @@ export async function getRecentActivity(
   }>
   total: number
 }> {
-  const sql = getSql()
 
   // For simple case, use parameterized query
   const entries = await sql`
@@ -186,19 +179,19 @@ export async function getRecentActivity(
   `
 
   return {
-    entries: entries.map(e => ({
-      id: e.id,
-      adminId: e.admin_id,
-      adminEmail: e.admin_email || 'unknown',
-      adminName: e.admin_name || 'Unknown',
+    entries: entries.map((e: Record<string, unknown>) => ({
+      id: e.id as number,
+      adminId: e.admin_id as number,
+      adminEmail: (e.admin_email as string) || 'unknown',
+      adminName: (e.admin_name as string) || 'Unknown',
       action: e.action as AuditAction,
       targetType: e.target_type as AuditTargetType | null,
-      targetId: e.target_id,
+      targetId: e.target_id as number | null,
       metadata: e.metadata as Record<string, unknown> | null,
-      ipAddress: e.ip_address,
-      createdAt: new Date(e.created_at)
+      ipAddress: e.ip_address as string | null,
+      createdAt: new Date(e.created_at as string)
     })),
-    total: parseInt(countResult.total, 10)
+    total: parseInt(countResult.total as string, 10)
   }
 }
 

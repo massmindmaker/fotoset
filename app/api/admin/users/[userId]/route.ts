@@ -2,17 +2,15 @@
  * GET /api/admin/users/[userId]
  * Get detailed user info including avatars, payments, referral data
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ userId: string }> }
@@ -29,9 +27,6 @@ export async function GET(
     if (isNaN(userIdNum)) {
       return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 })
     }
-
-    const sql = getSql()
-
     // Get basic user info (actual columns in DB)
     const [user] = await sql`
       SELECT

@@ -7,18 +7,16 @@
  * - Photo messages with caption
  * - Target: all users, users with payments, or specific user IDs
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
 import { logAdminAction } from '@/lib/admin/audit'
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 export async function POST(request: NextRequest) {
   try {
     const session = await getCurrentSession()
@@ -54,9 +52,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-
-    const sql = getSql()
-
     // Build query based on target
     let userQuery
     switch (target) {
@@ -249,9 +244,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '20', 10)
     const offset = parseInt(searchParams.get('offset') || '0', 10)
-
-    const sql = getSql()
-
     const broadcasts = await sql`
       SELECT
         b.id,

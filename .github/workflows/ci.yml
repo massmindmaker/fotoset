@@ -95,7 +95,7 @@ jobs:
           - 5432:5432
 
     env:
-      DATABASE_URL: postgresql://test:test@localhost:5432/pinglass_test
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
       NODE_ENV: test
 
     steps:

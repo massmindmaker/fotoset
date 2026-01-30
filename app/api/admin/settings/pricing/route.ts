@@ -2,9 +2,14 @@
  * GET/PUT /api/admin/settings/pricing
  * Manage pricing tiers
  */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql } from '@/lib/db'
+
 import { getCurrentSession } from '@/lib/admin/session'
 import { hasPermission } from '@/lib/admin/permissions'
 import { logAdminAction } from '@/lib/admin/audit'
@@ -22,13 +27,6 @@ export interface PricingTiers {
   standard: PricingTier
   premium: PricingTier
 }
-
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
-
 // Default pricing if not in DB
 const DEFAULT_PRICING: PricingTiers = {
   starter: { name: 'Starter', price: 499, photoCount: 7, isActive: true },
@@ -42,9 +40,6 @@ export async function GET() {
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    const sql = getSql()
-
     const [setting] = await sql`
       SELECT value, updated_at, updated_by
       FROM admin_settings
@@ -100,9 +95,6 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: `Invalid photo count for ${tierId}` }, { status: 400 })
       }
     }
-
-    const sql = getSql()
-
     // Update or insert
     await sql`
       INSERT INTO admin_settings (key, value, updated_by, updated_at)

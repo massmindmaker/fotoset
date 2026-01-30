@@ -90,7 +90,8 @@ export function buildIdentifierParams(identifier: UserIdentifier): URLSearchPara
   if (identifier.type === "telegram" && identifier.telegramUserId) {
     params.set("telegram_user_id", String(identifier.telegramUserId))
   } else if (identifier.type === "web" && identifier.neonUserId) {
-    params.set("neon_user_id", identifier.neonUserId)
+    // Use neon_auth_id (not neon_user_id) - all referral/partner APIs expect this
+    params.set("neon_auth_id", identifier.neonUserId)
   }
 
   // Always include visibleUserId as fallback

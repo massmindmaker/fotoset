@@ -1,5 +1,10 @@
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 import { NextRequest, NextResponse } from "next/server"
 import { createKieTask, checkKieTaskStatus } from "@/lib/kie"
+import { getCurrentSession } from "@/lib/admin/session"
 import type { TestPromptRequest, TestPromptResponse, TestResult } from "@/lib/admin/types"
 
 /**
@@ -30,9 +35,23 @@ import type { TestPromptRequest, TestPromptResponse, TestResult } from "@/lib/ad
 export async function POST(request: NextRequest) {
   try {
     // ========================================================================
-    // 1. AUTHENTICATION CHECK (TEMPORARILY DISABLED FOR TESTING)
+    // 1. AUTHENTICATION CHECK
     // ========================================================================
-    console.log('[API /admin/test-prompt] Admin access granted (auth disabled for testing)')
+    const session = await getCurrentSession()
+    if (!session) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required',
+            userMessage: 'Требуется авторизация',
+            retryable: false,
+          },
+        },
+        { status: 401 }
+      )
+    }
 
     // ========================================================================
     // 2. PARSE REQUEST BODY
@@ -85,8 +104,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`[API /admin/test-prompt] Generating ${body.photoCount} photos with ${body.referenceImages.length} references`)
-
     // ========================================================================
     // 3. CREATE KIE TASKS (fire-and-forget)
     // ========================================================================
@@ -123,8 +140,6 @@ export async function POST(request: NextRequest) {
       .filter((t) => t.taskId)
       .map((t) => t.taskId as string)
 
-    console.log(`[API /admin/test-prompt] Created ${taskIds.length} tasks:`, taskIds)
-
     // ========================================================================
     // 4. POLL FOR RESULTS (max 90s to stay under Cloudflare 100s limit)
     // ========================================================================
@@ -156,14 +171,10 @@ export async function POST(request: NextRequest) {
             aspectRatio: body.aspectRatio || "3:4",
           })
           pendingTaskIds.splice(i, 1)
-          console.log(`[API /admin/test-prompt] Task ${taskId} completed (${latency}ms)`)
         } else if (status.status === "failed") {
-          console.error(`[API /admin/test-prompt] Task ${taskId} failed:`, status.error)
           pendingTaskIds.splice(i, 1)
         }
       }
-
-      console.log(`[API /admin/test-prompt] Progress: ${results.length}/${taskIds.length} completed, ${pendingTaskIds.length} pending`)
     }
 
     // ========================================================================
@@ -184,21 +195,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Partial success if some tasks failed/timed out
-    if (results.length < body.photoCount) {
-      console.warn(`[API /admin/test-prompt] Partial success: ${results.length}/${body.photoCount} photos generated`)
-    }
-
-    console.log(`[API /admin/test-prompt] Success: ${results.length} photos generated`)
-
     return NextResponse.json({
       success: true,
       results,
     })
 
   } catch (error) {
-    console.error('[API /admin/test-prompt] Error:', error)
-
     const errorMsg = error instanceof Error ? error.message : 'Unknown error'
 
     return NextResponse.json(

@@ -34,6 +34,10 @@ export function PromptTesterView() {
   const promptsContext = useOptionalPromptsContext()
   const contextAvailable = promptsContext !== null
 
+  // Extract specific functions to avoid re-render issues
+  const contextSetReferenceImages = promptsContext?.setReferenceImages
+  const contextSetReferenceBase64Urls = promptsContext?.setReferenceBase64Urls
+
   const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([])
   const [testBlocks, setTestBlocks] = useState<TestBlockType[]>([
     {
@@ -64,8 +68,8 @@ export function PromptTesterView() {
       setReferenceBase64Urls(urls)
 
       // Sync to context if available
-      if (promptsContext) {
-        promptsContext.setReferenceBase64Urls(urls)
+      if (contextSetReferenceBase64Urls) {
+        contextSetReferenceBase64Urls(urls)
       }
     }
 
@@ -73,16 +77,16 @@ export function PromptTesterView() {
       convertToBase64()
     } else {
       setReferenceBase64Urls([])
-      if (promptsContext) {
-        promptsContext.setReferenceBase64Urls([])
+      if (contextSetReferenceBase64Urls) {
+        contextSetReferenceBase64Urls([])
       }
     }
 
     // Sync reference images to context
-    if (promptsContext) {
-      promptsContext.setReferenceImages(referenceImages)
+    if (contextSetReferenceImages) {
+      contextSetReferenceImages(referenceImages)
     }
-  }, [referenceImages, promptsContext])
+  }, [referenceImages, contextSetReferenceImages, contextSetReferenceBase64Urls])
 
   const addTestBlock = () => {
     const newBlock: TestBlockType = {

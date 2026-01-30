@@ -1,3 +1,7 @@
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { cancelPayment } from "@/lib/tbank"

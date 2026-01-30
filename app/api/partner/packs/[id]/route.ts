@@ -1,6 +1,42 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { getAuthenticatedUser } from "@/lib/auth-middleware"
+import { getCurrentPartnerSession } from "@/lib/partner/session"
+import { extractIdentifierFromRequest, findUserByIdentifier } from "@/lib/user-identity"
+
+/**
+ * Helper to get authenticated partner user ID
+ */
+async function getPartnerUserId(request: NextRequest): Promise<number | null> {
+  // Priority 1: Partner session cookie
+  try {
+    const sessionPromise = getCurrentPartnerSession()
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
+    const session = await Promise.race([sessionPromise, timeoutPromise])
+    if (session?.userId) {
+      return session.userId
+    }
+  } catch (e) {
+    console.error('[Partner Pack] Session check error:', e)
+  }
+
+  // Priority 2: Query params
+  const { searchParams } = new URL(request.url)
+  const telegramUserId = searchParams.get('telegram_user_id')
+  const neonUserId = searchParams.get('neon_auth_id') || searchParams.get('neon_user_id')
+
+  if (telegramUserId || neonUserId) {
+    const identifier = extractIdentifierFromRequest({
+      telegram_user_id: telegramUserId,
+      neon_auth_id: neonUserId
+    })
+    const basicUser = await findUserByIdentifier(identifier)
+    if (basicUser) {
+      return basicUser.id
+    }
+  }
+
+  return null
+}
 
 /**
  * GET /api/partner/packs/[id]
@@ -12,9 +48,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const authUser = await getAuthenticatedUser(request)
+    const userId = await getPartnerUserId(request)
 
-    if (!authUser) {
+    if (!userId) {
       return NextResponse.json(
         { error: "UNAUTHORIZED", message: "Authentication required" },
         { status: 401 }
@@ -23,7 +59,7 @@ export async function GET(
 
     // Check if user is partner
     const partnerCheck = await sql`
-      SELECT is_partner FROM referral_balances WHERE user_id = ${authUser.user.id}
+      SELECT is_partner FROM referral_balances WHERE user_id = ${userId}
     `
     if (partnerCheck.length === 0 || !partnerCheck[0].is_partner) {
       return NextResponse.json(
@@ -43,7 +79,7 @@ export async function GET(
     // Get pack and verify ownership
     const pack = await sql`
       SELECT * FROM photo_packs
-      WHERE id = ${packId} AND partner_user_id = ${authUser.user.id}
+      WHERE id = ${packId} AND partner_user_id = ${userId}
     `
 
     if (pack.length === 0) {
@@ -111,10 +147,9 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
-    const body = await request.json()
-    const authUser = await getAuthenticatedUser(request, body)
+    const userId = await getPartnerUserId(request)
 
-    if (!authUser) {
+    if (!userId) {
       return NextResponse.json(
         { error: "UNAUTHORIZED", message: "Authentication required" },
         { status: 401 }
@@ -123,7 +158,7 @@ export async function PUT(
 
     // Check if user is partner
     const partnerCheck = await sql`
-      SELECT is_partner FROM referral_balances WHERE user_id = ${authUser.user.id}
+      SELECT is_partner FROM referral_balances WHERE user_id = ${userId}
     `
     if (partnerCheck.length === 0 || !partnerCheck[0].is_partner) {
       return NextResponse.json(
@@ -143,7 +178,7 @@ export async function PUT(
     // Get pack and verify ownership
     const pack = await sql`
       SELECT * FROM photo_packs
-      WHERE id = ${packId} AND partner_user_id = ${authUser.user.id}
+      WHERE id = ${packId} AND partner_user_id = ${userId}
     `
 
     if (pack.length === 0) {
@@ -165,6 +200,7 @@ export async function PUT(
       )
     }
 
+    const body = await request.json()
     const { name, description, iconEmoji, previewImages } = body
 
     // Build update query dynamically
@@ -209,7 +245,7 @@ export async function PUT(
       RETURNING *
     `
 
-    console.log(`[Partner Pack] Updated pack #${packId} by user ${authUser.user.id}`)
+    console.log(`[Partner Pack] Updated pack #${packId} by user ${userId}`)
 
     return NextResponse.json({
       success: true,
@@ -243,9 +279,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const authUser = await getAuthenticatedUser(request)
+    const userId = await getPartnerUserId(request)
 
-    if (!authUser) {
+    if (!userId) {
       return NextResponse.json(
         { error: "UNAUTHORIZED", message: "Authentication required" },
         { status: 401 }
@@ -254,7 +290,7 @@ export async function DELETE(
 
     // Check if user is partner
     const partnerCheck = await sql`
-      SELECT is_partner FROM referral_balances WHERE user_id = ${authUser.user.id}
+      SELECT is_partner FROM referral_balances WHERE user_id = ${userId}
     `
     if (partnerCheck.length === 0 || !partnerCheck[0].is_partner) {
       return NextResponse.json(
@@ -274,7 +310,7 @@ export async function DELETE(
     // Get pack and verify ownership
     const pack = await sql`
       SELECT * FROM photo_packs
-      WHERE id = ${packId} AND partner_user_id = ${authUser.user.id}
+      WHERE id = ${packId} AND partner_user_id = ${userId}
     `
 
     if (pack.length === 0) {
@@ -300,7 +336,7 @@ export async function DELETE(
       DELETE FROM photo_packs WHERE id = ${packId}
     `
 
-    console.log(`[Partner Pack] Deleted pack #${packId} by user ${authUser.user.id}`)
+    console.log(`[Partner Pack] Deleted pack #${packId} by user ${userId}`)
 
     return NextResponse.json({
       success: true,

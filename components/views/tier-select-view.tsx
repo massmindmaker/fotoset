@@ -2,12 +2,13 @@
 
 import type React from "react"
 import { useCallback, useRef } from "react"
-import { ArrowLeft, Sparkles, CheckCircle2, Loader2, Star, Percent } from "lucide-react"
+import { ArrowLeft, Sparkles, CheckCircle2, Loader2, Star, Percent, Palette } from "lucide-react"
 import type { Persona, PricingTier } from "./types"
 import { Card, CardHeader, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useActivePack } from "@/components/hooks/useActivePack"
 
 export interface TierSelectViewProps {
   persona: Persona
@@ -19,6 +20,9 @@ export interface TierSelectViewProps {
   selectedTier: PricingTier
   onSelectTier: (tier: PricingTier) => void
   pricingTiers: PricingTier[]  // Dynamic pricing from usePricing hook
+  telegramUserId?: number  // For fetching active pack
+  neonUserId?: string  // For web users
+  onChangeStyle?: () => void  // Callback to change selected style
 }
 
 export const TierSelectView: React.FC<TierSelectViewProps> = ({
@@ -30,8 +34,14 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
   selectedTier,
   onSelectTier,
   pricingTiers,
+  telegramUserId,
+  neonUserId,
+  onChangeStyle,
 }) => {
   const radioGroupRef = useRef<HTMLDivElement>(null)
+  
+  // Fetch active pack for display
+  const { activePack, isLoading: packLoading } = useActivePack(telegramUserId, neonUserId)
 
   // Keyboard navigation for radio group (WCAG 2.1 compliant)
   const handleKeyDown = useCallback((e: React.KeyboardEvent, currentIndex: number) => {
@@ -88,9 +98,62 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
       </button>
       <div>
         <h2 className="text-lg font-semibold">Выберите пакет</h2>
-        <p className="text-sm text-muted-foreground">PINGLASS</p>
       </div>
     </div>
+    
+    {/* Selected Style Block */}
+    {activePack && (
+      <div className="p-3 bg-muted/30 rounded-xl border border-border">
+        <div className="flex items-center gap-3">
+          {/* Preview image or emoji */}
+          <div className="w-14 h-14 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+            {activePack.previewImages?.[0] ? (
+              <img 
+                src={activePack.previewImages[0]} 
+                alt={activePack.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-2xl">
+                {activePack.iconEmoji || <Palette className="w-6 h-6 text-muted-foreground" />}
+              </div>
+            )}
+          </div>
+          
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-muted-foreground">Стиль</p>
+            <p className="font-medium truncate">
+              {activePack.iconEmoji && <span className="mr-1">{activePack.iconEmoji}</span>}
+              {activePack.name}
+            </p>
+          </div>
+          
+          {/* Change button */}
+          {onChangeStyle && (
+            <button
+              onClick={onChangeStyle}
+              className="text-sm text-primary hover:underline flex-shrink-0"
+            >
+              Изменить
+            </button>
+          )}
+        </div>
+      </div>
+    )}
+    
+    {/* Loading state for pack */}
+    {packLoading && !activePack && (
+      <div className="p-3 bg-muted/30 rounded-xl border border-border animate-pulse">
+        <div className="flex items-center gap-3">
+          <div className="w-14 h-14 rounded-lg bg-muted" />
+          <div className="flex-1">
+            <div className="h-3 w-12 bg-muted rounded mb-2" />
+            <div className="h-4 w-32 bg-muted rounded" />
+          </div>
+        </div>
+      </div>
+    )}
     <div className="space-y-3" role="radiogroup" aria-label="Выберите пакет фотографий" ref={radioGroupRef}>
       {pricingTiers.map((tier, index) => (
         <Card
