@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, Loader2, AlertCircle, CheckCircle, RefreshCw, CreditCard, ToggleLeft, ToggleRight, Eye, EyeOff, Shield, TestTube, Star, Coins, Copy, Info, Wallet } from 'lucide-react'
+import { Save, Loader2, AlertCircle, CheckCircle, RefreshCw, CreditCard, ToggleLeft, ToggleRight, Eye, EyeOff, Shield, TestTube, Star, Coins, Copy, Info, Wallet, Palette } from 'lucide-react'
 import { PaymentMethodsSettings, DEFAULT_PAYMENT_METHODS } from '@/lib/admin/types'
 
 interface PricingTier {
@@ -69,6 +69,15 @@ export function SettingsView() {
   const [pmSuccess, setPmSuccess] = useState<string | null>(null)
   const [pmHasChanges, setPmHasChanges] = useState(false)
 
+  // WebApp Features settings
+  const [stylesEnabled, setStylesEnabled] = useState(false)
+  const [originalStylesEnabled, setOriginalStylesEnabled] = useState(false)
+  const [featuresLoading, setFeaturesLoading] = useState(true)
+  const [featuresSaving, setFeaturesSaving] = useState(false)
+  const [featuresError, setFeaturesError] = useState<string | null>(null)
+  const [featuresSuccess, setFeaturesSuccess] = useState<string | null>(null)
+  const [featuresHasChanges, setFeaturesHasChanges] = useState(false)
+
   const fetchPricing = async () => {
     try {
       setLoading(true)
@@ -132,10 +141,33 @@ export function SettingsView() {
     }
   }
 
+  const fetchFeatures = async () => {
+    try {
+      setFeaturesLoading(true)
+      setFeaturesError(null)
+
+      const response = await fetch('/api/admin/settings')
+      if (!response.ok) {
+        throw new Error('Failed to fetch features')
+      }
+
+      const data = await response.json()
+      const enabled = data.settings?.styles_enabled === true || data.settings?.styles_enabled === 'true'
+      setStylesEnabled(enabled)
+      setOriginalStylesEnabled(enabled)
+      setFeaturesHasChanges(false)
+    } catch (err) {
+      setFeaturesError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setFeaturesLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchPricing()
     fetchTbank()
     fetchPaymentMethods()
+    fetchFeatures()
   }, [])
 
   useEffect(() => {
@@ -152,6 +184,10 @@ export function SettingsView() {
     const changed = JSON.stringify(paymentMethods) !== JSON.stringify(originalPaymentMethods)
     setPmHasChanges(changed)
   }, [paymentMethods, originalPaymentMethods])
+
+  useEffect(() => {
+    setFeaturesHasChanges(stylesEnabled !== originalStylesEnabled)
+  }, [stylesEnabled, originalStylesEnabled])
 
   const updateTier = (tierId: keyof PricingTiers, field: keyof PricingTier, value: unknown) => {
     setPricing(prev => ({
@@ -275,6 +311,46 @@ export function SettingsView() {
     setPmError(null)
   }
 
+  // Features handlers
+  const handleFeaturesSave = async () => {
+    try {
+      setFeaturesSaving(true)
+      setFeaturesError(null)
+      setFeaturesSuccess(null)
+
+      const response = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          settings: { 
+            styles_enabled: stylesEnabled 
+          } 
+        })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to save')
+      }
+
+      setOriginalStylesEnabled(stylesEnabled)
+      setFeaturesHasChanges(false)
+      setFeaturesSuccess('Настройки функций сохранены!')
+
+      setTimeout(() => setFeaturesSuccess(null), 3000)
+    } catch (err) {
+      setFeaturesError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setFeaturesSaving(false)
+    }
+  }
+
+  const handleFeaturesReset = () => {
+    setStylesEnabled(originalStylesEnabled)
+    setFeaturesSuccess(null)
+    setFeaturesError(null)
+  }
+
   const updatePaymentMethod = <K extends keyof PaymentMethodsSettings>(
     methodId: K,
     updates: Partial<PaymentMethodsSettings[K]>
@@ -373,6 +449,115 @@ export function SettingsView() {
           <p className="text-emerald-600 text-sm">{success}</p>
         </div>
       )}
+
+      {/* WebApp Features Section */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg">
+              <ToggleRight className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-slate-800">Функции WebApp</h3>
+              <p className="text-sm text-slate-500">Управление разделами приложения</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {featuresHasChanges && (
+              <button
+                onClick={handleFeaturesReset}
+                disabled={featuresSaving}
+                className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-slate-700 transition-colors disabled:opacity-50"
+              >
+                Отменить
+              </button>
+            )}
+            <button
+              onClick={handleFeaturesSave}
+              disabled={!featuresHasChanges || featuresSaving}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-lg text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/25"
+            >
+              {featuresSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              Сохранить
+            </button>
+          </div>
+        </div>
+
+        {/* Features Alerts */}
+        {featuresError && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 mb-4">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <p className="text-red-600 text-sm">{featuresError}</p>
+          </div>
+        )}
+
+        {featuresSuccess && (
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3 mb-4">
+            <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+            <p className="text-emerald-600 text-sm">{featuresSuccess}</p>
+          </div>
+        )}
+
+        {featuresLoading ? (
+          <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
+            <p className="text-slate-500 mt-2">Загрузка настроек...</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Palette className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900">Раздел Стили</h4>
+                    <p className="text-sm text-slate-500">Выбор стилей генерации в WebApp</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setStylesEnabled(!stylesEnabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    stylesEnabled ? 'bg-purple-500' : 'bg-slate-300'
+                  }`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow ${
+                    stylesEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}/>
+                </button>
+              </div>
+              
+              {/* Status indicator */}
+              <div className={`mt-4 p-3 rounded-lg flex items-center gap-2 ${
+                stylesEnabled
+                  ? 'bg-purple-50 border border-purple-200'
+                  : 'bg-slate-50 border border-slate-200'
+              }`}>
+                {stylesEnabled ? (
+                  <>
+                    <ToggleRight className="w-4 h-4 text-purple-600" />
+                    <span className="text-sm text-purple-800">
+                      Раздел <strong>Стили</strong> доступен пользователям
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <ToggleLeft className="w-4 h-4 text-slate-500" />
+                    <span className="text-sm text-slate-600">
+                      Раздел <strong>Стили</strong> скрыт, показывается бейдж &quot;Скоро&quot;
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* Pricing Section */}
       <section>
