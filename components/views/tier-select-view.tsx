@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useActivePack } from "@/components/hooks/useActivePack"
+import { useFeatureFlags } from "@/components/hooks/useFeatureFlags"
 
 export interface TierSelectViewProps {
   persona: Persona
@@ -40,8 +41,14 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
 }) => {
   const radioGroupRef = useRef<HTMLDivElement>(null)
   
-  // Fetch active pack for display
-  const { activePack, isLoading: packLoading } = useActivePack(telegramUserId, neonUserId)
+  // Feature flags
+  const { stylesEnabled } = useFeatureFlags()
+  
+  // Fetch active pack for display (only if styles enabled)
+  const { activePack, isLoading: packLoading } = useActivePack(
+    stylesEnabled ? telegramUserId : undefined, 
+    stylesEnabled ? neonUserId : undefined
+  )
 
   // Keyboard navigation for radio group (WCAG 2.1 compliant)
   const handleKeyDown = useCallback((e: React.KeyboardEvent, currentIndex: number) => {
@@ -101,8 +108,8 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
       </div>
     </div>
     
-    {/* Selected Style Block */}
-    {activePack && (
+    {/* Selected Style Block - only show if styles feature is enabled */}
+    {stylesEnabled && activePack && (
       <div className="p-3 bg-muted/30 rounded-xl border border-border">
         <div className="flex items-center gap-3">
           {/* Preview image or emoji */}
@@ -142,8 +149,8 @@ export const TierSelectView: React.FC<TierSelectViewProps> = ({
       </div>
     )}
     
-    {/* Loading state for pack */}
-    {packLoading && !activePack && (
+    {/* Loading state for pack - only show if styles feature is enabled */}
+    {stylesEnabled && packLoading && !activePack && (
       <div className="p-3 bg-muted/30 rounded-xl border border-border animate-pulse">
         <div className="flex items-center gap-3">
           <div className="w-14 h-14 rounded-lg bg-muted" />

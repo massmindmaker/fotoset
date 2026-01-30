@@ -2,6 +2,7 @@
 
 import { User, Palette, Video } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useFeatureFlags } from './hooks/useFeatureFlags'
 
 type BottomTab = 'avatars' | 'styles' | 'video'
 
@@ -18,12 +19,6 @@ interface TabConfig {
   badge?: string
 }
 
-const tabs: TabConfig[] = [
-  { id: 'avatars', label: 'Аватары', icon: User },
-  { id: 'styles', label: 'Стили', icon: Palette },
-  { id: 'video', label: 'Видео', icon: Video, disabled: true, badge: 'Скоро' },
-]
-
 function triggerHaptic() {
   if (typeof window !== 'undefined') {
     const tg = (window as Window & { Telegram?: { WebApp?: { HapticFeedback?: { impactOccurred: (style: string) => void } } } }).Telegram
@@ -32,6 +27,15 @@ function triggerHaptic() {
 }
 
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
+  const { stylesEnabled } = useFeatureFlags()
+  
+  // Build tabs dynamically based on feature flags
+  const tabs: TabConfig[] = [
+    { id: 'avatars', label: 'Аватары', icon: User },
+    { id: 'styles', label: 'Стили', icon: Palette, disabled: !stylesEnabled, badge: !stylesEnabled ? 'Скоро' : undefined },
+    { id: 'video', label: 'Видео', icon: Video, disabled: true, badge: 'Скоро' },
+  ]
+
   const handleTabClick = (tab: TabConfig) => {
     if (tab.disabled) return
     triggerHaptic()
